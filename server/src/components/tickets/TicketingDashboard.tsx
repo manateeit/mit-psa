@@ -213,50 +213,42 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
         <Button onClick={() => setIsQuickAddOpen(true)}>Add Ticket</Button>
       </div>
       <div className="bg-white shadow rounded-lg p-4">
-        <div className="flex flex-wrap gap-4 mb-4">
-          <div className="w-64">
-            <ChannelPicker
-              channels={channels}
-              onSelect={handleChannelSelect}
-              selectedChannelId={selectedChannel}
-              filterState={channelFilterState}
-              onFilterStateChange={setChannelFilterState}
-            />
-          </div>
-          <div className="w-64">
-            <CustomSelect
-              options={statusOptions}
-              value={selectedStatus}
-              onValueChange={(value) => setSelectedStatus(value)}
-              placeholder="All Statuses"
-            />
-          </div>
-          <div className="w-64">
-            <CustomSelect
-              options={priorityOptions}
-              value={selectedPriority}
-              onValueChange={(value) => setSelectedPriority(value)}
-              placeholder="All Priorities"
-            />
-          </div>
-      <div className="w-64">
-        <CategoryPicker
-          categories={categories}
-          selectedCategories={selectedCategories}
-          onSelect={handleCategorySelect}
-          placeholder="Filter by category"
-          multiSelect={true}
+        <div className="flex items-center gap-3">
+          <ChannelPicker
+            channels={channels}
+            onSelect={handleChannelSelect}
+            selectedChannelId={selectedChannel}
+            filterState={channelFilterState}
+            onFilterStateChange={setChannelFilterState}
           />
-          </div>
+          <CustomSelect
+            options={statusOptions}
+            value={selectedStatus}
+            onValueChange={(value) => setSelectedStatus(value)}
+            placeholder="All Statuses"
+          />
+          <CustomSelect
+            options={priorityOptions}
+            value={selectedPriority}
+            onValueChange={(value) => setSelectedPriority(value)}
+            placeholder="All Priorities"
+          />
+          <CategoryPicker
+            categories={categories}
+            selectedCategories={selectedCategories}
+            onSelect={handleCategorySelect}
+            placeholder="Filter by category"
+            multiSelect={true}
+          />
           <input
             type="text"
             placeholder="Search tickets..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="border rounded px-2 py-1"
+            className="h-[38px] border rounded px-3 py-2 text-sm min-w-[200px]"
           />
         </div>
-        <h2 className="text-xl font-semibold mb-2">Tickets</h2>
+        <h2 className="text-xl font-semibold mt-6 mb-2">Tickets</h2>
         {isLoading ? (
           <div className="flex justify-center items-center h-32">
             <span>Loading...</span>
@@ -265,7 +257,7 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
           <DataTable
             data={filteredTickets}
             columns={columns}
-        />
+          />
         )}
       </div>
       <QuickAddTicket
