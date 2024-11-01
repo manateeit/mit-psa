@@ -36,7 +36,7 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
   const childCategories = categories.filter(c => c.parent_category);
   const categoryMap = new Map<string, ITicketCategory[]>();
   
-  childCategories.forEach(child => {
+  childCategories.forEach((child: ITicketCategory): void => {
     if (!categoryMap.has(child.parent_category!)) {
       categoryMap.set(child.parent_category!, []);
     }
@@ -48,7 +48,7 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
     if (!query) return parentCategories;
 
     const lowercaseQuery = query.toLowerCase();
-    const matchingParents = parentCategories.filter(parent =>
+    const matchingParents = parentCategories.filter((parent: ITicketCategory): boolean =>
       parent.category_name.toLowerCase().includes(lowercaseQuery)
     );
 
@@ -57,7 +57,7 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
     );
 
     // Include parents of matching children
-    const parentsOfMatches = new Set(matchingChildren.map(child => child.parent_category));
+    const parentsOfMatches = new Set(matchingChildren.map((child: ITicketCategory): string => child.parent_category!));
     const additionalParents = parentCategories.filter(parent =>
       parentsOfMatches.has(parent.category_id)
     );
@@ -66,7 +66,7 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
   };
 
   const getSelectedCategoryNames = () => {
-    return selectedCategories.map(categoryId => {
+    return selectedCategories.map((categoryId: string): string => {
       const category = categories.find(c => c.category_id === categoryId);
       if (!category) return '';
       
@@ -97,7 +97,7 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
       >
         <div className="flex-1 flex flex-wrap gap-2">
           {selectedCategories.length > 0 ? (
-            getSelectedCategoryNames().map((name, index) => (
+            getSelectedCategoryNames().map((name: string, index: number): JSX.Element => (
               <div key={selectedCategories[index]} className="bg-gray-100 rounded-md px-2 py-1 text-sm flex items-center gap-1">
                 {name}
                 <X 
@@ -130,7 +130,7 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
               />
             </div>
             <div className="max-h-64 overflow-y-auto">
-              {filterCategories(searchQuery).map(parent => (
+              {filterCategories(searchQuery).map((parent: ITicketCategory): JSX.Element => (
                 <div key={parent.category_id}>
                   <div
                     className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer rounded"
@@ -158,7 +158,7 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
                       />
                     )}
                   </div>
-                  {activeParent === parent.category_id && categoryMap.get(parent.category_id)?.map(child => (
+                  {activeParent === parent.category_id && categoryMap.get(parent.category_id)?.map((child: ITicketCategory): JSX.Element => (
                     <div
                       key={child.category_id}
                       className="flex items-center px-6 py-2 hover:bg-gray-100 cursor-pointer rounded"

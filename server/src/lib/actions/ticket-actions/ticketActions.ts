@@ -189,11 +189,13 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
         's.name as status_name',
         'p.priority_name',
         'c.channel_name',
+        'cat.category_name',
         db.raw("CONCAT(u.first_name, ' ', u.last_name) as entered_by_name")
       )
       .leftJoin('statuses as s', 't.status_id', 's.status_id')
       .leftJoin('priorities as p', 't.priority_id', 'p.priority_id')
       .leftJoin('channels as c', 't.channel_id', 'c.channel_id')
+      .leftJoin('categories as cat', 't.category_id', 'cat.category_id')
       .leftJoin('users as u', 't.entered_by', 'u.user_id')
       .where('t.tenant', tenant);
 
@@ -217,6 +219,10 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
       query = query.where('t.priority_id', validatedFilters.priorityId);
     }
 
+    if (validatedFilters.categoryId && validatedFilters.categoryId !== 'all') {
+      query = query.where('t.category_id', validatedFilters.categoryId);
+    }
+
     if (validatedFilters.searchQuery) {
       const searchTerm = `%${validatedFilters.searchQuery}%`;
       query = query.where(function() {
@@ -228,13 +234,35 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
     const tickets = await query.orderBy('t.entered_at', 'desc');
 
     // Transform and validate the data
-    const ticketListItems = tickets.map((ticket): ITicketListItem => ({
-      ...convertDates(ticket),
-      status_name: ticket.status_name || 'Unknown',
-      priority_name: ticket.priority_name || 'Unknown',
-      channel_name: ticket.channel_name || 'Unknown',
-      entered_by_name: ticket.entered_by_name || 'Unknown'
-    }));
+    const ticketListItems = tickets.map((ticket): ITicketListItem => {
+      const {
+        status_id,
+        priority_id,
+        channel_id,
+        category_id,
+        entered_by,
+        status_name,
+        priority_name,
+        channel_name,
+        category_name,
+        entered_by_name,
+        ...rest
+      } = ticket;
+
+      return {
+        ...convertDates(rest),
+        status_id: status_id || null,
+        priority_id: priority_id || null,
+        channel_id: channel_id || null,
+        category_id: category_id || null,
+        entered_by: entered_by || null,
+        status_name: status_name || 'Unknown',
+        priority_name: priority_name || 'Unknown',
+        channel_name: channel_name || 'Unknown',
+        category_name: category_name || 'Unknown',
+        entered_by_name: entered_by_name || 'Unknown'
+      };
+    });
 
     return validateData(z.array(ticketListItemSchema), ticketListItems);
   } catch (error) {
