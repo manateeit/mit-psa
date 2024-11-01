@@ -1,4 +1,4 @@
-// server/src/components/TicketingDashboard.tsx
+// server/src/components/tickets/TicketingDashboard.tsx
 'use client'
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ITicket, ITicketListItem, ITicketCategory } from '@/interfaces/ticket.interfaces';
 import { IUser } from '@/interfaces/auth.interfaces';
 import { QuickAddTicket } from './QuickAddTicket';
+import { CategoryPicker } from './CategoryPicker';
 import CustomSelect from '../ui/CustomSelect';
 import { Button } from '../ui/Button';
 import { getAllChannels } from '@/lib/actions/channel-actions/channelActions';
@@ -75,20 +76,20 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
 
 const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets, user }) => {
   const [tickets, setTickets] = useState<ITicketListItem[]>(initialTickets);
+  const [filteredTickets, setFilteredTickets] = useState<ITicketListItem[]>(initialTickets);
   const [channels, setChannels] = useState<IChannel[]>([]);
   const [categories, setCategories] = useState<ITicketCategory[]>([]);
   const [statusOptions, setStatusOptions] = useState<SelectOption[]>([]);
   const [priorityOptions, setPriorityOptions] = useState<SelectOption[]>([]);
-  const [categoryOptions, setCategoryOptions] = useState<SelectOption[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [channelFilterState, setChannelFilterState] = useState<'active' | 'inactive' | 'all'>('active');
   const [isLoading, setIsLoading] = useState(false);
-
+  
   // Create columns with categories data
   const columns = useMemo(() => createTicketColumns(categories), [categories]);
 
@@ -110,7 +111,6 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
         channelId: selectedChannel,
         statusId: selectedStatus,
         priorityId: selectedPriority,
-        categoryId: selectedCategory === 'all' ? undefined : selectedCategory,
         searchQuery,
         channelFilterState
       });
@@ -125,7 +125,20 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
         setIsLoading(false);
       }
     }
-  }, [user, selectedChannel, selectedStatus, selectedPriority, selectedCategory, searchQuery, channelFilterState]);
+  }, [user, selectedChannel, selectedStatus, selectedPriority, searchQuery, channelFilterState]);
+
+  // Filter tickets based on selected categories
+  useEffect(() => {
+    let filtered = [...tickets];
+    
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(ticket => 
+        ticket.category_id && selectedCategories.includes(ticket.category_id)
+      );
+    }
+
+    setFilteredTickets(filtered);
+  }, [tickets, selectedCategories]);
 
   useEffect(() => {
     let isMounted = true;
@@ -154,41 +167,6 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
             label: priority.priority_name 
           }))
         ]);
-
-        // Build category options with hierarchy
-        const topLevelCategories = fetchedCategories.filter(c => !c.parent_category);
-        const categoryMap = new Map<string, ITicketCategory[]>();
-        
-        fetchedCategories.forEach(category => {
-          if (category.parent_category) {
-            if (!categoryMap.has(category.parent_category)) {
-              categoryMap.set(category.parent_category, []);
-            }
-            categoryMap.get(category.parent_category)?.push(category);
-          }
-        });
-
-        const options: SelectOption[] = [
-          { value: 'all', label: 'All Categories' },
-          { value: 'none', label: 'No Category' }
-        ];
-
-        topLevelCategories.forEach(category => {
-          options.push({
-            value: category.category_id,
-            label: category.category_name
-          });
-
-          const subcategories = categoryMap.get(category.category_id) || [];
-          subcategories.forEach(subcategory => {
-            options.push({
-              value: subcategory.category_id,
-              label: `↳ ${subcategory.category_name}`
-            });
-          });
-        });
-
-        setCategoryOptions(options);
 
       } catch (error) {
         if (!isMounted) return;
@@ -219,10 +197,14 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
     };    
   }, [fetchTickets]);
 
-  const handleChannelSelect = useCallback((channelId: string) => {
-    setSelectedChannel(channelId);
-    setChannelFilterState('all');
-  }, []);
+    const handleChannelSelect = useCallback((channelId: string) => {
+      setSelectedChannel(channelId);
+      setChannelFilterState('all');
+    }, []);
+
+  const handleCategorySelect = (categoryIds: string[]) => {
+    setSelectedCategories(categoryIds);
+  };
 
   return (
     <div>
@@ -241,24 +223,30 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
               onFilterStateChange={setChannelFilterState}
             />
           </div>
-          <CustomSelect
-            options={statusOptions}
-            value={selectedStatus}
-            onValueChange={(value) => setSelectedStatus(value)}
-            placeholder="All Statuses"
-          />
-          <CustomSelect
-            options={priorityOptions}
-            value={selectedPriority}
-            onValueChange={(value) => setSelectedPriority(value)}
-            placeholder="All Priorities"
-          />
-          <CustomSelect
-            options={categoryOptions}
-            value={selectedCategory}
-            onValueChange={(value) => setSelectedCategory(value)}
-            placeholder="All Categories"
-          />
+          <div className="w-64">
+            <CustomSelect
+              options={statusOptions}
+              value={selectedStatus}
+              onValueChange={(value) => setSelectedStatus(value)}
+              placeholder="All Statuses"
+            />
+          </div>
+          <div className="w-64">
+            <CustomSelect
+              options={priorityOptions}
+              value={selectedPriority}
+              onValueChange={(value) => setSelectedPriority(value)}
+              placeholder="All Priorities"
+            />
+          </div>
+      <div className="w-64">
+        <CategoryPicker
+          categories={categories}
+          selectedCategories={selectedCategories}
+          onSelect={handleCategorySelect}
+          placeholder="Filter by category"
+        />
+          </div>
           <input
             type="text"
             placeholder="Search tickets..."
@@ -274,7 +262,7 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
           </div>
         ) : (
           <DataTable
-            data={tickets}
+            data={filteredTickets}
             columns={columns}
           />
         )}
@@ -286,6 +274,6 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
       />
     </div>
   );
-}
+};
 
 export default TicketingDashboard;
