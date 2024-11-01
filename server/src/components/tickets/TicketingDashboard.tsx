@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { ITicket, ITicketListItem } from '@/interfaces/ticket.interfaces';
+import { ITicket, ITicketListItem, ITicketCategory } from '@/interfaces/ticket.interfaces';
 import { IUser } from '@/interfaces/auth.interfaces';
 import { QuickAddTicket } from './QuickAddTicket';
 import CustomSelect from '../ui/CustomSelect';
@@ -12,6 +12,7 @@ import { getAllChannels } from '@/lib/actions/channel-actions/channelActions';
 import { getTicketStatuses } from '@/lib/actions/status-actions/statusActions';
 import { getAllPriorities } from '@/lib/actions/priorityActions';
 import { getAllUsers } from '@/lib/actions/user-actions/userActions';
+import { getTicketCategories } from '@/lib/actions/ticketCategoryActions';
 import { ChannelPicker } from '@/components/settings/general/ChannelPicker';
 import { IChannel } from '@/interfaces';
 import { SelectOption } from '../ui/Select';
@@ -25,7 +26,7 @@ interface TicketingDashboardProps {
 }
 
 // Define columns outside component to ensure stable references
-const createTicketColumns = (): ColumnDefinition<ITicketListItem>[] => [
+const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<ITicketListItem>[] => [
   {
     title: 'Ticket Number',
     dataIndex: 'ticket_number',
@@ -52,6 +53,21 @@ const createTicketColumns = (): ColumnDefinition<ITicketListItem>[] => [
     dataIndex: 'channel_name',
   },
   {
+    title: 'Category',
+    dataIndex: 'category_id',
+    render: (value: string) => {
+      if (!value) return 'No Category';
+      const category = categories.find(c => c.category_id === value);
+      if (!category) return 'Unknown Category';
+      
+      if (category.parent_category) {
+        const parent = categories.find(c => c.category_id === category.parent_category);
+        return parent ? `${parent.category_name} → ${category.category_name}` : category.category_name;
+      }
+      return category.category_name;
+    },
+  },
+  {
     title: 'Created By',
     dataIndex: 'entered_by_name',
   },
@@ -60,41 +76,45 @@ const createTicketColumns = (): ColumnDefinition<ITicketListItem>[] => [
 const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets, user }) => {
   const [tickets, setTickets] = useState<ITicketListItem[]>(initialTickets);
   const [channels, setChannels] = useState<IChannel[]>([]);
+  const [categories, setCategories] = useState<ITicketCategory[]>([]);
   const [statusOptions, setStatusOptions] = useState<SelectOption[]>([]);
   const [priorityOptions, setPriorityOptions] = useState<SelectOption[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<SelectOption[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [channelFilterState, setChannelFilterState] = useState<'active' | 'inactive' | 'all'>('active');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Create stable columns reference
-  const columns = useMemo(() => createTicketColumns(), []);
+  // Create columns with categories data
+  const columns = useMemo(() => createTicketColumns(categories), [categories]);
 
   const fetchOptions = useCallback(async () => {
     return Promise.all([
       getAllChannels(),
       getTicketStatuses(),
       getAllPriorities(),
-      getAllUsers()
+      getAllUsers(),
+      getTicketCategories()
     ]);
   }, []);
 
-  // Update the fetchTickets function to accept the subscription flag
+  // Update the fetchTickets function to include category filtering
   const fetchTickets = useCallback(async (isSubscribed: boolean) => {
     setIsLoading(true);
     try {
       const tickets = await getTicketsForList(user, {
         channelId: selectedChannel,
         statusId: selectedStatus,
-        priorityId: selectedPriority, 
+        priorityId: selectedPriority,
+        categoryId: selectedCategory === 'all' ? undefined : selectedCategory,
         searchQuery,
         channelFilterState
       });
       
-      // Only update state if still subscribed
       if (isSubscribed) {
         setTickets(tickets);
         setIsLoading(false);
@@ -105,18 +125,20 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
         setIsLoading(false);
       }
     }
-  }, [user, selectedChannel, selectedStatus, selectedPriority, searchQuery, channelFilterState]);
+  }, [user, selectedChannel, selectedStatus, selectedPriority, selectedCategory, searchQuery, channelFilterState]);
 
   useEffect(() => {
     let isMounted = true;
 
     (async () => {
       try {
-        const [fetchedChannels, statuses, priorities] = await fetchOptions();
+        const [fetchedChannels, statuses, priorities, _, fetchedCategories] = await fetchOptions();
 
         if (!isMounted) return;
 
         setChannels(fetchedChannels);
+        setCategories(fetchedCategories);
+
         setStatusOptions([
           { value: 'all', label: 'All Statuses' },
           ...statuses.map((status): SelectOption => ({ 
@@ -124,6 +146,7 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
             label: status.name ?? "" 
           }))
         ]);
+
         setPriorityOptions([
           { value: 'all', label: 'All Priorities' },
           ...priorities.map((priority): SelectOption => ({ 
@@ -131,6 +154,41 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
             label: priority.priority_name 
           }))
         ]);
+
+        // Build category options with hierarchy
+        const topLevelCategories = fetchedCategories.filter(c => !c.parent_category);
+        const categoryMap = new Map<string, ITicketCategory[]>();
+        
+        fetchedCategories.forEach(category => {
+          if (category.parent_category) {
+            if (!categoryMap.has(category.parent_category)) {
+              categoryMap.set(category.parent_category, []);
+            }
+            categoryMap.get(category.parent_category)?.push(category);
+          }
+        });
+
+        const options: SelectOption[] = [
+          { value: 'all', label: 'All Categories' },
+          { value: 'none', label: 'No Category' }
+        ];
+
+        topLevelCategories.forEach(category => {
+          options.push({
+            value: category.category_id,
+            label: category.category_name
+          });
+
+          const subcategories = categoryMap.get(category.category_id) || [];
+          subcategories.forEach(subcategory => {
+            options.push({
+              value: subcategory.category_id,
+              label: `↳ ${subcategory.category_name}`
+            });
+          });
+        });
+
+        setCategoryOptions(options);
 
       } catch (error) {
         if (!isMounted) return;
@@ -146,13 +204,7 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
   // Fetch tickets when filters change
   useEffect(() => {
     let isSubscribed = true;
-
-    const fetchData = async () => {
-      await fetchTickets(isSubscribed);
-    };
-
-    fetchData();
-
+    fetchTickets(isSubscribed);
     return () => {
       isSubscribed = false;
     };
@@ -160,10 +212,8 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
 
   const handleTicketAdded = useCallback((_ticket: ITicket) => {
     let isSubscribed = true;
-    
     fetchTickets(isSubscribed);
     setIsQuickAddOpen(false);
-    
     return () => {
       isSubscribed = false;
     };    
@@ -202,6 +252,12 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
             value={selectedPriority}
             onValueChange={(value) => setSelectedPriority(value)}
             placeholder="All Priorities"
+          />
+          <CustomSelect
+            options={categoryOptions}
+            value={selectedCategory}
+            onValueChange={(value) => setSelectedCategory(value)}
+            placeholder="All Categories"
           />
           <input
             type="text"

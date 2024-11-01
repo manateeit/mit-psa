@@ -22,14 +22,16 @@ export interface ITicket extends TenantEntity {
   priority_id: string;
 }
 
-export interface ITicketListItem extends Omit<ITicket, 'status_id' | 'priority_id' | 'channel_id' | 'entered_by'> {
+export interface ITicketListItem extends Omit<ITicket, 'status_id' | 'priority_id' | 'channel_id' | 'entered_by' | 'category_id'> {
   status_id: string | null;
   priority_id: string | null;
   channel_id: string | null;
+  category_id: string | null;
   entered_by: string | null;
   status_name: string;
   priority_name: string;
   channel_name: string;
+  category_name: string;
   entered_by_name: string;
 }
 
@@ -37,6 +39,7 @@ export interface ITicketListFilters {
   channelId?: string;
   statusId?: string;
   priorityId?: string;
+  categoryId?: string;
   searchQuery?: string;
   channelFilterState: 'active' | 'inactive' | 'all';
 }
