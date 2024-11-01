@@ -245,7 +245,8 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
           selectedCategories={selectedCategories}
           onSelect={handleCategorySelect}
           placeholder="Filter by category"
-        />
+          multiSelect={true}
+          />
           </div>
           <input
             type="text"
@@ -264,7 +265,7 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
           <DataTable
             data={filteredTickets}
             columns={columns}
-          />
+        />
         )}
       </div>
       <QuickAddTicket

@@ -13,7 +13,7 @@ interface TicketInfoProps {
   agentOptions: { value: string; label: string }[];
   channelOptions: { value: string; label: string }[];
   priorityOptions: { value: string; label: string }[];
-  onSelectChange: (field: keyof ITicket, newValue: string) => void;
+  onSelectChange: (field: keyof ITicket, newValue: string | null) => void;
 }
 
 const TicketInfo: React.FC<TicketInfoProps> = ({
@@ -49,8 +49,9 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
   // Handle category change with channel sync
   const handleCategoryChange = (categoryIds: string[]) => {
     if (categoryIds.length === 0) {
-      // If no category selected, clear the category
-      onSelectChange('category_id', '');
+      // If no category selected, clear both category and subcategory
+      onSelectChange('category_id', null);
+      onSelectChange('subcategory_id', null);
       return;
     }
 
@@ -62,13 +63,28 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
       return;
     }
 
-    // Update the category_id
-    onSelectChange('category_id', selectedCategoryId);
+    if (selectedCategory.parent_category) {
+      // If it's a subcategory, set both parent and subcategory
+      onSelectChange('category_id', selectedCategory.parent_category);
+      onSelectChange('subcategory_id', selectedCategoryId);
+    } else {
+      // If it's a parent category, set only category_id and clear subcategory
+      onSelectChange('category_id', selectedCategoryId);
+      onSelectChange('subcategory_id', null);
+    }
 
-    // If the category has a channel, update the channel_id
+    // Update channel if the selected category has one
     if (selectedCategory.channel_id && selectedCategory.channel_id !== ticket.channel_id) {
       onSelectChange('channel_id', selectedCategory.channel_id);
     }
+  };
+
+  // Get the currently selected category ID based on whether we have a subcategory
+  const getSelectedCategoryId = () => {
+    if (ticket.subcategory_id) {
+      return ticket.subcategory_id;
+    }
+    return ticket.category_id || '';
   };
 
   return (
@@ -107,7 +123,7 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
             <div className="relative">
               <CategoryPicker
                 categories={categories}
-                selectedCategories={ticket.category_id ? [ticket.category_id] : []}
+                selectedCategories={[getSelectedCategoryId()]}
                 onSelect={handleCategoryChange}
                 placeholder="Select a category..."
               />

@@ -7,13 +7,15 @@ interface CategoryPickerProps {
   selectedCategories: string[];
   onSelect: (categoryIds: string[]) => void;
   placeholder?: string;
+  multiSelect?: boolean;
 }
 
 export const CategoryPicker: React.FC<CategoryPickerProps> = ({
   categories,
   selectedCategories,
   onSelect,
-  placeholder = 'Select categories...'
+  placeholder = 'Select categories...',
+  multiSelect = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,23 +81,28 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
   };
 
   const handleCategorySelect = (categoryId: string) => {
-    // Find the selected category
     const category = categories.find(c => c.category_id === categoryId);
     if (!category) return;
 
-    // If it's a subcategory, include both parent and child
-    if (category.parent_category) {
-      onSelect([categoryId]);
+    if (multiSelect) {
+      // For filtering: allow multiple selections
+      const newSelection = selectedCategories.includes(categoryId)
+        ? selectedCategories.filter(id => id !== categoryId)
+        : [...selectedCategories, categoryId];
+      onSelect(newSelection);
     } else {
-      // If it's a parent category, just select that one
+      // For ticket assignment: single selection
       onSelect([categoryId]);
+      setIsOpen(false);
     }
-    
-    setIsOpen(false);
   };
 
   const handleRemoveCategory = (categoryId: string) => {
-    onSelect([]);
+    if (multiSelect) {
+      onSelect(selectedCategories.filter(id => id !== categoryId));
+    } else {
+      onSelect([]);
+    }
   };
 
   return (
@@ -144,10 +151,10 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
                   <div
                     className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer rounded"
                     onClick={() => {
-                      if (categoryMap.has(parent.category_id)) {
-                        setActiveParent(activeParent === parent.category_id ? null : parent.category_id);
-                      } else {
+                      if (!categoryMap.has(parent.category_id)) {
                         handleCategorySelect(parent.category_id);
+                      } else {
+                        setActiveParent(activeParent === parent.category_id ? null : parent.category_id);
                       }
                     }}
                   >

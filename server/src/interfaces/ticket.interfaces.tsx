@@ -11,6 +11,7 @@ export interface ITicket extends TenantEntity {
   contact_name_id: string | null;
   status_id: string;
   category_id: string | null;
+  subcategory_id: string | null;
   entered_by: string;
   updated_by: string | null;
   closed_by: string | null;
@@ -22,11 +23,12 @@ export interface ITicket extends TenantEntity {
   priority_id: string;
 }
 
-export interface ITicketListItem extends Omit<ITicket, 'status_id' | 'priority_id' | 'channel_id' | 'entered_by' | 'category_id'> {
+export interface ITicketListItem extends Omit<ITicket, 'status_id' | 'priority_id' | 'channel_id' | 'entered_by' | 'category_id' | 'subcategory_id'> {
   status_id: string | null;
   priority_id: string | null;
   channel_id: string | null;
   category_id: string | null;
+  subcategory_id: string | null;
   entered_by: string | null;
   status_name: string;
   priority_name: string;

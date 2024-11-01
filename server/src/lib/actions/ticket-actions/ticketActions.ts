@@ -137,9 +137,41 @@ export async function updateTicket(id: string, data: Partial<ITicket>, user: IUs
       throw new Error('Tenant not found');
     }
 
+    // Clean up the data before update
+    const updateData = { ...validatedData };
+    
+    // Handle null values for category and subcategory
+    if ('category_id' in updateData && !updateData.category_id) {
+      updateData.category_id = null;
+    }
+    if ('subcategory_id' in updateData && !updateData.subcategory_id) {
+      updateData.subcategory_id = null;
+    }
+
+    // If updating category or subcategory, ensure they are compatible
+    if ('subcategory_id' in updateData || 'category_id' in updateData) {
+      const currentTicket = await db('tickets')
+        .where({ ticket_id: id, tenant: tenant })
+        .first();
+
+      const newSubcategoryId = updateData.subcategory_id;
+      const newCategoryId = updateData.category_id || currentTicket?.category_id;
+
+      if (newSubcategoryId) {
+        // If setting a subcategory, verify it's a valid child of the category
+        const subcategory = await db('categories')
+          .where({ category_id: newSubcategoryId, tenant: tenant })
+          .first();
+
+        if (subcategory && subcategory.parent_category !== newCategoryId) {
+          throw new Error('Invalid category combination: subcategory must belong to the selected parent category');
+        }
+      }
+    }
+
     const [updatedTicket] = await db('tickets')
       .where({ ticket_id: id, tenant: tenant })
-      .update(validatedData)
+      .update(updateData)
       .returning('*');
 
     if (!updatedTicket) {
