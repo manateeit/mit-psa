@@ -66,10 +66,10 @@ export const ChannelPicker: React.FC<ChannelPickerProps> = ({
     <div className="relative">
       <button
         onClick={() => setIsOpen(true)}
-        className="w-full p-2 border rounded flex justify-between items-center bg-white text-left"
+        className="w-full min-h-[38px] px-3 py-2 border rounded-lg flex justify-between items-center bg-white text-left text-sm"
       >
         <span>{getButtonLabel()}</span>
-        <ChevronDownIcon />
+        <ChevronDownIcon className="w-4 h-4 text-gray-400 ml-2" />
       </button>
 
       <Dialog isOpen={isOpen} onClose={() => setIsOpen(false)}>
