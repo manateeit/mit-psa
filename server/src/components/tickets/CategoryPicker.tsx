@@ -79,20 +79,29 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
   };
 
   const handleCategorySelect = (categoryId: string) => {
-    const newSelection = selectedCategories.includes(categoryId)
-      ? selectedCategories.filter(id => id !== categoryId)
-      : [...selectedCategories, categoryId];
-    onSelect(newSelection);
+    // Find the selected category
+    const category = categories.find(c => c.category_id === categoryId);
+    if (!category) return;
+
+    // If it's a subcategory, include both parent and child
+    if (category.parent_category) {
+      onSelect([categoryId]);
+    } else {
+      // If it's a parent category, just select that one
+      onSelect([categoryId]);
+    }
+    
+    setIsOpen(false);
   };
 
   const handleRemoveCategory = (categoryId: string) => {
-    onSelect(selectedCategories.filter(id => id !== categoryId));
+    onSelect([]);
   };
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className="relative inline-block min-w-[200px]" ref={containerRef}>
       <div 
-        className="flex items-center justify-between border rounded-lg p-2 bg-white cursor-pointer min-h-[38px]"
+        className="flex items-center justify-between border rounded-lg p-2 bg-white cursor-pointer min-h-[38px] hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="flex-1 flex flex-wrap gap-2">
@@ -113,11 +122,11 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
             <span className="text-gray-500 text-sm">{placeholder}</span>
           )}
         </div>
-        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'transform rotate-180' : ''} ml-2`} />
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg">
+        <div className="absolute z-50 w-[300px] mt-1 bg-white border rounded-md shadow-lg">
           <div className="p-2">
             <div className="flex items-center border rounded px-2 py-1 mb-2">
               <input
@@ -137,6 +146,8 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
                     onClick={() => {
                       if (categoryMap.has(parent.category_id)) {
                         setActiveParent(activeParent === parent.category_id ? null : parent.category_id);
+                      } else {
+                        handleCategorySelect(parent.category_id);
                       }
                     }}
                   >
