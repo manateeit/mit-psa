@@ -1,0 +1,93 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable no-undef */
+const { Client } = require('pg');
+
+require('dotenv').config('.env.localtest');
+
+const MAX_RETRIES = 5;
+const INITIAL_RETRY_DELAY = 1000; // 1 second
+
+async function createDatabase(retryCount = 0) {
+  const client = new Client({
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    user: process.env.DB_USER_ADMIN,
+    password: process.env.DB_PASSWORD_ADMIN,
+    database: 'postgres' // Connect to the default postgres database
+  });
+
+  try {
+    await client.connect();
+
+    // Check if the database already exists
+    const dbCheckResult = await client.query(
+      "SELECT 1 FROM pg_database WHERE datname = $1",
+      [process.env.DB_NAME_SERVER]
+    );
+
+    if (dbCheckResult.rows.length > 0) {
+      console.log(`Database ${process.env.DB_NAME_SERVER} already exists. Skipping creation.`);
+    } else {
+      // Create database if it doesn't exist
+      await client.query(`CREATE DATABASE ${process.env.DB_NAME_SERVER}`);
+      console.log(`Database ${process.env.DB_NAME_SERVER} created successfully.`);
+    }
+
+    // Check if the user already exists
+    const userCheckResult = await client.query(
+      "SELECT 1 FROM pg_roles WHERE rolname = $1",
+      [process.env.DB_USER_SERVER]
+    );
+
+    if (userCheckResult.rows.length > 0) {
+      console.log(`User ${process.env.DB_USER_SERVER} already exists. Skipping creation.`);
+    } else {
+      // Create the user
+      await client.query(`CREATE USER ${process.env.DB_USER_SERVER} WITH PASSWORD '${process.env.DB_PASSWORD_SERVER}'`);
+      console.log(`User ${process.env.DB_USER_SERVER} created successfully.`);
+    }
+
+    // Connect to the newly created database to create extensions
+    const appDb = new Client({
+      user: process.env.DB_USER_ADMIN,
+      password: process.env.DB_PASSWORD_ADMIN,
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      database: process.env.DB_NAME_SERVER
+    });
+
+    await appDb.connect();
+
+    // Create extensions required for EE
+    await appDb.query(`
+      CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+      CREATE EXTENSION IF NOT EXISTS "vector";
+    `);
+
+    console.log('Database extensions created successfully');
+
+    // Set environment and grant privileges
+    await client.query(`ALTER DATABASE ${process.env.DB_NAME_SERVER} SET app.environment = '${process.env.APP_ENV}'`);
+    await client.query(`GRANT ALL PRIVILEGES ON DATABASE ${process.env.DB_NAME_SERVER} TO ${process.env.DB_USER_SERVER}`);
+    
+    console.log('Enterprise database setup completed successfully');
+
+    await appDb.end();
+  } catch (err) {
+    console.error('Error during database setup:', err);
+    
+    if (retryCount < MAX_RETRIES) {
+      const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount);
+      console.log(`Retrying in ${delay / 1000} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      await createDatabase(retryCount + 1);
+    } else {
+      console.error('Max retries reached. Database setup failed.');
+      process.exit(1);
+    }
+  } finally {
+    await client.end();
+  }
+}
+
+createDatabase();

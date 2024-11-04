@@ -1,0 +1,54 @@
+# Version control
+.git
+.gitignore
+
+# Node.js dependencies
+node_modules
+npm-debug.log
+
+# Build outputs
+dist
+build
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Logs
+logs
+*.log
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.idea
+.vscode
+*.swp
+*.swo
+
+# Testing
+coverage
+
+# Temporary files
+tmp
+temp
+
+# Volume directories
+volumes
+
+# Other common directories to ignore
+docs
+tests
+
+*draft*
+.next
+node_modules
+# bash

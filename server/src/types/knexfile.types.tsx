@@ -1,0 +1,1 @@
+export type TKnexfile = {[key: string]: { client: string, connection: string, pool?: object } };

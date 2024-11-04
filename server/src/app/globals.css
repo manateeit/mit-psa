@@ -1,0 +1,383 @@
+@import 'react-big-calendar/lib/css/react-big-calendar.css';
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+@import '@radix-ui/themes/styles.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#__next {
+    height: 100%;
+    margin: 0;
+}
+
+
+.dark {
+    --background: 0, 0, 0;
+
+    /* BORDER COLOR */
+    --color-border-base: 100 116 139;
+    --color-border-50: 15 23 42;
+    --color-border-100: 30 41 59;
+    --color-border-200: 51 65 85;
+    --color-border-300: 71 85 105;
+    --color-border-400: 100 116 139;
+    --color-border-500: 148 163 184;
+    --color-border-600: 203 213 225;
+    --color-border-700: 226 232 240;
+    --color-border-800: 241 245 249;
+    --color-border-900: 248 250 252;
+
+    /* TEXT COLORS */
+    --color-text-base: 100 116 139;
+    --color-text-50: 15 23 42;
+    --color-text-100: 30 41 59;
+    --color-text-200: 51 65 85;
+    --color-text-300: 71 85 105;
+    --color-text-400: 100 116 139;
+    --color-text-500: 148 163 184;
+    --color-text-600: 203 213 225;
+    --color-text-700: 226 232 240;
+    --color-text-800: 241 245 249;
+    --color-text-900: 248 250 252;
+
+    /* MAIN COLORS */
+    /* Purple (#8a4dea) */
+    --color-primary-50: 82 46 140;
+    --color-primary-100: 96 54 164;
+    --color-primary-200: 110 61 187;
+    --color-primary-300: 124 69 211;
+    --color-primary-400: 138 77 234;
+    --color-primary-500: 152 85 238;
+    --color-primary-600: 166 115 242;
+    --color-primary-700: 184 145 245;
+    --color-primary-800: 202 168 249;
+    --color-primary-900: 220 197 251;
+
+    /* Blue (#40cff9) */
+    --color-secondary-50: 38 124 149;
+    --color-secondary-100: 45 145 174;
+    --color-secondary-200: 51 166 199;
+    --color-secondary-300: 58 186 224;
+    --color-secondary-400: 64 207 249;
+    --color-secondary-500: 83 215 250;
+    --color-secondary-600: 102 223 251;
+    --color-secondary-700: 140 236 250;
+    --color-secondary-800: 179 243 251;
+    --color-secondary-900: 217 249 253;
+
+    /* Orange (#ff9c30) */
+    --color-accent-50: 153 94 28;
+    --color-accent-100: 179 109 33;
+    --color-accent-200: 204 125 38;
+    --color-accent-300: 230 140 43;
+    --color-accent-400: 255 156 48;
+    --color-accent-500: 255 166 69;
+    --color-accent-600: 255 176 89;
+    --color-accent-700: 255 201 102;
+    --color-accent-800: 255 219 153;
+    --color-accent-900: 255 237 204;
+
+    /* Sidebar Colors  */
+    --color-sidebar-bg: #1b1a1a;
+    --color-sidebar-text: #f5f5f5;
+    --color-sidebar-hover: #808080;
+    --color-sidebar-icon: #909090;
+
+
+    /* SubMenu Colors  */
+    --color-submenu-bg: #D0D5DD;
+    --color-submenu-text: #000000;
+    --color-submenu-hover: #808080;
+    --color-submenu-icon: #909090;
+
+
+    background: rgba(var(--background), 1);
+}
+
+
+.light {
+    --background: 255, 255, 255;
+
+    /* BORDER COLOR */
+    --color-border-base: 148 163 184;
+    --color-border-50: 248 250 252;
+    --color-border-100: 241 245 249;
+    --color-border-200: 226 232 240;
+    --color-border-300: 203 213 225;
+    --color-border-400: 148 163 184;
+    --color-border-500: 100 116 139;
+    --color-border-600: 71 85 105;
+    --color-border-700: 51 65 85;
+    --color-border-800: 30 41 59;
+    --color-border-900: 15 23 42;
+
+    /* TEXT COLORS */
+    --color-text-base: 148 163 184;
+    --color-text-50: 248 250 252;
+    --color-text-100: 241 245 249;
+    --color-text-200: 226 232 240;
+    --color-text-300: 203 213 225;
+    --color-text-400: 148 163 184;
+    --color-text-500: 100 116 139;
+    --color-text-600: 71 85 105;
+    --color-text-700: 51 65 85;
+    --color-text-800: 30 41 59;
+    --color-text-900: 15 23 42;
+
+    /* MAIN COLORS */
+    /* Purple (#8a4dea) */
+    --color-primary-50: 246 240 254;
+    --color-primary-100: 237 226 253;
+    --color-primary-200: 220 197 251;
+    --color-primary-300: 202 168 249;
+    --color-primary-400: 166 115 242;
+    --color-primary-500: 138 77 234;
+    --color-primary-600: 124 69 211;
+    --color-primary-700: 110 61 187;
+    --color-primary-800: 96 54 164;
+    --color-primary-900: 82 46 140;
+
+    /* Blue (#40cff9) */
+    --color-secondary-50: 236 252 254;
+    --color-secondary-100: 217 249 253;
+    --color-secondary-200: 179 243 251;
+    --color-secondary-300: 140 236 250;
+    --color-secondary-400: 102 223 251;
+    --color-secondary-500: 64 207 249;
+    --color-secondary-600: 58 186 224;
+    --color-secondary-700: 51 166 199;
+    --color-secondary-800: 45 145 174;
+    --color-secondary-900: 38 124 149;
+
+    /* Orange (#ff9c30) */
+    --color-accent-50: 255 246 230;
+    --color-accent-100: 255 237 204;
+    --color-accent-200: 255 219 153;
+    --color-accent-300: 255 201 102;
+    --color-accent-400: 255 176 89;
+    --color-accent-500: 255 156 48;
+    --color-accent-600: 230 140 43;
+    --color-accent-700: 204 125 38;
+    --color-accent-800: 179 109 33;
+    --color-accent-900: 153 94 28;
+
+
+    /* Sidebar Colors  */
+    --color-sidebar-bg: #0C111D;
+    --color-sidebar-text: #f5f5f5;
+    --color-sidebar-hover: #808080;
+    --color-sidebar-icon: #909090;
+
+
+    /* SubMenu Colors  */
+    --color-submenu-bg: #1b1a1a;
+    --color-submenu-text: #f5f5f5;
+    --color-submenu-hover: #808080;
+    --color-submenu-icon: #909090;
+
+
+    background: rgba(var(--background), 1);
+
+}
+
+/* Give a remote user a caret */
+.collaboration-cursor__caret {
+    border-left: 1px solid #0d0d0d;
+    border-right: 1px solid #0d0d0d;
+    margin-left: -1px;
+    margin-right: -1px;
+    pointer-events: none;
+    position: relative;
+    word-break: normal;
+}
+
+/* Render the username above the caret */
+.collaboration-cursor__label {
+    border-radius: 3px 3px 3px 0;
+    color: #0d0d0d;
+    font-size: 0.75rem;
+    font-style: normal;
+    font-weight: 600;
+    left: -1px;
+    line-height: normal;
+    padding: 0.1rem 0.3rem;
+    position: absolute;
+    top: -1.4em;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari and Opera */
+}
+
+.bg-dotted {
+    background-image: radial-gradient(circle, rgba(209, 213, 219, 0.8) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+.ProseMirror:focus {
+    outline: none !important;
+    border: none !important;
+  box-shadow: none !important;
+}
+
+/* Add this to your globals.css file */
+
+/* Table styles */
+.radix-themes {
+    --table-header-bg: transparent;
+    --table-row-hover: rgba(0, 0, 0, 0.05);
+}
+
+.rt-TableHeader {
+    background-color: transparent;
+}
+
+.rt-TableRoot {
+    border: 1px solid rgb(var(--color-border-200));
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.rt-TableRow:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.rt-TableCell,
+.rt-TableColumnHeaderCell {
+    padding: 12px 16px;
+    color: rgb(var(--color-text-700));
+}
+
+.rt-Button {
+    font-weight: 500;
+}
+
+/* Adjust text colors */
+.text-2xl {
+    color: rgb(var(--color-text-900));
+}
+
+.radix-themes {
+    --table-border-color: transparent !important;
+  }
+  
+  .rt-TableRoot, .rt-TableHeader, .rt-TableBody, .rt-TableRow, .rt-TableCell, .rt-TableColumnHeaderCell {
+    border-color: transparent !important;
+  }
+
+  thead tr,
+  thead tr th,
+  table th,
+  .rt-TableHeader,
+  .rt-TableRow,
+  .rt-TableColumnHeaderCell {
+    border: none !important;
+    border-bottom: none !important;
+    border-color: transparent !important;
+  }
+
+  button[role="switch"] {
+    width: 42px;
+    height: 25px;
+    background-color: rgb(var(--color-border-400));
+    border-radius: 9999px;
+    position: relative;
+    transition: background-color 0.2s;
+  }
+  
+  button[role="switch"][data-state="checked"] {
+    background-color: rgb(var(--color-primary-400));
+  }
+  
+  button[role="switch"]::before {
+    content: "";
+    display: block;
+    width: 21px;
+    height: 21px;
+    background-color: white;
+    border-radius: 9999px;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  
+  button[role="switch"][data-state="checked"]::before {
+    transform: translateX(17px);
+  }
+
+.rt-SwitchThumb {
+  box-shadow: none !important;
+}
+
+/* Switch with Label styles */
+.switch-with-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Switch base styles */
+.switch-root {
+  width: 42px;
+  height: 25px;
+  background-color: rgb(var(--color-border-400));
+  border-radius: 9999px;
+  position: relative;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+/* When on - using your primary color */
+.switch-root[data-state="checked"] {
+  background-color: rgb(var(--color-primary-400));
+}
+
+.switch-root[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Switch thumb/circle styles */
+.switch-thumb {
+  display: block;
+  width: 21px;
+  height: 21px;
+  background-color: white;
+  border-radius: 9999px;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.switch-root[data-state="checked"] .switch-thumb {
+  transform: translateX(17px);
+}
+
+/* Label styles */
+.switch-label {
+  color: rgb(var(--color-text-700));
+  font-size: 14px;
+  user-select: none;
+}
+
+/* Add any additional custom styles here */

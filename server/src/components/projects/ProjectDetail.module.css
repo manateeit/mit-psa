@@ -1,0 +1,32 @@
+.kanbanColumn {
+    display: flex;
+    padding: 15px;
+    flex-direction: column;
+    height: calc(100vh - 200px); /* Adjust this value based on your layout */
+  }
+  
+  .kanbanTasks {
+    overflow-y: auto;
+  }
+  
+  .addCardButton {
+    margin: 6px;
+    padding: 6px;
+    background-color: #9333ea;
+    color: white;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: background-color 0.2s;
+  }
+  
+  .addCardButton:hover {
+    background-color: #7e22ce;
+  }
+  
+  .statusBadge {
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  

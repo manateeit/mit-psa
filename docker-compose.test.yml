@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: ankane/pgvector:latest
+    environment:
+      POSTGRES_DB: ${DB_NAME_SERVER:-sebastian_test}
+      POSTGRES_USER: ${DB_USER_SERVER:-test_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD_SERVER:-test_password}
+    ports:
+      - "${DB_PORT:-5432}:5432"

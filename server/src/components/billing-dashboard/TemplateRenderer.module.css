@@ -1,0 +1,25 @@
+.gridSection {
+  margin-bottom: 20px;
+  border: 1px solid #ccc;
+  padding: 10px;
+}
+
+.listInvoiceItems {
+  margin-top: 20px;
+  margin-bottom: 20px;
+  border-top: 1px solid #eee;
+}
+
+.listInvoiceItems > div {
+  padding: 5px 0;
+  border-bottom: 1px solid #eee;
+}
+.invoiceTemplate {
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.listItem {
+  padding: 5px 0;
+}

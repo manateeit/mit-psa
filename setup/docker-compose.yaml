@@ -1,0 +1,35 @@
+x-common-config: &common-config
+  build: 
+    context: .
+  container_name: setup
+  command: "./entrypoint.sh"
+  #command: ["sh", "-c", "while true; do echo 'Waiting'; sleep 5; done"]
+  environment:
+    DB_HOST: ${DB_HOST}
+    DB_PORT: ${DB_PORT}
+    DB_NAME: ${DB_NAME}
+    DB_USER: ${DB_USER}
+    DB_PASSWORD: ${DB_PASSWORD_SUPERUSER}
+
+    DB_NAME_HOCUSPOCUS: ${DB_NAME_HOCUSPOCUS}
+    DB_USER_HOCUSPOCUS: ${DB_USER_HOCUSPOCUS}
+    DB_PASSWORD_HOCUSPOCUS: ${DB_PASSWORD_HOCUSPOCUS}
+    DB_NAME_SERVER: ${DB_NAME_SERVER}
+    DB_USER_SERVER: ${DB_USER_SERVER}
+    DB_PASSWORD_SERVER: ${DB_PASSWORD_SERVER}
+    DB_PASSWORD_SUPERUSER: ${DB_PASSWORD_SUPERUSER}
+    APP_NAME: ${APP_NAME}
+    APP_ENV: ${APP_ENV}
+    DB_TYPE: ${DB_TYPE}
+
+services:
+  setup:
+    <<: *common-config
+    networks:
+      - ${NETWORK_NAME:-app-network}
+    volumes:
+      - .:/tmp
+
+networks:
+  app-network:
+    external: ${USE_EXTERNAL_NETWORK:-true}

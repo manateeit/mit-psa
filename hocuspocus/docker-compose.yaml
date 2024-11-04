@@ -1,0 +1,38 @@
+version: '3.8'
+
+x-common-config: &common-config
+  build: .
+  container_name: hocuspocus
+  ports:
+    - "${EXPOSE_HOCUSPOCUS_PORT}:1234"
+  environment:
+    REDIS_HOST: ${REDIS_HOST}
+    REDIS_PORT: ${REDIS_PORT}
+    REDIS_PASSWORD: ${REDIS_PASSWORD}
+    DB_HOST: ${DB_HOST}
+    DB_PORT: ${DB_PORT}
+    DB_NAME: ${DB_NAME_HOCUSPOCUS}
+    DB_USER: ${DB_USER_HOCUSPOCUS}
+    DB_PASSWORD: ${DB_PASSWORD_HOCUSPOCUS}
+    NODE_ENV: ${APP_EN:-production}
+    HOCUSPOCUS_PORT: ${HOCUSPOCUS_PORT}
+    EXPOSE_HOCUSPOCUS_PORT: ${EXPOSE_HOCUSPOCUS_PORT:-1234}
+  develop:
+    watch:
+      - action: sync
+        path: .
+        target: /app
+        # ingore:
+        #   - node_modules
+      - action: rebuild
+        path: package.json
+
+services:
+  hocuspocus:
+    <<: *common-config
+    networks:
+      - ${NETWORK_NAME:-app-network}
+
+networks:
+  app-network:
+    external: ${USE_EXTERNAL_NETWORK:-true}

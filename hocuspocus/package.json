@@ -1,0 +1,20 @@
+{
+  "name": "hocuspocus-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^2.0.0",
+    "@hocuspocus/extension-redis": "^2.0.0",
+    "@hocuspocus/extension-database": "^2.0.0",
+    "@hocuspocus/extension-logger": "^2.0.0",
+    "pg": "^8.7.1"
+  },
+  "main": "server.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

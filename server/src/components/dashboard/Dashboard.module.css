@@ -1,0 +1,87 @@
+.dashboardContainer {
+  padding: 20px;
+  background-color: #ecf0f1;
+  overflow-y: auto;
+}
+
+.dashboardContainer h1 {
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.metrics {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.metricBox {
+  background-color: white;
+  border-radius: 5px;
+  padding: 20px;
+  width: 30%;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.metricBox h3 {
+  margin-top: 0;
+  color: #34495e;
+}
+
+.metricBox p {
+  font-size: 24px;
+  font-weight: bold;
+  color: #2980b9;
+}
+
+.activityFeed, .quickActions {
+  background-color: white;
+  border-radius: 5px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.activityFeed h2, .quickActions h2 {
+  margin-top: 0;
+  color: #34495e;
+}
+
+.activityFeed ul {
+  padding-left: 20px;
+}
+
+.activityFeed li {
+  margin-bottom: 10px;
+}
+
+.quickActions button {
+  margin-right: 10px;
+  padding: 10px 15px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.quickActions button:hover {
+  background-color: #2980b9;
+}
+
+@media (max-width: 768px) {
+  .metrics {
+    flex-direction: column;
+  }
+
+  .metricBox {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  .quickActions button {
+    margin-bottom: 10px;
+    width: 100%;
+  }
+}

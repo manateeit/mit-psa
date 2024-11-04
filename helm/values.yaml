@@ -1,0 +1,287 @@
+# Default values for sebastian.helm.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+namespace: msp
+nameOverride: ""
+fullnameOverride: ""
+host: "localhost"
+#env: "development"
+
+#FIXME: In image change nineminds to public when we we make image public 
+setup:
+  image: 
+    name: harbor.nineminds.com/nineminds/sebastian_setup
+    is_private: true
+    credentials: harbor-credentials
+    tag: "latest"
+  pullPolicy: Always
+
+server:
+  image: 
+    name: harbor.nineminds.com/nineminds/sebastian_server
+    is_private: true
+    credentials: harbor-credentials
+    tag: "8f207e3cc"
+  verify_email: true
+  pullPolicy: Always
+  replicaCount: 1
+  service:
+    type: "ClusterIP"
+    port: 3000
+
+
+hocuspocus:
+  image: 
+    name: harbor.nineminds.com/nineminds/sebastian_hocuspocus
+    is_private: true
+    credentials: harbor-credentials
+    tag: "latest"
+  pullPolicy: Always
+  replicaCount: 1
+  service:
+    type: "ClusterIP"
+    port: 1234
+
+
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+
+config:
+  db: # postegres configuration only is db enabled is true
+    type: postgres
+    host: db
+    port: 5432
+    user: postgres
+    password: password
+    server_database: server
+    hocuspocus_database: hocuspocus
+  redis: # Redis configuration only is redis enabled is true
+    host: redis
+    port: 6379
+    password: password
+    db: 0
+  llm:
+    openai: 'key-here'
+    anthropic: 'key-here'
+  # Storage configuration
+  storage:
+    # Default storage provider configuration
+    default_provider: 'local'  # Use 'local' for CE, 's3' for EE
+    providers:
+      # Local filesystem configuration (Community Edition)
+      local:
+        enabled: true
+        base_path: '/data/files'  # Base path for file storage
+        # Storage quotas and limits
+        max_file_size: 104857600  # 100MB in bytes
+        allowed_mime_types:
+          - 'image/*'
+          - 'application/pdf'
+          - 'text/plain'
+          - 'application/msword'
+          - 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        retention_days: 30  # Number of days to retain files
+      # S3 configuration (Enterprise Edition only)
+      s3:
+        enabled: false  # Set to true to enable S3 in enterprise edition
+        region: 'us-west-2'
+        bucket: 'company-files'
+        access_key: ''  # AWS access key
+        secret_key: ''  # AWS secret key
+        endpoint: ''    # Optional custom endpoint for S3-compatible services
+        # Storage quotas and limits
+        max_file_size: 104857600  # 100MB in bytes
+        allowed_mime_types:
+          - 'image/*'
+          - 'application/pdf'
+          - 'text/plain'
+          - 'application/msword'
+          - 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        retention_days: 30  # Number of days to retain files
+    # Storage locations configuration
+    locations:
+      documents:  # Default location for document storage
+        name: "Documents"
+        path: "/documents"
+        provider: "local"  # References the provider config above
+        max_file_size: 104857600  # 100MB in bytes
+        allowed_mime_types:
+          - 'application/pdf'
+          - 'image/jpeg'
+          - 'image/png'
+          - 'application/msword'
+          - 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      avatars:  # Location for user avatars
+        name: "User Avatars"
+        path: "/avatars"
+        provider: "local"
+        max_file_size: 5242880  # 5MB in bytes
+        allowed_mime_types:
+          - 'image/jpeg'
+          - 'image/png'
+          - 'image/gif'
+    # File upload settings
+    upload:
+      temp_dir: '/tmp/uploads'
+      max_concurrent: 3
+      chunk_size: 5242880  # 5MB in bytes
+    # Backup configuration
+    backup:
+      enabled: false
+      schedule: '0 0 * * *'  # Daily at midnight
+      retention:
+        days: 30
+        copies: 7
+
+
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: latest
+  service:
+    port: 6379
+  persistence:
+    enabled: true
+    existingClaim: ""
+    size: 20Gi
+    storageClass: "local-path"
+
+
+db:
+  enabled: true
+  image:
+    repository: ankane/pgvector
+    tag: "latest"
+  service:
+    port: 5432
+  persistence:
+    enabled: true
+    existingClaim: ""
+    size: 20Gi
+    storageClass: "local-path"
+
+persistence:
+  enabled: true
+  storageClass: "local-path"
+  size: "50Gi"  # Size for local file storage
+  keepPvcOnUninstall: false
+
+email:
+  enabled: false
+  from: ""
+  host: "smtp.example.com"
+  port: 465
+  user: ""
+  password: ""
+
+
+crypto:
+  salt_bytes: 12
+  iteration: 1000
+  key_length: 64
+  algorithm: sha512
+
+
+token:
+  expires: 1h
+
+auth:
+  nextauth_session_expires: 86400
+
+google_auth:
+  enabled: false
+  client_id: "get from google"
+  client_secret: "get from google"
+
+
+# Logging Configuration
+#
+# This configuration allows for a flexible logging system where you can customize various aspects
+# of how logs are generated, formatted, stored, and transmitted. Below are the descriptions of
+# each configuration variable:
+#
+# level: Sets the level of logging detail. Options include SYSTEM, TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL.
+# Example: level: DEBUG
+#
+# is_format_json: Determines if the log format should be JSON (true) or text (false).
+# JSON format is useful for machine parsing, while text format is more human-readable.
+# Example: is_format_json: false
+#
+# is_full_details: If set to true, logs will include additional details such as the file name and line number
+# where the log entry originated. This is useful for debugging but can be verbose.
+# Example: is_full_details: false
+#
+# file.enable: Enables or disables logging to files. If set to true, logs will be saved to files
+# in the specified directory. This is useful for persistent log storage and later analysis.
+# Example: enable: true
+#
+# logging.path: Specifies the directory path where log files will be stored if file logging is enabled.
+# Ensure that the specified path is writable by the application.
+# Example: path: './logs'
+#
+# external.enable: Enables or disables sending logs to an external logging service via HTTP.
+# If set to true, logs will be sent to the specified external service, which can be useful for centralized log management.
+# Example: external.enable: false
+#
+# external.host: The hostname of the external logging service to which logs will be sent if external logging is enabled.
+# Example: host: 'localhost'
+#
+# external.port: The port of the external logging service.
+# Example: port: '8000'
+#
+# external.path: The path on the external logging service where logs should be sent.
+# Example: path: '/print_info'
+#
+# external.level: The level of logs to be sent to the external logging service.
+# Example: level: 'info'
+#
+# external.token: The authentication token used to authorize the log requests to the external logging service.
+# Example: token:'abcd1234'
+#
+
+logging:
+  level: DEBUG #Alternatives -> SYSTEM, TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL
+  is_format_json: false
+  is_full_details: false
+  file:
+    enabled: true
+    path: './logs'
+  external:
+    enabled: false
+    host: 'localhost'
+    port: '8000'
+    path: '/print_info'
+    level: 'info'
+    token: 'abcd1234'

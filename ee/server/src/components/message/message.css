@@ -1,0 +1,84 @@
+.chat-block {
+  margin: 0.75rem;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+  display: inline-flex;
+  align-items: flex-end;
+  width: calc(100% - 1.5rem);
+}
+
+.chat-block table {
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.chat-block td,
+th {
+  border: 1px solid rgb(var(--color-primary-400));
+  padding: 0.5rem;
+}
+
+.chat-block p {
+  display: inline-block;
+  margin: 0.25rem 0;
+  line-height: 1.4;
+}
+
+.chat {
+  border: 1px solid rgb(var(--color-secondary-400));
+  border-radius: 1rem;
+  border-end-end-radius: 0;
+  padding: 0.75rem 1rem;
+  width: 100%;
+  margin-left: 0.2rem;
+  background-color: rgb(var(--color-border-50));
+}
+
+.chat-img {
+  object-fit: cover;
+  background-color: rgb(var(--color-primary-400));
+  border-radius: 1.5rem;
+  padding: 0.25rem;
+  width: 2rem;
+  height: 2rem;
+  margin-right: 0.5rem;
+}
+
+.bot {
+  background: rgb(var(--color-border-100)) !important;
+  border: 1px solid rgb(var(--color-primary-400));
+  border-radius: 1rem;
+  border-end-start-radius: 0;
+  width: 100%;
+}
+
+.chat-message-content {
+  color: rgb(var(--color-text-900));
+  font-size: 0.875rem;
+}
+
+.chat-message-content pre {
+  background-color: rgb(var(--color-border-200));
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+  font-size: 0.8125rem;
+}
+
+.chat-message-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.8125rem;
+  padding: 0.125rem 0.25rem;
+  background-color: rgb(var(--color-border-200));
+  border-radius: 0.25rem;
+}
+
+.chat-message-content a {
+  color: rgb(var(--color-primary-400));
+  text-decoration: none;
+}
+
+.chat-message-content a:hover {
+  text-decoration: underline;
+}
