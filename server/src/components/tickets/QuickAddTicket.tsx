@@ -11,9 +11,11 @@ import { getTicketStatuses } from '@/lib/actions/status-actions/statusActions';
 import { getAllPriorities } from '@/lib/actions/priorityActions';
 import { getAllCompanies, getCompanyById } from '@/lib/actions/companyActions';
 import { getContactsByCompany } from '@/lib/actions/contact-actions/contactActions';
-import { IUser, IChannel, ITicketStatus, IPriority, ICompany, IContact, ITicket } from '@/interfaces';
+import { getTicketCategoriesByChannel } from '@/lib/actions/categoryActions';
+import { IUser, IChannel, ITicketStatus, IPriority, ICompany, IContact, ITicket, ITicketCategory } from '@/interfaces';
 import { ChannelPicker } from '@/components/settings/general/ChannelPicker';
 import { CompanyPicker } from '../companies/CompanyPicker';
+import { CategoryPicker } from './CategoryPicker';
 import { useSession } from 'next-auth/react';
 
 interface QuickAddTicketProps {
@@ -44,6 +46,8 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
     const [companyFilterState, setCompanyFilterState] = useState<'all' | 'active' | 'inactive'>('all');
     const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
     const [selectedCompanyType, setSelectedCompanyType] = useState<'company' | 'individual' | null>(null);
+    const [categories, setCategories] = useState<ITicketCategory[]>([]);
+    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
     const [users, setUsers] = useState<IUser[]>([]);
     const [channels, setChannels] = useState<IChannel[]>([]);
@@ -122,12 +126,30 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
         fetchContacts();
     }, [companyId, isPrefilledCompany]);
 
+    useEffect(() => {
+        const fetchCategories = async () => {
+            if (channelId) {
+                try {
+                    const categoriesData = await getTicketCategoriesByChannel(channelId);
+                    setCategories(categoriesData);
+                } catch (error) {
+                    console.error('Error fetching categories:', error);
+                    setCategories([]);
+                }
+            } else {
+                setCategories([]);
+                setSelectedCategories([]);
+            }
+        };
+        fetchCategories();
+    }, [channelId]);
+
     const handleCompanyChange = async (newCompanyId: string) => {
         if (isPrefilledCompany) return;
 
         setCompanyId(newCompanyId);
         setContactId(null);
-        setError(null); // Clear any existing errors
+        setError(null);
     
         if (newCompanyId) {
             const selectedCompany = companies.find(company => company.company_id === newCompanyId);
@@ -143,10 +165,15 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
             setSelectedCompanyType(null);
         }
     };
+
+    const handleChannelChange = (newChannelId: string) => {
+        setChannelId(newChannelId);
+        setSelectedCategories([]); // Reset categories when channel changes
+    };
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null); // Clear any existing errors
+        setError(null);
 
         try {
             if (!session?.user?.id) {
@@ -183,6 +210,18 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
                 formData.append('contact_name_id', contactId);
             }
 
+            // Add category data
+            if (selectedCategories.length > 0) {
+                const category = categories.find(c => c.category_id === selectedCategories[0]);
+                if (category) {
+                    formData.append('category_id', category.category_id);
+                    if (category.parent_category) {
+                        formData.append('subcategory_id', category.category_id);
+                        formData.append('category_id', category.parent_category);
+                    }
+                }
+            }
+
             const newTicket = await addTicket(formData, user);
             if (newTicket) {
                 onTicketAdded(newTicket);
@@ -197,6 +236,7 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
                 setCompanyId('');
                 setContactId(null);
                 setSelectedCompanyType(null);
+                setSelectedCategories([]);
                 setError(null);
             } else {
                 throw new Error('Failed to create ticket');
@@ -287,10 +327,18 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
                         
                         <ChannelPicker
                             channels={channels}
-                            onSelect={(channelId) => setChannelId(channelId)}
+                            onSelect={handleChannelChange}
                             selectedChannelId={channelId}
                             onFilterStateChange={() => {}}
                             filterState="all"
+                        />
+
+                        <CategoryPicker
+                            categories={categories}
+                            selectedCategories={selectedCategories}
+                            onSelect={(categoryIds) => setSelectedCategories(categoryIds)}
+                            placeholder={channelId ? "Select category..." : "Select a channel first"}
+                            multiSelect={false}
                         />
 
                         <select

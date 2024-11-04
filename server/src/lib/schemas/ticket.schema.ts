@@ -8,7 +8,9 @@ export const ticketFormSchema = z.object({
   status_id: z.string(),
   assigned_to: z.string(),
   priority_id: z.string(),
-  description: z.string()
+  description: z.string(),
+  category_id: z.string().nullable(),
+  subcategory_id: z.string().nullable()
 });
 
 export const ticketSchema = z.object({

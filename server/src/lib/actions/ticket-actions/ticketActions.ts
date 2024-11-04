@@ -28,7 +28,6 @@ function convertDates<T extends { entered_at?: Date | string | null, updated_at?
   };
 }
 
-
 export async function addTicket(data: FormData, user: IUser): Promise<ITicket|undefined> {
   if (!hasPermission(user, 'ticket', 'create')) {
     throw new Error('Permission denied: Cannot create ticket');
@@ -42,6 +41,9 @@ export async function addTicket(data: FormData, user: IUser): Promise<ITicket|un
 
     // Get form data and convert empty strings to null for nullable fields
     const contact_name_id = data.get('contact_name_id');
+    const category_id = data.get('category_id');
+    const subcategory_id = data.get('subcategory_id');
+
     const formData = {
       title: data.get('title'),
       channel_id: data.get('channel_id'),
@@ -51,6 +53,8 @@ export async function addTicket(data: FormData, user: IUser): Promise<ITicket|un
       assigned_to: data.get('assigned_to'),
       priority_id: data.get('priority_id'),
       description: data.get('description'),
+      category_id: category_id === '' ? null : category_id,
+      subcategory_id: subcategory_id === '' ? null : subcategory_id,
     };
     
     const validatedData = validateData(ticketFormSchema, formData);
@@ -65,6 +69,8 @@ export async function addTicket(data: FormData, user: IUser): Promise<ITicket|un
       entered_by: user.user_id,
       assigned_to: validatedData.assigned_to,
       priority_id: validatedData.priority_id,
+      category_id: validatedData.category_id,
+      subcategory_id: validatedData.subcategory_id,
       entered_at: new Date().toISOString(),
       attributes: {
         description: validatedData.description
