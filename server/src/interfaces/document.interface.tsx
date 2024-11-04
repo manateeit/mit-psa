@@ -22,10 +22,6 @@ export interface IDocument extends TenantEntity {
     mime_type?: string;  // MIME type of the stored file
     file_size?: number;  // Size of the file in bytes
 
-    // Entity relationship fields (replacing file_references table)
-    entity_type?: string;  // Type of entity this document is associated with
-    entity_id?: string;   // ID of the associated entity
-
     // Additional fields (not in the database)
     createdByFullName?: string;
 }
