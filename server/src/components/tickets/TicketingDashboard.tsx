@@ -197,10 +197,10 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
     };    
   }, [fetchTickets]);
 
-    const handleChannelSelect = useCallback((channelId: string) => {
-      setSelectedChannel(channelId);
-      setChannelFilterState('all');
-    }, []);
+  const handleChannelSelect = useCallback((channelId: string) => {
+    setSelectedChannel(channelId);
+    setChannelFilterState('all');
+  }, []);
 
   const handleCategorySelect = (categoryIds: string[]) => {
     setSelectedCategories(categoryIds);
@@ -239,6 +239,7 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
             onSelect={handleCategorySelect}
             placeholder="Filter by category"
             multiSelect={true}
+            className="text-sm"
           />
           <input
             type="text"

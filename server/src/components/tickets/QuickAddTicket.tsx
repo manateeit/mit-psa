@@ -17,6 +17,7 @@ import { ChannelPicker } from '@/components/settings/general/ChannelPicker';
 import { CompanyPicker } from '../companies/CompanyPicker';
 import { CategoryPicker } from './CategoryPicker';
 import { useSession } from 'next-auth/react';
+import { Select } from '../ui/Select';
 
 interface QuickAddTicketProps {
     open: boolean;
@@ -274,14 +275,14 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             placeholder="Ticket Title"
-                            className="w-full p-2 border rounded"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             required
                         />
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder="Description"
-                            className="w-full p-2 border rounded"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             required
                         />
 
@@ -296,34 +297,29 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
                         />
 
                         {selectedCompanyType === 'company' && contacts.length > 0 && (
-                            <select
+                            <Select
                                 value={contactId || ''}
-                                onChange={(e) => setContactId(e.target.value || null)}
-                                className="w-full p-2 border rounded"
+                                onChange={(value) => setContactId(value || null)}
+                                options={contacts.map(contact => ({
+                                    value: contact.contact_name_id,
+                                    label: contact.full_name
+                                }))}
+                                placeholder="Select Contact"
                                 required={selectedCompanyType === 'company'}
                                 disabled={!companyId || selectedCompanyType !== 'company'}
-                            >
-                                <option value="">Select Contact</option>
-                                {contacts.map((contact):JSX.Element => (
-                                    <option key={contact.contact_name_id} value={contact.contact_name_id}>
-                                        {contact.full_name}
-                                    </option>
-                                ))}
-                            </select>
+                            />
                         )}
-                        <select
+
+                        <Select
                             value={assignedTo}
-                            onChange={(e) => setAssignedTo(e.target.value)}
-                            className="w-full p-2 border rounded"
+                            onChange={setAssignedTo}
+                            options={users.map(user => ({
+                                value: user.user_id,
+                                label: `${user.first_name} ${user.last_name}`
+                            }))}
+                            placeholder="Assign To"
                             required
-                        >
-                            <option value="">Assign To</option>
-                            {users.map((user):JSX.Element => (
-                                <option key={user.user_id} value={user.user_id}>
-                                    {user.first_name} {user.last_name}
-                                </option>
-                            ))}
-                        </select>
+                        />
                         
                         <ChannelPicker
                             channels={channels}
@@ -337,40 +333,33 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
                             categories={categories}
                             selectedCategories={selectedCategories}
                             onSelect={(categoryIds) => setSelectedCategories(categoryIds)}
-                            placeholder={channelId ? "Select category..." : "Select a channel first"}
+                            placeholder={channelId ? "Select category" : "Select a channel first"}
                             multiSelect={false}
+                            className="w-full"
                         />
 
-                        <select
+                        <Select
                             value={statusId}
-                            onChange={(e) => setStatusId(e.target.value)}
-                            className="w-full p-2 border rounded"
+                            onChange={setStatusId}
+                            options={statuses.map(status => ({
+                                value: status.status_id!,
+                                label: status.name ?? ""
+                            }))}
+                            placeholder="Select Status"
                             required
-                        >
-                            <option value="">Select Status</option>
-                            {statuses.length > 0 ? (
-                                statuses.map((status):JSX.Element => (
-                                    <option key={status.status_id} value={status.status_id}>
-                                        {status.name}
-                                    </option>
-                                ))
-                            ) : (
-                                <option value="" disabled>No statuses available</option>
-                            )}
-                        </select>
-                        <select
+                        />
+
+                        <Select
                             value={priorityId}
-                            onChange={(e) => setPriorityId(e.target.value)}
-                            className="w-full p-2 border rounded"
+                            onChange={setPriorityId}
+                            options={priorities.map(priority => ({
+                                value: priority.priority_id,
+                                label: priority.priority_name
+                            }))}
+                            placeholder="Select Priority"
                             required
-                        >
-                            <option value="">Select Priority</option>
-                            {priorities.map((priority):JSX.Element => (
-                                <option key={priority.priority_id} value={priority.priority_id}>
-                                    {priority.priority_name}
-                                </option>
-                            ))}
-                        </select>
+                        />
+
                         <div className="flex justify-end space-x-2 pt-4">
                             <Dialog.Close asChild>
                                 <Button type="button" variant="outline">Cancel</Button>

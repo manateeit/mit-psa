@@ -116,9 +116,9 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
             options={priorityOptions}
             onValueChange={(value) => onSelectChange('priority_id', value)}
           />
-          <div>
+          <div className="col-span-2">
             <h5 className="font-bold mb-1">Category</h5>
-            <div className="relative">
+            <div className="w-fit">
               <CategoryPicker
                 categories={categories}
                 selectedCategories={[getSelectedCategoryId()]}
