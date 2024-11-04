@@ -83,6 +83,13 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
     setAllUniqueTags(getUniqueTagTexts(Object.values(contactTagsRef.current).flat()));
   };
 
+  const getAvatarUrl = (contact: IContact) => {
+      // Using contact_name_id to generate a consistent background color
+      const backgroundColors = ['0D8ABC', '7C3AED', '059669', 'DC2626', 'D97706'];
+      const index = Math.abs(contact.contact_name_id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % backgroundColors.length;
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(contact.full_name)}&background=${backgroundColors[index]}&color=ffffff`;
+      };
+
   const getCompanyName = (companyId: string) => {
     const company = companies.find(c => c.company_id === companyId);
     return company ? company.company_name : 'Unknown Company';
@@ -219,8 +226,8 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
         <div className="flex items-center">
           <img 
             className="h-8 w-8 rounded-full mr-2" 
-            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(record.full_name)}&background=random`} 
-            alt="" 
+            src={getAvatarUrl(record)} 
+            alt={`${value} avatar`}
           />
           <button
             onClick={() => handleViewDetails(record)}
