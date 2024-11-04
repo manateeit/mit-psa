@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { DataTable } from '@/components/ui/DataTable';
-import { Switch } from '@radix-ui/themes';
+import { Switch } from '@/components/ui/Switch';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import { ICSVColumnMapping, ICSVPreviewData, ICSVValidationResult, IContact, MappableField, ICSVImportOptions, ImportContactResult } from '@/interfaces/contact.interfaces';
@@ -310,14 +310,14 @@ const ContactsImportDialog: React.FC<ContactsImportDialogProps> = ({
           </span>
           <Switch
             checked={importOptions.updateExisting}
-            onCheckedChange={(checked: boolean) =>
+            onCheckedChange={(checked) =>
               onOptionsChange({ ...importOptions, updateExisting: checked })
             }
-            className="data-[state=checked]:bg-blue-500 data-[state=unchecked]:bg-gray-200"
+            className="data-[state=checked]:bg-primary-500"
           />
         </div>
       </div>
-
+  
       <div className="flex items-center justify-between py-3">
         <div>
           <div className="text-gray-900 font-medium">Skip invalid records</div>
@@ -329,10 +329,10 @@ const ContactsImportDialog: React.FC<ContactsImportDialogProps> = ({
           </span>
           <Switch
             checked={importOptions.skipInvalid}
-            onCheckedChange={(checked: boolean) =>
+            onCheckedChange={(checked) =>
               onOptionsChange({ ...importOptions, skipInvalid: checked })
             }
-            className="data-[state=checked]:bg-blue-500 data-[state=unchecked]:bg-gray-200"
+            className="data-[state=checked]:bg-primary-500"
           />
         </div>
       </div>

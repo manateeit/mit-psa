@@ -10,7 +10,7 @@ import { getTicketCategories, createTicketCategory, deleteTicketCategory, update
 import { IChannel } from '@/interfaces/channel.interface';
 import { ITicketStatus, IPriority, ITicketCategory } from '@/interfaces/ticket.interfaces';
 import { useSession } from 'next-auth/react';
-import { Switch } from '@radix-ui/themes';
+import { Switch } from '@/components/ui/Switch';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 
@@ -509,6 +509,7 @@ const TicketingSettings = (): JSX.Element => {
           <Switch
             checked={!record.is_inactive}
             onCheckedChange={() => toggleChannelStatus(record.channel_id!, record.is_inactive)}
+            className="data-[state=checked]:bg-primary-500"
           />
         </div>
       ),

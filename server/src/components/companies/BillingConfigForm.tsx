@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text, Select, Switch } from '@radix-ui/themes';
+import { Text, Select } from '@radix-ui/themes';
+import { Switch } from '@/components/ui/Switch';
 
 interface BillingConfigFormProps {
     billingConfig: {
@@ -116,9 +117,11 @@ const BillingConfigForm: React.FC<BillingConfigFormProps> = ({
                     <Switch
                         checked={billingConfig.auto_invoice}
                         onCheckedChange={handleSwitchChange}
+                        className="data-[state=checked]:bg-primary-500"
                     />
                     <Text size="2" className="ml-2">{billingConfig.auto_invoice ? 'Enabled' : 'Disabled'}</Text>
                 </div>
+
             </div>
         </div>
     );

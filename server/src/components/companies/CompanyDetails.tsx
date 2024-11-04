@@ -7,7 +7,8 @@ import { IDocument } from '@/interfaces/document.interface';
 import Documents from '@/components/documents/Documents';
 import { IContact } from '@/interfaces/contact.interfaces';
 import Contacts from '@/components/contacts/Contacts';
-import { Card, Flex, Text, Heading, Switch } from '@radix-ui/themes';
+import { Card, Flex, Text, Heading } from '@radix-ui/themes';
+import { Switch } from '@/components/ui/Switch';
 import BillingConfiguration from './BillingConfiguration';
 import { updateCompany } from '@/lib/actions/companyActions';
 import CustomTabs from '@/components/ui/CustomTabs';
@@ -74,7 +75,7 @@ const SwitchDetailItem: React.FC<{
         <Switch
           checked={value}
           onCheckedChange={onEdit}
-          className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-200"
+          className="data-[state=checked]:bg-primary-500"
         />
       </div>
     </div>
