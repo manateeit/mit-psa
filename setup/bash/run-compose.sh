@@ -17,6 +17,7 @@ USE_EXTERNAL_NETWORK=true
 
 # Parse additional arguments
 DOCKER_COMPOSE_ARGS=""
+COMMAND="up"
 for arg in $ADDITIONAL_ARGS; do
     case $arg in
         --no-network)
@@ -27,14 +28,13 @@ for arg in $ADDITIONAL_ARGS; do
             DOCKER_COMPOSE_ARGS+=" -d"
             ;;
         --watch)
-            DEV_MODE=true
+            COMMAND="watch"
             ;;
         *)
             DOCKER_COMPOSE_ARGS+=" $arg"
             ;;
     esac
 done
-
 
 # Function to clean up
 cleanup() {
@@ -45,6 +45,11 @@ cleanup() {
 
 # Set up trap to call cleanup function
 trap cleanup EXIT
+
+# Check if prod.config.ini exists, if not, copy config.ini to prod.config.ini
+if [ ! -f "prod.config.ini" ]; then
+    cp config.ini prod.config.ini
+fi
 
 # Generate .env file from config.ini
 echo "# Generated from prod.config.ini" > /tmp/.env
@@ -67,12 +72,8 @@ echo "USE_EXTERNAL_NETWORK=${USE_EXTERNAL_NETWORK}" >> /tmp/.env
 
 # Run docker-compose
 if [ -f "$COMPOSE_FILE" ]; then
-    echo "Running Docker Compose for $COMPOSE_FILE"
-    if [ "$DEV_MODE" = true ]; then
-        docker-compose -f "$COMPOSE_FILE" --env-file /tmp/.env watch $DOCKER_COMPOSE_ARGS
-    else
-        docker-compose -f "$COMPOSE_FILE" --env-file /tmp/.env up $DOCKER_COMPOSE_ARGS
-    fi
+    echo "Running Docker Compose for $COMPOSE_FILE with command: $COMMAND"
+    docker compose -f "$COMPOSE_FILE" --env-file /tmp/.env $COMMAND $DOCKER_COMPOSE_ARGS
 else
     echo "Docker Compose file $COMPOSE_FILE not found"
     exit 1

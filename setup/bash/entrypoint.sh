@@ -1,35 +1,7 @@
 #!/bin/bash
 
-source ./log.sh
+source /app/log.sh
 getLogger "database-setup"
-
-process_files() {
-    # local dir="$1"
-    # local dest_file="$2"
-    # send_log info " ** Starting to process all files **"
-    # send_log debug "Directory where setup is running -> [ $dir ]"
-    # send_log debug "Database setup destination -> [ $dest_file ]"
-    # send_log trace "Config template database -> [ $dir/template.sql ]"
-    # cat "$dir/template.sql" >> "$dest_file"
-    # for subdir in "$dir"/* ; do
-    #     if [ -d "$subdir" ]; then
-    #         send_log info "Processing $subdir/create.sql"
-    #         cat "$subdir/create.sql" >> "$dest_file"
-    #         echo -e "\n" >> "$dest_file" 
-            
-    #         # Check if the file is init_data.sql and APP_ENV is not development
-    #         if [[ "$APP_ENV" != "development" ]]; then
-    #             send_log trace "Skipping $subdir/init_data.sql as APP_ENV is not development"
-    #         else
-    #             send_log trace "Include $subdir/init_data.sql as APP_ENV is development"
-    #             cat "$subdir/init_data.sql" >> "$dest_file"
-    #             echo -e "\n" >> "$dest_file"  # Add a newline for separation
-    #         fi
-    #     fi
-    # done
-    # send_log info "** All queries was added to $dest_file **"
-    # chmod 777 "$dest_file"
-}
 
 # Function to replace placeholders in the SQL file and save to a new file
 replace_placeholders() {
@@ -84,22 +56,33 @@ check_database_connection() {
 setup_db(){
     send_log info "** Starting to setup database [ $DB_TYPE ]**"
     case "$DB_TYPE" in
-        # "postgres")
-        #     # Run the setup script
-        #     PGPASSWORD=$DB_PASSWORD_SUPERUSER psql -h $DB_HOST -p $DB_PORT -U $DB_USER -f /setup.sql
-        #     send_log info " ** Database setup completed **"
-        #     ;;
-        # "mysql")
-        #     mysql -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASSWORD_SUPERUSER   < /setup.sql
-        #     send_log info " ** Database setup completed **"
+        "postgres")
+            # Run create_database.js
+            send_log info "Running database creation script..."
+            node /app/server/setup/create_database.js
+
+            # Run migrations
+            send_log info "Running database migrations..."
+            cd /app && npx knex migrate:latest
+            npx knex seed:run
+
+            send_log info " ** Database setup completed **"
             ;;
-        # "sqlite")
-        #     sqlite3 $DB_NAME < /setup.sql
-        #     ;;
+        "mysql")
+            # Run create_database.js
+            send_log info "Running database creation script..."
+            node /app/server/setup/create_database.js
+
+            # Run migrations
+            send_log info "Running database migrations..."
+            cd /app && npx knex migrate:latest
+            npx knex seed:run
+
+            send_log info " ** Database setup completed **"
+            ;;
         *)
             send_log error "Unsupported database type: $DB_TYPE"
             exit 1
-            ;;
     esac
 }
 
@@ -108,25 +91,22 @@ installed_client(){
     send_log info "** Starting to install client for $DB_TYPE **"
     case "$DB_TYPE" in
         "postgres")
-            send_log debug "Istalling client for postgres"
-            apk add --no-cache postgresql-client
+            send_log debug "Installing client for postgres"
+            # We already installed postgresql-client in Dockerfile
             send_log debug "Client for postgres installed"
             ;;
         "mysql")
-            send_log debug "Istalling client for mysql"
+            send_log debug "Installing client for mysql"
             mysql -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASSWORD  < /setup.sql
             send_log debug "Client for mysql installed"
             ;;
-        # "sqlite")
-        #     sqlite3 $DB_NAME < /setup.sql
-        #     ;;
         *)
             send_log error "Unsupported database type: $DB_TYPE"
             exit 1
             ;;
     esac
-
 }
+
 
 
 
@@ -152,8 +132,12 @@ send_log info ">>>>> CLIENT INSTALLED [ $DB_TYPE  ] <<<<<"
 # check_database_connection
 # send_log info ">>>>> DATABASE IS READY TO GET CONNECTION  <<<<<"
 
-# setup_db
+setup_db
 
 send_log info "-----------------------------"
 send_log info "----- PROCESS FINISHED  -----"
 send_log info "-----------------------------"
+
+while true; do
+    sleep 1
+done

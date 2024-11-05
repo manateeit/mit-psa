@@ -2,7 +2,7 @@
 /* eslint-disable no-undef */
 require('dotenv').config()
 
-const { seed } = require("./seeds/dev/01_tenants");
+//const { seed } = require("./seeds/dev/01_tenants");
 
 const DatabaseType = {
   postgres: 'postgres'

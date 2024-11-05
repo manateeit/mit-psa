@@ -16,6 +16,10 @@ pnpm dev
 bun dev
 ```
 
+## Prerequisits
+
+Docker compose v2
+
 Alternatively, you can use the Makefile to run all services or individual ones. This approach allows you to build and manage a production-like development infrastructure more easily:
 
 # Makefile
@@ -63,7 +67,7 @@ make server-dev
 
 ## Setup Command
 
-### Run Setup 
+### Run Setup
 This command runs the Setup Docker Compose file in detached mode without network.
 ```
 make setup-docker-run
