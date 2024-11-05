@@ -37,6 +37,11 @@ export const menuItems: MenuItem[] = [
     href: '/msp/contacts'
   },
   {
+    name: 'Documents',
+    icon: RadixIcons.FileIcon,
+    href: '/msp/documents'
+  },
+  {
     name: 'Time Management',
     icon: RadixIcons.TimerIcon,
     subItems: [
@@ -58,22 +63,7 @@ export const menuItems: MenuItem[] = [
     name: 'Technician Dispatch',
     icon: RadixIcons.PersonIcon,
     href: '/msp/technician-dispatch'
-  },/*
-  {
-    name: 'Reports',
-    icon: RadixIcons.ClipboardIcon,
-    href: '/msp/reports'
-  },
-  {
-    name: 'Chat',
-    icon: RadixIcons.ChatBubbleIcon,
-    href: '/msp/chat'
-  },
-  {
-    name: 'Share Documents',
-    icon: RadixIcons.FileIcon,
-    href: '/msp/share_document'
-  }*/
+  }
 ];
 
 export const bottomMenuItems: MenuItem[] = [

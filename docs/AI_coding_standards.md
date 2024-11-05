@@ -20,6 +20,10 @@ Prefer radix components over other libraries
     - [Table](../server/src/components/ui/Table.tsx)
     - [TextArea](../server/src/components/ui/TextArea.tsx)
 
+## Server Communication
+
+We use server actions that are located in the `/server/src/lib/actions` folder.
+
 # Database
 server migrations are stored in the `/server/migrations` folder.
 seeds are stored in the `/server/seeds` folder.

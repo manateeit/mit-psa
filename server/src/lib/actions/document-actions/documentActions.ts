@@ -8,14 +8,12 @@ import { fromPath } from 'pdf2pic';
 import sharp from 'sharp';
 import { writeFile, unlink } from 'fs/promises';
 import { join } from 'path';
-import { randomUUID } from 'crypto';
 import { CacheFactory } from '../../cache/CacheFactory';
 import Document from '../../models/document';
 import { IDocument } from '../../../interfaces/document.interface';
 import { v4 as uuidv4 } from 'uuid';
 import { getStorageConfig } from '../../../config/storage';
 import { deleteFile } from '../file-actions/fileActions';
-
 
 interface PreviewResponse {
   success: boolean;
@@ -26,6 +24,81 @@ interface PreviewResponse {
 }
 
 export type DocumentInput = Omit<IDocument, 'document_id'>;
+
+interface DocumentFilters {
+  type?: string;
+  entityType?: string;
+  uploadedBy?: string;
+  searchTerm?: string;
+}
+
+// Get all documents with optional filtering
+export async function getAllDocuments(filters?: DocumentFilters) {
+  try {
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('No tenant found');
+    }
+
+    let query = knex('documents')
+      .select(
+        'documents.*',
+        'users.first_name',
+        'users.last_name',
+        knex.raw("CONCAT(users.first_name, ' ', users.last_name) as created_by_full_name")
+      )
+      .leftJoin('users', 'documents.created_by', 'users.user_id')
+      .where('documents.tenant', tenant)
+      .orderBy('documents.entered_at', 'desc');
+
+    if (filters) {
+      // Search by document name
+      if (filters.searchTerm) {
+        query = query.where('documents.document_name', 'ilike', `%${filters.searchTerm}%`);
+      }
+
+      // Filter by document type
+      if (filters.type) {
+        query = query.where('documents.mime_type', 'like', `${filters.type}%`);
+      }
+
+      // Filter by entity type and ensure document is associated with that entity
+      if (filters.entityType) {
+        switch (filters.entityType) {
+          case 'ticket':
+            query = query.whereNotNull('documents.ticket_id');
+            break;
+          case 'client':
+            query = query.whereNotNull('documents.company_id');
+            break;
+          case 'contact':
+            query = query.whereNotNull('documents.contact_name_id');
+            break;
+          case 'schedule':
+            query = query.whereNotNull('documents.schedule_id');
+            break;
+        }
+      }
+
+      // Filter by uploaded by (using full name)
+      if (filters.uploadedBy) {
+        query = query.whereRaw(
+          "LOWER(CONCAT(users.first_name, ' ', users.last_name)) LIKE ?",
+          [`%${filters.uploadedBy.toLowerCase()}%`]
+        );
+      }
+    }
+
+    const documents = await query;
+    return documents.map((doc): IDocument => ({
+      ...doc,
+      createdByFullName: doc.created_by_full_name
+    }));
+  } catch (error) {
+    console.error('Error fetching documents:', error);
+    throw new Error('Failed to fetch documents');
+  }
+}
 
 // Centralized validation logic
 async function validateDocumentUpload(file: File): Promise<void> {
@@ -86,7 +159,7 @@ export async function uploadDocument(
   }
 ) {
   try {
-    const { knex, tenant } = await createTenantKnex();
+    const { tenant } = await createTenantKnex();
     if (!tenant) {
       throw new Error('No tenant found');
     }
@@ -210,7 +283,6 @@ export async function deleteDocument(documentId: string, userId: string) {
   }
 }
 
-
 export async function getDocument(documentId: string) {
   try {
     const document = await Document.get(documentId);
@@ -297,7 +369,6 @@ export async function getDocumentPreview(
         // Create temp directory for processing
         const tempDir = join(config.providers[config.defaultProvider!].basePath!, 'pdf-previews');
         const tempPdfPath = join(tempDir, `${file_id}.pdf`);
-        const tempOutputPath = join(tempDir, `${file_id}_thumb.png`);
         
         try {
           // Ensure temp directory exists
