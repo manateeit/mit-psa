@@ -156,7 +156,8 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
       const result = await deleteContact(contactToDelete.contact_name_id);
       
       if (!result.success) {
-        if (result.code === 'CONTACT_HAS_DEPENDENCIES') {
+        // Type guard to check if result has the dependencies properties
+        if ('code' in result && result.code === 'CONTACT_HAS_DEPENDENCIES' && 'dependencies' in result && 'counts' in result) {
           const dependencies = result.dependencies || [];
           const counts = result.counts || {};
           const dependencyText = dependencies.map((dep: string) => {
@@ -177,7 +178,11 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
           );
           return;
         }
-        throw new Error(result.message || 'Failed to delete contact');
+        // Type guard to check if result has a message property
+        if ('message' in result) {
+          throw new Error(result.message);
+        }
+        throw new Error('Failed to delete contact');
       }
 
       setContacts(prevContacts => 
@@ -515,10 +520,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
         <div className="p-6">
           {deleteError ? (
             <>
-              <p className="mb-2 text-red-600">{deleteError}</p>
-              <p className="mb-4 text-gray-600">
-                To manage this contact, you can edit it and set its status to inactive instead.
-              </p>
+              <p className="mb-4 text-red-600">{deleteError}</p>
               <div className="flex justify-end">
                 <button
                   onClick={() => {
