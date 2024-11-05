@@ -28,7 +28,6 @@ function convertDates<T extends { entered_at?: Date | string | null, updated_at?
   };
 }
 
-
 export async function addTicket(data: FormData, user: IUser): Promise<ITicket|undefined> {
   if (!hasPermission(user, 'ticket', 'create')) {
     throw new Error('Permission denied: Cannot create ticket');
@@ -42,6 +41,9 @@ export async function addTicket(data: FormData, user: IUser): Promise<ITicket|un
 
     // Get form data and convert empty strings to null for nullable fields
     const contact_name_id = data.get('contact_name_id');
+    const category_id = data.get('category_id');
+    const subcategory_id = data.get('subcategory_id');
+
     const formData = {
       title: data.get('title'),
       channel_id: data.get('channel_id'),
@@ -51,6 +53,8 @@ export async function addTicket(data: FormData, user: IUser): Promise<ITicket|un
       assigned_to: data.get('assigned_to'),
       priority_id: data.get('priority_id'),
       description: data.get('description'),
+      category_id: category_id === '' ? null : category_id,
+      subcategory_id: subcategory_id === '' ? null : subcategory_id,
     };
     
     const validatedData = validateData(ticketFormSchema, formData);
@@ -65,6 +69,8 @@ export async function addTicket(data: FormData, user: IUser): Promise<ITicket|un
       entered_by: user.user_id,
       assigned_to: validatedData.assigned_to,
       priority_id: validatedData.priority_id,
+      category_id: validatedData.category_id,
+      subcategory_id: validatedData.subcategory_id,
       entered_at: new Date().toISOString(),
       attributes: {
         description: validatedData.description
@@ -137,9 +143,41 @@ export async function updateTicket(id: string, data: Partial<ITicket>, user: IUs
       throw new Error('Tenant not found');
     }
 
+    // Clean up the data before update
+    const updateData = { ...validatedData };
+    
+    // Handle null values for category and subcategory
+    if ('category_id' in updateData && !updateData.category_id) {
+      updateData.category_id = null;
+    }
+    if ('subcategory_id' in updateData && !updateData.subcategory_id) {
+      updateData.subcategory_id = null;
+    }
+
+    // If updating category or subcategory, ensure they are compatible
+    if ('subcategory_id' in updateData || 'category_id' in updateData) {
+      const currentTicket = await db('tickets')
+        .where({ ticket_id: id, tenant: tenant })
+        .first();
+
+      const newSubcategoryId = updateData.subcategory_id;
+      const newCategoryId = updateData.category_id || currentTicket?.category_id;
+
+      if (newSubcategoryId) {
+        // If setting a subcategory, verify it's a valid child of the category
+        const subcategory = await db('categories')
+          .where({ category_id: newSubcategoryId, tenant: tenant })
+          .first();
+
+        if (subcategory && subcategory.parent_category !== newCategoryId) {
+          throw new Error('Invalid category combination: subcategory must belong to the selected parent category');
+        }
+      }
+    }
+
     const [updatedTicket] = await db('tickets')
       .where({ ticket_id: id, tenant: tenant })
-      .update(validatedData)
+      .update(updateData)
       .returning('*');
 
     if (!updatedTicket) {
@@ -189,11 +227,13 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
         's.name as status_name',
         'p.priority_name',
         'c.channel_name',
+        'cat.category_name',
         db.raw("CONCAT(u.first_name, ' ', u.last_name) as entered_by_name")
       )
       .leftJoin('statuses as s', 't.status_id', 's.status_id')
       .leftJoin('priorities as p', 't.priority_id', 'p.priority_id')
       .leftJoin('channels as c', 't.channel_id', 'c.channel_id')
+      .leftJoin('categories as cat', 't.category_id', 'cat.category_id')
       .leftJoin('users as u', 't.entered_by', 'u.user_id')
       .where('t.tenant', tenant);
 
@@ -217,6 +257,10 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
       query = query.where('t.priority_id', validatedFilters.priorityId);
     }
 
+    if (validatedFilters.categoryId && validatedFilters.categoryId !== 'all') {
+      query = query.where('t.category_id', validatedFilters.categoryId);
+    }
+
     if (validatedFilters.searchQuery) {
       const searchTerm = `%${validatedFilters.searchQuery}%`;
       query = query.where(function() {
@@ -228,13 +272,35 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
     const tickets = await query.orderBy('t.entered_at', 'desc');
 
     // Transform and validate the data
-    const ticketListItems = tickets.map((ticket): ITicketListItem => ({
-      ...convertDates(ticket),
-      status_name: ticket.status_name || 'Unknown',
-      priority_name: ticket.priority_name || 'Unknown',
-      channel_name: ticket.channel_name || 'Unknown',
-      entered_by_name: ticket.entered_by_name || 'Unknown'
-    }));
+    const ticketListItems = tickets.map((ticket): ITicketListItem => {
+      const {
+        status_id,
+        priority_id,
+        channel_id,
+        category_id,
+        entered_by,
+        status_name,
+        priority_name,
+        channel_name,
+        category_name,
+        entered_by_name,
+        ...rest
+      } = ticket;
+
+      return {
+        ...convertDates(rest),
+        status_id: status_id || null,
+        priority_id: priority_id || null,
+        channel_id: channel_id || null,
+        category_id: category_id || null,
+        entered_by: entered_by || null,
+        status_name: status_name || 'Unknown',
+        priority_name: priority_name || 'Unknown',
+        channel_name: channel_name || 'Unknown',
+        category_name: category_name || 'Unknown',
+        entered_by_name: entered_by_name || 'Unknown'
+      };
+    });
 
     return validateData(z.array(ticketListItemSchema), ticketListItems);
   } catch (error) {
