@@ -1,4 +1,3 @@
-// server/src/components/Contacts.tsx
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -154,11 +153,10 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
       const result = await deleteContact(contactToDelete.contact_name_id);
       
       if (!result.success) {
-        // Type guard to check if result has the dependencies properties
         if ('code' in result && result.code === 'CONTACT_HAS_DEPENDENCIES' && 'dependencies' in result && 'counts' in result) {
           const dependencies = result.dependencies || [];
           const counts = result.counts || {};
-          const dependencyText = dependencies.map((dep: string) => {
+          const dependencyText = dependencies.map((dep: string): string => {
             const count = counts[dep] || 0;
             const readableTypes: Record<string, string> = {
               'ticket': 'active tickets',
@@ -176,7 +174,6 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
           );
           return;
         }
-        // Type guard to check if result has a message property
         if ('message' in result) {
           throw new Error(result.message);
         }
@@ -213,7 +210,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
       }
 
       setContacts(prevContacts =>
-        prevContacts.map(c =>
+        prevContacts.map((c): IContact =>
           c.contact_name_id === contactToDelete.contact_name_id
             ? { ...c, is_inactive: true }
             : c
@@ -482,14 +479,16 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
             </DropdownMenu.Content>
           </DropdownMenu.Root>
         </div>
-        <DataTable
-          data={filteredContacts}
-          columns={columns}
-          pagination={true}
-          currentPage={currentPage}
-          onPageChange={handlePageChange}
-          pageSize={10}
-        />
+      <DataTable
+        data={filteredContacts.map((contact): IContact => ({
+          ...contact
+        }))}
+        columns={columns}
+        pagination={true}
+        currentPage={currentPage}
+        onPageChange={handlePageChange}
+        pageSize={10}
+      />
       </div>
       <QuickAddContact
         isOpen={isQuickAddOpen}
