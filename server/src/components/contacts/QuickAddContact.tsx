@@ -8,7 +8,7 @@ import { addContact } from '@/lib/actions/contact-actions/contactActions';
 import { CompanyPicker } from '@/components/companies/CompanyPicker';
 import { ICompany } from '@/interfaces/company.interfaces';
 import { IContact } from '@/interfaces/contact.interfaces';
-import { SwitchWithLabel } from '@/components/ui/SwitchWithLabel';
+import { Switch } from '@/components/ui/Switch';
 
 interface QuickAddContactProps {
   isOpen: boolean;
@@ -80,7 +80,6 @@ export const QuickAddContact: React.FC<QuickAddContactProps> = ({
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
-            <div>
               <Label htmlFor="fullName">Full Name</Label>
               <Input
                 id="fullName"
@@ -118,12 +117,20 @@ export const QuickAddContact: React.FC<QuickAddContactProps> = ({
                 clientTypeFilter={clientTypeFilter}
                 onClientTypeFilterChange={setClientTypeFilter}
               />
+           <div className="flex items-center justify-between py-2">
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="inactive-switch">Status</Label>
+                <span className="text-sm text-gray-500">
+                  {isInactive ? 'Inactive' : 'Active'}
+                </span>
+              </div>
+              <Switch
+                id="inactive-switch"
+                checked={isInactive}
+                onCheckedChange={setIsInactive}
+                className="data-[state=checked]:bg-primary-500"
+              />
             </div>
-            <SwitchWithLabel
-              label="Is Inactive"
-              checked={isInactive}
-              onCheckedChange={setIsInactive}
-            />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>

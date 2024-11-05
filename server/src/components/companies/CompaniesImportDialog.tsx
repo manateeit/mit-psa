@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { DataTable } from '@/components/ui/DataTable';
-import { Switch } from '@radix-ui/themes';
+import { Switch } from '@/components/ui/Switch';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import { ICompany } from '@/interfaces/company.interfaces';
@@ -408,10 +408,10 @@ const CompaniesImportDialog: React.FC<CompaniesImportDialogProps> = ({
                     </span>
                     <Switch
                       checked={importOptions.updateExisting}
-                      onCheckedChange={(checked: boolean) =>
+                      onCheckedChange={(checked) =>
                         setImportOptions(prev => ({ ...prev, updateExisting: checked }))
                       }
-                      className="data-[state=checked]:bg-blue-500 data-[state=unchecked]:bg-gray-200"
+                      className="data-[state=checked]:bg-primary-500"
                     />
                   </div>
                 </div>
@@ -427,10 +427,10 @@ const CompaniesImportDialog: React.FC<CompaniesImportDialogProps> = ({
                     </span>
                     <Switch
                       checked={importOptions.skipInvalid}
-                      onCheckedChange={(checked: boolean) =>
+                      onCheckedChange={(checked) =>
                         setImportOptions(prev => ({ ...prev, skipInvalid: checked }))
                       }
-                      className="data-[state=checked]:bg-blue-500 data-[state=unchecked]:bg-gray-200"
+                      className="data-[state=checked]:bg-primary-500"
                     />
                   </div>
                 </div>

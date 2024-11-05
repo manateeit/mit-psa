@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { TaxRegion } from '@/types/types.d';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Switch } from '@radix-ui/themes';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select, SelectOption } from '../ui/Select';
@@ -12,7 +11,7 @@ import { IWorkItem } from '@/interfaces/workItem.interfaces';
 import { BsClock } from 'react-icons/bs';
 import { fetchServicesForTimeEntry, fetchTaxRegions } from '@/lib/actions/timeEntryActions';
 import { formatISO, parseISO, setHours, setMinutes, addMinutes } from 'date-fns';
-import { SwitchWithLabel } from '../ui/SwitchWithLabel';
+import { Switch } from '../ui/Switch';
 
 interface TimeEntryDialogProps {
   isOpen: boolean;
@@ -476,12 +475,16 @@ export function TimeEntryDialog({
                   </div>
 
                   <div className="flex items-center justify-between mt-4">
-                    <SwitchWithLabel
-                      label="Billable"
-                      checked={isBillable[selectedEntryIndex]}
-                      onCheckedChange={(checked) => handleBillableToggle(selectedEntryIndex, checked)}
-                      className="w-full"
-                    />
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-700">
+                        {isBillable[selectedEntryIndex] ? 'Billable' : 'Non-billable'}
+                      </span>
+                      <Switch
+                        checked={isBillable[selectedEntryIndex]}
+                        onCheckedChange={(checked) => handleBillableToggle(selectedEntryIndex, checked)}
+                        className="data-[state=checked]:bg-primary-500"
+                      />
+                    </div>
                   </div>
                 </div>
 
