@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus } from 'lucide-react';
-import { generateTagColor } from '@/utils/tagUtils';
+import { generateEntityColor } from '@/utils/colorUtils';
 
 interface TagInputProps {
   existingTags: string[];
@@ -115,7 +115,7 @@ export const TagInput: React.FC<TagInputProps> = ({
       {suggestions.length > 0 && (
         <div className="absolute z-10 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg top-full">
           {suggestions.map((suggestion, index): JSX.Element => {
-            const colors = generateTagColor(suggestion);
+            const colors = generateEntityColor(suggestion);
             return (
               <button
                 key={index}

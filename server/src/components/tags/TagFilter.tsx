@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Tag as TagIcon } from 'lucide-react';
+import { Input } from '@/components/ui/Input';
 import * as Popover from '@radix-ui/react-popover';
 import { TagGrid } from './TagGrid';
-import { filterTagsByText } from '@/utils/tagUtils';
+import { filterTagsByText } from '@/utils/colorUtils';
 
 interface TagFilterProps {
   allTags: string[];
@@ -35,12 +36,12 @@ export const TagFilter: React.FC<TagFilterProps> = ({
       </Popover.Trigger>
       <Popover.Content className="bg-white rounded-lg shadow-lg border border-gray-200 w-72">
         <div className="p-2">
-          <input
+          <Input
             type="text"
             placeholder="Search tags"
-            className="w-full border border-gray-300 rounded-md p-2 mb-2"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            className="mb-2"
           />
           <TagGrid
             tags={filteredTags}

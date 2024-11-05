@@ -24,6 +24,94 @@ export async function getContactByContactNameId(contactNameId: string): Promise<
   }
 }
 
+export async function deleteContact(contactId: string) {
+  const {knex: db, tenant} = await createTenantKnex();
+  if (!tenant) {
+    throw new Error('Tenant not found');
+  }
+
+  try {
+    // Check for dependencies
+    const dependencies = [];
+    const counts: Record<string, number> = {};
+
+    // Check for tickets
+    const ticketCount = await db('tickets')
+      .where({ contact_name_id: contactId, is_closed: false })
+      .count('* as count')
+      .first();
+    if (ticketCount && Number(ticketCount.count) > 0) {
+      dependencies.push('ticket');
+      counts['ticket'] = Number(ticketCount.count);
+    }
+
+    // Check for interactions
+    const interactionCount = await db('interactions')
+      .where({ contact_name_id: contactId })
+      .count('* as count')
+      .first();
+    if (interactionCount && Number(interactionCount.count) > 0) {
+      dependencies.push('interaction');
+      counts['interaction'] = Number(interactionCount.count);
+    }
+
+    // Check for documents
+    const documentCount = await db('documents')
+      .where({ contact_name_id: contactId })
+      .count('* as count')
+      .first();
+    if (documentCount && Number(documentCount.count) > 0) {
+      dependencies.push('document');
+      counts['document'] = Number(documentCount.count);
+    }
+
+    // Check for schedules
+    const scheduleCount = await db('schedules')
+      .where({ contact_name_id: contactId })
+      .count('* as count')
+      .first();
+    if (scheduleCount && Number(scheduleCount.count) > 0) {
+      dependencies.push('schedule');
+      counts['schedule'] = Number(scheduleCount.count);
+    }
+
+    // If there are dependencies, return error
+    if (dependencies.length > 0) {
+      return {
+        success: false,
+        code: 'CONTACT_HAS_DEPENDENCIES',
+        message: 'Contact has associated records and cannot be deleted',
+        dependencies,
+        counts
+      };
+    }
+
+    // If no dependencies, proceed with deletion
+    const result = await db.transaction(async (trx) => {
+      // Delete associated tags first
+      await trx('tags')
+        .where({ tagged_id: contactId, tagged_type: 'contact' })
+        .delete();
+
+      // Delete the contact
+      const deleted = await trx('contacts')
+        .where({ contact_name_id: contactId, tenant })
+        .delete();
+
+      if (!deleted) {
+        throw new Error('Contact not found');
+      }
+
+      return { success: true };
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error deleting contact:', error);
+    throw new Error('Failed to delete contact');
+  }
+}
+
 export async function getContactsByCompany(companyId: string, includeInactive: boolean = true): Promise<IContact[]> {
   try {
     const {knex: db, tenant} = await createTenantKnex();
@@ -123,7 +211,7 @@ export async function updateContact(contactData: Partial<IContact>): Promise<ICo
     const {knex: db, tenant} = await createTenantKnex();
     if (!tenant) {
       throw new Error('Tenant not found');
-    }
+  }
     if (!contactData.contact_name_id) {
       throw new Error('Contact ID is required for updating');
     }

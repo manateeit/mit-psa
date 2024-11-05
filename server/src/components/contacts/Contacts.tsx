@@ -1,14 +1,13 @@
-// server/src/components/Contacts.tsx
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { IContact } from '@/interfaces/contact.interfaces';
 import { ICompany } from '@/interfaces/company.interfaces';
 import { ITag } from '@/interfaces/tag.interfaces';
-import { getAllContacts, getContactsByCompany, getAllCompanies, exportContactsToCSV } from '@/lib/actions/contact-actions/contactActions';
+import { getAllContacts, getContactsByCompany, getAllCompanies, exportContactsToCSV, deleteContact } from '@/lib/actions/contact-actions/contactActions';
 import { findTagsByEntityIds, createTag, deleteTag, findAllTagsByType } from '@/lib/actions/tagActions';
 import { Button } from '@/components/ui/Button';
-import { Pen, Eye, CloudDownload, MoreVertical, Upload, Search } from 'lucide-react';
+import { Pen, Eye, CloudDownload, MoreVertical, Upload, Search, Trash2 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { QuickAddContact } from './QuickAddContact';
 import { useDrawer } from '@/context/DrawerContext';
@@ -19,7 +18,9 @@ import CompanyDetails from '../companies/CompanyDetails';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import { TagManager, TagFilter } from '@/components/tags';
-import { getUniqueTagTexts } from '@/utils/tagUtils';
+import { getUniqueTagTexts } from '@/utils/colorUtils';
+import { getAvatarUrl } from '@/utils/colorUtils';
+import GenericDialog from '@/components/ui/GenericDialog';
 
 interface ContactsProps {
   initialContacts: IContact[];
@@ -40,6 +41,9 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
   const { openDrawer } = useDrawer();
   const contactTagsRef = useRef<Record<string, ITag[]>>({});
   const [allUniqueTags, setAllUniqueTags] = useState<string[]>([]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [contactToDelete, setContactToDelete] = useState<IContact | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -83,12 +87,9 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
     setAllUniqueTags(getUniqueTagTexts(Object.values(contactTagsRef.current).flat()));
   };
 
-  const getAvatarUrl = (contact: IContact) => {
-      // Using contact_name_id to generate a consistent background color
-      const backgroundColors = ['0D8ABC', '7C3AED', '059669', 'DC2626', 'D97706'];
-      const index = Math.abs(contact.contact_name_id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % backgroundColors.length;
-      return `https://ui-avatars.com/api/?name=${encodeURIComponent(contact.full_name)}&background=${backgroundColors[index]}&color=ffffff`;
-      };
+  const getContactAvatar = (contact: IContact) => {
+    return getAvatarUrl(contact.full_name, contact.contact_name_id);
+  };
 
   const getCompanyName = (companyId: string) => {
     const company = companies.find(c => c.company_id === companyId);
@@ -137,6 +138,92 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
         onCancel={() => openDrawer(<ContactDetailsView initialContact={contact} companies={companies} />)}
       />
     );
+  };
+
+  const handleDeleteContact = (contact: IContact) => {
+    setContactToDelete(contact);
+    setDeleteError(null);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!contactToDelete) return;
+    
+    try {
+      const result = await deleteContact(contactToDelete.contact_name_id);
+      
+      if (!result.success) {
+        if ('code' in result && result.code === 'CONTACT_HAS_DEPENDENCIES' && 'dependencies' in result && 'counts' in result) {
+          const dependencies = result.dependencies || [];
+          const counts = result.counts || {};
+          const dependencyText = dependencies.map((dep: string): string => {
+            const count = counts[dep] || 0;
+            const readableTypes: Record<string, string> = {
+              'ticket': 'active tickets',
+              'interaction': 'interactions',
+              'project': 'active projects',
+              'document': 'documents',
+              'timeEntry': 'time entries'
+            };
+            return `${count} ${readableTypes[dep] || `${dep}s`}`;
+          }).join(', ');
+          
+          setDeleteError(
+            `This contact cannot be deleted because it has the following associated records: ${dependencyText}. ` +
+            `To maintain data integrity, you can edit the contact and set its status to inactive instead.`
+          );
+          return;
+        }
+        if ('message' in result) {
+          throw new Error(result.message);
+        }
+        throw new Error('Failed to delete contact');
+      }
+
+      setContacts(prevContacts => 
+        prevContacts.filter(c => c.contact_name_id !== contactToDelete.contact_name_id)
+      );
+      
+      setIsDeleteDialogOpen(false);
+      setContactToDelete(null);
+      setDeleteError(null);
+    } catch (error) {
+      console.error('Error deleting contact:', error);
+      setDeleteError('An error occurred while deleting the contact. Please try again.');
+    }
+  };
+
+  const handleMakeInactive = async () => {
+    if (!contactToDelete) return;
+    
+    try {
+      const response = await fetch(`/api/contacts/${contactToDelete.contact_name_id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_inactive: true }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update contact status');
+      }
+
+      setContacts(prevContacts =>
+        prevContacts.map((c): IContact =>
+          c.contact_name_id === contactToDelete.contact_name_id
+            ? { ...c, is_inactive: true }
+            : c
+        )
+      );
+
+      setIsDeleteDialogOpen(false);
+      setContactToDelete(null);
+      setDeleteError(null);
+    } catch (error) {
+      console.error('Error updating contact:', error);
+      setDeleteError('An error occurred while updating the contact status. Please try again.');
+    }
   };
 
   const handleAddTag = async (contactId: string, tagText: string): Promise<ITag | undefined> => {
@@ -226,8 +313,9 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
         <div className="flex items-center">
           <img 
             className="h-8 w-8 rounded-full mr-2" 
-            src={getAvatarUrl(record)} 
+            src={getAvatarUrl(value, record.contact_name_id, 32)}
             alt={`${value} avatar`}
+            loading="lazy"
           />
           <button
             onClick={() => handleViewDetails(record)}
@@ -295,6 +383,13 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
             >
               <Pen size={14} className="mr-2" />
               Edit
+            </DropdownMenu.Item>
+            <DropdownMenu.Item 
+              className="px-2 py-1 text-sm cursor-pointer hover:bg-gray-100 flex items-center text-red-600"
+              onSelect={() => handleDeleteContact(record)}
+            >
+              <Trash2 size={14} className="mr-2" />
+              Delete
             </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
@@ -384,14 +479,16 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
             </DropdownMenu.Content>
           </DropdownMenu.Root>
         </div>
-        <DataTable
-          data={filteredContacts}
-          columns={columns}
-          pagination={true}
-          currentPage={currentPage}
-          onPageChange={handlePageChange}
-          pageSize={10}
-        />
+      <DataTable
+        data={filteredContacts.map((contact): IContact => ({
+          ...contact
+        }))}
+        columns={columns}
+        pagination={true}
+        currentPage={currentPage}
+        onPageChange={handlePageChange}
+        pageSize={10}
+      />
       </div>
       <QuickAddContact
         isOpen={isQuickAddOpen}
@@ -407,6 +504,58 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
         onImportComplete={handleImportComplete}
         companies={companies}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <GenericDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => {
+          setIsDeleteDialogOpen(false);
+          setContactToDelete(null);
+          setDeleteError(null);
+        }}
+        title="Delete Contact"
+      >
+        <div className="p-6">
+          {deleteError ? (
+            <>
+              <p className="mb-4 text-red-600">{deleteError}</p>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setIsDeleteDialogOpen(false);
+                    setContactToDelete(null);
+                    setDeleteError(null);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded"
+                >
+                  Close
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mb-4">Are you sure you want to delete this contact? This action cannot be undone.</p>
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => {
+                    setIsDeleteDialogOpen(false);
+                    setContactToDelete(null);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded"
+                >
+                  Delete
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </GenericDialog>
     </div>
   );
 };
