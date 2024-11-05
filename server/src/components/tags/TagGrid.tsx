@@ -1,5 +1,5 @@
 import React from 'react';
-import { generateTagColor } from '@/utils/colorUtils';
+import { generateEntityColor } from '@/utils/colorUtils';
 
 interface TagGridProps {
   tags: string[];
@@ -18,7 +18,7 @@ export const TagGrid: React.FC<TagGridProps> = ({
     <div className={`grid grid-cols-3 gap-2 p-2 max-h-60 overflow-y-auto ${className}`}>
       {tags.map((tag):JSX.Element => {
         const isSelected = selectedTags.includes(tag);
-        const colors = generateTagColor(tag);
+        const colors = generateEntityColor(tag);
         return (
           <button
             key={tag}
