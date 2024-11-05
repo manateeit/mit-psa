@@ -1,7 +1,7 @@
 import React, { JSXElementConstructor } from 'react';
 import { X } from 'lucide-react';
 import { ITag } from '@/interfaces/tag.interfaces';
-import { generateTagColor } from '@/utils/tagUtils';
+import { generateEntityColor } from '@/utils/colorUtils';
 
 interface TagListProps {
   tags: ITag[];
@@ -17,7 +17,7 @@ export const TagList: React.FC<TagListProps> = ({
   return (
     <div className={`flex flex-wrap gap-1 ${className}`}>
       {tags.map((tag):JSX.Element => {
-        const colors = generateTagColor(tag.tag_text);
+        const colors = generateEntityColor(tag.tag_text);
         return (
           <span
             key={tag.tag_id}

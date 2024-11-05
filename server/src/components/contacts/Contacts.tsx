@@ -19,7 +19,8 @@ import CompanyDetails from '../companies/CompanyDetails';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import { TagManager, TagFilter } from '@/components/tags';
-import { getUniqueTagTexts } from '@/utils/tagUtils';
+import { getUniqueTagTexts } from '@/utils/colorUtils';
+import { getAvatarUrl } from '@/utils/colorUtils';
 import GenericDialog from '@/components/ui/GenericDialog';
 
 interface ContactsProps {
@@ -87,11 +88,8 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
     setAllUniqueTags(getUniqueTagTexts(Object.values(contactTagsRef.current).flat()));
   };
 
-  const getAvatarUrl = (contact: IContact) => {
-      // Using contact_name_id to generate a consistent background color
-      const backgroundColors = ['0D8ABC', '7C3AED', '059669', 'DC2626', 'D97706'];
-      const index = Math.abs(contact.contact_name_id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % backgroundColors.length;
-      return `https://ui-avatars.com/api/?name=${encodeURIComponent(contact.full_name)}&background=${backgroundColors[index]}&color=ffffff`;
+  const getContactAvatar = (contact: IContact) => {
+    return getAvatarUrl(contact.full_name, contact.contact_name_id);
   };
 
   const getCompanyName = (companyId: string) => {
@@ -318,8 +316,9 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
         <div className="flex items-center">
           <img 
             className="h-8 w-8 rounded-full mr-2" 
-            src={getAvatarUrl(record)} 
+            src={getAvatarUrl(value, record.contact_name_id, 32)}
             alt={`${value} avatar`}
+            loading="lazy"
           />
           <button
             onClick={() => handleViewDetails(record)}
