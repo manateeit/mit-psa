@@ -12,7 +12,7 @@ interface CompaniesListProps {
     setSelectedCompanies: (companies: string[]) => void;
     handleCheckboxChange: (companyId: string) => void;
     handleEditCompany: (companyId: string) => void;
-    handleDeleteCompany: (companyId: string) => void;
+    handleDeleteCompany: (company: ICompany) => void;
 }
 
 const CompaniesList = ({ selectedCompanies, filteredCompanies, setSelectedCompanies, handleCheckboxChange, handleEditCompany, handleDeleteCompany }: CompaniesListProps) => {
@@ -72,7 +72,7 @@ const CompaniesList = ({ selectedCompanies, filteredCompanies, setSelectedCompan
         {
             title: 'Actions',
             dataIndex: 'company_id',
-            render: (value: string) => (
+            render: (value: string, record: ICompany) => (
                 <DropdownMenu.Root>
                     <DropdownMenu.Trigger asChild>
                         <Button variant="ghost" size="1">
@@ -89,7 +89,7 @@ const CompaniesList = ({ selectedCompanies, filteredCompanies, setSelectedCompan
                         </DropdownMenu.Item>
                         <DropdownMenu.Item 
                             className="px-2 py-1 text-sm cursor-pointer hover:bg-gray-100 text-red-600 flex items-center"
-                            onSelect={() => handleDeleteCompany(value)}
+                            onSelect={() => handleDeleteCompany(record)}
                         >
                             <Trash2 size={14} className="mr-2" />
                             Delete

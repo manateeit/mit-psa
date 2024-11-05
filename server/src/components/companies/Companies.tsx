@@ -19,7 +19,7 @@ const COMPANY_VIEW_MODE_SETTING = 'company_list_view_mode';
 const Companies: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [companyToDelete, setCompanyToDelete] = useState<string | null>(null);
+  const [companyToDelete, setCompanyToDelete] = useState<ICompany | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list' | null>(null);
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
@@ -30,6 +30,8 @@ const Companies: React.FC = () => {
   const [isMultiDeleteDialogOpen, setIsMultiDeleteDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [multiDeleteError, setMultiDeleteError] = useState<string | null>(null);
 
   const router = useRouter();
   
@@ -125,8 +127,9 @@ const Companies: React.FC = () => {
     router.push(`/msp/companies/${companyId}`);
   };
 
-  const handleDeleteCompany = async (companyId: string) => {
-    setCompanyToDelete(companyId);
+  const handleDeleteCompany = async (company: ICompany) => {
+    setCompanyToDelete(company);
+    setDeleteError(null);
     setIsDeleteDialogOpen(true);
   };
 
@@ -134,44 +137,154 @@ const Companies: React.FC = () => {
     if (!companyToDelete) return;
     
     try {
-      await deleteCompany(companyToDelete);
+      const result = await deleteCompany(companyToDelete.company_id);
       
-      const updatedCompanies = await getAllCompanies(true);
-      setCompanies(updatedCompanies);
-      
-      setSelectedCompanies(prev => prev.filter(id => id !== companyToDelete));
-      
-      setCompanyToDelete(null);
-      setIsDeleteDialogOpen(false);
-      
-      router.refresh();
+      if (!result.success) {
+        if ('code' in result && result.code === 'COMPANY_HAS_DEPENDENCIES') {
+          handleDependencyError(result, setDeleteError);
+          return;
+        }
+        throw new Error(result.message || 'Failed to delete company');
+      }
+
+      await refreshCompanies();
+      resetDeleteState();
     } catch (error) {
       console.error('Error deleting company:', error);
+      setDeleteError('An error occurred while deleting the company. Please try again.');
     }
   };
 
   const handleMultiDelete = () => {
+    setMultiDeleteError(null);
     setIsMultiDeleteDialogOpen(true);
   };
 
-  const confirmMultiDelete = async () => {
+  const refreshCompanies = async () => {
     try {
-      // Delete all selected companies
-      await Promise.all(selectedCompanies.map((companyId):Promise<void> => deleteCompany(companyId)));
-      
-      // Refresh the companies list
       const updatedCompanies = await getAllCompanies(true);
       setCompanies(updatedCompanies);
-      
-      // Clear selection
-      setSelectedCompanies([]);
-      setIsMultiDeleteDialogOpen(false);
-      
       router.refresh();
     } catch (error) {
-      console.error('Error deleting companies:', error);
+      console.error('Error refreshing companies:', error);
     }
-  };      
+  };
+  
+  const confirmMultiDelete = async () => {
+    try {
+      const deleteResults = await Promise.all(
+        selectedCompanies.map(async (companyId: string): Promise<{ companyId: string; result: any }> => {
+          const result = await deleteCompany(companyId);
+          return { companyId, result };
+        })
+      );
+  
+      const errors: string[] = [];
+      const successfulDeletes: string[] = [];
+  
+      deleteResults.forEach(({ companyId, result }) => {
+        if (!result.success) {
+          if ('code' in result && result.code === 'COMPANY_HAS_DEPENDENCIES') {
+            const company = companies.find(c => c.company_id === companyId);
+            const companyName = company ? company.company_name : companyId;
+            const dependencyText = formatDependencyText(result);
+            errors.push(`${companyName}: ${dependencyText}`);
+          }
+        } else {
+          successfulDeletes.push(companyId);
+        }
+      });
+  
+      // Update selected companies to remove successfully deleted ones
+      setSelectedCompanies(prev => prev.filter(id => !successfulDeletes.includes(id)));
+
+      if (errors.length > 0) {
+        setMultiDeleteError(
+          `Some companies could not be deleted:\n${errors.join('\n')}\n\n` +
+          `${successfulDeletes.length} companies were successfully deleted.`
+        );
+      }
+
+      // If any companies were successfully deleted, refresh the list
+      if (successfulDeletes.length > 0) {
+        await refreshCompanies();
+      }
+
+      // If all selected companies were successfully deleted, close the dialog
+      if (errors.length === 0) {
+        setIsMultiDeleteDialogOpen(false);
+        setMultiDeleteError(null);
+      }
+      
+    } catch (error) {
+      console.error('Error in multi-delete:', error);
+      setMultiDeleteError('An error occurred while deleting companies. Please try again.');
+    }
+  };
+
+  interface DependencyResult {
+    dependencies?: string[];
+    counts?: Record<string, number>; // Changed from string to number to match backend
+    code?: string;
+    message?: string;
+  }
+
+  const formatDependencyText = (result: DependencyResult): string => {
+    const dependencies = result.dependencies || [];
+    const counts = result.counts || {};
+    
+    // Map the base keys to their full dependency names
+    const keyMap: Record<string, string> = {
+      'contact': 'contacts',
+      'ticket': 'active tickets',
+      'project': 'active projects',
+      'document': 'documents',
+      'invoice': 'invoices',
+      'interaction': 'interactions',
+      'schedule': 'schedules',
+      'location': 'locations',
+      'service_usage': 'service usage records',
+      'bucket_usage': 'bucket usage records',
+      'billing_plan': 'billing plans',
+      'tax_rate': 'tax rates',
+      'tax_setting': 'tax settings'
+    };
+
+    // Create a reverse mapping from full names to base keys
+    const reverseKeyMap: Record<string, string> = {};
+    Object.entries(keyMap).forEach(([key, value]) => {
+      reverseKeyMap[value] = key;
+    });
+
+    return dependencies
+    .map((dep: string): string => {
+      // Get the base key for this dependency
+      const baseKey = reverseKeyMap[dep];
+      const count = baseKey ? counts[baseKey] || 0 : 0;
+      return `${count} ${dep}`;
+    })
+    .join(', ');
+  };
+
+  const handleDependencyError = (
+    result: DependencyResult, 
+    setError: (error: string) => void
+  ) => {
+    const dependencyText = formatDependencyText(result);
+    
+    setError(
+      `Unable to delete this company\n\n` +
+      `This company has the following associated records:\n${dependencyText}\n\n` +
+      `Please remove or reassign these items before deleting the company.`
+    );
+  };
+
+
+  const resetDeleteState = () => {
+    setIsDeleteDialogOpen(false);
+    setCompanyToDelete(null);
+    setDeleteError(null);
+  };
 
   const handleExportToCSV = async () => {
     try {
@@ -225,7 +338,7 @@ const Companies: React.FC = () => {
     );
   }
 
-  return (
+return (
     <div className="w-full">
       <div className="flex justify-end mb-4 flex-wrap gap-6">
         {/* Search */}
@@ -254,7 +367,7 @@ const Companies: React.FC = () => {
         <div className="flex gap-2">
           <button
             onClick={() => setIsDialogOpen(true)}
-            className="px-4 py-2 text-sm font-medium text-white bg-[#6941C6] rounded"
+            className="px-4 py-2 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded"
           >
             + Create Client
           </button>
@@ -343,6 +456,7 @@ const Companies: React.FC = () => {
             selectedCompanies={selectedCompanies}
             handleCheckboxChange={handleCheckboxChange}
             handleEditCompany={handleEditCompany}
+            handleDeleteCompany={handleDeleteCompany}
           />
         ) : (
           <CompaniesList
@@ -356,6 +470,7 @@ const Companies: React.FC = () => {
         )}
       </div>
 
+      {/* Dialogs */}
       <GenericDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
@@ -364,59 +479,95 @@ const Companies: React.FC = () => {
         <CompanyForm onSubmit={handleAddCompany} />
       </GenericDialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Single Delete Confirmation Dialog */}
       <GenericDialog
         isOpen={isDeleteDialogOpen}
-        onClose={() => {
-          setIsDeleteDialogOpen(false);
-          setCompanyToDelete(null);
-        }}
+        onClose={resetDeleteState}
         title="Delete Company"
       >
         <div className="p-6">
-          <p className="mb-4">Are you sure you want to delete this company? This action cannot be undone.</p>
-          <div className="flex justify-end gap-4">
-            <button
-              onClick={() => {
-                setIsDeleteDialogOpen(false);
-                setCompanyToDelete(null);
-              }}
-              className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirmDelete}
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded"
-            >
-              Delete
-            </button>
-          </div>
+          {deleteError ? (
+            <>
+              <p className="mb-6 text-red-600 whitespace-pre-line text-sm leading-relaxed">
+                {deleteError}
+              </p>
+              <div className="flex justify-end">
+                <Button
+                  onClick={resetDeleteState}
+                  className="px-6 py-2 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded shadow-sm transition-colors"
+                >
+                  Close
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mb-4">Are you sure you want to delete this company? This action cannot be undone.</p>
+              <div className="flex justify-end gap-4">
+                <Button
+                  onClick={resetDeleteState}
+                  className="px-6 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={confirmDelete}
+                  className="px-6 py-2 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded shadow-sm transition-colors"
+                >
+                  Delete
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </GenericDialog>
 
       {/* Multi-Delete Confirmation Dialog */}
       <GenericDialog
         isOpen={isMultiDeleteDialogOpen}
-        onClose={() => setIsMultiDeleteDialogOpen(false)}
+        onClose={() => {
+          setIsMultiDeleteDialogOpen(false);
+          setMultiDeleteError(null);
+        }}
         title="Delete Selected Companies"
       >
         <div className="p-6">
-          <p className="mb-4">Are you sure you want to delete {selectedCompanies.length} selected companies? This action cannot be undone.</p>
-          <div className="flex justify-end gap-4">
-            <button
-              onClick={() => setIsMultiDeleteDialogOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirmMultiDelete}
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded"
-            >
-              Delete Selected
-            </button>
-          </div>
+          {multiDeleteError ? (
+            <>
+              <p className="mb-4 text-red-600 whitespace-pre-line">{multiDeleteError}</p>
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => {
+                    setIsMultiDeleteDialogOpen(false);
+                    setMultiDeleteError(null);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded shadow-sm transition-colors"
+                >
+                  Close
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mb-4">
+                Are you sure you want to delete {selectedCompanies.length} selected companies? This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-4">
+                <Button
+                  onClick={() => setIsMultiDeleteDialogOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={confirmMultiDelete}
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded shadow-sm transition-colors"
+                >
+                  Delete Selected
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </GenericDialog>
 
