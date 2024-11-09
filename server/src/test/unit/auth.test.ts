@@ -1,18 +1,71 @@
 import { describe, it, expect, afterEach, vi, Mock } from 'vitest';
 import { IUserRegister } from '@/interfaces';
 import jwt from 'jsonwebtoken';
-import { TokenExpiredError, JsonWebTokenError, NotBeforeError } from 'jsonwebtoken';
 import { createToken, getInfoFromToken } from '@/utils';
 
-vi.mock('jsonwebtoken', () => ({
-    sign: vi.fn(),
-    verify: vi.fn(),
-}));
+vi.mock('jsonwebtoken', () => {
+    class MockTokenExpiredError extends Error {
+        expiredAt: Date;
+        constructor(message: string, expiredAt: Date) {
+            super(message);
+            this.name = 'TokenExpiredError';
+            this.expiredAt = expiredAt;
+            Object.setPrototypeOf(this, new.target.prototype);
+        }
+    }
 
-vi.mock('@/utils/logger', () => ({
-    system: vi.fn(),
-    error: vi.fn(),
-}));
+    class MockJsonWebTokenError extends Error {
+        constructor(message: string) {
+            super(message);
+            this.name = 'JsonWebTokenError';
+            Object.setPrototypeOf(this, new.target.prototype);
+        }
+    }
+
+    class MockNotBeforeError extends Error {
+        date: Date;
+        constructor(message: string, date: Date) {
+            super(message);
+            this.name = 'NotBeforeError';
+            this.date = date;
+            Object.setPrototypeOf(this, new.target.prototype);
+        }
+    }
+
+    // Create prototype chains
+    Object.setPrototypeOf(MockTokenExpiredError, Error);
+    Object.setPrototypeOf(MockTokenExpiredError.prototype, Error.prototype);
+    Object.setPrototypeOf(MockJsonWebTokenError, Error);
+    Object.setPrototypeOf(MockJsonWebTokenError.prototype, Error.prototype);
+    Object.setPrototypeOf(MockNotBeforeError, Error);
+    Object.setPrototypeOf(MockNotBeforeError.prototype, Error.prototype);
+
+    return {
+        __esModule: true,
+        default: {
+            sign: vi.fn(),
+            verify: vi.fn(),
+            TokenExpiredError: MockTokenExpiredError,
+            JsonWebTokenError: MockJsonWebTokenError,
+            NotBeforeError: MockNotBeforeError
+        },
+        sign: vi.fn(),
+        verify: vi.fn(),
+        TokenExpiredError: MockTokenExpiredError,
+        JsonWebTokenError: MockJsonWebTokenError,
+        NotBeforeError: MockNotBeforeError
+    };
+});
+
+vi.mock('@/utils/logger', () => {
+    const mockLogger = {
+        system: vi.fn(),
+        error: vi.fn()
+    };
+    return {
+        default: mockLogger
+    };
+});
 
 describe('Auth Functions', () => {
     const mockUser: IUserRegister = {
@@ -56,8 +109,9 @@ describe('Auth Functions', () => {
         });
 
         it('should handle TokenExpiredError', () => {
+            const error = new jwt.TokenExpiredError('jwt expired', new Date());
             (jwt.verify as Mock).mockImplementation(() => {
-                throw new TokenExpiredError('jwt expired', new Date());
+                throw error;
             });
 
             const result = getInfoFromToken('expiredToken');
@@ -67,8 +121,9 @@ describe('Auth Functions', () => {
         });
 
         it('should handle JsonWebTokenError', () => {
+            const error = new jwt.JsonWebTokenError('invalid token');
             (jwt.verify as Mock).mockImplementation(() => {
-                throw new JsonWebTokenError('invalid token');
+                throw error;
             });
 
             const result = getInfoFromToken('invalidToken');
@@ -78,8 +133,9 @@ describe('Auth Functions', () => {
         });
 
         it('should handle NotBeforeError', () => {
+            const error = new jwt.NotBeforeError('jwt not active', new Date());
             (jwt.verify as Mock).mockImplementation(() => {
-                throw new NotBeforeError('jwt not active', new Date());
+                throw error;
             });
 
             const result = getInfoFromToken('notBeforeToken');
