@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { IDocument, IDocumentUploadResponse } from '../../interfaces/document.interface';
 import DocumentStorageCard from './DocumentStorageCard';
 import DocumentUpload from './DocumentUpload';
 import DocumentsPagination from './DocumentsPagination';
-import { getDocumentByCompanyId, deleteDocument } from '../../lib/actions/document-actions/documentActions';
+import { getAllDocuments, deleteDocument } from '../../lib/actions/document-actions/documentActions';
 import { toast } from 'react-hot-toast';
 
 interface DocumentsProps {
@@ -14,40 +14,31 @@ interface DocumentsProps {
     userId: string;
     companyId?: string;
     onDocumentCreated?: (document: IDocument) => void;
+    filters?: {
+        type?: string;
+        entityType?: string;
+        uploadedBy?: string;
+        searchTerm?: string;
+    };
+    isLoading?: boolean;
 }
 
-const Documents = ({ documents: initialDocuments, gridColumns, userId, companyId, onDocumentCreated }: DocumentsProps): JSX.Element => {
-    const [documents, setDocuments] = useState<IDocument[]>(initialDocuments);
-    const [searchTerm, setSearchTerm] = useState('');
+const Documents = ({ 
+    documents, 
+    gridColumns, 
+    userId, 
+    companyId, 
+    onDocumentCreated,
+    filters,
+    isLoading = false
+}: DocumentsProps): JSX.Element => {
     const [showUpload, setShowUpload] = useState(false);
-
-    // Fetch latest documents whenever component mounts or companyId changes
-    useEffect(() => {
-        const fetchLatestDocuments = async () => {
-            if (companyId) {
-                try {
-                    const latestDocuments = await getDocumentByCompanyId(companyId);
-                    setDocuments(latestDocuments);
-                } catch (error) {
-                    console.error('Error fetching documents:', error);
-                    toast.error('Failed to fetch documents');
-                }
-            }
-        };
-
-        fetchLatestDocuments();
-    }, [companyId]);
 
     // Set grid columns based on the number of columns
     const gridColumnsClass = gridColumns === 4 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
 
-    // Set filter based on search term
-    const handleSearch = (e: React.ChangeEvent<HTMLInputElement>): void => {
-        setSearchTerm(e.target.value);
-    };
-
     // Handle file upload completion
-    const handleUploadComplete = (fileData: IDocumentUploadResponse) => {
+    const handleUploadComplete = async (fileData: IDocumentUploadResponse) => {
         setShowUpload(false);
         const newDocument: IDocument = {
             document_id: '', // This will be set by the server
@@ -65,13 +56,12 @@ const Documents = ({ documents: initialDocuments, gridColumns, userId, companyId
             file_size: fileData.file_size
         };
         
-        // Update local state with the new document
-        setDocuments(prevDocuments => [...prevDocuments, newDocument]);
-        
         // Call the parent callback if provided
         if (onDocumentCreated) {
             onDocumentCreated(newDocument);
         }
+
+        // Parent will handle refreshing the documents list
     };
 
     // Handle document deletion
@@ -79,11 +69,11 @@ const Documents = ({ documents: initialDocuments, gridColumns, userId, companyId
         try {
             if (document.document_id) {
                 await deleteDocument(document.document_id, userId);
-                // Update local state to remove the deleted document
-                setDocuments(prevDocuments => 
-                    prevDocuments.filter(doc => doc.document_id !== document.document_id)
-                );
                 toast.success('Document deleted successfully');
+                // Trigger a refresh in the parent component
+                if (onDocumentCreated) {
+                    onDocumentCreated(document); // Reuse this callback to trigger refresh
+                }
             }
         } catch (error) {
             console.error('Error deleting document:', error);
@@ -91,23 +81,9 @@ const Documents = ({ documents: initialDocuments, gridColumns, userId, companyId
         }
     };
 
-    // Filter documents based on document name search term
-    const filteredDocuments = documents.filter(doc =>
-        doc.document_name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
     return (
         <div>
-            <div className="flex justify-between items-center mb-3 space-x-4 flex-wrap">
-                {/* Search */}
-                <input
-                    type="text"
-                    placeholder="Search"
-                    className="px-4 py-1 border border-gray-300 rounded-md w-48"
-                    value={searchTerm}
-                    onChange={handleSearch}
-                />
-
+            <div className="flex justify-between items-center mb-3">
                 {/* New document button */}
                 <button 
                     className="bg-[#6941C6] text-white px-4 py-1 rounded-md whitespace-nowrap"
@@ -128,9 +104,16 @@ const Documents = ({ documents: initialDocuments, gridColumns, userId, companyId
                 </div>
             )}
 
+            {/* Loading State */}
+            {isLoading && (
+                <div className="flex justify-center items-center py-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6941C6]"></div>
+                </div>
+            )}
+
             {/* Documents */}
             <div className={`grid ${gridColumnsClass} gap-2 items-start`}>
-                {filteredDocuments.map((document: IDocument): JSX.Element => (
+                {!isLoading && documents.map((document: IDocument): JSX.Element => (
                     <DocumentStorageCard
                         key={document.document_id || document.file_id}
                         document={document}

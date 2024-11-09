@@ -8,7 +8,9 @@ export const ticketFormSchema = z.object({
   status_id: z.string(),
   assigned_to: z.string(),
   priority_id: z.string(),
-  description: z.string()
+  description: z.string(),
+  category_id: z.string().nullable(),
+  subcategory_id: z.string().nullable()
 });
 
 export const ticketSchema = z.object({
@@ -21,6 +23,7 @@ export const ticketSchema = z.object({
   contact_name_id: z.string().nullable(),
   status_id: z.string(),
   category_id: z.string().nullable(),
+  subcategory_id: z.string().nullable(),
   entered_by: z.string(),
   updated_by: z.string().nullable(),
   closed_by: z.string().nullable(),
@@ -37,10 +40,13 @@ export const ticketListItemSchema = ticketSchema.extend({
   status_id: z.string().nullable(),
   priority_id: z.string().nullable(),
   channel_id: z.string().nullable(),
+  category_id: z.string().nullable(),
+  subcategory_id: z.string().nullable(),
   entered_by: z.string().nullable(),
   status_name: z.string(),
   priority_name: z.string(),
   channel_name: z.string(),
+  category_name: z.string(),
   entered_by_name: z.string()
 });
 
@@ -48,6 +54,7 @@ export const ticketListFiltersSchema = z.object({
   channelId: z.string().optional(),
   statusId: z.string().optional(),
   priorityId: z.string().optional(),
+  categoryId: z.string().optional(),
   searchQuery: z.string().optional(),
   channelFilterState: z.enum(['active', 'inactive', 'all'])
 });

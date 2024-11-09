@@ -5,27 +5,36 @@ import { createTenantKnex } from '@/lib/db';
 import { unparseCSV } from '@/lib/utils/csvParser';
 
 export async function getCompanyById(companyId: string): Promise<ICompany | null> {
-  const { knex } = await createTenantKnex();
-  const company = await knex<ICompany>('companies').where({ company_id: companyId }).first();
+  const { knex, tenant } = await createTenantKnex();
+  if (!tenant) {
+    throw new Error('Tenant not found');
+  }
+  const company = await knex<ICompany>('companies')
+    .where({ company_id: companyId, tenant })
+    .first();
   return company || null;
 }
 
 export async function updateCompany(companyId: string, updateData: Partial<ICompany>): Promise<ICompany> {
-  const {knex: db} = await createTenantKnex();
+  const {knex: db, tenant} = await createTenantKnex();
+  if (!tenant) {
+    throw new Error('Tenant not found');
+  }
+
   try {
     console.log('Updating company in database:', companyId, updateData);
 
     await db.transaction(async (trx) => {
       if (updateData.properties) {
         await trx('companies')
-          .where({ company_id: companyId })
+          .where({ company_id: companyId, tenant })
           .update({
             ...updateData,
             properties: trx.raw('properties || ?::jsonb', JSON.stringify(updateData.properties))
           });
       } else {
         await trx('companies')
-          .where({ company_id: companyId })
+          .where({ company_id: companyId, tenant })
           .update({
             ...updateData,
             updated_at: new Date().toISOString()
@@ -35,14 +44,14 @@ export async function updateCompany(companyId: string, updateData: Partial<IComp
       // If the company is being set to inactive, update all associated contacts
       if (updateData.is_inactive === true) {
         await trx('contacts')
-          .where({ company_id: companyId })
+          .where({ company_id: companyId, tenant })
           .update({ is_inactive: true });
       }
     });
 
     // Fetch and return the updated company data
     const updatedCompany = await db('companies')
-      .where({ company_id: companyId })
+      .where({ company_id: companyId, tenant })
       .first();
 
     console.log('Updated company data:', updatedCompany);
@@ -55,10 +64,14 @@ export async function updateCompany(companyId: string, updateData: Partial<IComp
 
 export async function createCompany(company: Omit<ICompany, 'company_id' | 'created_at' | 'updated_at'>): Promise<ICompany> {
   const { knex, tenant } = await createTenantKnex();
+  if (!tenant) {
+    throw new Error('Tenant not found');
+  }
+
   const [createdCompany] = await knex<ICompany>('companies')
     .insert({
       ...company,
-      tenant: tenant!,
+      tenant,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     })
@@ -72,12 +85,20 @@ export async function createCompany(company: Omit<ICompany, 'company_id' | 'crea
 }
 
 export async function getAllCompanies(includeInactive: boolean = true): Promise<ICompany[]> {
-  const {knex: db} = await createTenantKnex();
+  const {knex: db, tenant} = await createTenantKnex();
+  if (!tenant) {
+    throw new Error('Tenant not found');
+  }
+
   try {
-    let query = db('companies').select('*');
+    let query = db('companies')
+      .select('*')
+      .where({ tenant });
+
     if (!includeInactive) {
-      query = query.where('is_inactive', false);
+      query = query.andWhere('is_inactive', false);
     }
+    
     const companies = await query;
     return companies;
   } catch (error) {
@@ -86,10 +107,240 @@ export async function getAllCompanies(includeInactive: boolean = true): Promise<
   }
 }
 
-export async function deleteCompany(companyId: string): Promise<void> {
-  const { knex } = await createTenantKnex();
-  await knex<ICompany>('companies').where({ company_id: companyId }).del();
+export async function deleteCompany(companyId: string): Promise<{ 
+  success: boolean;
+  code?: string;
+  message?: string;
+  dependencies?: string[];
+  counts?: Record<string, number>;
+}> {
+  try {
+    const {knex: db, tenant} = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    // First verify the company exists and belongs to this tenant
+    const company = await db('companies')
+      .where({ company_id: companyId, tenant })
+      .first();
+    
+    if (!company) {
+      return {
+        success: false,
+        message: 'Company not found'
+      };
+    }
+
+    console.log('Checking dependencies for company:', companyId, 'tenant:', tenant);
+
+    // Check for dependencies
+    const dependencies = [];
+    const counts: Record<string, number> = {};
+
+    // Check for contacts
+    const contactCount = await db('contacts')
+      .where({ company_id: companyId, tenant })
+      .count('contact_name_id as count')
+      .first();
+    console.log('Contact count result:', contactCount);
+    if (contactCount && Number(contactCount.count) > 0) {
+      dependencies.push('contact');
+      counts['contact'] = Number(contactCount.count);
+    }
+
+    // Check for active tickets
+    const ticketCount = await db('tickets')
+      .where({ company_id: companyId, tenant, is_closed: false })
+      .count('ticket_id as count')
+      .first();
+    console.log('Ticket count result:', ticketCount);
+    if (ticketCount && Number(ticketCount.count) > 0) {
+      dependencies.push('ticket');
+      counts['ticket'] = Number(ticketCount.count);
+    }
+
+    // Check for projects
+    const projectCount = await db('projects')
+      .where({ company_id: companyId, tenant })
+      .count('project_id as count')
+      .first();
+    console.log('Project count result:', projectCount);
+    if (projectCount && Number(projectCount.count) > 0) {
+      dependencies.push('project');
+      counts['project'] = Number(projectCount.count);
+    }
+
+    // Check for documents
+    const documentCount = await db('documents')
+      .where({ company_id: companyId, tenant })
+      .count('document_id as count')
+      .first();
+    console.log('Document count result:', documentCount);
+    if (documentCount && Number(documentCount.count) > 0) {
+      dependencies.push('document');
+      counts['document'] = Number(documentCount.count);
+    }
+
+    // Check for invoices
+    const invoiceCount = await db('invoices')
+      .where({ company_id: companyId, tenant })
+      .count('invoice_id as count')
+      .first();
+    console.log('Invoice count result:', invoiceCount);
+    if (invoiceCount && Number(invoiceCount.count) > 0) {
+      dependencies.push('invoice');
+      counts['invoice'] = Number(invoiceCount.count);
+    }
+
+    // Check for interactions
+    const interactionCount = await db('interactions')
+      .where({ company_id: companyId, tenant })
+      .count('interaction_id as count')
+      .first();
+    console.log('Interaction count result:', interactionCount);
+    if (interactionCount && Number(interactionCount.count) > 0) {
+      dependencies.push('interaction');
+      counts['interaction'] = Number(interactionCount.count);
+    }
+
+    // Check for schedules
+    const scheduleCount = await db('schedules')
+      .where({ company_id: companyId, tenant })
+      .count('schedule_id as count')
+      .first();
+    console.log('Schedule count result:', scheduleCount);
+    if (scheduleCount && Number(scheduleCount.count) > 0) {
+      dependencies.push('schedule');
+      counts['schedule'] = Number(scheduleCount.count);
+    }
+
+    // Check for locations (no tenant field)
+    const locationCount = await db('company_locations')
+      .where({ company_id: companyId })
+      .count('* as count')
+      .first();
+    console.log('Location count result:', locationCount);
+    if (locationCount && Number(locationCount.count) > 0) {
+      dependencies.push('location');
+      counts['location'] = Number(locationCount.count);
+    }
+
+    // Check for service usage
+    const usageCount = await db('usage_tracking')
+      .where({ company_id: companyId, tenant })
+      .count('usage_id as count')
+      .first();
+    console.log('Usage count result:', usageCount);
+    if (usageCount && Number(usageCount.count) > 0) {
+      dependencies.push('service_usage');
+      counts['service_usage'] = Number(usageCount.count);
+    }
+
+    // Check for billing plans
+    const billingPlanCount = await db('company_billing_plans')
+      .where({ company_id: companyId, tenant })
+      .count('company_billing_plan_id as count')
+      .first();
+    console.log('Billing plan count result:', billingPlanCount);
+    if (billingPlanCount && Number(billingPlanCount.count) > 0) {
+      dependencies.push('billing_plan');
+      counts['billing_plan'] = Number(billingPlanCount.count);
+    }
+
+    // Check for bucket usage
+    const bucketUsageCount = await db('bucket_usage')
+      .where({ company_id: companyId, tenant })
+      .count('usage_id as count')
+      .first();
+    console.log('Bucket usage count result:', bucketUsageCount);
+    if (bucketUsageCount && Number(bucketUsageCount.count) > 0) {
+      dependencies.push('bucket_usage');
+      counts['bucket_usage'] = Number(bucketUsageCount.count);
+    }
+
+    // Check for tax rates
+    const taxRateCount = await db('company_tax_rates')
+      .where({ company_id: companyId, tenant })
+      .count('* as count')
+      .first();
+    console.log('Tax rate count result:', taxRateCount);
+    if (taxRateCount && Number(taxRateCount.count) > 0) {
+      dependencies.push('tax_rate');
+      counts['tax_rate'] = Number(taxRateCount.count);
+    }
+
+    // Check for tax settings
+    const taxSettingCount = await db('company_tax_settings')
+      .where({ company_id: companyId, tenant })
+      .count('* as count')
+      .first();
+    console.log('Tax setting count result:', taxSettingCount);
+    if (taxSettingCount && Number(taxSettingCount.count) > 0) {
+      dependencies.push('tax_setting');
+      counts['tax_setting'] = Number(taxSettingCount.count);
+    }
+
+    // If there are dependencies, return error with details
+    if (dependencies.length > 0) {
+      const readableTypes: Record<string, string> = {
+        'contact': 'contacts',
+        'ticket': 'active tickets',
+        'project': 'active projects',
+        'document': 'documents',
+        'invoice': 'invoices',
+        'interaction': 'interactions',
+        'schedule': 'schedules',
+        'location': 'locations',
+        'service_usage': 'service usage records',
+        'bucket_usage': 'bucket usage records',
+        'billing_plan': 'billing plans',
+        'tax_rate': 'tax rates',
+        'tax_setting': 'tax settings'
+      };
+
+      return {
+        success: false,
+        code: 'COMPANY_HAS_DEPENDENCIES',
+        message: 'Company has associated records and cannot be deleted',
+        dependencies: dependencies.map((dep: string): string => readableTypes[dep] || dep),
+        counts
+      };
+    }
+
+    // If no dependencies, proceed with deletion
+    const result = await db.transaction(async (trx) => {
+      // Delete associated tags first
+      await trx('tags')
+        .where({ 
+          tagged_id: companyId, 
+          tagged_type: 'company',
+          tenant
+        })
+        .delete();
+
+      // Delete the company
+      const deleted = await trx('companies')
+        .where({ company_id: companyId, tenant })
+        .delete();
+
+      if (!deleted) {
+        throw new Error('Company not found');
+      }
+
+      return { success: true };
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error deleting company:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to delete company'
+    };
+  }
 }
+
 
 export async function exportCompaniesToCSV(companies: ICompany[]): Promise<string> {
   const fields = [
@@ -241,4 +492,3 @@ export async function importCompaniesFromCSV(
 
   return results;
 }
-

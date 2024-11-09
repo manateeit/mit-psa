@@ -1,17 +1,20 @@
-import { ICompany } from "@/interfaces/company.interfaces";
+import { ICompany } from '@/interfaces/company.interfaces';
 import CompanyGridCard from "./CompanyGridCard";
-import { Pencil } from "lucide-react";
+import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import CompaniesPagination from "./CompaniesPagination";
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { Button } from "@radix-ui/themes";
 
 interface CompaniesGridProps {
     filteredCompanies: ICompany[];
     selectedCompanies: string[];
     handleCheckboxChange: (companyId: string) => void;
     handleEditCompany: (companyId: string) => void;
+    handleDeleteCompany: (company: ICompany) => void; 
 }
 
-const CompaniesGrid = ({ filteredCompanies, selectedCompanies, handleCheckboxChange, handleEditCompany }: CompaniesGridProps) => {
+const CompaniesGrid = ({ filteredCompanies, selectedCompanies, handleCheckboxChange, handleEditCompany, handleDeleteCompany }: CompaniesGridProps) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(9); // Show 9 cards per page
     
@@ -39,16 +42,35 @@ const CompaniesGrid = ({ filteredCompanies, selectedCompanies, handleCheckboxCha
                             selectedCompanies={selectedCompanies}
                             handleCheckboxChange={handleCheckboxChange}
                         />
-                        <button
-                            onClick={() => handleEditCompany(company.company_id)}
-                            className="absolute top-2 right-2 p-1"
-                        >
-                            <Pencil size={16} className="text-gray-500" />
-                        </button>
+                        <div className="absolute top-3 right-3 z-10">
+                            <DropdownMenu.Root>
+                                <DropdownMenu.Trigger asChild>
+                                    <Button variant="ghost" size="1" className="hover:bg-gray-50">
+                                        <MoreVertical size={16} />
+                                    </Button>
+                                </DropdownMenu.Trigger>
+                                <DropdownMenu.Content className="bg-white rounded-md shadow-lg p-1">
+                                    <DropdownMenu.Item 
+                                        className="px-2 py-1 text-sm cursor-pointer hover:bg-gray-100 flex items-center"
+                                        onSelect={() => handleEditCompany(company.company_id)}
+                                    >
+                                        <Pencil size={14} className="mr-2" />
+                                        Edit
+                                    </DropdownMenu.Item>
+                                    <DropdownMenu.Item 
+                                        className="px-2 py-1 text-sm cursor-pointer hover:bg-gray-100 text-color-primary-500 hover:text-color-primary-600 flex items-center"
+                                        onSelect={() => handleDeleteCompany(company)}
+                                    >
+                                        <Trash2 size={14} className="mr-2" />
+                                        Delete
+                                    </DropdownMenu.Item>
+                                </DropdownMenu.Content>
+                            </DropdownMenu.Root>
+                        </div>
                     </div>
                 ))}
             </div>
-            
+
             <CompaniesPagination 
                 filteredCompanies={filteredCompanies}
                 currentPage={currentPage}

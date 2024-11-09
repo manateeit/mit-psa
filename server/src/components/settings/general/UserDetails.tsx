@@ -7,7 +7,7 @@ import { useDrawer } from '@/context/DrawerContext';
 import { Text, Flex } from '@radix-ui/themes';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { SwitchWithLabel } from '@/components/ui/SwitchWithLabel';
+import { Switch } from '@/components/ui/Switch';
 import { Card } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
 
@@ -232,31 +232,38 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId, onUpdate }) => {
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <SwitchWithLabel
-            checked={!isActive}
-            onCheckedChange={(checked) => setIsActive(!checked)}
-            label={isActive ? 'Active' : 'Inactive'}
-          />
+        <div className="flex items-center justify-between py-3">
+          <div>
+            <Text size="2" weight="medium">Status</Text>
+            <Text size="2" color="gray">Set user account status</Text>
+          </div>
+          <div className="flex items-center gap-2">
+            <Text size="2" color="gray">
+              {isActive ? 'Active' : 'Inactive'}
+            </Text>
+            <Switch
+              checked={!isActive}
+              onCheckedChange={(checked) => setIsActive(!checked)}
+              className="data-[state=checked]:bg-primary-500"
+            />
+          </div>
         </div>
       </Flex>
 
-      <Flex gap="3" mt="6">
+      <div className="flex justify-end space-x-2 mt-6">
         <Button
           onClick={closeDrawer}
           variant="outline"
-          className="flex-1"
         >
           Cancel
         </Button>
         <Button
           onClick={handleSave}
           variant="default"
-          className="flex-1"
         >
           Save Changes
         </Button>
-      </Flex>
+      </div>
     </Card>
   );
 };

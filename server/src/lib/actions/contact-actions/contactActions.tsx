@@ -3,9 +3,8 @@
 import { IContact, MappableField, ImportContactResult } from '@/interfaces/contact.interfaces';
 import { ICompany } from '@/interfaces/company.interfaces';
 import { ITag } from '@/interfaces/tag.interfaces';
-import { createTag } from '../tagActions';  
 import { createTenantKnex } from '@/lib/db';
-import { parseCSV, unparseCSV } from '@/lib/utils/csvParser';
+import { unparseCSV } from '@/lib/utils/csvParser';
 
 export async function getContactByContactNameId(contactNameId: string): Promise<IContact | null> {
   try {
@@ -21,6 +20,94 @@ export async function getContactByContactNameId(contactNameId: string): Promise<
   } catch (error) {
     console.error('Error getting contact by contact_name_id:', error);
     throw new Error("Failed to get the contact");
+  }
+}
+
+export async function deleteContact(contactId: string) {
+  const {knex: db, tenant} = await createTenantKnex();
+  if (!tenant) {
+    throw new Error('Tenant not found');
+  }
+
+  try {
+    // Check for dependencies
+    const dependencies = [];
+    const counts: Record<string, number> = {};
+
+    // Check for tickets
+    const ticketCount = await db('tickets')
+      .where({ contact_name_id: contactId, is_closed: false })
+      .count('* as count')
+      .first();
+    if (ticketCount && Number(ticketCount.count) > 0) {
+      dependencies.push('ticket');
+      counts['ticket'] = Number(ticketCount.count);
+    }
+
+    // Check for interactions
+    const interactionCount = await db('interactions')
+      .where({ contact_name_id: contactId })
+      .count('* as count')
+      .first();
+    if (interactionCount && Number(interactionCount.count) > 0) {
+      dependencies.push('interaction');
+      counts['interaction'] = Number(interactionCount.count);
+    }
+
+    // Check for documents
+    const documentCount = await db('documents')
+      .where({ contact_name_id: contactId })
+      .count('* as count')
+      .first();
+    if (documentCount && Number(documentCount.count) > 0) {
+      dependencies.push('document');
+      counts['document'] = Number(documentCount.count);
+    }
+
+    // Check for schedules
+    const scheduleCount = await db('schedules')
+      .where({ contact_name_id: contactId })
+      .count('* as count')
+      .first();
+    if (scheduleCount && Number(scheduleCount.count) > 0) {
+      dependencies.push('schedule');
+      counts['schedule'] = Number(scheduleCount.count);
+    }
+
+    // If there are dependencies, return error
+    if (dependencies.length > 0) {
+      return {
+        success: false,
+        code: 'CONTACT_HAS_DEPENDENCIES',
+        message: 'Contact has associated records and cannot be deleted',
+        dependencies,
+        counts
+      };
+    }
+
+    // If no dependencies, proceed with deletion
+    const result = await db.transaction(async (trx) => {
+      // Delete associated tags first
+      await trx('tags')
+        .where({ tagged_id: contactId, tagged_type: 'contact' })
+        .delete();
+
+      // Delete the contact
+      const deleted = await trx('contacts')
+        .where({ contact_name_id: contactId, tenant })
+        .delete();
+
+      if (!deleted) {
+        throw new Error('Contact not found');
+      }
+
+      return { success: true };
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error deleting contact:', error);
+    throw new Error('Failed to delete contact');
   }
 }
 
@@ -123,7 +210,7 @@ export async function updateContact(contactData: Partial<IContact>): Promise<ICo
     const {knex: db, tenant} = await createTenantKnex();
     if (!tenant) {
       throw new Error('Tenant not found');
-    }
+  }
     if (!contactData.contact_name_id) {
       throw new Error('Contact ID is required for updating');
     }
@@ -191,23 +278,18 @@ export async function exportContactsToCSV(
 ): Promise<string> {
   const fields = ['full_name', 'email', 'phone_number', 'company_name', 'tags'];
   
-  const getCompanyName = (companyId: string | null) => {
-    if (!companyId) return '';
-    const company = companies.find(c => c.company_id === companyId);
-    return company ? company.company_name : 'Unknown Company';
-  };
-
-  const data = contacts.map((contact):IContact => ({
-    full_name: contact.full_name,
-    email: contact.email,
-    phone_number: contact.phone_number,
-    company_id: contact.company_id,
-    tags: (contactTags[contact.contact_name_id] || []).map((tag): ITag => tag),
-    contact_name_id: '',
-    created_at: '',
-    updated_at: '',
-    is_inactive: false
-  }));
+  const data = contacts.map((contact): Record<string, string> => {
+    const company = companies.find(c => c.company_id === contact.company_id);
+    return {
+      full_name: contact.full_name,
+      email: contact.email,
+      phone_number: contact.phone_number,
+      company_name: company ? company.company_name : '',
+      tags: (contactTags[contact.contact_name_id] || [])
+        .map((tag: ITag): string => tag.tag_text)
+        .join(', ')
+    };
+  });
 
   return unparseCSV(data, fields);
 }
@@ -323,5 +405,5 @@ export async function checkExistingEmails(
     .whereIn('email', emails)
     .andWhere('tenant', tenant);
 
-  return existingContacts.map((contact): string => contact.email);
+  return existingContacts.map((contact: { email: string }): string => contact.email);
 }

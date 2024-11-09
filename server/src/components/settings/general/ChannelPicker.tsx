@@ -66,10 +66,10 @@ export const ChannelPicker: React.FC<ChannelPickerProps> = ({
     <div className="relative">
       <button
         onClick={() => setIsOpen(true)}
-        className="w-full p-2 border rounded flex justify-between items-center bg-white text-left"
+        className="w-full min-h-[38px] px-3 py-2 border border-gray-300 rounded-md shadow-sm flex justify-between items-center bg-white text-left text-base hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
       >
-        <span>{getButtonLabel()}</span>
-        <ChevronDownIcon />
+        <span className="text-gray-700">{getButtonLabel()}</span>
+        <ChevronDownIcon className="w-4 h-4 text-gray-400 ml-2" />
       </button>
 
       <Dialog isOpen={isOpen} onClose={() => setIsOpen(false)}>
@@ -92,7 +92,7 @@ export const ChannelPicker: React.FC<ChannelPickerProps> = ({
             />
           </div>
           <Input
-            placeholder="Search channels..."
+            placeholder="Search channels"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="mb-4"
@@ -104,7 +104,7 @@ export const ChannelPicker: React.FC<ChannelPickerProps> = ({
                 onClick={() =>
                   channel.channel_id && handleSelect(channel.channel_id)
                 }
-                className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${
+                className={`w-full text-left px-4 py-2 hover:bg-gray-100 text-base ${
                   channel.channel_id === selectedChannelId ? 'bg-blue-100' : ''
                 }`}
               >

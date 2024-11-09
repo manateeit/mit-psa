@@ -1,8 +1,10 @@
 // server/src/components/tickets/TicketInfo.tsx
-import React from 'react';
-import { ITicket, IComment } from '@/interfaces';
+import React, { useEffect, useState } from 'react';
+import { ITicket, IComment, ITicketCategory } from '@/interfaces';
 import EditableField from '@/components/ui/EditableField';
+import { CategoryPicker } from './CategoryPicker';
 import styles from './TicketDetails.module.css';
+import { getTicketCategories } from '@/lib/actions/ticketCategoryActions';
 
 interface TicketInfoProps {
   ticket: ITicket;
@@ -11,7 +13,7 @@ interface TicketInfoProps {
   agentOptions: { value: string; label: string }[];
   channelOptions: { value: string; label: string }[];
   priorityOptions: { value: string; label: string }[];
-  onSelectChange: (field: keyof ITicket, newValue: string) => void;
+  onSelectChange: (field: keyof ITicket, newValue: string | null) => void;
 }
 
 const TicketInfo: React.FC<TicketInfoProps> = ({
@@ -23,6 +25,68 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
   priorityOptions,
   onSelectChange,
 }) => {
+  const [categories, setCategories] = useState<ITicketCategory[]>([]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const fetchedCategories = await getTicketCategories();
+        setCategories(fetchedCategories);
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // Helper function to get category channel
+  const getCategoryChannel = (categoryId: string): string | undefined => {
+    const category = categories.find(c => c.category_id === categoryId);
+    return category?.channel_id;
+  };
+
+  // Handle category change with channel sync
+  const handleCategoryChange = (categoryIds: string[]) => {
+    if (categoryIds.length === 0) {
+      // If no category selected, clear both category and subcategory
+      onSelectChange('category_id', null);
+      onSelectChange('subcategory_id', null);
+      return;
+    }
+
+    const selectedCategoryId = categoryIds[0];
+    const selectedCategory = categories.find(c => c.category_id === selectedCategoryId);
+    
+    if (!selectedCategory) {
+      console.error('Selected category not found');
+      return;
+    }
+
+    if (selectedCategory.parent_category) {
+      // If it's a subcategory, set both parent and subcategory
+      onSelectChange('category_id', selectedCategory.parent_category);
+      onSelectChange('subcategory_id', selectedCategoryId);
+    } else {
+      // If it's a parent category, set only category_id and clear subcategory
+      onSelectChange('category_id', selectedCategoryId);
+      onSelectChange('subcategory_id', null);
+    }
+
+    // Update channel if the selected category has one
+    if (selectedCategory.channel_id && selectedCategory.channel_id !== ticket.channel_id) {
+      onSelectChange('channel_id', selectedCategory.channel_id);
+    }
+  };
+
+  // Get the currently selected category ID based on whether we have a subcategory
+  const getSelectedCategoryId = () => {
+    if (ticket.subcategory_id) {
+      return ticket.subcategory_id;
+    }
+    return ticket.category_id || '';
+  };
+
   return (
     <div className={`${styles['card']}`}>
       <div className="p-6">
@@ -52,6 +116,17 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
             options={priorityOptions}
             onValueChange={(value) => onSelectChange('priority_id', value)}
           />
+          <div className="col-span-2">
+            <h5 className="font-bold mb-1">Category</h5>
+            <div className="w-fit">
+              <CategoryPicker
+                categories={categories}
+                selectedCategories={[getSelectedCategoryId()]}
+                onSelect={handleCategoryChange}
+                placeholder="Select a category..."
+              />
+            </div>
+          </div>
         </div>
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-2">Description</h2>

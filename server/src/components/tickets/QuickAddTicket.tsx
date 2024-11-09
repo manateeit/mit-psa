@@ -11,10 +11,13 @@ import { getTicketStatuses } from '@/lib/actions/status-actions/statusActions';
 import { getAllPriorities } from '@/lib/actions/priorityActions';
 import { getAllCompanies, getCompanyById } from '@/lib/actions/companyActions';
 import { getContactsByCompany } from '@/lib/actions/contact-actions/contactActions';
-import { IUser, IChannel, ITicketStatus, IPriority, ICompany, IContact, ITicket } from '@/interfaces';
+import { getTicketCategoriesByChannel } from '@/lib/actions/categoryActions';
+import { IUser, IChannel, ITicketStatus, IPriority, ICompany, IContact, ITicket, ITicketCategory } from '@/interfaces';
 import { ChannelPicker } from '@/components/settings/general/ChannelPicker';
 import { CompanyPicker } from '../companies/CompanyPicker';
+import { CategoryPicker } from './CategoryPicker';
 import { useSession } from 'next-auth/react';
+import { Select } from '../ui/Select';
 
 interface QuickAddTicketProps {
     open: boolean;
@@ -44,6 +47,8 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
     const [companyFilterState, setCompanyFilterState] = useState<'all' | 'active' | 'inactive'>('all');
     const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
     const [selectedCompanyType, setSelectedCompanyType] = useState<'company' | 'individual' | null>(null);
+    const [categories, setCategories] = useState<ITicketCategory[]>([]);
+    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
     const [users, setUsers] = useState<IUser[]>([]);
     const [channels, setChannels] = useState<IChannel[]>([]);
@@ -122,12 +127,30 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
         fetchContacts();
     }, [companyId, isPrefilledCompany]);
 
+    useEffect(() => {
+        const fetchCategories = async () => {
+            if (channelId) {
+                try {
+                    const categoriesData = await getTicketCategoriesByChannel(channelId);
+                    setCategories(categoriesData);
+                } catch (error) {
+                    console.error('Error fetching categories:', error);
+                    setCategories([]);
+                }
+            } else {
+                setCategories([]);
+                setSelectedCategories([]);
+            }
+        };
+        fetchCategories();
+    }, [channelId]);
+
     const handleCompanyChange = async (newCompanyId: string) => {
         if (isPrefilledCompany) return;
 
         setCompanyId(newCompanyId);
         setContactId(null);
-        setError(null); // Clear any existing errors
+        setError(null);
     
         if (newCompanyId) {
             const selectedCompany = companies.find(company => company.company_id === newCompanyId);
@@ -143,10 +166,15 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
             setSelectedCompanyType(null);
         }
     };
+
+    const handleChannelChange = (newChannelId: string) => {
+        setChannelId(newChannelId);
+        setSelectedCategories([]); // Reset categories when channel changes
+    };
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null); // Clear any existing errors
+        setError(null);
 
         try {
             if (!session?.user?.id) {
@@ -183,6 +211,18 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
                 formData.append('contact_name_id', contactId);
             }
 
+            // Add category data
+            if (selectedCategories.length > 0) {
+                const category = categories.find(c => c.category_id === selectedCategories[0]);
+                if (category) {
+                    formData.append('category_id', category.category_id);
+                    if (category.parent_category) {
+                        formData.append('subcategory_id', category.category_id);
+                        formData.append('category_id', category.parent_category);
+                    }
+                }
+            }
+
             const newTicket = await addTicket(formData, user);
             if (newTicket) {
                 onTicketAdded(newTicket);
@@ -197,6 +237,7 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
                 setCompanyId('');
                 setContactId(null);
                 setSelectedCompanyType(null);
+                setSelectedCategories([]);
                 setError(null);
             } else {
                 throw new Error('Failed to create ticket');
@@ -234,14 +275,14 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             placeholder="Ticket Title"
-                            className="w-full p-2 border rounded"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             required
                         />
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder="Description"
-                            className="w-full p-2 border rounded"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             required
                         />
 
@@ -256,73 +297,69 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
                         />
 
                         {selectedCompanyType === 'company' && contacts.length > 0 && (
-                            <select
+                            <Select
                                 value={contactId || ''}
-                                onChange={(e) => setContactId(e.target.value || null)}
-                                className="w-full p-2 border rounded"
+                                onChange={(value) => setContactId(value || null)}
+                                options={contacts.map(contact => ({
+                                    value: contact.contact_name_id,
+                                    label: contact.full_name
+                                }))}
+                                placeholder="Select Contact"
                                 required={selectedCompanyType === 'company'}
                                 disabled={!companyId || selectedCompanyType !== 'company'}
-                            >
-                                <option value="">Select Contact</option>
-                                {contacts.map((contact):JSX.Element => (
-                                    <option key={contact.contact_name_id} value={contact.contact_name_id}>
-                                        {contact.full_name}
-                                    </option>
-                                ))}
-                            </select>
+                            />
                         )}
-                        <select
+
+                        <Select
                             value={assignedTo}
-                            onChange={(e) => setAssignedTo(e.target.value)}
-                            className="w-full p-2 border rounded"
+                            onChange={setAssignedTo}
+                            options={users.map(user => ({
+                                value: user.user_id,
+                                label: `${user.first_name} ${user.last_name}`
+                            }))}
+                            placeholder="Assign To"
                             required
-                        >
-                            <option value="">Assign To</option>
-                            {users.map((user):JSX.Element => (
-                                <option key={user.user_id} value={user.user_id}>
-                                    {user.first_name} {user.last_name}
-                                </option>
-                            ))}
-                        </select>
+                        />
                         
                         <ChannelPicker
                             channels={channels}
-                            onSelect={(channelId) => setChannelId(channelId)}
+                            onSelect={handleChannelChange}
                             selectedChannelId={channelId}
                             onFilterStateChange={() => {}}
                             filterState="all"
                         />
 
-                        <select
+                        <CategoryPicker
+                            categories={categories}
+                            selectedCategories={selectedCategories}
+                            onSelect={(categoryIds) => setSelectedCategories(categoryIds)}
+                            placeholder={channelId ? "Select category" : "Select a channel first"}
+                            multiSelect={false}
+                            className="w-full"
+                        />
+
+                        <Select
                             value={statusId}
-                            onChange={(e) => setStatusId(e.target.value)}
-                            className="w-full p-2 border rounded"
+                            onChange={setStatusId}
+                            options={statuses.map(status => ({
+                                value: status.status_id!,
+                                label: status.name ?? ""
+                            }))}
+                            placeholder="Select Status"
                             required
-                        >
-                            <option value="">Select Status</option>
-                            {statuses.length > 0 ? (
-                                statuses.map((status):JSX.Element => (
-                                    <option key={status.status_id} value={status.status_id}>
-                                        {status.name}
-                                    </option>
-                                ))
-                            ) : (
-                                <option value="" disabled>No statuses available</option>
-                            )}
-                        </select>
-                        <select
+                        />
+
+                        <Select
                             value={priorityId}
-                            onChange={(e) => setPriorityId(e.target.value)}
-                            className="w-full p-2 border rounded"
+                            onChange={setPriorityId}
+                            options={priorities.map(priority => ({
+                                value: priority.priority_id,
+                                label: priority.priority_name
+                            }))}
+                            placeholder="Select Priority"
                             required
-                        >
-                            <option value="">Select Priority</option>
-                            {priorities.map((priority):JSX.Element => (
-                                <option key={priority.priority_id} value={priority.priority_id}>
-                                    {priority.priority_name}
-                                </option>
-                            ))}
-                        </select>
+                        />
+
                         <div className="flex justify-end space-x-2 pt-4">
                             <Dialog.Close asChild>
                                 <Button type="button" variant="outline">Cancel</Button>
