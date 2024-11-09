@@ -18,24 +18,31 @@ export async function createTenantKnex(): Promise<TenantConnection> {
         throw new Error(`Invalid environment: ${environment}`);
     }
 
+    let tenant: string | null = null;
+
+    // Try to get tenant from session first
     try {
-        // Try to get tenant from session
-        const tenant = await getTenantForCurrentRequest();
+        tenant = await getTenantForCurrentRequest();
+    } catch (e) {
+        console.warn('Failed to get tenant from session:', e);
+    }
+
+    // If no tenant from session, try headers
+    if (!tenant) {
+        try {
+            const headersList = headers();
+            tenant = getTenantFromHeaders(headersList);
+        } catch (e) {
+            console.warn('Failed to get tenant from headers:', e);
+        }
+    }
+
+    // Get database connection
+    try {
         const knex = await getConnection(tenant);
         return { knex, tenant };
-
     } catch (error) {
-        console.warn('Failed to get tenant from session, attempting to use headers');
-        // If session fails, try to get tenant from headers
-        const headersList = headers();
-        const tenantFromHeaders = getTenantFromHeaders(headersList);
-        
-        if (tenantFromHeaders) {
-            const knex = await getConnection(tenantFromHeaders);
-            return { knex, tenant: tenantFromHeaders };
-        }
-        
-        // If we still don't have a tenant, throw an error
-        throw new Error('Unable to determine tenant for database connection');
+        console.error('Failed to create database connection:', error);
+        throw new Error(`Failed to create database connection: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }

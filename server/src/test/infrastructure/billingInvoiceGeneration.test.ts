@@ -12,17 +12,35 @@ import exp from 'constants';
 
 global.TextEncoder = TextEncoder;
 
-let db: knex.Knex;
-let companyId: string;
+// Create a more complete mock Headers implementation
+const mockHeaders = {
+  get: vi.fn((key: string) => {
+    if (key === 'x-tenant-id') {
+      return '11111111-1111-1111-1111-111111111111';
+    }
+    return null;
+  }),
+  append: vi.fn(),
+  delete: vi.fn(),
+  entries: vi.fn(),
+  forEach: vi.fn(),
+  has: vi.fn(),
+  keys: vi.fn(),
+  set: vi.fn(),
+  values: vi.fn(),
+};
 
-function randomUUID() {
-  return uuidv4();
-}
+// Mock next/headers
+vi.mock('next/headers', () => ({
+  headers: vi.fn(() => mockHeaders)
+}));
 
+// Mock next-auth with tenant information
 vi.mock("next-auth/next", () => ({
   getServerSession: vi.fn(() => Promise.resolve({
     user: {
       id: 'mock-user-id',
+      tenant: '11111111-1111-1111-1111-111111111111'
     },
   })),
 }));
@@ -31,13 +49,12 @@ vi.mock("@/app/api/auth/[...nextauth]/options", () => ({
   options: {},
 }));
 
-// const result = dotenv.config({
-//   path: '.env.localtest'
-// });
+let db: knex.Knex;
+let companyId: string;
 
-// if (result.parsed?.DB_NAME_SERVER) {
-//   process.env.DB_NAME_SERVER = result.parsed.DB_NAME_SERVER;
-// }
+function randomUUID() {
+  return uuidv4();
+}
 
 // Ensure we're using a test database
 if (process.env.DB_NAME_SERVER === 'server') {
@@ -63,20 +80,28 @@ beforeAll(async () => {
     }
   });
 
-  // Drop all tables
+  // Initial database setup
   await db.raw('DROP SCHEMA public CASCADE');
   await db.raw('CREATE SCHEMA public');
-
-  // Ensure the database is set up correctly
   await db.raw(`SET app.environment = '${process.env.APP_ENV}'`);
-
   await db.migrate.latest();
   await db.seed.run();
 });
 
 afterAll(async () => {
-  // await db.destroy();
+  await db.destroy();
 });
+
+// Add database cleanup between tests
+afterEach(async () => {
+  // Reset the database to a clean state between tests
+  await db.raw('DROP SCHEMA public CASCADE');
+  await db.raw('CREATE SCHEMA public');
+  await db.raw(`SET app.environment = '${process.env.APP_ENV}'`);
+  await db.migrate.latest();
+  await db.seed.run();
+});
+
 
 describe('Billing Invoice Generation', () => {
   let tenantId: string;
@@ -152,6 +177,7 @@ describe('Billing Invoice Generation', () => {
         plan_id: planId,
         service_id: service2Id,
         quantity: 1,
+        tenant: tenantId
       },
     ]);
 
@@ -161,6 +187,7 @@ describe('Billing Invoice Generation', () => {
       plan_id: planId,
       start_date: new Date('2023-01-01'),
       is_active: true,
+      tenant: tenantId
     });
 
     await db('company_billing_cycles').insert({
@@ -179,23 +206,19 @@ describe('Billing Invoice Generation', () => {
       start_date: new Date('2023-01-01'),
       is_active: true,
       description: 'Standard VAT',
+      tenant: tenantId
     });
 
     const companyTaxSettings: ICompanyTaxSettings = {
       company_id: companyId,
       tax_rate_id: taxRateId,
       is_reverse_charge_applicable: false,
+      tenant: tenantId
     };
     await db('company_tax_settings').insert(companyTaxSettings);
-
   });
 
-  // afterEach(async () => {
-  //   // set up drops the db
-  // });
-
   describe('generateInvoice', () => {
-    // You might want to add a new test case to verify tax calculation
     it('should calculate taxes correctly', async () => {
       const startDate = '2023-01-01T00:00:00Z';
       const endDate = '2023-02-01T00:00:00Z';
