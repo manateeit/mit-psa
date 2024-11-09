@@ -1,9 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { IUser, IUserWithRoles, IRoleWithPermissions, IPermission } from '../../interfaces/auth.interfaces';
+import { IUser, IUserWithRoles, IRoleWithPermissions, IPermission, IRole } from '../../interfaces/auth.interfaces';
 import { IProject } from '../../interfaces/project.interfaces';
 import * as projectActions from '../../lib/actions/projectActions';
 import ProjectModel from '../../lib/models/project';
-import { getCurrentUser } from '../../lib/auth/session';
 
 // Mock the Project model methods
 vi.mock('../../lib/models/project', () => ({
@@ -13,17 +12,73 @@ vi.mock('../../lib/models/project', () => ({
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    getStandardStatusesByType: vi.fn().mockResolvedValue([
+      {
+        standard_status_id: 'SS-1',
+        name: 'To Do',
+        item_type: 'project_task',
+        display_order: 1,
+        is_closed: false,
+        tenant: 'test-tenant'
+      },
+      {
+        standard_status_id: 'SS-2',
+        name: 'In Progress',
+        item_type: 'project_task',
+        display_order: 2,
+        is_closed: false,
+        tenant: 'test-tenant'
+      }
+    ]),
+    getStatusesByType: vi.fn().mockResolvedValue([
+      {
+        status_id: 'S-1',
+        name: 'Active',
+        item_type: 'project',
+        is_closed: false,
+        tenant: 'test-tenant'
+      }
+    ]),
+    addProjectStatusMapping: vi.fn().mockResolvedValue({
+      project_status_mapping_id: 'PSM-1',
+      project_id: 'P-1',
+      standard_status_id: 'SS-1',
+      is_standard: true,
+      custom_name: null,
+      display_order: 1,
+      is_visible: true
+    })
   },
 }));
 
-// Mock the getCurrentUser function
-vi.mock('../../lib/auth/session', () => ({
+// Mock the userActions with both required functions
+vi.mock('../../lib/actions/user-actions/userActions', () => ({
   getCurrentUser: vi.fn(),
+  getAllUsers: vi.fn().mockResolvedValue([]),
+}));
+
+// Mock the RBAC functions with proper permission checking that always returns a boolean
+vi.mock('../../lib/auth/rbac', () => ({
+  hasPermission: vi.fn().mockImplementation(async (user: IUser, resource: string, action: string): Promise<boolean> => {
+    if (!user || !('roles' in user)) return false;
+    const userWithRoles = user as IUserWithRoles;
+    
+    return userWithRoles.roles.some(role => {
+      if (!('permissions' in role)) return false;
+      const roleWithPermissions = role as IRoleWithPermissions;
+      return roleWithPermissions.permissions.some(permission => 
+        permission.resource === resource && permission.action === action
+      );
+    });
+  }),
 }));
 
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }));
+
+// Import getCurrentUser after mocking
+import { getCurrentUser } from '../../lib/actions/user-actions/userActions';
 
 describe('Project Permissions', () => {
   let viewProjectPermission: IPermission;
@@ -34,29 +89,54 @@ describe('Project Permissions', () => {
   let adminRole: IRoleWithPermissions;
   let regularUser: IUserWithRoles;
   let adminUser: IUserWithRoles;
-  let userWithoutPermissions: IUser;
+  let userWithoutPermissions: IUserWithRoles;
   let mockProject: IProject;
 
   beforeEach(() => {
+    // Clear all mocks before each test
+    vi.clearAllMocks();
+
     // Create project-specific permissions
-    viewProjectPermission = { permission_id: '1', resource: 'project', action: 'view' };
-    editProjectPermission = { permission_id: '2', resource: 'project', action: 'edit' };
-    createProjectPermission = { permission_id: '3', resource: 'project', action: 'create' };
-    deleteProjectPermission = { permission_id: '4', resource: 'project', action: 'delete' };
+    viewProjectPermission = { 
+      permission_id: '1', 
+      resource: 'project', 
+      action: 'read',
+      tenant: 'test-tenant' 
+    };
+    editProjectPermission = { 
+      permission_id: '2', 
+      resource: 'project', 
+      action: 'update',
+      tenant: 'test-tenant' 
+    };
+    createProjectPermission = { 
+      permission_id: '3', 
+      resource: 'project', 
+      action: 'create',
+      tenant: 'test-tenant' 
+    };
+    deleteProjectPermission = { 
+      permission_id: '4', 
+      resource: 'project', 
+      action: 'delete',
+      tenant: 'test-tenant' 
+    };
 
     // Create roles with project permissions
     userRole = {
       role_id: '1',
       role_name: 'User',
       description: 'Regular user role with view project permission',
-      permissions: [viewProjectPermission]
+      permissions: [viewProjectPermission],
+      tenant: 'test-tenant'
     };
 
     adminRole = {
       role_id: '2',
       role_name: 'Admin',
       description: 'Administrator role with all project permissions',
-      permissions: [viewProjectPermission, editProjectPermission, createProjectPermission, deleteProjectPermission]
+      permissions: [viewProjectPermission, editProjectPermission, createProjectPermission, deleteProjectPermission],
+      tenant: 'test-tenant'
     };
 
     // Create users with specific roles
@@ -92,7 +172,8 @@ describe('Project Permissions', () => {
       last_name: 'Permissions',
       email: 'no@permissions.com',
       hashed_password: 'hashed_password_here',
-      is_inactive: false
+      is_inactive: false,
+      roles: [] // Empty roles array
     };
 
     mockProject = {
@@ -110,23 +191,12 @@ describe('Project Permissions', () => {
       is_inactive: false
     };
 
-    // Reset mocks before each test
-    vi.resetAllMocks();
-
-    // Mock ProjectModel.getAll to return our mockProject
-    (ProjectModel.getAll as any).mockResolvedValue([mockProject]);
-
-    // Mock ProjectModel.getById to return our mockProject
-    (ProjectModel.getById as any).mockResolvedValue(mockProject);
-
-    // Mock ProjectModel.create to return our mockProject
-    (ProjectModel.create as any).mockResolvedValue(mockProject);
-
-    // Mock ProjectModel.update to return our mockProject
-    (ProjectModel.update as any).mockResolvedValue(mockProject);
-
-    // Mock ProjectModel.delete to return void
-    (ProjectModel.delete as any).mockResolvedValue(undefined);
+    // Mock ProjectModel methods
+    vi.mocked(ProjectModel.getAll).mockResolvedValue([mockProject]);
+    vi.mocked(ProjectModel.getById).mockResolvedValue(mockProject);
+    vi.mocked(ProjectModel.create).mockResolvedValue(mockProject);
+    vi.mocked(ProjectModel.update).mockResolvedValue(mockProject);
+    vi.mocked(ProjectModel.delete).mockResolvedValue(undefined);
   });
 
   it('should allow regular user to view projects', async () => {
@@ -145,7 +215,7 @@ describe('Project Permissions', () => {
 
   it('should throw an error if user does not have view permission', async () => {
     vi.mocked(getCurrentUser).mockResolvedValue(userWithoutPermissions);
-    await expect(projectActions.getProjects()).rejects.toThrow('Permission denied: Cannot view project');
+    await expect(projectActions.getProjects()).rejects.toThrow('Permission denied: Cannot read project');
   });
 
   it('should allow regular user to view a specific project', async () => {
@@ -162,7 +232,7 @@ describe('Project Permissions', () => {
 
   it('should throw an error if user does not have view permission for a specific project', async () => {
     vi.mocked(getCurrentUser).mockResolvedValue(userWithoutPermissions);
-    await expect(projectActions.getProject('P-1')).rejects.toThrow('Permission denied: Cannot view project');
+    await expect(projectActions.getProject('P-1')).rejects.toThrow('Permission denied: Cannot read project');
   });
 
   const updateData: Partial<IProject> = {
@@ -178,12 +248,12 @@ describe('Project Permissions', () => {
 
   it('should not allow regular user to edit a project', async () => {
     vi.mocked(getCurrentUser).mockResolvedValue(regularUser);
-    await expect(projectActions.updateProject('P-1', updateData)).rejects.toThrow('Permission denied: Cannot edit project');
+    await expect(projectActions.updateProject('P-1', updateData)).rejects.toThrow('Permission denied: Cannot update project');
   });
 
   it('should throw an error if user does not have edit permission', async () => {
     vi.mocked(getCurrentUser).mockResolvedValue(userWithoutPermissions);
-    await expect(projectActions.updateProject('P-1', updateData)).rejects.toThrow('Permission denied: Cannot edit project');
+    await expect(projectActions.updateProject('P-1', updateData)).rejects.toThrow('Permission denied: Cannot update project');
   });
 
   const newProjectData: Omit<IProject, 'project_id' | 'created_at' | 'updated_at'> = {
