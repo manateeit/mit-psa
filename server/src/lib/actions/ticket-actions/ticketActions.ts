@@ -29,7 +29,7 @@ function convertDates<T extends { entered_at?: Date | string | null, updated_at?
 }
 
 export async function addTicket(data: FormData, user: IUser): Promise<ITicket|undefined> {
-  if (!hasPermission(user, 'ticket', 'create')) {
+  if (!await hasPermission(user, 'ticket', 'create')) {
     throw new Error('Permission denied: Cannot create ticket');
   }
 
@@ -96,7 +96,7 @@ export async function addTicket(data: FormData, user: IUser): Promise<ITicket|un
 }
 
 export async function fetchTicketAttributes(ticketId: string, user: IUser) {
-  if (!hasPermission(user, 'ticket', 'read')) {
+  if (!await hasPermission(user, 'ticket', 'read')) {
     throw new Error('Permission denied: Cannot view ticket attributes');
   }
 
@@ -130,8 +130,8 @@ export async function fetchTicketAttributes(ticketId: string, user: IUser) {
 }
 
 export async function updateTicket(id: string, data: Partial<ITicket>, user: IUser) {
-  if (!hasPermission(user, 'ticket', 'update')) {
-    throw new Error('Permission denied: Cannot edit ticket');
+  if (!await hasPermission(user, 'ticket', 'update')) {
+    throw new Error('Permission denied: Cannot update ticket');
   }
 
   try {
@@ -192,17 +192,16 @@ export async function updateTicket(id: string, data: Partial<ITicket>, user: IUs
 }
 
 export async function getTickets(user: IUser): Promise<ITicket[]> {
-  if (!hasPermission(user, 'ticket', 'read')) {
+  if (!await hasPermission(user, 'ticket', 'read')) {
     throw new Error('Permission denied: Cannot view tickets');
   }
 
   try {
     const tickets = await Ticket.getAll();
     // Convert dates and validate
-    const processedTickets = tickets.map((ticket): ITicket => convertDates(ticket));
+    const processedTickets = tickets.map((ticket: ITicket): ITicket => convertDates(ticket));
     return validateData(z.array(ticketSchema), processedTickets);
   } catch (error) {
-    // ... existing c
     console.error('Failed to fetch tickets:', error);
     throw new Error('Failed to fetch tickets');
   }
@@ -210,7 +209,7 @@ export async function getTickets(user: IUser): Promise<ITicket[]> {
 
 // New function specifically for the ticket list view with server-side filtering
 export async function getTicketsForList(user: IUser, filters: ITicketListFilters): Promise<ITicketListItem[]> {
-  if (!hasPermission(user, 'ticket', 'read')) {
+  if (!await hasPermission(user, 'ticket', 'read')) {
     throw new Error('Permission denied: Cannot view tickets');
   }
 
@@ -263,7 +262,7 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
 
     if (validatedFilters.searchQuery) {
       const searchTerm = `%${validatedFilters.searchQuery}%`;
-      query = query.where(function() {
+      query = query.where(function(this: any) {
         this.where('t.title', 'ilike', searchTerm)
             .orWhere('t.ticket_number', 'ilike', searchTerm);
       });
@@ -272,7 +271,7 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
     const tickets = await query.orderBy('t.entered_at', 'desc');
 
     // Transform and validate the data
-    const ticketListItems = tickets.map((ticket): ITicketListItem => {
+    const ticketListItems = tickets.map((ticket: any): ITicketListItem => {
       const {
         status_id,
         priority_id,
