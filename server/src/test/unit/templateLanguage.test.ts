@@ -1,6 +1,6 @@
 import P from "parsimmon";
 import { InvoiceLanguage } from '@/lib/invoice-dsl/templateLanguage';
-import { describe, it, expect, vi, beforeEach, beforeAll, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, vi, test, beforeEach, beforeAll, afterEach, afterAll } from 'vitest';
 
 describe('Invoice Template Parser', () => {
   const parser = InvoiceLanguage.invoiceTemplate;
