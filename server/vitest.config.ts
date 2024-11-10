@@ -7,6 +7,20 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     globalSetup: ['./vitest.globalSetup.js'],
+    isolate: true,
+    sequence: {
+      concurrent: false,
+      shuffle: true
+    },
+    pool: 'forks',
+    poolOptions: {
+      threads: {
+        singleThread: true
+      },
+      forks: {
+        singleFork: true
+      }
+    }
   },
   resolve: {
     alias: {

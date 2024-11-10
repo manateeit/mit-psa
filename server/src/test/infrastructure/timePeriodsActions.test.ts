@@ -49,7 +49,7 @@ vi.mock("@/app/api/auth/[...nextauth]/options", () => ({
   options: {},
 }));
 
-beforeAll(async () => {
+beforeEach(async () => {
   db = knex({
     client: 'pg',
     connection: {
@@ -112,14 +112,43 @@ describe('Time Periods Actions', () => {
     await db('time_period_settings').insert(settings);
   });
 
-  afterEach(async () => {
-    // Clean up test data in correct order due to foreign key constraints
-    await db('time_entries').where('tenant', tenantId).del();
-    await db('time_sheets').where('tenant', tenantId).del();
-    await db('time_periods').where('tenant', tenantId).del();
-    await db('time_period_settings').where('time_period_settings_id', timePeriodSettingsId).del();
+  beforeAll(async () => {
+    db = knex({
+      client: 'pg',
+      connection: {
+        host: process.env.DB_HOST,
+        port: Number(process.env.DB_PORT),
+        user: process.env.DB_USER_SERVER,
+        password: process.env.DB_PASSWORD_SERVER,
+        database: process.env.DB_NAME_SERVER
+      },
+      migrations: {
+        directory: "./migrations"
+      },
+      seeds: {
+        directory: "./seeds/dev"
+      }
+    });
+  
+    // Drop all tables
+    await db.raw('DROP SCHEMA public CASCADE');
+    await db.raw('CREATE SCHEMA public');
+  
+    // Ensure the database is set up correctly
+    await db.raw(`SET app.environment = '${process.env.APP_ENV}'`);
+  
+    await db.migrate.latest();
+    await db.seed.run();
   });
-
+  
+  vi.mock('next/cache', () => ({
+    revalidatePath: vi.fn(),
+  }));
+  
+  afterAll(async () => {
+    await db.destroy();
+  });
+  
   it('should generate and save time periods based on settings', async () => {
     // Arrange
     const startDate = '2026-01-01T00:00:00.000Z';

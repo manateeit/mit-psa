@@ -64,6 +64,16 @@ beforeAll(async () => {
       directory: "./seeds/dev"
     }
   });
+
+  // Drop all tables
+  await db.raw('DROP SCHEMA public CASCADE');
+  await db.raw('CREATE SCHEMA public');
+
+  // Ensure the database is set up correctly
+  await db.raw(`SET app.environment = '${process.env.APP_ENV}'`);
+
+  await db.migrate.latest();
+  await db.seed.run();  
 });
 
 vi.mock('next/cache', () => ({
