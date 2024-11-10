@@ -1,4 +1,3 @@
-// server/src/components/EditableField.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import CustomSelect from '@/components/ui/CustomSelect';
 
@@ -9,11 +8,25 @@ interface EditableFieldProps {
   onValueChange: (value: string) => void;
 }
 
+interface StyleProps {
+  trigger: string;
+  content: string;
+  item: string;
+  itemIndicator: string;
+}
+
 const EditableField: React.FC<EditableFieldProps> = ({ label, value, options, onValueChange }) => {
   const [isEditing, setIsEditing] = useState(false);
   const fieldRef = useRef<HTMLDivElement>(null);
 
   const currentOption = options.find(option => option.value === value);
+
+  const customStyles: StyleProps = {
+    trigger: "inline-flex items-center justify-between rounded px-3 py-2 text-sm font-medium bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+    content: "bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 overflow-auto",
+    item: "text-gray-900 cursor-default select-none relative py-2 pl-3 pr-9 hover:bg-indigo-600 hover:text-white",
+    itemIndicator: "absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600",
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -39,12 +52,7 @@ const EditableField: React.FC<EditableFieldProps> = ({ label, value, options, on
             setIsEditing(false);
           }}
           options={options}
-          styles={{
-            trigger: "inline-flex items-center justify-between rounded px-3 py-2 text-sm font-medium bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
-            content: "bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 overflow-auto",
-            item: "text-gray-900 cursor-default select-none relative py-2 pl-3 pr-9 hover:bg-indigo-600 hover:text-white",
-            itemIndicator: "absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600",
-          }}
+          customStyles={customStyles}
         />
       ) : (
         <p

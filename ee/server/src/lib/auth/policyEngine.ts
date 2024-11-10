@@ -20,7 +20,7 @@ export class PolicyEngine {
     this.policies = this.policies.filter(p => p.policy_id !== policy.policy_id);
   }
 
-  async evaluateAccess(user: IUserWithRoles, resource: IResource, action: string): boolean {
+  async evaluateAccess(user: IUserWithRoles, resource: IResource, action: string): Promise<boolean> {
     // First, check RBAC permissions
     if (!await hasPermission(user, resource.type, action)) {
       return false;

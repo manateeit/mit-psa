@@ -271,7 +271,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
     }
   };
 
-  const handleSelectChange = async (field: keyof ITicket, newValue: string) => {
+  const handleSelectChange = async (field: keyof ITicket, newValue: string | null) => {
     setTicket(prevTicket => ({ ...prevTicket, [field]: newValue }));
 
     try {

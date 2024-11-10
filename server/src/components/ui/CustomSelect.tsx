@@ -9,7 +9,14 @@ interface CustomSelectProps {
   value: string;
   onValueChange: (value: string) => void;
   placeholder?: string;
+  customStyles?: {
+    trigger?: string;
+    content?: string;
+    item?: string;
+    itemIndicator?: string;
+  };
 }
+
 
 const CustomSelect: React.FC<CustomSelectProps> = ({
   options,
@@ -37,7 +44,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
           sideOffset={4}
         >
           <Select.Viewport className="p-1">
-            {options.map((option) => (
+            {options.map((option):JSX.Element => (
               <Select.Item
                 key={option.value}
                 value={option.value}
