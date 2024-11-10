@@ -7,21 +7,27 @@ RUN apt-get update && apt-get install -y \
     ghostscript \
     && rm -rf /var/lib/apt/lists/*
 
-    # Set the working directory to /app
+# Set the working directory to /app
 WORKDIR /app
 
-# Copy the current directory contents into the container at /app
-COPY . /app
-COPY ../package.json /app
+# Copy root package.json first (will be copied from the build context)
+COPY package.json package-lock.json ./
 
-RUN rm -f /app/.env
+# Copy server package.json
+COPY server/package.json server/package-lock.json ./server/
 
-# Install any needed packages specified in package.json
+# Install dependencies from root package.json
 RUN npm install
-RUN npm install next
+
+# Copy the server directory contents
+COPY server/ ./server/
+
+RUN rm -f ./server/.env
 
 # Make port 3000 available to the world outside this container
 EXPOSE 3000
 
 # Define environment variable
 ENV NODE_ENV=production
+
+WORKDIR /app/server

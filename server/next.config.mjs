@@ -17,6 +17,7 @@ const nextConfig = {
     config.cache = false;
     
     // Add support for importing from ee/server/src using absolute paths
+    // and ensure packages from root workspace are resolved
     config.resolve = {
       ...config.resolve,
       alias: {
@@ -25,6 +26,10 @@ const nextConfig = {
           ? path.join(__dirname, '../ee/server/src/app')
           : false,
       },
+      modules: [
+        ...config.resolve.modules || ['node_modules'],
+        path.join(__dirname, '../node_modules')
+      ],
       fallback: {
         ...config.resolve.fallback,
         fs: false,

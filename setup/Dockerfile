@@ -8,8 +8,6 @@ RUN apt-get update && apt-get install -y \
     default-mysql-client \
     sqlite3
 
-ENV abc=1234
-
 # Copy necessary files
 COPY setup/bash/log.sh /app/log.sh
 COPY setup/bash/entrypoint.sh /app/entrypoint.sh
