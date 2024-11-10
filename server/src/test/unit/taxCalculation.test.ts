@@ -1,19 +1,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { TaxService } from '../lib/services/taxService';
-import { ICompanyTaxSettings, ITaxRate, ITaxCalculationResult, ITaxComponent, ITaxRateThreshold } from '../interfaces/tax.interfaces';
-import CompanyTaxSettings from '../lib/models/companyTaxSettings';
-import { ISO8601String } from '../types/types.d';
+import { TaxService } from '@/lib/services/taxService';
+import { ICompanyTaxSettings, ITaxRate, ITaxCalculationResult, ITaxComponent, ITaxRateThreshold } from '@/interfaces/tax.interfaces';
+import CompanyTaxSettings from '@/lib/models/companyTaxSettings';
+import { ISO8601String } from '@/types/types.d';
 
 // Mock the CompanyTaxSettings model
-vi.mock('../lib/models/companyTaxSettings', () => ({
-  default: {
-    get: vi.fn(),
-    getTaxRate: vi.fn(),
-    getCompositeTaxComponents: vi.fn(),
-    getTaxRateThresholds: vi.fn(),
-    getTaxHolidays: vi.fn(),
-  },
-}));
+// vi.mock('../lib/models/companyTaxSettings', () => ({
+//   default: {
+//     get: vi.fn(),
+//     getTaxRate: vi.fn(),
+//     getCompositeTaxComponents: vi.fn(),
+//     getTaxRateThresholds: vi.fn(),
+//     getTaxHolidays: vi.fn(),
+//   },
+// }));
 
 describe('TaxService', () => {
   let taxService: TaxService;
@@ -22,7 +22,7 @@ describe('TaxService', () => {
   const date: ISO8601String = '2024-01-01T00:00:00Z';
 
   beforeEach(() => {
-    taxService = new TaxService(tenantId);
+    taxService = new TaxService();
     vi.resetAllMocks();
   });
 

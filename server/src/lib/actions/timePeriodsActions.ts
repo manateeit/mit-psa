@@ -44,6 +44,12 @@ export async function createTimePeriod(
     const activeSetting = validatedSettings[0];
     console.log('Using active setting:', activeSetting);
 
+    // Check for overlapping periods
+    const overlappingPeriod = await TimePeriod.findOverlapping(timePeriodData.start_date, timePeriodData.end_date);
+    if (overlappingPeriod) {
+      throw new Error('Cannot create time period: overlaps with existing period');
+    }
+
     console.log('No overlapping periods found.');
 
     console.log('Creating new time period...');
@@ -217,7 +223,7 @@ export async function generateTimePeriods(
             };
             periods.push(newPeriod);            
             periodEndStr = addMonthsToISOString(periodStartStr, 1);
-            finished = true;
+            // finished = true;
             break;
           }
           break;
@@ -400,6 +406,14 @@ export async function generateAndSaveTimePeriods(startDate: ISO8601String, endDa
     const settings = await getTimePeriodSettings();
     const validatedSettings = validateArray(timePeriodSettingsSchema, settings);
     const generatedPeriods = await generateTimePeriods(validatedSettings, startDate, endDate);
+
+    // Check for overlapping periods before saving
+    for (const period of generatedPeriods) {
+      const overlappingPeriod = await TimePeriod.findOverlapping(period.start_date, period.end_date);
+      if (overlappingPeriod) {
+        throw new Error(`Cannot create time period: overlaps with existing period from ${overlappingPeriod.start_date} to ${overlappingPeriod.end_date}`);
+      }
+    }
 
     // Save generated periods to the database
     const savedPeriods = await Promise.all(generatedPeriods.map((period: ITimePeriod): Promise<ITimePeriod> => TimePeriod.create(period)));

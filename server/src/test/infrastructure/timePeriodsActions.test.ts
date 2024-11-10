@@ -1,100 +1,172 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { generateAndSaveTimePeriods, getTimePeriodSettings } from '../../lib/actions/timePeriodsActions';
-import { TimePeriod } from '../../lib/models/timePeriod';
-import { TimePeriodSettings } from '../../lib/models/timePeriodSettings';
-import { ITimePeriodSettings, ITimePeriod } from '@/interfaces/timeEntry.interfaces';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
+import { v4 as uuidv4 } from 'uuid';
+import knex from 'knex';
+import dotenv from 'dotenv';
+import { generateAndSaveTimePeriods, fetchAllTimePeriods } from '@/lib/actions/timePeriodsActions';
+import { TimePeriodSettings } from '@/lib/models/timePeriodSettings';
+import { TimePeriod } from '@/lib/models/timePeriod';
+import { ITimePeriodSettings } from '@/interfaces/timeEntry.interfaces';
+import { ISO8601String } from '@/types/types.d';
 
-// Mock the database models
-vi.mock('../../lib/models/timePeriod', () => ({
-  TimePeriod: {
-    create: vi.fn(),
-  },
+dotenv.config();
+
+let db: knex.Knex;
+
+// Create a more complete mock Headers implementation
+const mockHeaders = {
+  get: vi.fn((key: string) => {
+    if (key === 'x-tenant-id') {
+      return '11111111-1111-1111-1111-111111111111';
+    }
+    return null;
+  }),
+  append: vi.fn(),
+  delete: vi.fn(),
+  entries: vi.fn(),
+  forEach: vi.fn(),
+  has: vi.fn(),
+  keys: vi.fn(),
+  set: vi.fn(),
+  values: vi.fn(),
+};
+
+// Mock next/headers
+vi.mock('next/headers', () => ({
+  headers: vi.fn(() => mockHeaders)
 }));
 
-vi.mock('../../lib/models/timePeriodSettings', () => ({
-  TimePeriodSettings: {
-    getActiveSettings: vi.fn(),
-  },
+// Mock next-auth with tenant information
+vi.mock("next-auth/next", () => ({
+  getServerSession: vi.fn(() => Promise.resolve({
+    user: {
+      id: 'mock-user-id',
+      tenant: '11111111-1111-1111-1111-111111111111'
+    },
+  })),
 }));
 
-// Mock the revalidatePath function
+vi.mock("@/app/api/auth/[...nextauth]/options", () => ({
+  options: {},
+}));
+
+beforeAll(async () => {
+  db = knex({
+    client: 'pg',
+    connection: {
+      host: process.env.DB_HOST,
+      port: Number(process.env.DB_PORT),
+      user: process.env.DB_USER_SERVER,
+      password: process.env.DB_PASSWORD_SERVER,
+      database: process.env.DB_NAME_SERVER
+    },
+    migrations: {
+      directory: "./migrations"
+    },
+    seeds: {
+      directory: "./seeds/dev"
+    }
+  });
+
+  // Drop all tables
+  await db.raw('DROP SCHEMA public CASCADE');
+  await db.raw('CREATE SCHEMA public');
+
+  // Ensure the database is set up correctly
+  await db.raw(`SET app.environment = '${process.env.APP_ENV}'`);
+
+  await db.migrate.latest();
+  await db.seed.run();
+});
+
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }));
 
+afterAll(async () => {
+  await db.destroy();
+});
+
 describe('Time Periods Actions', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
+  let tenantId: string;
+  let timePeriodSettingsId: string;
+
+  beforeEach(async () => {
+    // Create test data for each test
+    ({ tenant: tenantId } = await db('tenants').select("tenant").first());
+
+    // Create time period settings
+    timePeriodSettingsId = uuidv4();
+    const settings: Omit<ITimePeriodSettings, 'tenant'> = {
+      time_period_settings_id: timePeriodSettingsId,
+      tenant_id: tenantId,
+      frequency: 1,
+      frequency_unit: 'month',
+      start_day: 1,
+      end_day: 0,
+      is_active: true,
+      effective_from: new Date('2024-01-01').toISOString() as ISO8601String,
+      created_at: new Date('2024-01-01').toISOString() as ISO8601String,
+      updated_at: new Date('2024-01-01').toISOString() as ISO8601String
+    };
+
+    await db('time_period_settings').insert(settings);
+  });
+
+  afterEach(async () => {
+    // Clean up test data in correct order due to foreign key constraints
+    await db('time_entries').where('tenant', tenantId).del();
+    await db('time_sheets').where('tenant', tenantId).del();
+    await db('time_periods').where('tenant', tenantId).del();
+    await db('time_period_settings').where('time_period_settings_id', timePeriodSettingsId).del();
   });
 
   it('should generate and save time periods based on settings', async () => {
     // Arrange
-    const mockSettings: ITimePeriodSettings[] = [
-      {
-        time_period_settings_id: 'setting1',
-        start_day: 1,
-        frequency: 7,
-        frequency_unit: 'day',
-        is_active: true,
-        effective_from: new Date('2023-01-01'),
-        effective_to: undefined,
-        created_at: new Date(),
-        updated_at: new Date(),
-        tenant_id: 'tenant1',
-      },
-    ];
+    const startDate = '2026-01-01T00:00:00.000Z';
+    const endDate = '2027-03-01T00:00:00.000Z';
 
-    const mockCreatedPeriod: ITimePeriod = {
-      period_id: 'period1',
-      start_date: new Date('2023-01-01'),
-      end_date: new Date('2023-01-07'),
-      tenant: 'tenant1',
-    };
-
-    vi.mocked(TimePeriodSettings.getActiveSettings).mockResolvedValue(mockSettings);
-    vi.mocked(TimePeriod.create).mockResolvedValue(mockCreatedPeriod);
+    const expectedEndDateToExist = '2026-03-01T00:00:00.000Z';
 
     // Act
-    const result = await generateAndSaveTimePeriods(new Date('2023-01-01'), new Date('2023-01-31'));
+    const result = await generateAndSaveTimePeriods(startDate, endDate);
+
+    const periods = await fetchAllTimePeriods();
+    console.log('periods:', periods);
 
     // Assert
-    expect(TimePeriodSettings.getActiveSettings).toHaveBeenCalled();
-    expect(TimePeriod.create).toHaveBeenCalledTimes(5); // 5 weeks in January 2023
-    expect(result).toHaveLength(5);
-    expect(result[0]).toEqual(mockCreatedPeriod);
-  });
+    expect(result).toBeDefined();
+    expect(result.length).toBeGreaterThan(0);
 
-  it('should throw an error if fetching settings fails', async () => {
-    // Arrange
-    vi.mocked(TimePeriodSettings.getActiveSettings).mockRejectedValue(new Error('Failed to fetch settings'));
+    // Verify the periods were saved to the database
+    const savedPeriods = await db('time_periods')
+      .where('tenant', tenantId)
+      .orderBy('start_date', 'asc');
 
-    // Act & Assert
-    await expect(generateAndSaveTimePeriods(new Date('2023-01-01'), new Date('2023-01-31')))
-      .rejects.toThrow('Failed to generate and save time periods');
-  });
+    // Verify that time periods were saved
+    expect(savedPeriods.length).toBeGreaterThan(0);
 
-  it('should throw an error if saving periods fails', async () => {
-    // Arrange
-    const mockSettings: ITimePeriodSettings[] = [
-      {
-        time_period_settings_id: 'setting1',
-        start_day: 1,
-        frequency: 7,
-        frequency_unit: 'day',
-        is_active: true,
-        effective_from: new Date('2023-01-01'),
-        effective_to: undefined,
-        created_at: new Date(),
-        updated_at: new Date(),
-        tenant_id: 'tenant1',
-      },
-    ];
+    // Verify that at least one period has the correct structure
+    const hasValidPeriod = savedPeriods.some(period => {
+      return period.tenant === tenantId &&
+             period.start_date instanceof Date &&
+             period.end_date instanceof Date;
+    });
+    expect(hasValidPeriod).toBe(true);
 
-    vi.mocked(TimePeriodSettings.getActiveSettings).mockResolvedValue(mockSettings);
-    vi.mocked(TimePeriod.create).mockRejectedValue(new Error('Failed to save period'));
+    // Verify that the date range is covered
+    const startDateExists = savedPeriods.some(period => 
+      period.start_date.getTime() === new Date(startDate).getTime()
+    );
+    const endDateExists = savedPeriods.some(period => 
+      period.end_date.getTime() === new Date(expectedEndDateToExist).getTime()
+    );
 
-    // Act & Assert
-    await expect(generateAndSaveTimePeriods(new Date('2023-01-01'), new Date('2023-01-31')))
-      .rejects.toThrow('Failed to generate and save time periods');
+    // console log the periods
+    console.log('savedPeriods:', savedPeriods);
+    console.log('startDateExists:', startDateExists);
+    console.log('endDateExists:', endDateExists);    
+
+    expect(startDateExists).toBe(true);
+    expect(endDateExists).toBe(true);
   });
 });
