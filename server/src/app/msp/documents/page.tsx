@@ -13,8 +13,10 @@ import { toast } from 'react-hot-toast';
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<IDocument[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
   
   const [filterInputs, setFilterInputs] = useState({
     type: 'all',
@@ -32,49 +34,88 @@ export default function DocumentsPage() {
 
   const entityTypes: SelectOption[] = [
     { value: 'ticket', label: 'Tickets' },
-    { value: 'client', label: 'Clients' },
+    { value: 'company', label: 'Clients' },
     { value: 'contact', label: 'Contacts' },
-    { value: 'project', label: 'Projects' }
+    { value: 'schedule', label: 'Schedules' }
   ];
 
   const handleSearch = async () => {
     try {
       setIsLoading(true);
-      // Only include type in filters if it's not 'all'
+      setError(null);
+      console.log('Fetching documents with filters:', filterInputs);
+      
+      // Only include filters that have values
       const searchFilters = {
-        ...filterInputs,
-        type: filterInputs.type === 'all' ? '' : filterInputs.type
+        ...(filterInputs.type !== 'all' && { type: filterInputs.type }),
+        ...(filterInputs.entityType && { entityType: filterInputs.entityType }),
+        ...(filterInputs.searchTerm && { searchTerm: filterInputs.searchTerm })
       };
+      
       const docs = await getAllDocuments(searchFilters);
+      console.log('Fetched documents:', docs);
+      
+      if (!Array.isArray(docs)) {
+        console.error('Received non-array documents:', docs);
+        setDocuments([]);
+        setError('Invalid document data received');
+        return;
+      }
+      
       setDocuments(docs);
     } catch (error) {
       console.error('Error fetching documents:', error);
+      setError('Failed to fetch documents');
       toast.error('Failed to fetch documents');
+      setDocuments([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Fetch current user on component mount
+  // Initialize data
   useEffect(() => {
-    const fetchUser = async () => {
+    let mounted = true;
+
+    const initialize = async () => {
+      if (initialized) return;
+
       try {
+        setIsLoading(true);
+        setError(null);
+
+        // Fetch user first
         const user = await getCurrentUser();
+        if (!mounted) return;
+        
         if (user) {
           setCurrentUserId(user.user_id);
+          // Fetch documents after we have the user
+          await handleSearch();
+        } else {
+          setError('No user found');
+          toast.error('No user found');
         }
       } catch (error) {
-        console.error('Error fetching current user:', error);
-        toast.error('Failed to fetch user information');
+        console.error('Error during initialization:', error);
+        if (mounted) {
+          setError('Failed to initialize');
+          toast.error('Failed to initialize');
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+          setInitialized(true);
+        }
       }
     };
-    fetchUser();
-  }, []);
 
-  // Run initial search on component mount
-  useEffect(() => {
-    handleSearch();
-  }, []); // Empty dependency array means this runs once on mount
+    initialize();
+
+    return () => {
+      mounted = false;
+    };
+  }, []); // Run once on mount
 
   const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -83,20 +124,7 @@ export default function DocumentsPage() {
   };
 
   const handleDocumentUpdate = async () => {
-    try {
-      setIsLoading(true);
-      const searchFilters = {
-        ...filterInputs,
-        type: filterInputs.type === 'all' ? '' : filterInputs.type
-      };
-      const updatedDocs = await getAllDocuments(searchFilters);
-      setDocuments(updatedDocs);
-    } catch (error) {
-      console.error('Error refreshing documents:', error);
-      toast.error('Failed to refresh documents');
-    } finally {
-      setIsLoading(false);
-    }
+    await handleSearch();
   };
 
   const handleClearFilters = () => {
@@ -107,6 +135,25 @@ export default function DocumentsPage() {
     });
     handleSearch();
   };
+
+  // Debug log for rendering
+  console.log('Rendering DocumentsPage with:', {
+    documentsLength: documents.length,
+    isLoading,
+    currentUserId,
+    error,
+    initialized
+  });
+
+  if (!initialized) {
+    return (
+      <div className="p-6">
+        <div className="flex justify-center items-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6941C6]"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -175,14 +222,19 @@ export default function DocumentsPage() {
         {/* Right Column - Documents */}
         <div className="flex-1">
           <Card className="p-4">
-            <Documents
-              documents={documents}
-              gridColumns={3}
-              userId={currentUserId}
-              filters={filterInputs}
-              isLoading={isLoading}
-              onDocumentCreated={handleDocumentUpdate}
-            />
+            {error ? (
+              <div className="text-center py-4 text-red-500 bg-red-50 rounded-md">
+                {error}
+              </div>
+            ) : (
+              <Documents
+                documents={documents}
+                gridColumns={3}
+                userId={currentUserId}
+                isLoading={isLoading}
+                onDocumentCreated={handleDocumentUpdate}
+              />
+            )}
           </Card>
         </div>
       </div>

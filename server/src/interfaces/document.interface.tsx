@@ -25,12 +25,15 @@ export interface IDocument extends TenantEntity {
 
     // Additional fields (not in the database)
     createdByFullName?: string;
+    type_name?: string;  // Document type name from document_types or shared_document_types
+    type_icon?: string;  // Document type icon from document_types or shared_document_types
 }
 
 export interface IDocumentType extends TenantEntity {
     type_id: string;
     type_name: string;
     icon?: string;
+    isShared: boolean;
 }
 
 export interface ISharedDocumentType {
@@ -40,6 +43,7 @@ export interface ISharedDocumentType {
     description?: string;
     created_at?: Date;
     updated_at?: Date;
+    isShared: boolean;
 }
 
 // Document storage configuration
@@ -56,3 +60,25 @@ export interface IDocumentUploadResponse {
     file_size: number;
     original_name: string;
 }
+
+// Document filters for searching/filtering documents
+export interface DocumentFilters {
+    type?: string;
+    entityType?: string;
+    uploadedBy?: string;
+    searchTerm?: string;
+    excludeEntityId?: string;  // Added to exclude documents associated with a specific entity
+    excludeEntityType?: string;  // Added to specify the entity type to exclude
+}
+
+// Document preview response
+export interface PreviewResponse {
+    success: boolean;
+    content?: string;
+    previewImage?: string;
+    error?: string;
+    pageCount?: number;
+}
+
+// Document input type for creating new documents
+export type DocumentInput = Omit<IDocument, 'document_id'>;

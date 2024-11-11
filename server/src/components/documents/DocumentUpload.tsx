@@ -1,240 +1,174 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { FileStore } from '../../types/storage';
-import { downloadFile, deleteFile } from '../../lib/actions/file-actions/fileActions';
-import { uploadDocument } from '../../lib/actions/document-actions/documentActions';
-import { Button } from '../ui/Button';
-import { Card } from '../ui/Card';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from '../ui/Dialog';
+import { useState, useRef } from 'react';
+import { Button } from '@/components/ui/Button';
+import { uploadDocument } from '@/lib/actions/document-actions/documentActions';
+import { IDocument } from '@/interfaces/document.interface';
+import { Upload, X, Loader2, FileUp } from 'lucide-react';
 
 interface DocumentUploadProps {
     userId: string;
-    companyId?: string;
-    contactNameId?: string;
-    ticketId?: string;
-    scheduleId?: string;
-    onUploadComplete?: (fileData: FileStore) => void;
-    existingFiles?: FileStore[];
+    entityId?: string;
+    entityType?: 'ticket' | 'company' | 'contact' | 'schedule';
+    onUploadComplete: (result: { success: boolean; document: IDocument }) => void;
+    onCancel: () => void;
 }
 
-const DocumentUpload: React.FC<DocumentUploadProps> = ({ 
+interface UploadOptions {
+    userId: string;
+    companyId?: string;
+    ticketId?: string;
+    contactNameId?: string;
+    scheduleId?: string;
+}
+
+export default function DocumentUpload({
     userId,
-    companyId,
-    contactNameId,
-    ticketId,
-    scheduleId,
+    entityId,
+    entityType,
     onUploadComplete,
-    existingFiles = []
-}) => {
-    const [files, setFiles] = useState<FileStore[]>(existingFiles);
-    const [uploading, setUploading] = useState(false);
+    onCancel
+}: DocumentUploadProps): JSX.Element {
+    const [isDragging, setIsDragging] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; fileId?: string }>({
-        show: false,
-    });
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleUpload = async (formData: FormData) => {
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            await handleFileUpload(files[0]);
+        }
+    };
+
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            await handleFileUpload(files[0]);
+        }
+    };
+
+    const handleFileUpload = async (file: File) => {
+        setIsUploading(true);
+        setError(null);
         try {
-            const result = await uploadDocument(formData, {
-                userId,
-                companyId,
-                contactNameId,
-                ticketId,
-                scheduleId
-            });
+            const formData = new FormData();
+            formData.append('file', file);
 
-            if (!result.success || !result.document) {
-                throw new Error(result.error || 'Failed to upload document');
-            }
-            
-            const file = formData.get('file');
-            if (!(file instanceof File)) {
-                throw new Error('Invalid file data');
-            }
-
-            // Convert to FileStore shape for consistency
-            const fileStore: FileStore = {
-                file_id: result.document.file_id!,
-                file_name: file.name,
-                original_name: file.name,
-                mime_type: file.type,
-                file_size: file.size,
-                storage_path: result.document.storage_path!,
-                tenant: result.document.tenant!,
-                uploaded_by: userId,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                is_deleted: false
+            const options: UploadOptions = {
+                userId
             };
 
-            setFiles(prev => [...prev, fileStore]);
-            onUploadComplete?.(fileStore);
+            // Add the appropriate entity ID based on type if both are provided
+            if (entityId && entityType) {
+                switch (entityType) {
+                    case 'ticket':
+                        options.ticketId = entityId;
+                        break;
+                    case 'company':
+                        options.companyId = entityId;
+                        break;
+                    case 'contact':
+                        options.contactNameId = entityId;
+                        break;
+                    case 'schedule':
+                        options.scheduleId = entityId;
+                        break;
+                }
+            }
+
+            console.log('Uploading document with options:', options); // Debug log
+
+            const result = await uploadDocument(formData, options);
             
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to upload document');
-            console.error('Error uploading document:', err);
-        }
-    };
-
-    const onDrop = useCallback(async (acceptedFiles: File[]) => {
-        setError(null);
-        setUploading(true);
-
-        try {
-            for (const file of acceptedFiles) {
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('uploaded_by', userId);
-                await handleUpload(formData);
+            if (result.success && result.document) {
+                console.log('Upload successful:', result.document); // Debug log
+                onUploadComplete({
+                    success: true,
+                    document: result.document
+                });
+            } else {
+                console.error('Upload failed:', result.error);
+                setError(result.error || 'Failed to upload document');
             }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to upload files');
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            setError('Failed to upload file');
         } finally {
-            setUploading(false);
-        }
-    }, [userId, handleUpload]);
-
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        onDrop,
-        multiple: true,
-    });
-
-    const handleDownload = async (fileId: string) => {
-        try {
-            const result = await downloadFile(fileId);
-            if (result.success && result.data) {
-                // Create blob and trigger download
-                const blob = new Blob([result.data.buffer]);
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = result.data.metadata.file_name;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            } else {
-                throw new Error(result.error || 'Failed to download file');
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to download file');
-        }
-    };
-
-    const handleDelete = async (fileId: string) => {
-        try {
-            const result = await deleteFile(fileId, userId);
-            if (result.success) {
-                setFiles(prev => prev.filter(f => f.file_id !== fileId));
-                setDeleteConfirm({ show: false });
-            } else {
-                throw new Error(result.error || 'Failed to delete file');
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to delete file');
+            setIsUploading(false);
         }
     };
 
     return (
         <div className="space-y-4">
-            <Card className="p-4">
-                <div
-                    {...getRootProps()}
-                    className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
-                        ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}`}
-                >
-                    <input {...getInputProps()} />
-                    {isDragActive ? (
-                        <p>Drop the files here...</p>
-                    ) : (
-                        <p>Drag and drop files here, or click to select files</p>
+            <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center ${
+                    isDragging ? 'border-purple-500 bg-purple-50' : 'border-gray-300'
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+            >
+                <div className="space-y-4">
+                    <div className="flex flex-col items-center justify-center text-gray-600">
+                        <Upload 
+                            className={`w-12 h-12 mb-4 ${isDragging ? 'text-purple-500' : 'text-gray-400'}`}
+                            strokeWidth={1.5}
+                        />
+                        <p className="text-sm">Drag and drop your file here, or</p>
+                        <Button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            variant="outline"
+                            className="mt-2 inline-flex items-center"
+                        >
+                            <FileUp className="w-4 h-4 mr-2" />
+                            {isUploading ? 'Uploading...' : 'Browse Files'}
+                        </Button>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileSelect}
+                            className="hidden"
+                        />
+                    </div>
+                    {isUploading && (
+                        <div className="flex justify-center">
+                            <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+                        </div>
+                    )}
+                    {error && (
+                        <div className="text-red-500 text-sm flex items-center justify-center">
+                            <X className="w-4 h-4 mr-2" />
+                            {error}
+                        </div>
                     )}
                 </div>
-
-                {uploading && (
-                    <div className="mt-4">
-                        <p className="text-blue-600">Uploading files...</p>
-                    </div>
-                )}
-
-                {error && (
-                    <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-lg">
-                        {error}
-                    </div>
-                )}
-            </Card>
-
-            {files.length > 0 && (
-                <Card className="p-4">
-                    <h3 className="text-lg font-semibold mb-4">Files</h3>
-                    <div className="space-y-2">
-                        {files.map((file: FileStore): JSX.Element => (
-                            <div
-                                key={file.file_id}
-                                className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
-                            >
-                                <div className="flex-1">
-                                    <p className="font-medium">{file.original_name}</p>
-                                    <p className="text-sm text-gray-500">
-                                        {(file.file_size / 1024).toFixed(2)} KB
-                                    </p>
-                                </div>
-                                <div className="flex space-x-2">
-                                    <Button
-                                        onClick={() => handleDownload(file.file_id)}
-                                        variant="outline"
-                                        size="sm"
-                                    >
-                                        Download
-                                    </Button>
-                                    <Button
-                                        onClick={() => setDeleteConfirm({ show: true, fileId: file.file_id })}
-                                        variant="destructive"
-                                        size="sm"
-                                    >
-                                        Delete
-                                    </Button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </Card>
-            )}
-
-            <Dialog isOpen={deleteConfirm.show} onClose={() => setDeleteConfirm({ show: false })}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Confirm Delete</DialogTitle>
-                        <DialogDescription>
-                            Are you sure you want to delete this file? This action cannot be undone.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex justify-end space-x-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => setDeleteConfirm({ show: false })}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={() => deleteConfirm.fileId && handleDelete(deleteConfirm.fileId)}
-                        >
-                            Delete
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            </div>
+            <div className="flex justify-end space-x-2">
+                <Button
+                    variant="outline"
+                    onClick={onCancel}
+                    disabled={isUploading}
+                    className="inline-flex items-center"
+                >
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                </Button>
+            </div>
         </div>
     );
-};
-
-export default DocumentUpload;
+}

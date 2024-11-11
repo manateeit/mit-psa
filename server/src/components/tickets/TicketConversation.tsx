@@ -208,6 +208,8 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
           <Documents 
             documents={documents} 
             userId={`${currentUser?.id}`}
+            entityId={ticket.ticket_id}
+            entityType="ticket"
           />
         </div>
       )
