@@ -1,7 +1,7 @@
 'use server'
 
 import { Knex as KnexType } from 'knex';
-import knexfile from '../../../knexfile';
+import knexfile from './knexfile';
 import { getTenantForCurrentRequest, getTenantFromHeaders } from '../tenant';
 import { getConnection } from './db';
 import { headers } from 'next/headers';
