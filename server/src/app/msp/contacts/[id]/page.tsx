@@ -7,10 +7,14 @@ import { IContact } from '../../../../interfaces/contact.interfaces';
 import { ICompany } from '../../../../interfaces/company.interfaces';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
+import { getDocumentsByEntity } from '@/lib/actions/document-actions/documentActions';
+import { IDocument } from '@/interfaces/document.interface';
+import { getContactByContactNameId } from '@/lib/actions/contact-actions/contactActions';
+import { getAllCompanies } from '@/lib/actions/companyActions';
 
-const ContactDetailPage = async ({ params }: { params: { id: string } }) => {
+const ContactDetailPage = ({ params }: { params: { id: string } }) => {
   const [contact, setContact] = useState<IContact | null>(null);
-  const [documents, setDocuments] = useState<[]>([]);
+  const [documents, setDocuments] = useState<IDocument[]>([]);
   const [companies, setCompanies] = useState<ICompany[]>([]);
   const [currentUser, setCurrentUser] = useState<IUserWithRoles | null>(null);
 
@@ -21,19 +25,16 @@ const ContactDetailPage = async ({ params }: { params: { id: string } }) => {
         const userData = await getCurrentUser();
         setCurrentUser(userData);
 
-        // Fetch companies
-        const companiesResponse = await fetch('/api/companies');
-        const companiesData = await companiesResponse.json();
+        // Fetch companies using server action
+        const companiesData = await getAllCompanies();
         setCompanies(companiesData);
 
-        // Fetch contact data
-        const contactResponse = await fetch(`/api/contacts/${params.id}`);
-        const contactData = await contactResponse.json();
+        // Fetch contact data using server action
+        const contactData = await getContactByContactNameId(params.id);
         setContact(contactData);
 
-        // Fetch documents
-        const documentsResponse = await fetch(`/api/contacts/${params.id}/documents`);
-        const documentsData = await documentsResponse.json();
+        // Fetch documents using server action
+        const documentsData = await getDocumentsByEntity(params.id, 'contact');
         setDocuments(documentsData);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -47,6 +48,12 @@ const ContactDetailPage = async ({ params }: { params: { id: string } }) => {
     return <div>Loading...</div>;
   }
 
+  const handleDocumentCreated = async () => {
+    // Refresh documents after a new one is created
+    const updatedDocuments = await getDocumentsByEntity(params.id, 'contact');
+    setDocuments(updatedDocuments);
+  };
+
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">{contact.full_name}</h1>
@@ -56,6 +63,9 @@ const ContactDetailPage = async ({ params }: { params: { id: string } }) => {
         <Documents 
           documents={documents} 
           userId={currentUser.user_id}
+          entityId={params.id}
+          entityType="contact"
+          onDocumentCreated={handleDocumentCreated}
         />
       </div>
     </div>

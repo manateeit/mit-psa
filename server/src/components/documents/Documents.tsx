@@ -1,129 +1,206 @@
 "use client";
 
-import { useState } from 'react';
-import { IDocument, IDocumentUploadResponse } from '../../interfaces/document.interface';
+import { useState, useEffect } from 'react';
+import { IDocument } from '@/interfaces/document.interface';
 import DocumentStorageCard from './DocumentStorageCard';
 import DocumentUpload from './DocumentUpload';
+import DocumentSelector from './DocumentSelector';
 import DocumentsPagination from './DocumentsPagination';
-import { getAllDocuments, deleteDocument } from '../../lib/actions/document-actions/documentActions';
-import { toast } from 'react-hot-toast';
+import { Button } from '@/components/ui/Button';
+import { getDocumentsByEntity, deleteDocument, removeDocumentAssociations } from '@/lib/actions/document-actions/documentActions';
+import { Plus, Link } from 'lucide-react';
 
 interface DocumentsProps {
     documents: IDocument[];
     gridColumns?: 3 | 4;
     userId: string;
-    companyId?: string;
-    onDocumentCreated?: (document: IDocument) => void;
-    filters?: {
-        type?: string;
-        entityType?: string;
-        uploadedBy?: string;
-        searchTerm?: string;
-    };
+    entityId?: string;
+    entityType?: 'ticket' | 'company' | 'contact' | 'schedule';
     isLoading?: boolean;
+    onDocumentCreated?: () => Promise<void>;
 }
 
 const Documents = ({ 
-    documents, 
+    documents: initialDocuments, 
     gridColumns, 
-    userId, 
-    companyId, 
-    onDocumentCreated,
-    filters,
-    isLoading = false
+    userId,
+    entityId,
+    entityType,
+    isLoading = false,
+    onDocumentCreated
 }: DocumentsProps): JSX.Element => {
+    const [documents, setDocuments] = useState<IDocument[]>(initialDocuments);
     const [showUpload, setShowUpload] = useState(false);
+    const [showSelector, setShowSelector] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // Update documents when initialDocuments changes
+    useEffect(() => {
+        console.log('Documents received:', initialDocuments); // Debug log
+        if (Array.isArray(initialDocuments)) {
+            setDocuments(initialDocuments);
+            setError(null);
+        } else {
+            console.error('initialDocuments is not an array:', initialDocuments);
+            setDocuments([]);
+            setError('Invalid document data');
+        }
+    }, [initialDocuments]);
 
     // Set grid columns based on the number of columns
-    const gridColumnsClass = gridColumns === 4 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+    const gridColumnsClass = gridColumns === 4 
+        ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
+        : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
 
     // Handle file upload completion
-    const handleUploadComplete = async (fileData: IDocumentUploadResponse) => {
+    const handleUploadComplete = async (uploadResult: { success: boolean; document: IDocument }) => {
         setShowUpload(false);
-        const newDocument: IDocument = {
-            document_id: '', // This will be set by the server
-            document_name: fileData.original_name,
-            content: '', // This will be set by the server
-            type_id: '', // This will be determined by the server based on mime type
-            user_id: userId,
-            company_id: companyId,
-            order_number: 0, // This will be set by the server
-            created_by: userId,
-            tenant: '', // This will be set by the server
-            file_id: fileData.file_id,
-            storage_path: fileData.storage_path,
-            mime_type: fileData.mime_type,
-            file_size: fileData.file_size
-        };
-        
-        // Call the parent callback if provided
-        if (onDocumentCreated) {
-            onDocumentCreated(newDocument);
+        if (uploadResult.success) {
+            setDocuments(prev => [uploadResult.document, ...prev]);
+            if (onDocumentCreated) {
+                await onDocumentCreated();
+            }
         }
+    };
 
-        // Parent will handle refreshing the documents list
+    // Handle document selection completion
+    const handleDocumentsSelected = async () => {
+        try {
+            if (entityId && entityType) {
+                const updatedDocuments = await getDocumentsByEntity(entityId, entityType);
+                setDocuments(updatedDocuments);
+            }
+            if (onDocumentCreated) {
+                await onDocumentCreated();
+            }
+        } catch (error) {
+            console.error('Error refreshing documents:', error);
+            setError('Failed to refresh documents');
+        }
     };
 
     // Handle document deletion
     const handleDelete = async (document: IDocument) => {
         try {
-            if (document.document_id) {
-                await deleteDocument(document.document_id, userId);
-                toast.success('Document deleted successfully');
-                // Trigger a refresh in the parent component
-                if (onDocumentCreated) {
-                    onDocumentCreated(document); // Reuse this callback to trigger refresh
-                }
+            await deleteDocument(document.document_id, userId);
+            setDocuments(prev => prev.filter(d => d.document_id !== document.document_id));
+            if (onDocumentCreated) {
+                await onDocumentCreated();
             }
         } catch (error) {
             console.error('Error deleting document:', error);
-            toast.error('Failed to delete document. Please try again.');
+            setError('Failed to delete document');
+        }
+    };
+
+    // Handle document disassociation
+    const handleDisassociate = async (document: IDocument) => {
+        if (!entityId || !entityType) return;
+        
+        try {
+            await removeDocumentAssociations(entityId, entityType, [document.document_id]);
+            setDocuments(prev => prev.filter(d => d.document_id !== document.document_id));
+            if (onDocumentCreated) {
+                await onDocumentCreated();
+            }
+        } catch (error) {
+            console.error('Error disassociating document:', error);
+            setError('Failed to remove document association');
         }
     };
 
     return (
-        <div>
-            <div className="flex justify-between items-center mb-3">
-                {/* New document button */}
-                <button 
-                    className="bg-[#6941C6] text-white px-4 py-1 rounded-md whitespace-nowrap"
-                    onClick={() => setShowUpload(true)}
-                >
-                    + New Document
-                </button>
+        <div className="w-full space-y-4">
+            <div className="flex justify-between items-center">
+                <div className="flex space-x-2">
+                    {/* Upload new document button */}
+                    <Button 
+                        onClick={() => setShowUpload(true)}
+                        className="bg-[#6941C6] text-white hover:bg-[#5B34B5]"
+                    >
+                        <Plus className="w-4 h-4 mr-2" />
+                        New Document
+                    </Button>
+                    {/* Select existing documents button - only show if entityId and entityType are provided */}
+                    {entityId && entityType && (
+                        <Button
+                            onClick={() => setShowSelector(true)}
+                            className="bg-[#6941C6] text-white hover:bg-[#5B34B5]"
+                        >
+                            <Link className="w-4 h-4 mr-2" />
+                            Link Documents
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Upload Dialog */}
             {showUpload && (
-                <div className="mb-4 p-4 border border-gray-200 rounded-md">
+                <div className="mb-4 p-4 border border-gray-200 rounded-md bg-white">
                     <DocumentUpload
                         userId={userId}
-                        companyId={companyId}
+                        entityId={entityId}
+                        entityType={entityType}
                         onUploadComplete={handleUploadComplete}
+                        onCancel={() => setShowUpload(false)}
                     />
+                </div>
+            )}
+
+            {/* Document Selector Dialog - only render if entityId and entityType are provided */}
+            {entityId && entityType && (
+                <DocumentSelector
+                    entityId={entityId}
+                    entityType={entityType}
+                    onDocumentsSelected={handleDocumentsSelected}
+                    isOpen={showSelector}
+                    onClose={() => setShowSelector(false)}
+                />
+            )}
+
+            {/* Error State */}
+            {error && (
+                <div className="text-center py-4 text-red-500 bg-red-50 rounded-md">
+                    {error}
                 </div>
             )}
 
             {/* Loading State */}
             {isLoading && (
-                <div className="flex justify-center items-center py-4">
+                <div className="flex justify-center items-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6941C6]"></div>
                 </div>
             )}
 
-            {/* Documents */}
-            <div className={`grid ${gridColumnsClass} gap-2 items-start`}>
-                {!isLoading && documents.map((document: IDocument): JSX.Element => (
-                    <DocumentStorageCard
-                        key={document.document_id || document.file_id}
-                        document={document}
-                        onDelete={handleDelete}
-                    />
-                ))}
-            </div>
+            {/* Documents Grid */}
+            {!isLoading && documents && documents.length > 0 ? (
+                <div className={`grid ${gridColumnsClass} gap-4`}>
+                    {documents.map((document): JSX.Element => {
+                        console.log('Rendering document:', document); // Debug log
+                        return (
+                            <div key={document.document_id} className="h-full">
+                                <DocumentStorageCard
+                                    document={document}
+                                    onDelete={() => handleDelete(document)}
+                                    onDisassociate={entityId && entityType ? () => handleDisassociate(document) : undefined}
+                                    showDisassociate={Boolean(entityId && entityType)}
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : !isLoading && (
+                <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-md">
+                    No documents found
+                </div>
+            )}
 
             {/* Pagination */}
-            <DocumentsPagination />
+            {documents && documents.length > 0 && (
+                <div className="mt-4">
+                    <DocumentsPagination />
+                </div>
+            )}
         </div>
     );
 };

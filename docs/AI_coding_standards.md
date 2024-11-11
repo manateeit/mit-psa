@@ -20,6 +20,8 @@ Prefer radix components over other libraries
     - [Table](../server/src/components/ui/Table.tsx)
     - [TextArea](../server/src/components/ui/TextArea.tsx)
 
+Lucide icons can (and should) be used from the `lucide` package.
+
 ## Server Communication
 
 We use server actions that are located in the `/server/src/lib/actions` folder.

@@ -212,9 +212,9 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
     });
   }
 
-  const handleDocumentCreated = (newDocument: IDocument) => {
+  const handleDocumentCreated = async (): Promise<void> => {
     // Handle the newly created document if needed
-    console.log('New document created:', newDocument);
+    console.log('New document created');
   };
 
   const tabContent = [
@@ -319,7 +319,8 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
           documents={documents}
           gridColumns={3}
           userId={currentUser?.user_id || ''}
-          companyId={company.company_id}
+          entityId={company.company_id}
+          entityType="company"
           onDocumentCreated={handleDocumentCreated}
         />
       )
