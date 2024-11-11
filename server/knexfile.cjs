@@ -66,6 +66,23 @@ const knexfile = {
       directory: "./seeds/dev"
     },
   },
+  test: {
+    client: 'pg',
+    connection: {
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || '5432',
+      user: process.env.DB_USER_SERVER || 'test_user',
+      password: process.env.DB_PASSWORD_SERVER || 'test_password',
+      database: process.env.DB_NAME_SERVER || 'sebastian_test',
+    },
+    pool: {
+      min: 2,
+      max: 20,
+    },
+    migrations: {
+      directory: "./migrations"
+    },
+  },
   production: {
     client: 'pg',
     connection: {

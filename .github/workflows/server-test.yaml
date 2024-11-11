@@ -9,8 +9,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Docker Compose
       run: |
@@ -19,32 +18,13 @@ jobs:
       
     - name: Run docker-compose up
       run: |
-        docker-compose -f .github/docker-compose.yaml up -d
+        docker-compose -f docker-compose.test.yml up -d
+      env:
+        DB_NAME_SERVER: sebastian_test
+        DB_USER_SERVER: test_user
+        DB_PASSWORD_SERVER: test_password
+        DB_PORT: 5432
     
-    - name: Wait for Setup to complete (with timeout)
-      run: |
-        echo "Waiting for setup to complete..."
-        attempt=1
-        max_attempts=20
-        while true; do
-          # Check if any container matching *setup* is still running
-          setup_status=$(docker ps --filter "name=setup" --format "{{.Names}}")
-
-          if [ -z "$setup_status" ]; then
-            echo "Setup has completed."
-            break
-          fi
-          
-          if [ $attempt -ge $max_attempts ]; then
-            echo "Setup did not complete within the expected time. Failing the workflow."
-            exit 1
-          fi
-          
-          echo "Attempt $attempt of $max_attempts: Setup still running. Waiting..."
-          sleep 5
-          attempt=$((attempt+1))
-        done
-
     - name: Debug - Check PostgreSQL connection
       run: |
         sudo apt-get update
@@ -53,7 +33,7 @@ jobs:
         count=0
         max_attempts=50
         while [ $count -lt $max_attempts ]; do
-          if PGPASSWORD=abcd1234! pg_isready -h 127.0.0.1 -U postgres -d postgres > /dev/null 2>&1; then
+          if PGPASSWORD=test_password pg_isready -h localhost -U test_user -d sebastian_test > /dev/null 2>&1; then
             echo "Connection attempt successful."
             break
           else
@@ -78,10 +58,45 @@ jobs:
         cd server
         npm ci
 
+    - name: Setup Database
+      run: |
+        cd server
+        node setup/create_database.js
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_USER_ADMIN: test_user
+        DB_PASSWORD_ADMIN: test_password
+        DB_NAME_SERVER: sebastian_test
+        DB_USER_SERVER: test_user
+        DB_PASSWORD_SERVER: test_password
+        APP_ENV: test
+
+    - name: Run migrations
+      run: |
+        cd server
+        npx knex migrate:latest --env test
+      env:
+        DB_NAME_SERVER: sebastian_test
+        DB_USER_SERVER: test_user
+        DB_PASSWORD_SERVER: test_password
+        DB_HOST: localhost
+        DB_PORT: 5432
+        NODE_ENV: test
+
     - name: Run Vitest tests
       run: |
         cd server
         npm test
+      env:
+        DB_NAME_SERVER: sebastian_test
+        DB_USER_SERVER: test_user
+        DB_PASSWORD_SERVER: test_password
+        DB_HOST: localhost
+        DB_PORT: 5432
+        NODE_ENV: test
+        DB_TYPE: postgres
+        APP_ENV: test
 
     - name: Build
       run: |
@@ -89,8 +104,10 @@ jobs:
         npm run build
       env:
         NODE_ENV: production
-        DB_USER_SERVER: postgres
-        DB_PASSWORD_SERVER: abcd1234!
-        DB_NAME_SERVER: server
-        DB_HOST: 127.0.0.1
+        DB_NAME_SERVER: sebastian_test
+        DB_USER_SERVER: test_user
+        DB_PASSWORD_SERVER: test_password
+        DB_HOST: localhost
         DB_PORT: 5432
+        DB_TYPE: postgres
+        APP_ENV: test
