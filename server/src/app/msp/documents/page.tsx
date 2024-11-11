@@ -8,11 +8,13 @@ import { Input } from '../../../components/ui/Input';
 import CustomSelect from '../../../components/ui/CustomSelect';
 import { SelectOption } from '../../../components/ui/Select';
 import { getAllDocuments } from '../../../lib/actions/document-actions/documentActions';
+import { getCurrentUser } from '../../../lib/actions/user-actions/userActions';
 import { toast } from 'react-hot-toast';
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<IDocument[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
   
   const [filterInputs, setFilterInputs] = useState({
     type: 'all',
@@ -52,6 +54,22 @@ export default function DocumentsPage() {
       setIsLoading(false);
     }
   };
+
+  // Fetch current user on component mount
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await getCurrentUser();
+        if (user) {
+          setCurrentUserId(user.user_id);
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+        toast.error('Failed to fetch user information');
+      }
+    };
+    fetchUser();
+  }, []);
 
   // Run initial search on component mount
   useEffect(() => {
@@ -160,7 +178,7 @@ export default function DocumentsPage() {
             <Documents
               documents={documents}
               gridColumns={3}
-              userId="current-user-id"
+              userId={currentUserId}
               filters={filterInputs}
               isLoading={isLoading}
               onDocumentCreated={handleDocumentUpdate}

@@ -6,11 +6,11 @@ import { marked } from 'marked';
 import { PDFDocument } from 'pdf-lib';
 import { fromPath } from 'pdf2pic';
 import sharp from 'sharp';
-import { writeFile, unlink } from 'fs/promises';
+import { writeFile, unlink, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { CacheFactory } from '../../cache/CacheFactory';
 import Document from '../../models/document';
-import { IDocument } from '../../../interfaces/document.interface';
+import { IDocument, IDocumentType, ISharedDocumentType } from '../../../interfaces/document.interface';
 import { v4 as uuidv4 } from 'uuid';
 import { getStorageConfig } from '../../../config/storage';
 import { deleteFile } from '../file-actions/fileActions';
@@ -32,6 +32,29 @@ interface DocumentFilters {
   searchTerm?: string;
 }
 
+// Get all document types (both tenant-specific and shared)
+export async function getAllDocumentTypes(): Promise<(IDocumentType | ISharedDocumentType)[]> {
+  const { knex, tenant } = await createTenantKnex();
+  if (!tenant) {
+    throw new Error('No tenant found');
+  }
+
+  // Get tenant-specific types
+  const tenantTypes = await knex('document_types')
+    .select('type_id', 'type_name', 'icon', 'tenant')
+    .where('tenant', tenant);
+
+  // Get shared types
+  const sharedTypes = await knex('shared_document_types')
+    .select('type_id', 'type_name', 'icon', 'description');
+
+  // Combine and return both types
+  return [
+    ...tenantTypes.map((type): IDocumentType => ({ ...type, isShared: false })),
+    ...sharedTypes.map((type): ISharedDocumentType => ({ ...type, isShared: true }))
+  ];
+}
+
 // Get all documents with optional filtering
 export async function getAllDocuments(filters?: DocumentFilters) {
   try {
@@ -45,9 +68,20 @@ export async function getAllDocuments(filters?: DocumentFilters) {
         'documents.*',
         'users.first_name',
         'users.last_name',
-        knex.raw("CONCAT(users.first_name, ' ', users.last_name) as created_by_full_name")
+        knex.raw("CONCAT(users.first_name, ' ', users.last_name) as created_by_full_name"),
+        // Add document type information from both sources
+        knex.raw(`
+          COALESCE(dt.type_name, sdt.type_name) as type_name,
+          COALESCE(dt.icon, sdt.icon) as type_icon
+        `)
       )
       .leftJoin('users', 'documents.created_by', 'users.user_id')
+      // Join with both document type tables
+      .leftJoin('document_types as dt', function() {
+        this.on('documents.type_id', '=', 'dt.type_id')
+            .andOn('dt.tenant', '=', knex.raw('?', [tenant]));
+      })
+      .leftJoin('shared_document_types as sdt', 'documents.shared_type_id', 'sdt.type_id')
       .where('documents.tenant', tenant)
       .orderBy('documents.entered_at', 'desc');
 
@@ -59,7 +93,10 @@ export async function getAllDocuments(filters?: DocumentFilters) {
 
       // Filter by document type
       if (filters.type) {
-        query = query.where('documents.mime_type', 'like', `${filters.type}%`);
+        query = query.where(function() {
+          this.where('dt.type_name', 'like', `${filters.type}%`)
+              .orWhere('sdt.type_name', 'like', `${filters.type}%`);
+        });
       }
 
       // Filter by entity type and ensure document is associated with that entity
@@ -114,38 +151,58 @@ async function validateDocumentUpload(file: File): Promise<void> {
   );
 }
 
-async function getDocumentTypeId(mimeType: string): Promise<string> {
+async function getDocumentTypeId(mimeType: string): Promise<{ typeId: string, isShared: boolean }> {
   const { knex, tenant } = await createTenantKnex();
   
-  // Try to find an exact match for the mime type
-  const documentType = await knex('document_types')
+  // First try to find a tenant-specific type
+  const tenantType = await knex('document_types')
     .where({ tenant, type_name: mimeType })
     .first();
 
-  if (documentType) {
-    return documentType.type_id;
+  if (tenantType) {
+    return { typeId: tenantType.type_id, isShared: false };
+  }
+
+  // Then try to find a shared type
+  const sharedType = await knex('shared_document_types')
+    .where({ type_name: mimeType })
+    .first();
+
+  if (sharedType) {
+    return { typeId: sharedType.type_id, isShared: true };
   }
 
   // If no exact match, try to find a match for the general type (e.g., "image/*" for "image/png")
   const generalType = mimeType.split('/')[0] + '/*';
-  const generalDocumentType = await knex('document_types')
+  
+  // Check tenant-specific general type first
+  const generalTenantType = await knex('document_types')
     .where({ tenant, type_name: generalType })
     .first();
 
-  if (generalDocumentType) {
-    return generalDocumentType.type_id;
+  if (generalTenantType) {
+    return { typeId: generalTenantType.type_id, isShared: false };
   }
 
-  // If no match found, return the unknown type (application/octet-stream)
-  const unknownType = await knex('document_types')
-    .where({ tenant, type_name: 'application/octet-stream' })
+  // Then check shared general type
+  const generalSharedType = await knex('shared_document_types')
+    .where({ type_name: generalType })
+    .first();
+
+  if (generalSharedType) {
+    return { typeId: generalSharedType.type_id, isShared: true };
+  }
+
+  // If no match found, return the unknown type (application/octet-stream) from shared types
+  const unknownType = await knex('shared_document_types')
+    .where({ type_name: 'application/octet-stream' })
     .first();
 
   if (!unknownType) {
-    throw new Error('Unknown document type not found in database');
+    throw new Error('Unknown document type not found in shared document types');
   }
 
-  return unknownType.type_id;
+  return { typeId: unknownType.type_id, isShared: true };
 }
 
 export async function uploadDocument(
@@ -182,14 +239,15 @@ export async function uploadDocument(
     });
 
     // Get document type based on mime type
-    const typeId = await getDocumentTypeId(fileData.type);
+    const { typeId, isShared } = await getDocumentTypeId(fileData.type);
 
     // Create document record with relationships
     const document: IDocument = {
       document_id: uuidv4(),
       document_name: fileData.name,
       content: '',
-      type_id: typeId,
+      type_id: isShared ? null : typeId, // Set to null for shared types
+      shared_type_id: isShared ? typeId : undefined, // Only set shared_type_id if it's a shared type
       user_id: options.userId,
       order_number: 0,
       created_by: options.userId,
@@ -368,10 +426,22 @@ export async function getDocumentPreview(
 
         // Create temp directory for processing
         const tempDir = join(config.providers[config.defaultProvider!].basePath!, 'pdf-previews');
+        
+        // Ensure temp directory exists
+        try {
+          await mkdir(tempDir, { recursive: true });
+        } catch (error) {
+          // Check if error is a NodeJS.ErrnoException and has a code property
+          if (error instanceof Error && 'code' in error && error.code !== 'EEXIST') {
+            throw error;
+          }
+          // Ignore EEXIST error (directory already exists)
+        }
+
         const tempPdfPath = join(tempDir, `${file_id}.pdf`);
         
         try {
-          // Ensure temp directory exists
+          // Write the PDF file
           await writeFile(tempPdfPath, buffer);
 
           // Set up pdf2pic options

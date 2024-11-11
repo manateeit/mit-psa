@@ -3,7 +3,8 @@ import { TenantEntity } from ".";
 export interface IDocument extends TenantEntity {
     document_id: string;
     document_name: string;
-    type_id: string;
+    type_id: string | null;  // Updated to allow null for shared document types
+    shared_type_id?: string;  // New field for shared document types
     user_id: string;
     contact_name_id?: string;
     company_id?: string;
@@ -30,6 +31,15 @@ export interface IDocumentType extends TenantEntity {
     type_id: string;
     type_name: string;
     icon?: string;
+}
+
+export interface ISharedDocumentType {
+    type_id: string;
+    type_name: string;
+    icon?: string;
+    description?: string;
+    created_at?: Date;
+    updated_at?: Date;
 }
 
 // Document storage configuration
