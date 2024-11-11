@@ -1,9 +1,17 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /* eslint-disable no-undef */
-const { Client } = require('pg');
+import pg from 'pg';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import path from 'path';
 
-require('dotenv').config('.env.localtest');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
+const { Client } = pg;
+
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
