@@ -11,7 +11,7 @@ const __dirname = dirname(__filename);
 
 const { Client } = pg;
 
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+dotenv.config();
 
 const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
