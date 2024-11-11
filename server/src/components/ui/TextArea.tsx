@@ -6,51 +6,60 @@ interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 
 export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
   ({ label, onChange, className, value = '', ...props }, ref) => {
-    // Keep track of whether initial adjustment has been done
-    const initialAdjustmentDone = useRef(false);
+    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+    const combinedRef = (node: HTMLTextAreaElement) => {
+      textareaRef.current = node;
+      if (typeof ref === 'function') {
+        ref(node);
+      } else if (ref) {
+        ref.current = node;
+      }
+    };
 
     const adjustHeight = (element: HTMLTextAreaElement) => {
-      // Force a reflow
-      void element.offsetHeight;
-      
-      // Reset height to get proper scrollHeight
+      // Temporarily collapse to get the minimum height
       element.style.height = 'auto';
       
-      // Set new height
-      const newHeight = element.scrollHeight;
+      // Get the computed line height to ensure proper minimum height
+      const computedStyle = window.getComputedStyle(element);
+      const lineHeight = parseInt(computedStyle.lineHeight);
+      
+      // Calculate height based on content
+      const newHeight = Math.max(
+        element.scrollHeight,
+        lineHeight * 1.5 // Minimum height of ~1.5 lines
+      );
+      
+      // Set the new height
       element.style.height = `${newHeight}px`;
     };
 
-    // Immediate mount effect for initial content
+    // Initial setup and content-based adjustment
     useEffect(() => {
-      if (!initialAdjustmentDone.current && ref && 'current' in ref && ref.current) {
-        const textarea = ref.current;
+      if (textareaRef.current) {
+        const element = textareaRef.current;
         
-        // Force immediate height adjustment
-        const adjustInitialHeight = () => {
-          // Force a reflow first
-          void textarea.offsetHeight;
-          textarea.style.height = 'auto';
-          const scrollHeight = textarea.scrollHeight;
-          textarea.style.height = `${scrollHeight}px`;
-          initialAdjustmentDone.current = true;
-        };
-
-        // Run adjustment immediately and after a small delay
-        adjustInitialHeight();
-        setTimeout(adjustInitialHeight, 0);
+        // Ensure proper initial display
+        element.style.height = 'auto';
+        element.style.overflow = 'hidden';
+        
+        // Force a reflow and adjust height
+        void element.offsetHeight;
+        adjustHeight(element);
       }
     }, []);
 
-    // Handle subsequent value changes
+    // Handle value changes
     useLayoutEffect(() => {
-      if (ref && 'current' in ref && ref.current) {
-        adjustHeight(ref.current);
+      if (textareaRef.current) {
+        adjustHeight(textareaRef.current);
       }
     }, [value]);
 
     const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      adjustHeight(e.target);
+      if (textareaRef.current) {
+        adjustHeight(textareaRef.current);
+      }
       
       if (onChange) {
         onChange(e);
@@ -65,9 +74,25 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
           </label>
         )}
         <textarea
-          ref={ref}
+          ref={combinedRef}
           rows={1}
-          className={`w-full px-3 py-[0.4375rem] border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none overflow-hidden whitespace-pre-wrap ${className}`}
+          className={`
+            w-full 
+            px-3 
+            py-2 
+            border 
+            border-gray-300 
+            rounded-md 
+            shadow-sm 
+            focus:outline-none 
+            focus:ring-2 
+            focus:ring-blue-500 
+            focus:border-blue-500 
+            resize-none 
+            overflow-hidden 
+            whitespace-pre-wrap
+            ${className}
+          `}
           onChange={handleInput}
           value={value}
           {...props}
