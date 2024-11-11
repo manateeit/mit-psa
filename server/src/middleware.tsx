@@ -1,6 +1,7 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 import { authorizationMiddleware } from './middleware/authorizationMiddleware';
+import './lib/init/serverInit';  // Import server initialization
 
 export default withAuth(
   async function middleware(req) {    
