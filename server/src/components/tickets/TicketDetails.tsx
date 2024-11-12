@@ -1,4 +1,3 @@
-// server/src/components/tickets/TicketDetails.tsx
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -6,6 +5,7 @@ import { ITicket, IComment, ITimeSheet, ITimePeriod, ITimeEntry, ICompany, ICont
 import TicketInfo from './TicketInfo';
 import TicketProperties from './TicketProperties';
 import TicketConversation from './TicketConversation';
+import AssociatedAssets from '../assets/AssociatedAssets';
 import { TimeEntryDialog } from '../time-management/TimeEntryDialog';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
@@ -492,35 +492,46 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
             onContentChange={handleContentChange}
           />
         </div>
-        <TicketProperties
-          ticket={ticket}
-          company={company}
-          contactInfo={contactInfo}
-          createdByUser={createdByUser}
-          channel={channel}
-          elapsedTime={elapsedTime}
-          isRunning={isRunning}
-          timeDescription={timeDescription}
-          onStart={() => setIsRunning(true)}
-          onPause={() => setIsRunning(false)}
-          onStop={() => {
-            setIsRunning(false);
-            setElapsedTime(0);
-          }}
-          onTimeDescriptionChange={setTimeDescription}
-          onAddTimeEntry={handleAddTimeEntry}
-          onCompanyClick={handleCompanyClick}
-          onContactClick={handleContactClick}
-          team={team}
-          additionalAgents={additionalAgents}
-          availableAgents={availableAgents}
-          onAgentClick={handleAgentClick}
-          onAddAgent={handleAddAgent}
-          onRemoveAgent={handleRemoveAgent}
-          currentTimeSheet={currentTimeSheet}
-          currentTimePeriod={currentTimePeriod}
-          userId={userId || ''}
-        />
+        <div className="w-96">
+          <TicketProperties
+            ticket={ticket}
+            company={company}
+            contactInfo={contactInfo}
+            createdByUser={createdByUser}
+            channel={channel}
+            elapsedTime={elapsedTime}
+            isRunning={isRunning}
+            timeDescription={timeDescription}
+            onStart={() => setIsRunning(true)}
+            onPause={() => setIsRunning(false)}
+            onStop={() => {
+              setIsRunning(false);
+              setElapsedTime(0);
+            }}
+            onTimeDescriptionChange={setTimeDescription}
+            onAddTimeEntry={handleAddTimeEntry}
+            onCompanyClick={handleCompanyClick}
+            onContactClick={handleContactClick}
+            team={team}
+            additionalAgents={additionalAgents}
+            availableAgents={availableAgents}
+            onAgentClick={handleAgentClick}
+            onAddAgent={handleAddAgent}
+            onRemoveAgent={handleRemoveAgent}
+            currentTimeSheet={currentTimeSheet}
+            currentTimePeriod={currentTimePeriod}
+            userId={userId || ''}
+          />
+          {ticket.company_id && ticket.ticket_id && (
+            <div className="mt-6">
+              <AssociatedAssets
+                entityId={ticket.ticket_id}
+                entityType="ticket"
+                companyId={ticket.company_id}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

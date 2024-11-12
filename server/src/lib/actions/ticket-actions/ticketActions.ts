@@ -13,10 +13,13 @@ import {
   ticketUpdateSchema, 
   ticketAttributesQuerySchema,
   ticketListItemSchema,
-  ticketListFiltersSchema
+  ticketListFiltersSchema,
+  createTicketFromAssetSchema
 } from '@/lib/schemas/ticket.schema';
 import { z } from 'zod';
 import { validateData } from '@/lib/utils/validation';
+import { AssetAssociationModel } from '@/models/asset';
+
 
 // Helper function to safely convert dates
 function convertDates<T extends { entered_at?: Date | string | null, updated_at?: Date | string | null, closed_at?: Date | string | null }>(record: T): T {
@@ -26,6 +29,96 @@ function convertDates<T extends { entered_at?: Date | string | null, updated_at?
     updated_at: record.updated_at instanceof Date ? record.updated_at.toISOString() : record.updated_at,
     closed_at: record.closed_at instanceof Date ? record.closed_at.toISOString() : record.closed_at,
   };
+}
+
+interface CreateTicketFromAssetData {
+    title: string;
+    description: string;
+    priority_id: string;
+    asset_id: string;
+    company_id: string;
+}
+
+export async function createTicketFromAsset(data: CreateTicketFromAssetData, user: IUser): Promise<ITicket> {
+    if (!await hasPermission(user, 'ticket', 'create')) {
+        throw new Error('Permission denied: Cannot create ticket');
+    }
+
+    try {
+        const {knex: db, tenant} = await createTenantKnex();
+        if (!tenant) {
+            throw new Error('Tenant not found');
+        }
+
+        // Validate the input data
+        const validatedData = validateData(createTicketFromAssetSchema, data);
+
+        // Start a transaction
+        const result = await db.transaction(async (trx) => {
+            // Create the ticket
+            const ticketData: Partial<ITicket> = {
+                ticket_number: '',
+                title: validatedData.title,
+                company_id: validatedData.company_id,
+                status_id: await getDefaultStatusId(trx, tenant), // You'll need to implement this helper
+                entered_by: user.user_id,
+                priority_id: validatedData.priority_id,
+                entered_at: new Date().toISOString(),
+                attributes: {
+                    description: validatedData.description
+                },
+                tenant: tenant
+            };
+
+            // Validate complete ticket data
+            const validatedTicket = validateData(ticketSchema.partial(), ticketData);
+
+            // Insert the ticket
+            const [newTicket] = await trx('tickets')
+                .insert(validatedTicket)
+                .returning('*');
+
+            if (!newTicket.ticket_id) {
+                throw new Error('Failed to create ticket');
+            }
+
+            // Create the asset association
+            await AssetAssociationModel.create({
+                asset_id: validatedData.asset_id,
+                entity_id: newTicket.ticket_id,
+                entity_type: 'ticket',
+                relationship_type: 'affected'
+            }, user.user_id);
+
+            return convertDates(newTicket);
+        });
+
+        // Revalidate relevant paths
+        revalidatePath('/msp/tickets');
+        revalidatePath('/msp/assets');
+
+        return result;
+    } catch (error) {
+        console.error('Error creating ticket from asset:', error);
+        throw new Error('Failed to create ticket from asset');
+    }
+}
+
+// Helper function to get default status ID
+async function getDefaultStatusId(trx: any, tenant: string): Promise<string> {
+    const defaultStatus = await trx('statuses')
+        .where({ 
+            tenant,
+            is_default: true,
+            item_type: 'ticket'
+        })
+        .first();
+
+    if (!defaultStatus) {
+        throw new Error('No default status found for tickets');
+    }
+
+    return defaultStatus.status_id;
 }
 
 export async function addTicket(data: FormData, user: IUser): Promise<ITicket|undefined> {
