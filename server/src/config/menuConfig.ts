@@ -28,7 +28,7 @@ export const menuItems: MenuItem[] = [
   },
   {
     name: 'Assets',
-    icon: RadixIcons.BoxIcon,
+    icon: RadixIcons.DesktopIcon,
     href: '/msp/assets'
   },
   {

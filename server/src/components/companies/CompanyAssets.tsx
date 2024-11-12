@@ -1,0 +1,220 @@
+'use client'
+
+import React, { useState, useEffect } from 'react';
+import { ClientMaintenanceSummary, Asset } from '@/interfaces/asset.interfaces';
+import { DataTable } from '@/components/ui/DataTable';
+import { Button } from '@/components/ui/Button';
+import { getClientMaintenanceSummary, listAssets } from '@/lib/actions/asset-actions/assetActions';
+import { Boxes, Plus, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+interface CompanyAssetsProps {
+  companyId: string;
+}
+
+const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
+  const [summary, setSummary] = useState<ClientMaintenanceSummary | null>(null);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const router = useRouter();
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [summaryData, assetsData] = await Promise.all([
+          getClientMaintenanceSummary(companyId),
+          listAssets({ company_id: companyId })
+        ]);
+        setSummary(summaryData);
+        setAssets(assetsData.assets);
+      } catch (error) {
+        console.error('Error loading asset data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [companyId]);
+
+  const columns = [
+    {
+      title: 'Asset Tag',
+      dataIndex: 'asset_tag',
+      render: (value: string, record: Asset) => (
+        <Link 
+          href={`/msp/companies/${companyId}/assets/${record.asset_id}`}
+          className="text-primary-600 hover:text-primary-700"
+        >
+          {value}
+        </Link>
+      )
+    },
+    {
+      title: 'Name',
+      dataIndex: 'name'
+    },
+    {
+      title: 'Serial Number',
+      dataIndex: 'serial_number',
+      render: (value: string | null) => value || '-'
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      render: (value: string) => (
+        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+          value === 'active' 
+            ? 'bg-green-100 text-green-800'
+            : value === 'inactive'
+            ? 'bg-gray-100 text-gray-800'
+            : 'bg-amber-100 text-amber-800'
+        }`}>
+          {value}
+        </span>
+      )
+    },
+    {
+      title: 'Location',
+      dataIndex: 'location',
+      render: (value: string | null) => value || '-'
+    },
+    {
+      title: 'Purchase Date',
+      dataIndex: 'purchase_date',
+      render: (value: string | null) => value ? new Date(value).toLocaleDateString() : '-'
+    },
+    {
+      title: 'Warranty End',
+      dataIndex: 'warranty_end_date',
+      render: (value: string | null) => {
+        if (!value) return '-';
+        const date = new Date(value);
+        const isExpired = date < new Date();
+        return (
+          <span className={isExpired ? 'text-red-600' : 'text-gray-900'}>
+            {date.toLocaleDateString()}
+          </span>
+        );
+      }
+    }
+  ];
+
+  if (isLoading) {
+    return <div>Loading assets...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-lg shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Total Assets</p>
+              <p className="text-2xl font-semibold">{summary?.total_assets || 0}</p>
+            </div>
+            <Boxes className="h-8 w-8 text-primary-500" />
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-lg shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Maintenance Rate</p>
+              <p className="text-2xl font-semibold">
+                {Math.round(summary?.compliance_rate || 0)}%
+              </p>
+            </div>
+            <CheckCircle2 className="h-8 w-8 text-green-500" />
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-lg shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Overdue</p>
+              <p className="text-2xl font-semibold">{summary?.overdue_maintenances || 0}</p>
+            </div>
+            <AlertTriangle className="h-8 w-8 text-amber-500" />
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-lg shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Upcoming</p>
+              <p className="text-2xl font-semibold">{summary?.upcoming_maintenances || 0}</p>
+            </div>
+            <Clock className="h-8 w-8 text-blue-500" />
+          </div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex justify-end">
+        <Link href={`/msp/companies/${companyId}/assets/new`}>
+          <Button className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Add Asset
+          </Button>
+        </Link>
+      </div>
+
+      {/* Assets Table */}
+      <DataTable
+        data={assets}
+        columns={columns}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+        onRowClick={(asset) => router.push(`/msp/companies/${companyId}/assets/${asset.asset_id}`)}
+      />
+
+      {/* Maintenance Type Breakdown */}
+      {summary?.maintenance_by_type && Object.keys(summary.maintenance_by_type).length > 0 && (
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <h3 className="text-lg font-semibold mb-4">Maintenance Types</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {Object.entries(summary.maintenance_by_type).map(([type, count]): JSX.Element => (
+              <div key={type} className="text-center">
+                <p className="text-sm text-gray-500 capitalize">{type}</p>
+                <p className="text-xl font-semibold">{count}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Asset Stats */}
+      <div className="bg-white p-6 rounded-lg shadow-sm">
+        <h3 className="text-lg font-semibold mb-4">Asset Overview</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <p className="text-sm text-gray-500">Assets with Maintenance</p>
+            <p className="text-xl font-semibold">{summary?.assets_with_maintenance || 0}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Total Schedules</p>
+            <p className="text-xl font-semibold">{summary?.total_schedules || 0}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Active Maintenance Plans</p>
+            <p className="text-xl font-semibold">
+              {(summary?.assets_with_maintenance || 0) > 0
+                ? Math.round(
+                    ((summary?.total_schedules || 0) /
+                      (summary?.assets_with_maintenance || 1)) *
+                      100
+                  )
+                : 0}%
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CompanyAssets;

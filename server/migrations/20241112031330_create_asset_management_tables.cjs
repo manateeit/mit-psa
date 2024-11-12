@@ -10,8 +10,8 @@ exports.up = function(knex) {
             table.text('type_name').notNullable();
             table.uuid('parent_type_id');
             table.jsonb('attributes_schema');
-            table.timestamp('created_at').defaultTo(knex.fn.now());
-            table.timestamp('updated_at').defaultTo(knex.fn.now());
+            table.timestamp('created_at').defaultTo(knex.raw('CURRENT_TIMESTAMP'));
+            table.timestamp('updated_at').defaultTo(knex.raw('CURRENT_TIMESTAMP'));
             
             table.primary(['tenant', 'type_id']);
             table.foreign(['tenant', 'parent_type_id']).references(['tenant', 'type_id']).inTable('asset_types');
@@ -26,11 +26,11 @@ exports.up = function(knex) {
             table.text('name').notNullable();
             table.text('status').notNullable();
             table.text('location');
-            table.date('purchase_date');
-            table.date('warranty_end_date');
+            table.timestamp('purchase_date');
+            table.timestamp('warranty_end_date');
             table.jsonb('attributes');
-            table.timestamp('created_at').defaultTo(knex.fn.now());
-            table.timestamp('updated_at').defaultTo(knex.fn.now());
+            table.timestamp('created_at').defaultTo(knex.raw('CURRENT_TIMESTAMP'));
+            table.timestamp('updated_at').defaultTo(knex.raw('CURRENT_TIMESTAMP'));
             
             table.primary(['tenant', 'asset_id']);
             table.foreign(['tenant', 'type_id']).references(['tenant', 'type_id']).inTable('asset_types');
@@ -43,7 +43,7 @@ exports.up = function(knex) {
             table.uuid('changed_by').notNullable();
             table.text('change_type').notNullable();
             table.jsonb('changes').notNullable();
-            table.timestamp('changed_at').defaultTo(knex.fn.now());
+            table.timestamp('changed_at').defaultTo(knex.raw('CURRENT_TIMESTAMP'));
             
             table.primary(['tenant', 'history_id']);
             table.foreign(['tenant', 'asset_id']).references(['tenant', 'asset_id']).inTable('assets');
@@ -54,28 +54,28 @@ exports.up = function(knex) {
             ALTER TABLE asset_types ENABLE ROW LEVEL SECURITY;
             
             CREATE POLICY tenant_isolation_policy ON asset_types
-                USING (tenant = current_setting('app.current_tenant')::uuid);
+                USING (tenant::TEXT = current_setting('app.current_tenant')::TEXT);
                 
             CREATE POLICY tenant_isolation_insert_policy ON asset_types
-                FOR INSERT WITH CHECK (tenant = current_setting('app.current_tenant')::uuid);
+                FOR INSERT WITH CHECK (tenant::TEXT = current_setting('app.current_tenant')::TEXT);
             
             -- Enable RLS for assets
             ALTER TABLE assets ENABLE ROW LEVEL SECURITY;
             
             CREATE POLICY tenant_isolation_policy ON assets
-                USING (tenant = current_setting('app.current_tenant')::uuid);
+                USING (tenant::TEXT = current_setting('app.current_tenant')::TEXT);
                 
             CREATE POLICY tenant_isolation_insert_policy ON assets
-                FOR INSERT WITH CHECK (tenant = current_setting('app.current_tenant')::uuid);
+                FOR INSERT WITH CHECK (tenant::TEXT = current_setting('app.current_tenant')::TEXT);
             
             -- Enable RLS for asset_history
             ALTER TABLE asset_history ENABLE ROW LEVEL SECURITY;
             
             CREATE POLICY tenant_isolation_policy ON asset_history
-                USING (tenant = current_setting('app.current_tenant')::uuid);
+                USING (tenant::TEXT = current_setting('app.current_tenant')::TEXT);
                 
             CREATE POLICY tenant_isolation_insert_policy ON asset_history
-                FOR INSERT WITH CHECK (tenant = current_setting('app.current_tenant')::uuid);
+                FOR INSERT WITH CHECK (tenant::TEXT = current_setting('app.current_tenant')::TEXT);
         `);
 };
 

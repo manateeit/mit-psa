@@ -1,6 +1,6 @@
 import { listAssets } from '@/lib/actions/asset-actions/assetActions';
 import { getServerSession } from "next-auth/next";
-import User from '@/lib/models/user'
+import User from '@/lib/models/user';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { AssetListResponse } from '@/interfaces/asset.interfaces';
@@ -28,7 +28,7 @@ export default async function AssetsPage() {
     }
 
     const assets: AssetListResponse = await listAssets({});
-    return <AssetDashboard initialAssets={assets} user={user} />;
+    return <AssetDashboard initialAssets={assets} />;
   } catch (error) {
     console.error('Error fetching user or assets:', error);
     return <div>An error occurred. Please try again later.</div>;
