@@ -5,7 +5,7 @@
 exports.up = function(knex) {
     return knex.schema
         .createTable('asset_types', table => {
-            table.uuid('tenant').notNullable().references('tenant_id').inTable('tenants');
+            table.uuid('tenant').notNullable().references('tenant').inTable('tenants');
             table.uuid('type_id').defaultTo(knex.raw('gen_random_uuid()')).notNullable();
             table.text('type_name').notNullable();
             table.uuid('parent_type_id');
@@ -15,12 +15,9 @@ exports.up = function(knex) {
             
             table.primary(['tenant', 'type_id']);
             table.foreign(['tenant', 'parent_type_id']).references(['tenant', 'type_id']).inTable('asset_types');
-            
-            // Enable RLS
-            table.checkValid();
         })
         .createTable('assets', table => {
-            table.uuid('tenant').notNullable().references('tenant_id').inTable('tenants');
+            table.uuid('tenant').notNullable().references('tenant').inTable('tenants');
             table.uuid('asset_id').defaultTo(knex.raw('gen_random_uuid()')).notNullable();
             table.uuid('type_id').notNullable();
             table.uuid('company_id').notNullable();
@@ -38,12 +35,9 @@ exports.up = function(knex) {
             table.primary(['tenant', 'asset_id']);
             table.foreign(['tenant', 'type_id']).references(['tenant', 'type_id']).inTable('asset_types');
             table.foreign(['tenant', 'company_id']).references(['tenant', 'company_id']).inTable('companies');
-            
-            // Enable RLS
-            table.checkValid();
         })
         .createTable('asset_history', table => {
-            table.uuid('tenant').notNullable().references('tenant_id').inTable('tenants');
+            table.uuid('tenant').notNullable().references('tenant').inTable('tenants');
             table.uuid('history_id').defaultTo(knex.raw('gen_random_uuid()')).notNullable();
             table.uuid('asset_id').notNullable();
             table.uuid('changed_by').notNullable();
@@ -54,25 +48,34 @@ exports.up = function(knex) {
             table.primary(['tenant', 'history_id']);
             table.foreign(['tenant', 'asset_id']).references(['tenant', 'asset_id']).inTable('assets');
             table.foreign(['tenant', 'changed_by']).references(['tenant', 'user_id']).inTable('users');
-            
-            // Enable RLS
-            table.checkValid();
         })
         .raw(`
-            -- RLS Policies for asset_types
+            -- Enable RLS for asset_types
             ALTER TABLE asset_types ENABLE ROW LEVEL SECURITY;
+            
             CREATE POLICY tenant_isolation_policy ON asset_types
                 USING (tenant = current_setting('app.current_tenant')::uuid);
+                
+            CREATE POLICY tenant_isolation_insert_policy ON asset_types
+                FOR INSERT WITH CHECK (tenant = current_setting('app.current_tenant')::uuid);
             
-            -- RLS Policies for assets
+            -- Enable RLS for assets
             ALTER TABLE assets ENABLE ROW LEVEL SECURITY;
+            
             CREATE POLICY tenant_isolation_policy ON assets
                 USING (tenant = current_setting('app.current_tenant')::uuid);
+                
+            CREATE POLICY tenant_isolation_insert_policy ON assets
+                FOR INSERT WITH CHECK (tenant = current_setting('app.current_tenant')::uuid);
             
-            -- RLS Policies for asset_history
+            -- Enable RLS for asset_history
             ALTER TABLE asset_history ENABLE ROW LEVEL SECURITY;
+            
             CREATE POLICY tenant_isolation_policy ON asset_history
                 USING (tenant = current_setting('app.current_tenant')::uuid);
+                
+            CREATE POLICY tenant_isolation_insert_policy ON asset_history
+                FOR INSERT WITH CHECK (tenant = current_setting('app.current_tenant')::uuid);
         `);
 };
 
@@ -84,8 +87,11 @@ exports.down = function(knex) {
     return knex.schema
         .raw(`
             DROP POLICY IF EXISTS tenant_isolation_policy ON asset_history;
+            DROP POLICY IF EXISTS tenant_isolation_insert_policy ON asset_history;
             DROP POLICY IF EXISTS tenant_isolation_policy ON assets;
+            DROP POLICY IF EXISTS tenant_isolation_insert_policy ON assets;
             DROP POLICY IF EXISTS tenant_isolation_policy ON asset_types;
+            DROP POLICY IF EXISTS tenant_isolation_insert_policy ON asset_types;
         `)
         .dropTableIfExists('asset_history')
         .dropTableIfExists('assets')
