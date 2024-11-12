@@ -7,7 +7,6 @@ exports.seed = function (knex) {
                     document_name: 'Alice Lost White Rabbit',
                     type_id: knex('document_types').where({ tenant: '11111111-1111-1111-1111-111111111111', type_name: 'Ticket' }).select('type_id').first(),
                     user_id: knex('users').where({ tenant: '11111111-1111-1111-1111-111111111111', username: 'glinda' }).select('user_id').first(),
-                    ticket_id: knex('tickets').where({ tenant: '11111111-1111-1111-1111-111111111111', title: 'Missing White Rabbit' }).select('ticket_id').first(),
                     created_by: knex('users').where({ tenant: '11111111-1111-1111-1111-111111111111', username: 'glinda' }).select('user_id').first(),
                     entered_at: knex.fn.now(),
                     content: 'Searched for White Rabbit in Wonderland. No luck yet.'
@@ -17,7 +16,6 @@ exports.seed = function (knex) {
                     document_name: 'Search Notes',
                     type_id: knex('document_types').where({ tenant: '11111111-1111-1111-1111-111111111111', type_name: 'Schedule' }).select('type_id').first(),
                     user_id: knex('users').where({ tenant: '11111111-1111-1111-1111-111111111111', username: 'glinda' }).select('user_id').first(),
-                    ticket_id: null,
                     created_by: knex('users').where({ tenant: '11111111-1111-1111-1111-111111111111', username: 'glinda' }).select('user_id').first(),
                     entered_at: knex.fn.now(),
                     content: 'Searched for White Rabbit in Wonderland. No luck yet.'
@@ -27,7 +25,6 @@ exports.seed = function (knex) {
                     document_name: 'White Rabbit Search Plan',
                     type_id: knex('document_types').where({ tenant: '11111111-1111-1111-1111-111111111111', type_name: 'Ticket' }).select('type_id').first(),
                     user_id: knex('users').where({ tenant: '11111111-1111-1111-1111-111111111111', username: 'glinda' }).select('user_id').first(),
-                    ticket_id: knex('tickets').where({ tenant: '11111111-1111-1111-1111-111111111111', title: 'Missing White Rabbit' }).select('ticket_id').first(),
                     created_by: knex('users').where({ tenant: '11111111-1111-1111-1111-111111111111', username: 'glinda' }).select('user_id').first(),
                     entered_at: knex.fn.now(),
                     content: `Further actions for White Rabbit search:
