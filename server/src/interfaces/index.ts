@@ -21,3 +21,4 @@ export * from './timeEntry.interfaces';
 export * from './invoice.interfaces';
 export * from './interaction.interfaces';
 export * from './ticketResource.interfaces';
+export * from './asset.interfaces';
