@@ -24,6 +24,7 @@ import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { useRouter, usePathname } from 'next/navigation';
 import { TextArea } from '@/components/ui/TextArea';
+import CompanyAssets from './CompanyAssets';
 
 interface CompanyDetailsProps {
   company: ICompany;
@@ -152,7 +153,6 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
   };
 
   const handleFieldChange = (field: string, value: string | boolean) => {
-    console.log(`Field ${field} changed to:`, value);
     setEditedCompany(prevCompany => {
       let updatedCompany;
       if (field.startsWith('properties.')) {
@@ -170,7 +170,6 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
           [field]: value
         };
       }
-      console.log('Updated local state:', updatedCompany);
       return updatedCompany;
     });
     setHasUnsavedChanges(true);
@@ -178,9 +177,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
 
   const handleSave = async () => {
     try {
-      console.log('Saving changes to server...');
       const updatedCompany = await updateCompany(company.company_id, editedCompany);
-      console.log('Server response:', updatedCompany);
       setEditedCompany(updatedCompany);
       setHasUnsavedChanges(false);
     } catch (error) {
@@ -192,14 +189,12 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
     try {
       const updatedCompany = await updateCompany(company.company_id, updatedBillingConfig);
       setEditedCompany(prevCompany => ({ ...prevCompany, ...updatedCompany }));
-      console.log('Company updated:', updatedCompany);
     } catch (error) {
       console.error('Error updating company:', error);
     }
   };
 
   const handleTicketAdded = (ticket: ITicket) => {
-    console.log('New ticket added:', ticket);
     setIsQuickAddTicketOpen(false);
   };
 
@@ -294,6 +289,12 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
             </Button>
           </Flex>
         </div>
+      )
+    },
+    {
+      label: "Assets",
+      content: (
+        <CompanyAssets companyId={company.company_id} />
       )
     },
     {
