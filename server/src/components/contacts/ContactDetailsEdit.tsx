@@ -13,6 +13,7 @@ import { CompanyPicker } from '../companies/CompanyPicker';
 import { ICompany } from '@/interfaces/company.interfaces';
 import { TagManager } from '@/components/tags';
 import { ArrowLeft } from 'lucide-react';
+import { Switch } from '@/components/ui/Switch';
 
 interface ContactDetailsEditProps {
   initialContact: IContact;
@@ -117,12 +118,26 @@ const ContactDetailsEdit: React.FC<ContactDetailsEditProps> = ({
             onChange={(value) => handleInputChange('date_of_birth', value)} 
             type="date"
           />
-          <TableRow 
-            label="Status" 
-            value={contact.is_inactive ? 'Inactive' : 'Active'} 
-            onChange={(value) => handleInputChange('is_inactive', value === 'Inactive')} 
-            options={['Active', 'Inactive']}
-          />
+          <tr>
+            <td className="py-2 font-semibold">Status:</td>
+            <td className="py-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-gray-500">Set contact status as active or inactive</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-700">
+                    {contact.is_inactive ? 'Inactive' : 'Active'}
+                  </span>
+                  <Switch
+                    checked={contact.is_inactive}
+                    onCheckedChange={(value) => handleInputChange('is_inactive', value)}
+                    className="data-[state=checked]:bg-primary-500"
+                  />
+                </div>
+              </div>
+            </td>
+          </tr>
           <tr>
             <td className="py-2 font-semibold">Notes:</td>
             <td className="py-2">
