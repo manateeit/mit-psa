@@ -27,6 +27,11 @@ export const menuItems: MenuItem[] = [
     href: '/msp/projects'
   },
   {
+    name: 'Assets',
+    icon: RadixIcons.BoxIcon,
+    href: '/msp/assets'
+  },
+  {
     name: 'Clients',
     icon: RadixIcons.CubeIcon,
     href: '/msp/companies'
