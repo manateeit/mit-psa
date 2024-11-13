@@ -108,9 +108,9 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
     setIsLoading(true);
     try {
       const tickets = await getTicketsForList(user, {
-        channelId: selectedChannel,
-        statusId: selectedStatus,
-        priorityId: selectedPriority,
+        channelId: selectedChannel || undefined,
+        statusId: selectedStatus !== 'all' ? selectedStatus : undefined,
+        priorityId: selectedPriority !== 'all' ? selectedPriority : undefined,
         searchQuery,
         channelFilterState
       });
