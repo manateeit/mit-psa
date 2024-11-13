@@ -13,8 +13,7 @@
     "dev": "cd server && NEXT_PUBLIC_EDITION=enterprise next dev",
     "build": "cd server && next build",
     "build:ee": "cd server && NEXT_PUBLIC_EDITION=enterprise next build",
-    "prestart": "cd server && node --loader ts-node/esm src/scripts/validateEnvStartup.js",
-    "start": "cd server && next start"
+    "start": "next start"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.1",

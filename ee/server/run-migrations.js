@@ -32,7 +32,7 @@ try {
   // Run migrations
   console.log('Running all migrations...');
   process.env.KNEX_MIGRATIONS_DIR = TEMP_MIGRATIONS_PATH;
-  execSync('npx knex migrate:latest', { 
+  execSync('npx knex --knexfile knexfile.cjs migrate:latest', { 
     stdio: 'inherit',
     env: { ...process.env, KNEX_MIGRATIONS_DIR: TEMP_MIGRATIONS_PATH }
   });

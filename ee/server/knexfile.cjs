@@ -63,7 +63,7 @@ const knexfile = {
     },
     migrations: {
       directory: process.env.KNEX_MIGRATIONS_DIR || './migrations',
-      loadExtensions: ['.js']
+      loadExtensions: ['.cjs']
     },
     seeds: {
       directory: "./seeds/dev"
@@ -80,7 +80,7 @@ const knexfile = {
     },
     migrations: {
       directory: process.env.KNEX_MIGRATIONS_DIR || './migrations',
-      loadExtensions: ['.js']
+      loadExtensions: ['.cjs']
     }
   },
   local: {
@@ -95,7 +95,7 @@ const knexfile = {
     },
     migrations: {
       directory: process.env.KNEX_MIGRATIONS_DIR || './migrations',
-      loadExtensions: ['.js']
+      loadExtensions: ['.cjs']
     }
   },
 };
