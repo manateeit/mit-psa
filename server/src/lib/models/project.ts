@@ -463,7 +463,7 @@ const ProjectModel = {
         .insert({
           ...taskData,
           task_id: uuidv4(),
-          assigned_to: taskData.assigned_to || currentUser?.user_id,
+          assigned_to: taskData.assigned_to || currentUser?.user_id, // Default to current user if not specified
           phase_id: phaseId,
           project_status_mapping_id: taskData.project_status_mapping_id,
           wbs_code: newWbsCode,
@@ -506,13 +506,19 @@ const ProjectModel = {
   updateTask: async (taskId: string, taskData: Partial<IProjectTask>): Promise<IProjectTask> => {
     try {
       const {knex: db} = await createTenantKnex();
+      const currentUser = await getCurrentUser();
+
+      const finalTaskData = {
+        ...taskData,
+        assigned_to: taskData.assigned_to ?? currentUser?.user_id,
+        updated_at: db.fn.now()
+      };
+
       const [updatedTask] = await db<IProjectTask>('project_tasks')
         .where('task_id', taskId)
-        .update({
-          ...taskData,
-          updated_at: db.fn.now()
-        })
+        .update(finalTaskData)
         .returning('*');
+
       return updatedTask;
     } catch (error) {
       console.error('Error updating task:', error);

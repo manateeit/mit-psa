@@ -5,9 +5,10 @@ import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink } from '@/int
 import { Clipboard, PlayCircle, PauseCircle, CheckCircle, XCircle, Circle, Pencil, Check, X } from 'lucide-react';
 import { useDrawer } from '@/context/DrawerContext';
 import TaskQuickAdd from './TaskQuickAdd';
+import TaskEdit from './TaskEdit';
 import PhaseQuickAdd from './PhaseQuickAdd';
 import { Button } from '@/components/ui/Button';
-import { updateTaskStatus, getProjectTaskStatuses, ProjectStatus, updatePhase, moveTaskToPhase } from '@/lib/actions/projectActions';
+import { updateTaskStatus, getProjectTaskStatuses, ProjectStatus, updatePhase, moveTaskToPhase, updateTask } from '@/lib/actions/projectActions';
 import styles from './ProjectDetail.module.css';
 import { Toaster, toast } from 'react-hot-toast';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
@@ -247,12 +248,27 @@ export default function ProjectDetail({
 
   const handleAssigneeChange = async (taskId: string, newAssigneeId: string) => {
     try {
-      setProjectTasks(prevTasks =>
-        prevTasks.map((task): IProjectTask =>
-          task.task_id === taskId ? { ...task, assigned_to: newAssigneeId } : task
-        )
-      );
-      toast.success('Task assignee updated successfully!');
+      // Find the existing task
+      const task = projectTasks.find(t => t.task_id === taskId);
+      if (!task) {
+        throw new Error('Task not found');
+      }
+
+      // Update the task in the database
+      const updatedTask = await updateTask(taskId, {
+        ...task,
+        assigned_to: newAssigneeId
+      }, task.checklist_items || []);
+
+      if (updatedTask) {
+        // Update local state
+        setProjectTasks(prevTasks =>
+          prevTasks.map((task): IProjectTask =>
+            task.task_id === taskId ? updatedTask : task
+          )
+        );
+        toast.success('Task assignee updated successfully!');
+      }
     } catch (error) {
       console.error('Error updating task assignee:', error);
       toast.error('Failed to update task assignee. Please try again.');
@@ -570,18 +586,27 @@ export default function ProjectDetail({
             >
               ×
             </button>
-            <TaskQuickAdd
-              phase={currentPhase || selectedPhase!}
-              phases={projectPhases}
-              onClose={handleCloseQuickAdd}
-              onTaskAdded={handleAddTask}
-              onTaskUpdated={handleTaskUpdated}
-              projectStatuses={projectStatuses}
-              defaultStatus={defaultStatus || undefined}
-              onCancel={() => setIsAddingTask(false)}
-              task={selectedTask || undefined}
-              users={users}
-            />
+            {selectedTask ? (
+              <TaskEdit
+                task={selectedTask}
+                phase={currentPhase || selectedPhase!}
+                phases={projectPhases}
+                onClose={handleCloseQuickAdd}
+                onTaskUpdated={handleTaskUpdated}
+                projectStatuses={projectStatuses}
+                users={users}
+              />
+            ) : (
+              <TaskQuickAdd
+                phase={currentPhase || selectedPhase!}
+                onClose={handleCloseQuickAdd}
+                onTaskAdded={handleAddTask}
+                projectStatuses={projectStatuses}
+                defaultStatus={defaultStatus || undefined}
+                onCancel={() => setIsAddingTask(false)}
+                users={users}
+              />
+            )}
           </div>
         </div>
       )}

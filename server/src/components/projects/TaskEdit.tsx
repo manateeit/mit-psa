@@ -1,8 +1,8 @@
-// server/src/components/projects/TaskQuickAdd.tsx
-import React, { useState } from 'react';
+// server/src/components/projects/TaskEdit.tsx
+import React, { useState, useEffect } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { ProjectStatus, addTaskToPhase } from '@/lib/actions/projectActions';
+import { ProjectStatus, updateTask, deleteTask, getTaskChecklistItems, moveTaskToPhase } from '@/lib/actions/projectActions';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Select from '@radix-ui/react-select';
 import { Button } from '@/components/ui/Button';
@@ -10,36 +10,86 @@ import { TextArea } from '@/components/ui/TextArea';
 import EditableText from '@/components/ui/EditableText';
 import { FaPencilAlt } from 'react-icons/fa';
 import UserPicker from '@/components/ui/UserPicker';
+import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import { toast } from 'react-hot-toast';
 
-interface TaskQuickAddProps {
+interface TaskEditProps {
+  task: IProjectTask;
   phase: IProjectPhase;
+  phases: IProjectPhase[];
   onClose: () => void;
-  onTaskAdded: (newTask: IProjectTask|null) => void;
+  onTaskUpdated: (updatedTask: IProjectTask|null) => void;
   projectStatuses: ProjectStatus[];
-  defaultStatus?: ProjectStatus;
-  onCancel: () => void;
   users: IUserWithRoles[];
 }
 
-const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({ 
+const TaskEdit: React.FC<TaskEditProps> = ({ 
+  task,
   phase,
-  onClose, 
-  onTaskAdded, 
-  projectStatuses, 
-  defaultStatus, 
-  onCancel,
+  phases,
+  onClose,
+  onTaskUpdated,
+  projectStatuses,
   users
 }) => {
-  const [taskName, setTaskName] = useState('');
-  const [description, setDescription] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<string>(
-    defaultStatus?.project_status_mapping_id || projectStatuses[0].project_status_mapping_id
-  );
+  const [taskName, setTaskName] = useState(task.task_name);
+  const [description, setDescription] = useState(task.description || '');
+  const [selectedStatus, setSelectedStatus] = useState<string>(task.project_status_mapping_id);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checklistItems, setChecklistItems] = useState<Omit<ITaskChecklistItem, 'tenant'>[]>([]);
   const [isEditingChecklist, setIsEditingChecklist] = useState(false);
-  const [assignedUser, setAssignedUser] = useState<string | null>(null);
+  const [assignedUser, setAssignedUser] = useState<string | null>(task.assigned_to);
+  const [selectedPhase, setSelectedPhase] = useState<IProjectPhase>(phase);
+  const [showMoveConfirmation, setShowMoveConfirmation] = useState(false);
+
+  useEffect(() => {
+    const loadTaskData = async () => {
+      try {
+        const existingChecklistItems = await getTaskChecklistItems(task.task_id);
+        setChecklistItems(existingChecklistItems);
+      } catch (error) {
+        console.error('Error loading checklist items:', error);
+        setChecklistItems([]);
+      }
+    };
+
+    loadTaskData();
+  }, [task]);
+
+  const handlePhaseChange = (phaseId: string) => {
+    const newPhase = phases?.find(p => p.phase_id === phaseId);
+    if (newPhase && newPhase.phase_id !== phase.phase_id) {
+      setSelectedPhase(newPhase);
+      setShowMoveConfirmation(true);
+    }
+  };
+
+  const handleMoveConfirm = async () => {
+    setIsSubmitting(true);
+    try {
+      // First move the task to new phase
+      const movedTask = await moveTaskToPhase(task.task_id, selectedPhase.phase_id);
+      
+      // Then update the task with proper number values
+      if (movedTask) {
+        const updatedTask = await updateTask(movedTask.task_id, {
+          ...movedTask,
+          estimated_hours: Number(movedTask.estimated_hours) || 0,
+          actual_hours: Number(movedTask.actual_hours) || 0
+        }, checklistItems);
+        onTaskUpdated(updatedTask);
+      }
+      
+      toast.success('Task moved successfully');
+      onClose();
+    } catch (error) {
+      console.error('Error moving task:', error);
+      toast.error('Failed to move task');
+    } finally {
+      setIsSubmitting(false);
+      setShowMoveConfirmation(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,21 +101,36 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
       const taskData = {
         task_name: taskName,
         project_status_mapping_id: selectedStatus,
-        wbs_code: `${phase.wbs_code}.${Date.now()}`,
+        wbs_code: task.wbs_code,
         description: description,
         assigned_to: assignedUser,
-        estimated_hours: 0,
-        actual_hours: 0,
-        due_date: new Date(),
+        estimated_hours: Number(task.estimated_hours) || 0,
+        actual_hours: Number(task.actual_hours) || 0,
+        due_date: task.due_date,
         phase_id: phase.phase_id
       };
 
-      const newTask = await addTaskToPhase(phase.phase_id, taskData, checklistItems);
-      onTaskAdded(newTask);
+      const updatedTask = await updateTask(task.task_id, taskData, checklistItems);
+      onTaskUpdated(updatedTask);
       onClose();
     } catch (error) {
-      console.error('Error adding task:', error);
+      console.error('Error updating task:', error);
       toast.error('Failed to save task');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setIsSubmitting(true);
+  
+    try {
+      await deleteTask(task.task_id);
+      onTaskUpdated(null);
+      onClose();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete task');
     } finally {
       setIsSubmitting(false);
     }
@@ -79,7 +144,7 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
   const addChecklistItem = () => {
     const newItem: Omit<ITaskChecklistItem, 'tenant'> = {
       checklist_item_id: `temp-${Date.now()}`,
-      task_id: '',
+      task_id: task.task_id,
       item_name: '',
       description: null,
       assigned_to: null,
@@ -109,7 +174,7 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
         <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
         <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-[600px] max-h-[90vh] overflow-y-auto">
           <Dialog.Title className="text-xl font-semibold mb-4">
-            Add New Task
+            Edit Task
           </Dialog.Title>
           <form onSubmit={handleSubmit} className="flex flex-col">
             <div className="space-y-4">
@@ -119,6 +184,35 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
                 placeholder="Title..."
                 className="w-full text-lg font-semibold"
               />
+              
+              {/* Phase Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phase</label>
+                <Select.Root value={selectedPhase.phase_id} onValueChange={handlePhaseChange}>
+                  <Select.Trigger className="inline-flex items-center justify-between w-full px-4 py-2 text-sm font-medium bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <Select.Value>{selectedPhase.phase_name}</Select.Value>
+                    <Select.Icon><ChevronDownIcon /></Select.Icon>
+                  </Select.Trigger>
+                  <Select.Portal>
+                    <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg">
+                      <Select.Viewport className="p-1">
+                        {phases.map((p) => (
+                          <Select.Item
+                            key={p.phase_id}
+                            value={p.phase_id}
+                            className="relative flex items-center px-8 py-2 text-sm text-gray-900 cursor-default select-none hover:bg-purple-100"
+                          >
+                            <Select.ItemText>{p.phase_name}</Select.ItemText>
+                            <Select.ItemIndicator className="absolute left-2 inline-flex items-center">
+                              <CheckIcon />
+                            </Select.ItemIndicator>
+                          </Select.Item>
+                        ))}
+                      </Select.Viewport>
+                    </Select.Content>
+                  </Select.Portal>
+                </Select.Root>
+              </div>
 
               <TextArea
                 value={description}
@@ -226,17 +320,34 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
               )}
 
               <div className="flex justify-between mt-6">
-                <Button variant="ghost" onClick={onCancel} disabled={isSubmitting}>
+                <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
                   Cancel
                 </Button>
+                <Button variant="destructive" onClick={handleDelete} disabled={isSubmitting}>
+                  Delete
+                </Button>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Adding...' : 'Save'}
+                  {isSubmitting ? 'Updating...' : 'Update'}
                 </Button>
               </div>
             </div>
           </form>
         </Dialog.Content>
       </Dialog.Portal>
+
+      {/* Move Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={showMoveConfirmation}
+        onClose={() => {
+          setShowMoveConfirmation(false);
+          setSelectedPhase(phase); // Reset to original phase if cancelled
+        }}
+        onConfirm={handleMoveConfirm}
+        title="Move Task"
+        message={`Are you sure you want to move task "${taskName}" to phase "${selectedPhase.phase_name}"?`}
+        confirmLabel="Move"
+        cancelLabel="Cancel"
+      />
     </Dialog.Root>
   );
 };
@@ -253,4 +364,4 @@ const CheckIcon = () => (
   </svg>
 );
 
-export default TaskQuickAdd;
+export default TaskEdit;
