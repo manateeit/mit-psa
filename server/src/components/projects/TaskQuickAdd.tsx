@@ -91,8 +91,19 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
 
     setIsSubmitting(true);
     try {
+      // First move the task to new phase
       const movedTask = await moveTaskToPhase(task.task_id, selectedPhase.phase_id);
-      onTaskUpdated(movedTask);
+      
+      // Then update the task with proper number values
+      if (movedTask) {
+        const updatedTask = await updateTask(movedTask.task_id, {
+          ...movedTask,
+          estimated_hours: Number(movedTask.estimated_hours) || 0,
+          actual_hours: Number(movedTask.actual_hours) || 0
+        }, checklistItems);
+        onTaskUpdated(updatedTask);
+      }
+      
       toast.success('Task moved successfully');
       onClose();
     } catch (error) {
@@ -117,8 +128,8 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
         wbs_code: task ? task.wbs_code : `${phase.wbs_code}.${Date.now()}`,
         description: description,
         assigned_to: assignedUser,
-        estimated_hours: task ? task.estimated_hours : 0,
-        actual_hours: task ? task.actual_hours : 0,
+        estimated_hours: task ? Number(task.estimated_hours) || 0 : 0,
+        actual_hours: task ? Number(task.actual_hours) || 0 : 0,
         due_date: task ? task.due_date : new Date(),
         phase_id: phase.phase_id
       };
