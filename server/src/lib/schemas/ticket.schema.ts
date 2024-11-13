@@ -90,7 +90,7 @@ export const ticketListItemSchema = baseTicketSchema.extend({
 });
 
 export const ticketListFiltersSchema = z.object({
-    channelId: z.string().uuid().optional(),
+    channelId: z.string().uuid().nullish(),  // Changed to nullish to handle undefined/null
     statusId: z.string().optional(),
     priorityId: z.string().optional(),
     categoryId: z.string().optional(),

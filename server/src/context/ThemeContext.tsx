@@ -13,15 +13,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeStatus, setThemeStatus] = useState('light');
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    setThemeStatus(savedTheme);
-    document.body.className = `${document.body.className.replace(/light|dark/g, '')} ${savedTheme}`.trim();
+    // Always set to light mode, ignoring saved preferences
+    setThemeStatus('light');
+    document.body.className = `${document.body.className.replace(/light|dark/g, '')} light`.trim();
+    localStorage.setItem('theme', 'light');
   }, []);
 
   const handleThemeChange = (theme: string) => {
-    setThemeStatus(theme);
-    localStorage.setItem('theme', theme);
-    document.body.className = `${document.body.className.replace(/light|dark/g, '')} ${theme}`.trim();
+    // Maintain light mode regardless of requested theme
+    setThemeStatus('light');
+    localStorage.setItem('theme', 'light');
+    document.body.className = `${document.body.className.replace(/light|dark/g, '')} light`.trim();
   };
 
   return (

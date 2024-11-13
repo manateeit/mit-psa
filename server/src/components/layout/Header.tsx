@@ -11,6 +11,7 @@ import { menuItems, bottomMenuItems, MenuItem } from '@/config/menuConfig';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { Link } from '@radix-ui/themes';
 import { useTheme } from '@/context/ThemeContext';
+import { toast } from 'react-hot-toast';
 
 interface HeaderProps {
   sidebarOpen: boolean;
@@ -89,9 +90,12 @@ const Header: React.FC<HeaderProps> = ({
   const breadcrumbItems = getBreadcrumbItems(pathname!);  
 
   const handleThemeToggle = () => {
-    const newTheme = themeStatus === "dark" ? "light" : "dark";
-    setThemeStatus(newTheme);
-    handleThemeMode(newTheme);
+    if (themeStatus === "light") {
+      toast.success("Dark mode is coming soon! 🌙", {
+        duration: 3000,
+        position: "top-right"
+      });
+    }
   };
 
   return (
@@ -139,7 +143,7 @@ const Header: React.FC<HeaderProps> = ({
           aria-label="Toggle theme"
           onClick={handleThemeToggle}
         >
-          {themeStatus === "dark" ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+          <MoonIcon className="w-5 h-5" />
         </button>
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
