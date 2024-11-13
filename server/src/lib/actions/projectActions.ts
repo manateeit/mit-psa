@@ -83,6 +83,37 @@ export async function updatePhase(phaseId: string, phaseData: Partial<IProjectPh
     }
 }
 
+export async function moveTaskToPhase(taskId: string, newPhaseId: string): Promise<IProjectTask> {
+    try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+            throw new Error("user not found");
+        }
+
+        await checkPermission(currentUser, 'project', 'update');
+
+        // Get the new phase to access its WBS code
+        const newPhase = await ProjectModel.getPhaseById(newPhaseId);
+        if (!newPhase) {
+            throw new Error('Target phase not found');
+        }
+
+        // Generate new WBS code for the task
+        const newWbsCode = `${newPhase.wbs_code}.${Date.now()}`;
+
+        // Update task with new phase and WBS code
+        const updatedTask = await ProjectModel.updateTask(taskId, {
+            phase_id: newPhaseId,
+            wbs_code: newWbsCode
+        });
+
+        return updatedTask;
+    } catch (error) {
+        console.error('Error moving task to new phase:', error);
+        throw error;
+    }
+}
+
 export async function addProjectPhase(phaseData: Omit<IProjectPhase, 'phase_id' | 'created_at' | 'updated_at' | 'tenant'>): Promise<IProjectPhase> {
     try {
         const currentUser = await getCurrentUser();

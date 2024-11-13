@@ -7,11 +7,12 @@ import { useDrawer } from '@/context/DrawerContext';
 import TaskQuickAdd from './TaskQuickAdd';
 import PhaseQuickAdd from './PhaseQuickAdd';
 import { Button } from '@/components/ui/Button';
-import { updateTaskStatus, getProjectTaskStatuses, ProjectStatus, updatePhase } from '@/lib/actions/projectActions';
+import { updateTaskStatus, getProjectTaskStatuses, ProjectStatus, updatePhase, moveTaskToPhase } from '@/lib/actions/projectActions';
 import styles from './ProjectDetail.module.css';
 import { Toaster, toast } from 'react-hot-toast';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import UserPicker from '@/components/ui/UserPicker';
+import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 
 interface ProjectDetailProps {
   project: IProject;
@@ -55,6 +56,14 @@ export default function ProjectDetail({
   const [defaultStatus, setDefaultStatus] = useState<ProjectStatus | null>(null);
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [editingPhaseName, setEditingPhaseName] = useState('');
+  
+  const [dragOverPhaseId, setDragOverPhaseId] = useState<string | null>(null);
+  const [moveConfirmation, setMoveConfirmation] = useState<{
+    taskId: string;
+    taskName: string;
+    sourcePhase: IProjectPhase;
+    targetPhase: IProjectPhase;
+  } | null>(null);
 
   useEffect(() => {
     const loadProjectStatuses = async () => {
@@ -81,6 +90,16 @@ export default function ProjectDetail({
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData('text/plain', taskId);
+    if (e.target instanceof HTMLElement) {
+      e.target.classList.add('opacity-50');
+    }
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    if (e.target instanceof HTMLElement) {
+      e.target.classList.remove('opacity-50');
+    }
+    setDragOverPhaseId(null);
   };
 
   const handleDrop = async (e: React.DragEvent, projectStatusMappingId: string) => {
@@ -98,6 +117,58 @@ export default function ProjectDetail({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+  };
+
+  // New phase drag handlers
+  const handlePhaseDragOver = (e: React.DragEvent, phaseId: string) => {
+    e.preventDefault();
+    setDragOverPhaseId(phaseId);
+  };
+
+  const handlePhaseDragLeave = () => {
+    setDragOverPhaseId(null);
+  };
+
+  const handlePhaseDropZone = async (e: React.DragEvent, targetPhase: IProjectPhase) => {
+    e.preventDefault();
+    setDragOverPhaseId(null);
+    
+    const taskId = e.dataTransfer.getData('text/plain');
+    const task = projectTasks.find(t => t.task_id === taskId);
+    const sourcePhase = projectPhases.find(p => p.phase_id === task?.phase_id);
+    
+    if (task && sourcePhase && targetPhase.phase_id !== sourcePhase.phase_id) {
+      setMoveConfirmation({
+        taskId,
+        taskName: task.task_name,
+        sourcePhase,
+        targetPhase
+      });
+    }
+  };
+
+  const handleMoveConfirm = async () => {
+    if (!moveConfirmation) return;
+    
+    try {
+      const updatedTask = await moveTaskToPhase(
+        moveConfirmation.taskId,
+        moveConfirmation.targetPhase.phase_id
+      );
+      
+      setProjectTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.task_id === updatedTask.task_id ? updatedTask : task
+        )
+      );
+      
+      toast.success('Task moved successfully');
+    } catch (error) {
+      console.error('Error moving task:', error);
+      toast.error('Failed to move task');
+    } finally {
+      setMoveConfirmation(null);
+    }
   };
 
   const handleAddTask = useCallback((newTask: IProjectTask | null) => {
@@ -257,15 +328,19 @@ export default function ProjectDetail({
         {projectPhases.map((phase): JSX.Element => (
           <li
             key={phase.phase_id}
-            className={`flex items-center justify-between p-2 rounded cursor-pointer group ${
-              selectedPhase?.phase_id === phase.phase_id ? 'bg-blue-100' : 'hover:bg-gray-100'
-            }`}
+            className={`flex items-center justify-between p-2 rounded cursor-pointer group transition-colors
+              ${selectedPhase?.phase_id === phase.phase_id ? 'bg-blue-100' : 'hover:bg-gray-100'}
+              ${dragOverPhaseId === phase.phase_id ? 'bg-purple-100' : ''}
+            `}
             onClick={() => {
               if (editingPhaseId !== phase.phase_id) {
                 setSelectedPhase(phase);
                 setCurrentPhase(phase);
               }
             }}
+            onDragOver={(e) => handlePhaseDragOver(e, phase.phase_id)}
+            onDragLeave={handlePhaseDragLeave}
+            onDrop={(e) => handlePhaseDropZone(e, phase)}
           >
             {editingPhaseId === phase.phase_id ? (
               <div className="flex items-center justify-between w-full">
@@ -358,6 +433,7 @@ export default function ProjectDetail({
                     key={task.task_id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, task.task_id)}
+                    onDragEnd={handleDragEnd}
                     onClick={() => handleTaskSelected(task)}
                     className="bg-white p-3 mb-2 rounded shadow-sm cursor-pointer hover:shadow-md transition-shadow duration-200 border border-gray-200 flex flex-col gap-1"
                   >
@@ -483,6 +559,7 @@ export default function ProjectDetail({
           {renderContent()}
         </div>
       </div>
+
       {(showQuickAdd && (currentPhase || selectedPhase)) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg relative">
@@ -495,6 +572,7 @@ export default function ProjectDetail({
             </button>
             <TaskQuickAdd
               phase={currentPhase || selectedPhase!}
+              phases={projectPhases}
               onClose={handleCloseQuickAdd}
               onTaskAdded={handleAddTask}
               onTaskUpdated={handleTaskUpdated}
@@ -507,12 +585,26 @@ export default function ProjectDetail({
           </div>
         </div>
       )}
+
       {showPhaseQuickAdd && (
         <PhaseQuickAdd
           projectId={project.project_id}
           onClose={() => setShowPhaseQuickAdd(false)}
           onPhaseAdded={handlePhaseAdded}
           onCancel={() => setShowPhaseQuickAdd(false)}
+        />
+      )}
+
+      {/* Move Task Confirmation Dialog */}
+      {moveConfirmation && (
+        <ConfirmationDialog
+          isOpen={true}
+          onClose={() => setMoveConfirmation(null)}
+          onConfirm={handleMoveConfirm}
+          title="Move Task"
+          message={`Are you sure you want to move task "${moveConfirmation.taskName}" from phase "${moveConfirmation.sourcePhase.phase_name}" to "${moveConfirmation.targetPhase.phase_name}"?`}
+          confirmLabel="Move"
+          cancelLabel="Cancel"
         />
       )}
     </div>

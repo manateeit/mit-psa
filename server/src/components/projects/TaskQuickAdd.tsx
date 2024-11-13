@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem } from '../../interfaces/project.interfaces';
 import { IUserWithRoles } from '../../interfaces/auth.interfaces';
-import { ProjectStatus, addTaskToPhase, updateTask, deleteTask, getTaskChecklistItems } from '../../lib/actions/projectActions';
+import { ProjectStatus, addTaskToPhase, updateTask, deleteTask, getTaskChecklistItems, moveTaskToPhase } from '../../lib/actions/projectActions';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Select from '@radix-ui/react-select';
 import { Button } from '../../components/ui/Button';
@@ -10,9 +10,12 @@ import { TextArea } from '../../components/ui/TextArea';
 import EditableText from '../../components/ui/EditableText';
 import { FaPencilAlt } from 'react-icons/fa';
 import UserPicker from '../../components/ui/UserPicker';
+import { ConfirmationDialog } from '../ui/ConfirmationDialog';
+import { toast } from 'react-hot-toast';
 
 interface TaskQuickAddProps {
   phase: IProjectPhase;
+  phases?: IProjectPhase[]; // Added to support phase selection
   onClose: () => void;
   onTaskAdded: (newTask: IProjectTask|null) => void;
   onTaskUpdated: (updatedTask: IProjectTask|null) => void;
@@ -25,6 +28,7 @@ interface TaskQuickAddProps {
 
 const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({ 
   phase, 
+  phases,
   onClose, 
   onTaskAdded, 
   onTaskUpdated, 
@@ -44,6 +48,8 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
   const [checklistItems, setChecklistItems] = useState<Omit<ITaskChecklistItem, 'tenant'>[]>(task ? task.checklist_items || [] : []);
   const [isEditingChecklist, setIsEditingChecklist] = useState(false);
   const [assignedUser, setAssignedUser] = useState<string | null>(task ? task.assigned_to : null);
+  const [selectedPhase, setSelectedPhase] = useState<IProjectPhase>(phase);
+  const [showMoveConfirmation, setShowMoveConfirmation] = useState(false);
 
   useEffect(() => {
     const loadTaskData = async () => {
@@ -53,7 +59,6 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
         setSelectedStatus(task.project_status_mapping_id);
         setAssignedUser(task.assigned_to);
         
-        // Load existing checklist items
         try {
           const existingChecklistItems = await getTaskChecklistItems(task.task_id);
           setChecklistItems(existingChecklistItems);
@@ -73,9 +78,30 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
     loadTaskData();
   }, [task, defaultStatus, projectStatuses]);
 
-  const toggleEditChecklist = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsEditingChecklist(!isEditingChecklist);
+  const handlePhaseChange = (phaseId: string) => {
+    const newPhase = phases?.find(p => p.phase_id === phaseId);
+    if (newPhase && task && newPhase.phase_id !== phase.phase_id) {
+      setSelectedPhase(newPhase);
+      setShowMoveConfirmation(true);
+    }
+  };
+
+  const handleMoveConfirm = async () => {
+    if (!task) return;
+
+    setIsSubmitting(true);
+    try {
+      const movedTask = await moveTaskToPhase(task.task_id, selectedPhase.phase_id);
+      onTaskUpdated(movedTask);
+      toast.success('Task moved successfully');
+      onClose();
+    } catch (error) {
+      console.error('Error moving task:', error);
+      toast.error('Failed to move task');
+    } finally {
+      setIsSubmitting(false);
+      setShowMoveConfirmation(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -108,11 +134,11 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
       onClose();
     } catch (error) {
       console.error('Error adding/updating task:', error);
+      toast.error('Failed to save task');
     } finally {
       setIsSubmitting(false);
     }
   };
-
 
   const handleDelete = async () => {
     if (!task) return;
@@ -121,10 +147,11 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
   
     try {
       await deleteTask(task.task_id);
-      onTaskUpdated(null); // Signal that the task was deleted
+      onTaskUpdated(null);
       onClose();
     } catch (error) {
       console.error('Error deleting task:', error);
+      toast.error('Failed to delete task');
     } finally {
       setIsSubmitting(false);
     }
@@ -133,6 +160,11 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
   const handleCancel = () => {
     onCancel();
     onClose();
+  };
+
+  const toggleEditChecklist = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditingChecklist(!isEditingChecklist);
   };
 
   const addChecklistItem = () => {
@@ -178,6 +210,38 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
                 placeholder="Title..."
                 className="w-full text-lg font-semibold"
               />
+              
+              {/* Phase Selection (only show for existing tasks) */}
+              {task && phases && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phase</label>
+                  <Select.Root value={selectedPhase.phase_id} onValueChange={handlePhaseChange}>
+                    <Select.Trigger className="inline-flex items-center justify-between w-full px-4 py-2 text-sm font-medium bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                      <Select.Value>{selectedPhase.phase_name}</Select.Value>
+                      <Select.Icon><ChevronDownIcon /></Select.Icon>
+                    </Select.Trigger>
+                    <Select.Portal>
+                      <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg">
+                        <Select.Viewport className="p-1">
+                          {phases.map((p) => (
+                            <Select.Item
+                              key={p.phase_id}
+                              value={p.phase_id}
+                              className="relative flex items-center px-8 py-2 text-sm text-gray-900 cursor-default select-none hover:bg-purple-100"
+                            >
+                              <Select.ItemText>{p.phase_name}</Select.ItemText>
+                              <Select.ItemIndicator className="absolute left-2 inline-flex items-center">
+                                <CheckIcon />
+                              </Select.ItemIndicator>
+                            </Select.Item>
+                          ))}
+                        </Select.Viewport>
+                      </Select.Content>
+                    </Select.Portal>
+                  </Select.Root>
+                </div>
+              )}
+
               <TextArea
                 value={description}
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
@@ -185,17 +249,18 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
                 className="w-full p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
                 rows={3}
               />
+
               <Select.Root value={selectedStatus} onValueChange={setSelectedStatus}>
                 <Select.Trigger className="inline-flex items-center justify-between w-full px-4 py-2 text-sm font-medium bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
-                  <Select.Value placeholder="Select a status" />
-                  <Select.Icon className="ml-2">
-                    <ChevronDownIcon />
-                  </Select.Icon>
+                  <Select.Value>
+                    {projectStatuses.find(s => s.project_status_mapping_id === selectedStatus)?.name || 'Select status'}
+                  </Select.Value>
+                  <Select.Icon><ChevronDownIcon /></Select.Icon>
                 </Select.Trigger>
                 <Select.Portal>
                   <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg">
                     <Select.Viewport className="p-1">
-                      {projectStatuses.map((status): JSX.Element => (
+                      {projectStatuses.map((status) => (
                         <Select.Item
                           key={status.project_status_mapping_id}
                           value={status.project_status_mapping_id}
@@ -211,6 +276,7 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
                   </Select.Content>
                 </Select.Portal>
               </Select.Root>
+
               <UserPicker
                 label="Assigned To"
                 value={assignedUser || ''}
@@ -220,6 +286,7 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
                 size="sm"
                 users={users}
               />
+
               <div className="flex items-center justify-between mb-2">
                 <h3 className='font-semibold'>Checklist</h3>
                 <button 
@@ -230,8 +297,9 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
                   <FaPencilAlt className="h-5 w-5" />
                 </button>
               </div>
+
               <div className="flex flex-col space-y-2">
-                {checklistItems.map((item, index): JSX.Element => (
+                {checklistItems.map((item, index) => (
                   <div key={index} className="flex items-center space-x-2">
                     {isEditingChecklist ? (
                       <>
@@ -272,9 +340,13 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
                   </div>
                 ))}
               </div>
+
               {isEditingChecklist && (
-                <Button type="button" variant='soft' onClick={addChecklistItem}>Add an item</Button>
+                <Button type="button" variant="soft" onClick={addChecklistItem}>
+                  Add an item
+                </Button>
               )}
+
               <div className="flex justify-between mt-6">
                 <Button variant="ghost" onClick={handleCancel} disabled={isSubmitting}>
                   Cancel
@@ -292,6 +364,20 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
           </form>
         </Dialog.Content>
       </Dialog.Portal>
+
+      {/* Move Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={showMoveConfirmation}
+        onClose={() => {
+          setShowMoveConfirmation(false);
+          setSelectedPhase(phase); // Reset to original phase if cancelled
+        }}
+        onConfirm={handleMoveConfirm}
+        title="Move Task"
+        message={`Are you sure you want to move task "${taskName}" to phase "${selectedPhase.phase_name}"?`}
+        confirmLabel="Move"
+        cancelLabel="Cancel"
+      />
     </Dialog.Root>
   );
 };
