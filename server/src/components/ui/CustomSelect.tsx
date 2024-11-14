@@ -6,6 +6,13 @@ export interface SelectOption {
   label: string;
 }
 
+export interface StyleProps {
+  trigger: string;
+  content: string;
+  item: string;
+  itemIndicator: string;
+}
+
 interface CustomSelectProps {
   options: SelectOption[];
   value: string;
@@ -13,6 +20,7 @@ interface CustomSelectProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  customStyles?: StyleProps;
 }
 
 const CustomSelect: React.FC<CustomSelectProps> = ({
@@ -22,6 +30,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   placeholder = 'Select...',
   className = '',
   disabled = false,
+  customStyles,
 }) => {
   return (
     <div className="relative">
@@ -38,6 +47,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
           disabled:opacity-50 disabled:cursor-not-allowed
           ${className}
+          ${customStyles?.trigger || ''}
         `}
       >
         <option value="" disabled={!placeholder}>
