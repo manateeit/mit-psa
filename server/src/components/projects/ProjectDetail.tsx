@@ -120,7 +120,6 @@ export default function ProjectDetail({
     e.preventDefault();
   };
 
-  // New phase drag handlers
   const handlePhaseDragOver = (e: React.DragEvent, phaseId: string) => {
     e.preventDefault();
     setDragOverPhaseId(phaseId);
@@ -147,7 +146,7 @@ export default function ProjectDetail({
       });
     }
   };
-
+  
   const handleMoveConfirm = async () => {
     if (!moveConfirmation) return;
     
@@ -158,11 +157,11 @@ export default function ProjectDetail({
       );
       
       setProjectTasks(prevTasks =>
-        prevTasks.map(task =>
+        prevTasks.map((task): IProjectTask =>
           task.task_id === updatedTask.task_id ? updatedTask : task
         )
       );
-      
+          
       toast.success('Task moved successfully');
     } catch (error) {
       console.error('Error moving task:', error);
@@ -227,7 +226,9 @@ export default function ProjectDetail({
   const handleTaskUpdated = useCallback((updatedTask: IProjectTask | null) => {
     if (updatedTask) {
       setProjectTasks((prevTasks) =>
-        prevTasks.map((task): IProjectTask => (task.task_id === updatedTask.task_id ? updatedTask : task))
+        prevTasks.map((task): IProjectTask => 
+          task.task_id === updatedTask.task_id ? updatedTask : task
+        )
       );
       toast.success('Task updated successfully!');
     } else {
@@ -246,36 +247,33 @@ export default function ProjectDetail({
     setShowQuickAdd(true);
   }, [phases]);
 
-const handleAssigneeChange = async (taskId: string, newAssigneeId: string) => {
-  try {
-    // Find the existing task
-    const task = projectTasks.find(t => t.task_id === taskId);
-    if (!task) {
-      throw new Error('Task not found');
+  const handleAssigneeChange = async (taskId: string, newAssigneeId: string) => {
+    try {
+      const task = projectTasks.find(t => t.task_id === taskId);
+      if (!task) {
+        throw new Error('Task not found');
+      }
+  
+      const updatedTask = await updateTask(taskId, {
+        ...task,
+        assigned_to: newAssigneeId,
+        estimated_hours: Number(task.estimated_hours) || 0,
+        actual_hours: Number(task.actual_hours) || 0
+      }, task.checklist_items || []);
+  
+      if (updatedTask) {
+        setProjectTasks(prevTasks =>
+          prevTasks.map((task): IProjectTask =>
+            task.task_id === taskId ? updatedTask : task
+          )
+        );
+        toast.success('Task assignee updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error updating task assignee:', error);
+      toast.error('Failed to update task assignee. Please try again.');
     }
-
-    // Update the task in the database with proper number conversion for hours
-    const updatedTask = await updateTask(taskId, {
-      ...task,
-      assigned_to: newAssigneeId,
-      estimated_hours: Number(task.estimated_hours) || 0,
-      actual_hours: Number(task.actual_hours) || 0
-    }, task.checklist_items || []);
-
-    if (updatedTask) {
-      // Update local state
-      setProjectTasks(prevTasks =>
-        prevTasks.map((task): IProjectTask =>
-          task.task_id === taskId ? updatedTask : task
-        )
-      );
-      toast.success('Task assignee updated successfully!');
-    }
-  } catch (error) {
-    console.error('Error updating task assignee:', error);
-    toast.error('Failed to update task assignee. Please try again.');
-  }
-};
+  };
 
   const handleEditPhase = (phase: IProjectPhase) => {
     setEditingPhaseId(phase.phase_id);
@@ -288,13 +286,13 @@ const handleAssigneeChange = async (taskId: string, newAssigneeId: string) => {
         toast.error('Phase name cannot be empty');
         return;
       }
-
+  
       await updatePhase(phase.phase_id, {
         phase_name: editingPhaseName
       });
-
+  
       setProjectPhases(prevPhases =>
-        prevPhases.map((p):IProjectPhase =>
+        prevPhases.map((p): IProjectPhase =>
           p.phase_id === phase.phase_id
             ? { ...p, phase_name: editingPhaseName }
             : p
@@ -313,6 +311,11 @@ const handleAssigneeChange = async (taskId: string, newAssigneeId: string) => {
   const handleCancelEdit = () => {
     setEditingPhaseId(null);
     setEditingPhaseName('');
+  };
+
+  const handleEmptyTaskUpdate = async (_: IProjectTask | null) => {
+    // This is a no-op function for non-edit mode
+    return Promise.resolve();
   };
 
   const renderProjectPhases = () => (
@@ -603,6 +606,7 @@ const handleAssigneeChange = async (taskId: string, newAssigneeId: string) => {
                 phase={currentPhase || selectedPhase!}
                 onClose={handleCloseQuickAdd}
                 onTaskAdded={handleAddTask}
+                onTaskUpdated={handleEmptyTaskUpdate}
                 projectStatuses={projectStatuses}
                 defaultStatus={defaultStatus || undefined}
                 onCancel={() => setIsAddingTask(false)}

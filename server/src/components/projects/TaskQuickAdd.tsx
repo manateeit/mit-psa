@@ -1,8 +1,9 @@
-// server/src/components/projects/TaskQuickAdd.tsx
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { ProjectStatus, addTaskToPhase } from '@/lib/actions/projectActions';
+import { ProjectStatus, addTaskToPhase, updateTask } from '@/lib/actions/projectActions';
 import { getCurrentUser } from '@/lib/auth/session';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Select from '@radix-ui/react-select';
@@ -17,10 +18,12 @@ interface TaskQuickAddProps {
   phase: IProjectPhase;
   onClose: () => void;
   onTaskAdded: (newTask: IProjectTask|null) => void;
+  onTaskUpdated: (updatedTask: IProjectTask|null) => Promise<void>;
   projectStatuses: ProjectStatus[];
   defaultStatus?: ProjectStatus;
   onCancel: () => void;
   users: IUserWithRoles[];
+  task?: IProjectTask;
 }
 
 const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({ 
@@ -30,18 +33,20 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
   projectStatuses, 
   defaultStatus, 
   onCancel,
-  users
+  users,
+  task,
+  onTaskUpdated
 }) => {
   const [currentUserId, setCurrentUserId] = useState<string>('');
-  const [taskName, setTaskName] = useState('');
-  const [description, setDescription] = useState('');
+  const [taskName, setTaskName] = useState(task?.task_name || '');
+  const [description, setDescription] = useState(task?.description || '');
   const [selectedStatus, setSelectedStatus] = useState<string>(
     defaultStatus?.project_status_mapping_id || projectStatuses[0].project_status_mapping_id
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checklistItems, setChecklistItems] = useState<Omit<ITaskChecklistItem, 'tenant'>[]>([]);
   const [isEditingChecklist, setIsEditingChecklist] = useState(false);
-  const [assignedUser, setAssignedUser] = useState<string>('');
+  const [assignedUser, setAssignedUser] = useState<string>(task?.assigned_to || '');
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -60,27 +65,40 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (taskName.trim() === '') return;
-
+  
     setIsSubmitting(true);
-
+  
     try {
-      const taskData = {
-        task_name: taskName,
-        project_status_mapping_id: selectedStatus,
-        wbs_code: `${phase.wbs_code}.${Date.now()}`,
-        description: description,
-        assigned_to: assignedUser || currentUserId, // Use current user if no one is assigned
-        estimated_hours: 0,
-        actual_hours: 0,
-        due_date: new Date(),
-        phase_id: phase.phase_id
-      };
-
-      const newTask = await addTaskToPhase(phase.phase_id, taskData, checklistItems);
-      onTaskAdded(newTask);
+      if (task) {
+        // Edit mode
+        const taskData = {
+          ...task,
+          task_name: taskName,
+          project_status_mapping_id: selectedStatus,
+          description: description,
+          assigned_to: assignedUser || currentUserId,
+        };
+        const updatedTask = await updateTask(task.task_id, taskData, checklistItems);
+        await onTaskUpdated(updatedTask);
+      } else {
+        const taskData = {
+          task_name: taskName,
+          project_status_mapping_id: selectedStatus,
+          wbs_code: `${phase.wbs_code}.${Date.now()}`,
+          description: description,
+          assigned_to: assignedUser || currentUserId,
+          estimated_hours: 0,
+          actual_hours: 0,
+          due_date: new Date(),
+          phase_id: phase.phase_id
+        };
+  
+        const newTask = await addTaskToPhase(phase.phase_id, taskData, checklistItems);
+        onTaskAdded(newTask);
+      }
       onClose();
     } catch (error) {
-      console.error('Error adding task:', error);
+      console.error('Error saving task:', error);
       toast.error('Failed to save task');
     } finally {
       setIsSubmitting(false);
@@ -95,7 +113,7 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
   const addChecklistItem = () => {
     const newItem: Omit<ITaskChecklistItem, 'tenant'> = {
       checklist_item_id: `temp-${Date.now()}`,
-      task_id: '',
+      task_id: task?.task_id || '',
       item_name: '',
       description: null,
       assigned_to: null,
@@ -108,7 +126,7 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
     setChecklistItems([...checklistItems, newItem]);
   };
 
-  const updateChecklistItem = (index: number, field: keyof ITaskChecklistItem, value: any) => {
+  const updateChecklistItem = (index: number, field: keyof ITaskChecklistItem, value: string | boolean | null | Date) => {
     const updatedItems = [...checklistItems];
     updatedItems[index] = { ...updatedItems[index], [field]: value };
     setChecklistItems(updatedItems);
@@ -125,7 +143,7 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
         <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
         <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-[600px] max-h-[90vh] overflow-y-auto">
           <Dialog.Title className="text-xl font-semibold mb-4">
-            Add New Task
+            {task ? 'Edit Task' : 'Add New Task'}
           </Dialog.Title>
           <form onSubmit={handleSubmit} className="flex flex-col">
             <div className="space-y-4">
@@ -154,7 +172,7 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
                 <Select.Portal>
                   <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg">
                     <Select.Viewport className="p-1">
-                      {projectStatuses.map((status) => (
+                      {projectStatuses.map((status): JSX.Element => (
                         <Select.Item
                           key={status.project_status_mapping_id}
                           value={status.project_status_mapping_id}
@@ -191,7 +209,7 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
               </div>
 
               <div className="flex flex-col space-y-2">
-                {checklistItems.map((item, index) => (
+                {checklistItems.map((item, index): JSX.Element => (
                   <div key={index} className="flex items-center space-x-2">
                     {isEditingChecklist ? (
                       <>
@@ -244,7 +262,7 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
                   Cancel
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Adding...' : 'Save'}
+                  {isSubmitting ? (task ? 'Updating...' : 'Adding...') : (task ? 'Update' : 'Save')}
                 </Button>
               </div>
             </div>

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+'use client';
 
+import { useEffect, useState } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem } from '@/interfaces/project.interfaces';
 import { getProjectPhase, getProjectTaskStatuses, getTaskChecklistItems, ProjectStatus } from '@/lib/actions/projectActions';
 import TaskQuickAdd from './TaskQuickAdd';
@@ -47,11 +48,13 @@ export default function TaskDetail({ task, onClose, onTaskUpdated }: TaskDetailP
     <TaskQuickAdd
       phase={phase}
       onClose={onClose}
-      onTaskAdded={() => { } } // This won't be used for editing
-      onTaskUpdated={handleTaskUpdated}
+      onTaskAdded={() => {}} // This won't be used in edit mode
+      onTaskUpdated={handleTaskUpdated} // Now this prop exists in TaskQuickAddProps
       projectStatuses={statuses}
       defaultStatus={statuses.find(s => s.project_status_mapping_id === task.project_status_mapping_id)}
       onCancel={onClose}
-      task={task} users={[]}    />
+      task={task}
+      users={[]}
+     />
   );
 }

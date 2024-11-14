@@ -1,4 +1,5 @@
-// server/src/components/projects/TaskEdit.tsx
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
@@ -159,7 +160,7 @@ const TaskEdit: React.FC<TaskEditProps> = ({
     setChecklistItems([...checklistItems, newItem]);
   };
 
-  const updateChecklistItem = (index: number, field: keyof ITaskChecklistItem, value: any) => {
+  const updateChecklistItem = (index: number, field: keyof ITaskChecklistItem, value: string | boolean | null | Date) => {
     const updatedItems = [...checklistItems];
     updatedItems[index] = { ...updatedItems[index], [field]: value };
     setChecklistItems(updatedItems);
@@ -198,7 +199,7 @@ const TaskEdit: React.FC<TaskEditProps> = ({
                   <Select.Portal>
                     <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg">
                       <Select.Viewport className="p-1">
-                        {phases.map((p) => (
+                        {phases.map((p): JSX.Element => (
                           <Select.Item
                             key={p.phase_id}
                             value={p.phase_id}
@@ -234,7 +235,7 @@ const TaskEdit: React.FC<TaskEditProps> = ({
                 <Select.Portal>
                   <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg">
                     <Select.Viewport className="p-1">
-                      {projectStatuses.map((status) => (
+                      {projectStatuses.map((status): JSX.Element => (
                         <Select.Item
                           key={status.project_status_mapping_id}
                           value={status.project_status_mapping_id}
@@ -303,7 +304,7 @@ const TaskEdit: React.FC<TaskEditProps> = ({
               </div>
 
               <div className="flex flex-col space-y-2">
-                {checklistItems.map((item, index) => (
+                {checklistItems.map((item, index): JSX.Element => (
                   <div key={index} className="flex items-center space-x-2">
                     {isEditingChecklist ? (
                       <>

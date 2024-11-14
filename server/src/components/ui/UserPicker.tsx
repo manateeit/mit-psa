@@ -1,7 +1,7 @@
 // server/src/components/ui/UserPicker.tsx
 import React from 'react';
 import AvatarIcon from '@/components/ui/AvatarIcon';
-import { IUser, IUserWithRoles } from '@/interfaces/auth.interfaces';
+import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { Select } from '@/components/ui/Select';
 
 interface UserPickerProps {
@@ -17,7 +17,7 @@ const UserPicker: React.FC<UserPickerProps> = ({ label, value, onValueChange, si
   
   const options = [
     { value: '', label: 'Not assigned' },
-    ...users.map(user => ({
+    ...users.map((user): { value: string; label: string; } => ({
       value: user.user_id,
       label: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unnamed User',
     }))
