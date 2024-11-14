@@ -80,7 +80,7 @@ export default function ProjectDetail({
 
   const filteredTasks = useMemo(() => {
     if (!selectedPhase) return [];
-    return projectTasks.filter(task => task.wbs_code.startsWith(selectedPhase.wbs_code));
+    return projectTasks.filter(task => task.wbs_code.startsWith(selectedPhase.wbs_code + '.'));
   }, [projectTasks, selectedPhase]);
 
   const completedTasksCount = useMemo(() => {
