@@ -22,7 +22,17 @@ import {
     AssetMaintenanceHistory,
     AssetMaintenanceReport,
     ClientMaintenanceSummary,
-    AssetCompanyInfo
+    AssetCompanyInfo,
+    WorkstationAsset,
+    NetworkDeviceAsset,
+    ServerAsset,
+    MobileDeviceAsset,
+    PrinterAsset,
+    isWorkstationAsset,
+    isNetworkDeviceAsset,
+    isServerAsset,
+    isMobileDeviceAsset,
+    isPrinterAsset
 } from '@/interfaces/asset.interfaces';
 import { validateData } from '@/lib/utils/validation';
 import {
@@ -34,7 +44,6 @@ import {
     createAssetAssociationSchema,
     updateAssetSchema,
     assetQuerySchema,
-    assetListResponseSchema,
     assetDocumentSchema,
     assetMaintenanceScheduleSchema,
     createMaintenanceScheduleSchema,
@@ -46,30 +55,154 @@ import {
 } from '@/lib/schemas/asset.schema';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { createTenantKnex } from '@/lib/db';
-import { transact } from 'yjs';
+import { Knex } from 'knex';
 
-// Define an interface for the database result that includes joined company fields
-interface AssetWithCompanyFields extends Asset {
-    company_name?: string;
+// Helper function to get extension table data
+async function getExtensionData(knex: Knex, tenant: string, asset_id: string, asset_type: string): Promise<Record<string, any> | null> {
+    switch (asset_type.toLowerCase()) {
+        case 'workstation':
+            return knex('workstation_assets')
+                .where({ tenant, asset_id })
+                .first();
+        case 'network_device':
+            return knex('network_device_assets')
+                .where({ tenant, asset_id })
+                .first();
+        case 'server':
+            return knex('server_assets')
+                .where({ tenant, asset_id })
+                .first();
+        case 'mobile_device':
+            return knex('mobile_device_assets')
+                .where({ tenant, asset_id })
+                .first();
+        case 'printer':
+            return knex('printer_assets')
+                .where({ tenant, asset_id })
+                .first();
+        default:
+            return null;
+    }
+}
+
+// Helper function to validate extension data based on type
+function validateExtensionData(data: unknown, type: string): Record<string, any> | null {
+    if (!data || typeof data !== 'object') return null;
+
+    switch (type.toLowerCase()) {
+        case 'workstation':
+            if (isWorkstationAsset(data)) return data;
+            break;
+        case 'network_device':
+            if (isNetworkDeviceAsset(data)) return data;
+            break;
+        case 'server':
+            if (isServerAsset(data)) return data;
+            break;
+        case 'mobile_device':
+            if (isMobileDeviceAsset(data)) return data;
+            break;
+        case 'printer':
+            if (isPrinterAsset(data)) return data;
+            break;
+    }
+    return null;
+}
+
+// Helper function to insert/update extension table data
+async function upsertExtensionData(
+    knex: Knex,
+    tenant: string,
+    asset_id: string,
+    asset_type: string,
+    data: unknown
+): Promise<void> {
+    const validatedData = validateExtensionData(data, asset_type);
+    if (!validatedData) return;
+
+    const table = `${asset_type.toLowerCase()}_assets`;
+    const extensionData = { tenant, asset_id, ...validatedData };
+
+    // Check if record exists
+    const exists = await knex(table)
+        .where({ tenant, asset_id })
+        .first();
+
+    if (exists) {
+        await knex(table)
+            .where({ tenant, asset_id })
+            .update(extensionData);
+    } else {
+        await knex(table).insert(extensionData);
+    }
+}
+
+// Export getAsset for external use
+export async function getAsset(asset_id: string): Promise<Asset> {
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+        throw new Error('No tenant found');
+    }
+    return getAssetWithExtensions(knex, tenant, asset_id);
 }
 
 
 export async function createAsset(data: CreateAssetRequest): Promise<Asset> {
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+        throw new Error('No tenant found');
+    }
+
     try {
-        // Validate the input data
-        const validatedData = validateData(createAssetSchema, data);
+        // Start transaction
+        const result = await knex.transaction(async (trx: any) => {
+            // Validate the input data
+            const validatedData = validateData(createAssetSchema, data);
 
-        const asset = await AssetModel.create(validatedData);
-        await AssetHistoryModel.create(
-            asset.asset_id,
-            'system', // TODO: Get actual user ID
-            'created',
-            { ...validatedData }
-        );
+            // Get asset type
+            const assetType = await trx('asset_types')
+                .where({ tenant, type_id: validatedData.type_id })
+                .first();
+
+            if (!assetType) {
+                throw new Error('Asset type not found');
+            }
+
+            // Create base asset
+            const [asset] = await trx('assets')
+                .insert({
+                    tenant,
+                    ...validatedData,
+                    created_at: knex.fn.now(),
+                    updated_at: knex.fn.now()
+                })
+                .returning('*');
+
+            // Handle extension table data based on asset type
+            if (assetType.type_name) {
+                const extensionData = data[assetType.type_name.toLowerCase() as keyof CreateAssetRequest];
+                if (extensionData) {
+                    await upsertExtensionData(trx, tenant, asset.asset_id, assetType.type_name, extensionData);
+                }
+            }
+
+            // Create history record
+            await trx('asset_history').insert({
+                tenant,
+                asset_id: asset.asset_id,
+                changed_by: 'system', // TODO: Get actual user ID
+                change_type: 'created',
+                changes: validatedData,
+                changed_at: knex.fn.now()
+            });
+
+            // Get complete asset data including extension table data
+            const completeAsset = await getAssetWithExtensions(trx, tenant, asset.asset_id);
+            return completeAsset;
+        });
+
         revalidatePath('/assets');
-
-        // Validate the response
-        return validateData(assetSchema, asset);
+        return validateData(assetSchema, result);
     } catch (error) {
         console.error('Error creating asset:', error);
         throw new Error('Failed to create asset');
@@ -77,405 +210,151 @@ export async function createAsset(data: CreateAssetRequest): Promise<Asset> {
 }
 
 export async function updateAsset(asset_id: string, data: UpdateAssetRequest): Promise<Asset> {
-    try {
-        // Validate the update data
-        const validatedData = validateData(updateAssetSchema, data);
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+        throw new Error('No tenant found');
+    }
 
-        const asset = await AssetModel.update(asset_id, validatedData);
-        await AssetHistoryModel.create(
-            asset_id,
-            'system', // TODO: Get actual user ID
-            'updated',
-            { ...validatedData }
-        );
+    try {
+        const result = await knex.transaction(async (trx: any) => {
+            // Validate the update data
+            const validatedData = validateData(updateAssetSchema, data);
+
+            // Get current asset type
+            const asset = await trx('assets')
+                .where({ tenant, asset_id })
+                .first();
+
+            if (!asset) {
+                throw new Error('Asset not found');
+            }
+
+            const assetType = await trx('asset_types')
+                .where({ tenant, type_id: asset.type_id })
+                .first();
+
+            // Update base asset
+            const [updatedAsset] = await trx('assets')
+                .where({ tenant, asset_id })
+                .update({
+                    ...validatedData,
+                    updated_at: knex.fn.now()
+                })
+                .returning('*');
+
+            // Handle extension table data
+            if (assetType?.type_name) {
+                const extensionData = data[assetType.type_name.toLowerCase() as keyof UpdateAssetRequest];
+                if (extensionData) {
+                    await upsertExtensionData(trx, tenant, asset_id, assetType.type_name, extensionData);
+                }
+            }
+
+            // Create history record
+            await trx('asset_history').insert({
+                tenant,
+                asset_id,
+                changed_by: 'system', // TODO: Get actual user ID
+                change_type: 'updated',
+                changes: validatedData,
+                changed_at: knex.fn.now()
+            });
+
+            // Get complete asset data including extension table data
+            const completeAsset = await getAssetWithExtensions(trx, tenant, asset_id);
+            return completeAsset;
+        });
+
         revalidatePath('/assets');
         revalidatePath(`/assets/${asset_id}`);
-
-        // Validate the response
-        return validateData(assetSchema, asset);
+        return validateData(assetSchema, result);
     } catch (error) {
         console.error('Error updating asset:', error);
         throw new Error('Failed to update asset');
     }
 }
 
-export async function deleteAsset(asset_id: string): Promise<void> {
-    try {
-        // Validate asset_id
-        validateData(z.object({ asset_id: z.string().uuid() }), { asset_id });
+async function getAssetWithExtensions(knex: Knex, tenant: string, asset_id: string): Promise<Asset> {
+    // Get base asset data with company info
+    const asset = await knex('assets')
+        .select(
+            'assets.*',
+            'companies.company_name'
+        )
+        .leftJoin('companies', function(this: Knex.JoinClause) {
+            this.on('companies.company_id', '=', 'assets.company_id')
+                .andOn('companies.tenant', '=', 'assets.tenant');
+        })
+        .where({ 'assets.tenant': tenant, 'assets.asset_id': asset_id })
+        .first();
 
-        await AssetModel.delete(asset_id);
-        revalidatePath('/assets');
-    } catch (error) {
-        console.error('Error deleting asset:', error);
-        throw new Error('Failed to delete asset');
+    if (!asset) {
+        throw new Error('Asset not found');
     }
-}
 
+    // Get asset type
+    const assetType = await knex('asset_types')
+        .where({ tenant, type_id: asset.type_id })
+        .first();
 
-
-// Asset type actions
-export async function createAssetType(data: CreateAssetTypeRequest): Promise<AssetType> {
-    try {
-        // Validate the input data
-        const validatedData = validateData(createAssetTypeSchema, data);
-
-        const assetType = await AssetTypeModel.create(validatedData);
-        revalidatePath('/assets/types');
-
-        // Validate the response
-        return validateData(assetTypeSchema, assetType);
-    } catch (error) {
-        console.error('Error creating asset type:', error);
-        throw new Error('Failed to create asset type');
+    // Get extension table data if applicable
+    let extensionData = null;
+    if (assetType?.type_name) {
+        extensionData = await getExtensionData(knex, tenant, asset_id, assetType.type_name);
     }
-}
 
-export async function updateAssetType(type_id: string, data: Partial<AssetType>): Promise<AssetType> {
-    try {
-        // Validate type_id and update data
-        validateData(z.object({ type_id: z.string().uuid() }), { type_id });
-        const validatedData = validateData(assetTypeSchema.partial(), data);
+    // Get relationships
+    const relationships = await knex('asset_relationships')
+        .where(function(this: Knex.QueryBuilder) {
+            this.where('parent_asset_id', asset_id)
+                .orWhere('child_asset_id', asset_id);
+        })
+        .andWhere({ tenant });
 
-        const assetType = await AssetTypeModel.update(type_id, validatedData);
-        revalidatePath('/assets/types');
-        revalidatePath(`/assets/types/${type_id}`);
+    // Transform the data
+    const transformedAsset: Asset = {
+        ...asset,
+        company: {
+            company_id: asset.company_id,
+            company_name: asset.company_name || ''
+        },
+        relationships,
+        // Add extension data under the appropriate key
+        ...(extensionData && assetType?.type_name ? {
+            [assetType.type_name.toLowerCase()]: extensionData
+        } : {})
+    };
 
-        // Validate the response
-        return validateData(assetTypeSchema, assetType);
-    } catch (error) {
-        console.error('Error updating asset type:', error);
-        throw new Error('Failed to update asset type');
-    }
-}
-
-export async function deleteAssetType(type_id: string): Promise<void> {
-    try {
-        // Validate type_id
-        validateData(z.object({ type_id: z.string().uuid() }), { type_id });
-
-        await AssetTypeModel.delete(type_id);
-        revalidatePath('/assets/types');
-    } catch (error) {
-        console.error('Error deleting asset type:', error);
-        throw new Error('Failed to delete asset type');
-    }
-}
-
-export async function getAssetType(type_id: string): Promise<AssetType | null> {
-    try {
-        // Validate type_id
-        validateData(z.object({ type_id: z.string().uuid() }), { type_id });
-
-        const assetType = await AssetTypeModel.findById(type_id);
-        if (!assetType) return null;
-
-        // Validate the response
-        return validateData(assetTypeSchema, assetType);
-    } catch (error) {
-        console.error('Error getting asset type:', error);
-        throw new Error('Failed to get asset type');
-    }
-}
-
-export async function listAssetTypes(): Promise<AssetType[]> {
-    try {
-        const assetTypes = await AssetTypeModel.list();
-
-        // Validate each asset type in the response
-        return assetTypes.map((assetType): AssetType =>
-            validateData(assetTypeSchema, assetType)
-        );
-    } catch (error) {
-        console.error('Error listing asset types:', error);
-        throw new Error('Failed to list asset types');
-    }
-}
-
-
-// New asset association actions
-export async function createAssetAssociation(data: CreateAssetAssociationRequest): Promise<AssetAssociation> {
-    try {
-        const currentUser = await getCurrentUser();
-        if (!currentUser) {
-            throw new Error('No user session found');
-        }
-
-        // Validate the input data
-        const validatedData = validateData(createAssetAssociationSchema, data);
-
-        const association = await AssetAssociationModel.create(validatedData, currentUser.user_id);
-
-        // Revalidate relevant paths
-        revalidatePath('/assets');
-        if (data.entity_type === 'ticket') {
-            revalidatePath(`/tickets/${data.entity_id}`);
-        }
-
-        // Validate the response
-        return validateData(assetAssociationSchema, association);
-    } catch (error) {
-        console.error('Error creating asset association:', error);
-        throw new Error('Failed to create asset association');
-    }
-}
-
-export async function listAssetAssociations(asset_id: string): Promise<AssetAssociation[]> {
-    try {
-        // Validate asset_id
-        validateData(z.object({ asset_id: z.string().uuid() }), { asset_id });
-
-        const associations = await AssetAssociationModel.listByAsset(asset_id);
-
-        // Validate each association in the response
-        return associations.map((association): AssetAssociation =>
-            validateData(assetAssociationSchema, association)
-        );
-    } catch (error) {
-        console.error('Error listing asset associations:', error);
-        throw new Error('Failed to list asset associations');
-    }
-}
-
-export async function listEntityAssets(entity_id: string, entity_type: string): Promise<AssetAssociation[]> {
-    try {
-        // Validate parameters
-        validateData(
-            z.object({
-                entity_id: z.string().uuid(),
-                entity_type: z.enum(['ticket', 'project'])
-            }),
-            { entity_id, entity_type }
-        );
-
-        const associations = await AssetAssociationModel.listByEntity(entity_id, entity_type);
-
-        // Validate each association in the response
-        return associations.map((association): AssetAssociation =>
-            validateData(assetAssociationSchema, association)
-        );
-    } catch (error) {
-        console.error('Error listing entity assets:', error);
-        throw new Error('Failed to list entity assets');
-    }
-}
-
-export async function removeAssetAssociation(
-    asset_id: string,
-    entity_id: string,
-    entity_type: string
-): Promise<void> {
-    try {
-        // Validate parameters
-        validateData(
-            z.object({
-                asset_id: z.string().uuid(),
-                entity_id: z.string().uuid(),
-                entity_type: z.enum(['ticket', 'project'])
-            }),
-            { asset_id, entity_id, entity_type }
-        );
-
-        await AssetAssociationModel.delete(asset_id, entity_id, entity_type);
-
-        // Revalidate relevant paths
-        revalidatePath('/assets');
-        if (entity_type === 'ticket') {
-            revalidatePath(`/tickets/${entity_id}`);
-        }
-    } catch (error) {
-        console.error('Error removing asset association:', error);
-        throw new Error('Failed to remove asset association');
-    }
-}
-
-// New document management actions
-export async function associateDocumentWithAsset(data: CreateAssetDocumentRequest): Promise<AssetDocument> {
-    try {
-        const currentUser = await getCurrentUser();
-        if (!currentUser) {
-            throw new Error('No user session found');
-        }
-
-        const { knex, tenant } = await createTenantKnex();
-        if (!tenant) {
-            throw new Error('No tenant found');
-        }
-
-        // Insert the association
-        const [association] = await knex('asset_document_associations')
-            .insert({
-                tenant,
-                asset_id: data.asset_id,
-                document_id: data.document_id,
-                notes: data.notes,
-                created_by: currentUser.user_id
-            })
-            .returning('*');
-
-        // Get full document details
-        const [documentWithDetails] = await knex('asset_document_associations as ada')
-            .select(
-                'ada.*',
-                'documents.document_name',
-                'documents.mime_type',
-                'documents.file_size',
-                'users.first_name',
-                'users.last_name'
-            )
-            .join('documents', function () {
-                this.on('documents.document_id', '=', 'ada.document_id')
-                    .andOn('documents.tenant', '=', 'ada.tenant');
-            })
-            .leftJoin('users', function () {
-                this.on('users.user_id', '=', 'ada.created_by')
-                    .andOn('users.tenant', '=', 'ada.tenant');
-            })
-            .where({
-                'ada.association_id': association.association_id,
-                'ada.tenant': tenant
-            });
-
-        // Revalidate relevant paths
-        revalidatePath('/assets');
-        revalidatePath(`/assets/${data.asset_id}`);
-
-        return validateData(assetDocumentSchema, documentWithDetails);
-    } catch (error) {
-        console.error('Error associating document with asset:', error);
-        throw new Error('Failed to associate document with asset');
-    }
-}
-
-export async function removeDocumentFromAsset(asset_id: string, document_id: string): Promise<void> {
-    try {
-        const { knex, tenant } = await createTenantKnex();
-        if (!tenant) {
-            throw new Error('No tenant found');
-        }
-
-        await knex('asset_document_associations')
-            .where({
-                tenant,
-                asset_id,
-                document_id
-            })
-            .delete();
-
-        // Revalidate relevant paths
-        revalidatePath('/assets');
-        revalidatePath(`/assets/${asset_id}`);
-    } catch (error) {
-        console.error('Error removing document from asset:', error);
-        throw new Error('Failed to remove document from asset');
-    }
-}
-
-export async function getAssetDocuments(asset_id: string): Promise<AssetDocument[]> {
-    try {
-        const { knex, tenant } = await createTenantKnex();
-        if (!tenant) {
-            throw new Error('No tenant found');
-        }
-
-        const documents = await knex('asset_document_associations as ada')
-            .select(
-                'ada.*',
-                'documents.document_name',
-                'documents.mime_type',
-                'documents.file_size',
-                'users.first_name',
-                'users.last_name'
-            )
-            .join('documents', function () {
-                this.on('documents.document_id', '=', 'ada.document_id')
-                    .andOn('documents.tenant', '=', 'ada.tenant');
-            })
-            .leftJoin('users', function () {
-                this.on('users.user_id', '=', 'ada.created_by')
-                    .andOn('users.tenant', '=', 'ada.tenant');
-            })
-            .where({
-                'ada.tenant': tenant,
-                'ada.asset_id': asset_id
-            })
-            .orderBy('ada.created_at', 'desc');
-
-        return documents.map((doc): AssetDocument => validateData(assetDocumentSchema, doc));
-    } catch (error) {
-        console.error('Error getting asset documents:', error);
-        throw new Error('Failed to get asset documents');
-    }
-}
-
-// Update existing getAsset to include documents
-export async function getAsset(asset_id: string): Promise<Asset | null> {
-    try {
-        // Validate asset_id
-        validateData(z.object({ asset_id: z.string().uuid() }), { asset_id });
-
-        const asset = await AssetModel.findById(asset_id);
-        if (!asset) return null;
-
-        // Get associated documents
-        const documents = await getAssetDocuments(asset_id);
-        const assetWithDocs = {
-            ...asset,
-            documents
-        };
-
-        // Validate the response
-        return validateData(assetSchema, assetWithDocs);
-    } catch (error) {
-        console.error('Error getting asset:', error);
-        throw new Error('Failed to get asset');
-    }
-}
-
-interface AssetWithCompanyFields extends Asset {
-    company_name?: string;
+    return transformedAsset;
 }
 
 export async function listAssets(params: AssetQueryParams): Promise<AssetListResponse> {
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+        throw new Error('No tenant found');
+    }
+
     try {
         // Validate query parameters
         const validatedParams = validateData(assetQuerySchema, params);
 
-        const { knex, tenant } = await createTenantKnex();
-        if (!tenant) {
-            throw new Error('No tenant found');
-        }
-
-        // Build base query with company join and date formatting
+        // Build base query
         const baseQuery = knex('assets')
             .where('assets.tenant', tenant)
-            .join('companies', function () {
+            .leftJoin('companies', function(this: Knex.JoinClause) {
                 this.on('companies.company_id', '=', 'assets.company_id')
                     .andOn('companies.tenant', '=', 'assets.tenant');
             })
-            .select(
-                'assets.asset_id',
-                'assets.type_id',
-                'assets.company_id',
-                'assets.asset_tag',
-                'assets.serial_number',
-                'assets.name',
-                'assets.status',
-                'assets.location',
-                knex.raw('COALESCE(assets.purchase_date::text, null) as purchase_date'),
-                knex.raw('COALESCE(assets.warranty_end_date::text, null) as warranty_end_date'),
-                'assets.attributes',
-                knex.raw('assets.created_at::text as created_at'),
-                knex.raw('assets.updated_at::text as updated_at'),
-                'assets.tenant',
-                'companies.company_name'
-            );
+            .leftJoin('asset_types', function(this: Knex.JoinClause) {
+                this.on('asset_types.type_id', '=', 'assets.type_id')
+                    .andOn('asset_types.tenant', '=', 'assets.tenant');
+            });
 
-        // Apply filters from params
+        // Apply filters
         if (validatedParams.company_id) {
             baseQuery.where('assets.company_id', validatedParams.company_id);
         }
-        if (validatedParams.type_id) {
+        if (validatedParams.type_id && /^[0-9a-f-]{36}$/i.test(validatedParams.type_id)) {
             baseQuery.where('assets.type_id', validatedParams.type_id);
         }
         if (validatedParams.status) {
@@ -483,9 +362,7 @@ export async function listAssets(params: AssetQueryParams): Promise<AssetListRes
         }
 
         // Get total count
-        const [{ count }] = await knex('assets')
-            .where('tenant', tenant)
-            .count('* as count');
+        const [{ count }] = await baseQuery.clone().count('* as count');
 
         // Get paginated results
         const page = validatedParams.page || 1;
@@ -493,63 +370,37 @@ export async function listAssets(params: AssetQueryParams): Promise<AssetListRes
         const offset = (page - 1) * limit;
 
         const assets = await baseQuery
+            .select(
+                'assets.*',
+                'companies.company_name',
+                'asset_types.type_name'
+            )
             .orderBy('assets.created_at', 'desc')
             .limit(limit)
             .offset(offset);
 
-        const transformedAssets = assets.map((asset: AssetWithCompanyFields): Asset => {
-            // Extract company data explicitly
-            const { company_name, ...restAsset } = asset;
+        // Get extension data for each asset if requested
+        const assetsWithExtensions = await Promise.all(
+            assets.map(async (asset: any): Promise<Asset> => {
+                const extensionData = validatedParams.include_extension_data && asset.type_name
+                    ? await getExtensionData(knex, tenant, asset.asset_id, asset.type_name)
+                    : null;
 
-            // Create properly structured company object
-            const company: AssetCompanyInfo = {
-                company_id: asset.company_id,
-                company_name: company_name || ''
-            };
-
-            // Return transformed asset with explicit date string conversions
-            return {
-                ...restAsset,
-                company,
-                created_at: asset.created_at ? String(asset.created_at) : '',
-                updated_at: asset.updated_at ? String(asset.updated_at) : '',
-                purchase_date: asset.purchase_date ? String(asset.purchase_date) : undefined,
-                warranty_end_date: asset.warranty_end_date ? String(asset.warranty_end_date) : undefined,
-            };
-        });
-
-        // Get documents for each asset
-        const assetsWithDocs = await Promise.all(
-            transformedAssets.map(async (asset): Promise<Asset> => {
-                const documents = await getAssetDocuments(asset.asset_id);
-
-                // Explicitly construct the return object with all fields
                 return {
-                    asset_id: asset.asset_id,
-                    type_id: asset.type_id,
-                    company_id: asset.company_id,
-                    asset_tag: asset.asset_tag,
-                    serial_number: asset.serial_number,
-                    name: asset.name,
-                    status: asset.status,
-                    location: asset.location,
-                    purchase_date: asset.purchase_date,
-                    warranty_end_date: asset.warranty_end_date,
-                    attributes: asset.attributes,
-                    created_at: asset.created_at,
-                    updated_at: asset.updated_at,
-                    tenant: asset.tenant,
+                    ...asset,
                     company: {
                         company_id: asset.company_id,
-                        company_name: asset.company?.company_name || ''
+                        company_name: asset.company_name || ''
                     },
-                    documents
+                    ...(extensionData && asset.type_name ? {
+                        [asset.type_name.toLowerCase()]: extensionData
+                    } : {})
                 };
             })
         );
 
         const response = {
-            assets: assetsWithDocs,
+            assets: assetsWithExtensions,
             total: Number(count),
             page,
             limit
@@ -557,13 +408,7 @@ export async function listAssets(params: AssetQueryParams): Promise<AssetListRes
 
         return response;
     } catch (error) {
-        console.error('[listAssets] Error listing assets:', error);
-        if (error instanceof Error) {
-            console.error('[listAssets] Error details:', {
-                message: error.message,
-                stack: error.stack
-            });
-        }
+        console.error('Error listing assets:', error);
         throw new Error('Failed to list assets');
     }
 }
@@ -784,14 +629,18 @@ export async function getAssetMaintenanceReport(asset_id: string): Promise<Asset
             throw new Error('Asset not found');
         }
 
-        // Get maintenance statistics
+        // Get maintenance statistics with proper date handling
         const stats = await knex('asset_maintenance_schedules')
             .where({ tenant, asset_id })
             .select(
                 knex.raw('COUNT(*) as total_schedules'),
                 knex.raw('SUM(CASE WHEN is_active THEN 1 ELSE 0 END) as active_schedules'),
-                knex.raw('MIN(last_maintenance) as last_maintenance'),
-                knex.raw('MIN(next_maintenance) as next_maintenance')
+                knex.raw(`
+                    TO_CHAR(MAX(last_maintenance), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as last_maintenance
+                `),
+                knex.raw(`
+                    TO_CHAR(MIN(next_maintenance), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as next_maintenance
+                `)
             )
             .first();
 
@@ -829,10 +678,15 @@ export async function getAssetMaintenanceReport(asset_id: string): Promise<Asset
             active_schedules: Number(stats?.active_schedules || 0),
             completed_maintenances: completedCount,
             upcoming_maintenances: upcomingCount,
-            last_maintenance: stats?.last_maintenance,
-            next_maintenance: stats?.next_maintenance,
+            last_maintenance: stats?.last_maintenance || undefined,
+            next_maintenance: stats?.next_maintenance || undefined,
             compliance_rate,
-            maintenance_history: history
+            maintenance_history: history.map((record): AssetMaintenanceHistory => ({
+                ...record,
+                performed_at: record.performed_at instanceof Date 
+                    ? record.performed_at.toISOString()
+                    : String(record.performed_at)
+            }))
         };
 
         return validateData(assetMaintenanceReportSchema, report);
@@ -841,6 +695,8 @@ export async function getAssetMaintenanceReport(asset_id: string): Promise<Asset
         throw new Error('Failed to get asset maintenance report');
     }
 }
+
+
 
 export async function getClientMaintenanceSummary(company_id: string): Promise<ClientMaintenanceSummary> {
     try {
@@ -858,7 +714,7 @@ export async function getClientMaintenanceSummary(company_id: string): Promise<C
             throw new Error('Company not found');
         }
 
-        // Get asset statistics - Fixed the ambiguous tenant reference
+        // Get asset statistics with proper 'this' type annotation
         const assetStats = await knex('assets')
             .where({ 'assets.tenant': tenant, company_id })
             .select(
@@ -870,7 +726,7 @@ export async function getClientMaintenanceSummary(company_id: string): Promise<C
                     END) as assets_with_maintenance
                 `)
             )
-            .leftJoin('asset_maintenance_schedules', function () {
+            .leftJoin('asset_maintenance_schedules', function(this: Knex.JoinClause) {
                 this.on('assets.asset_id', '=', 'asset_maintenance_schedules.asset_id')
                     .andOn('asset_maintenance_schedules.tenant', '=', knex.raw('?', [tenant]));
             })
@@ -962,5 +818,164 @@ export async function getClientMaintenanceSummary(company_id: string): Promise<C
     } catch (error) {
         console.error('Error getting client maintenance summary:', error);
         throw new Error('Failed to get client maintenance summary');
+    }
+}
+
+// Asset Association Functions
+// Update only the map callback in listEntityAssets function
+export async function listEntityAssets(entity_id: string, entity_type: 'ticket' | 'project'): Promise<Asset[]> {
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+        throw new Error('No tenant found');
+    }
+
+    try {
+        // Get asset associations
+        const associations = await knex('asset_associations')
+            .where({
+                tenant,
+                entity_id,
+                entity_type
+            });
+
+        // Add explicit return type to the map callback
+        const assets = await Promise.all(
+            associations.map(async (association): Promise<Asset> => 
+                getAssetWithExtensions(knex, tenant, association.asset_id)
+            )
+        );
+
+        return assets;
+    } catch (error) {
+        console.error('Error listing entity assets:', error);
+        throw new Error('Failed to list entity assets');
+    }
+}
+
+export async function createAssetAssociation(data: CreateAssetAssociationRequest): Promise<AssetAssociation> {
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+        throw new Error('No tenant found');
+    }
+
+    try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+            throw new Error('No user session found');
+        }
+
+        // Validate the input data
+        const validatedData = validateData(createAssetAssociationSchema, data);
+
+        // Create the association
+        const [association] = await knex('asset_associations')
+            .insert({
+                tenant,
+                ...validatedData,
+                created_by: currentUser.user_id,
+                created_at: knex.fn.now()
+            })
+            .returning('*');
+
+        // Revalidate paths
+        revalidatePath('/assets');
+        revalidatePath(`/assets/${data.asset_id}`);
+        if (data.entity_type === 'ticket') {
+            revalidatePath(`/tickets/${data.entity_id}`);
+        } else {
+            revalidatePath(`/projects/${data.entity_id}`);
+        }
+
+        return validateData(assetAssociationSchema, association);
+    } catch (error) {
+        console.error('Error creating asset association:', error);
+        throw new Error('Failed to create asset association');
+    }
+}
+
+export async function removeAssetAssociation(
+    asset_id: string,
+    entity_id: string,
+    entity_type: 'ticket' | 'project'
+): Promise<void> {
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+        throw new Error('No tenant found');
+    }
+
+    try {
+        await knex('asset_associations')
+            .where({
+                tenant,
+                asset_id,
+                entity_id,
+                entity_type
+            })
+            .delete();
+
+        // Revalidate paths
+        revalidatePath('/assets');
+        revalidatePath(`/assets/${asset_id}`);
+        if (entity_type === 'ticket') {
+            revalidatePath(`/tickets/${entity_id}`);
+        } else {
+            revalidatePath(`/projects/${entity_id}`);
+        }
+    } catch (error) {
+        console.error('Error removing asset association:', error);
+        throw new Error('Failed to remove asset association');
+    }
+}
+
+// Add listAssetTypes function to existing file
+export async function listAssetTypes(): Promise<AssetType[]> {
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+        throw new Error('No tenant found');
+    }
+
+    try {
+        const types = await knex('asset_types')
+            .where({ tenant })
+            .orderBy('type_name');
+
+        // Transform and validate each type
+        const transformedTypes = await Promise.all(types.map(async (type): Promise<AssetType> => {
+            // Ensure all fields have valid values before validation
+            const preparedType = {
+                tenant: type.tenant || tenant, // Use current tenant if null
+                type_id: type.type_id || '', // Should never be null due to NOT NULL constraint
+                type_name: String(type.type_name || ''), // Convert null/undefined to empty string
+                parent_type_id: type.parent_type_id || undefined, // Optional field
+                attributes_schema: type.attributes_schema || {}, // Default to empty object
+                created_at: type.created_at instanceof Date 
+                    ? type.created_at.toISOString() 
+                    : (type.created_at || new Date().toISOString()),
+                updated_at: type.updated_at instanceof Date 
+                    ? type.updated_at.toISOString() 
+                    : (type.updated_at || new Date().toISOString())
+            };
+
+            try {
+                // Validate the prepared data
+                return validateData(assetTypeSchema, preparedType);
+            } catch (validationError) {
+                console.error('Validation error for asset type:', type, validationError);
+                // Return a safe default if validation fails
+                return {
+                    tenant: tenant,
+                    type_id: type.type_id || '',
+                    type_name: String(type.type_name || ''),
+                    attributes_schema: {},
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+            }
+        }));
+
+        return transformedTypes;
+    } catch (error) {
+        console.error('Error listing asset types:', error);
+        throw new Error('Failed to list asset types');
     }
 }
