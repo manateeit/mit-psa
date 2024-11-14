@@ -8,10 +8,10 @@ export interface SelectOption {
 }
 
 export interface StyleProps {
-  trigger: string;
-  content: string;
-  item: string;
-  itemIndicator: string;
+  trigger?: string;
+  content?: string;
+  item?: string;
+  itemIndicator?: string;
 }
 
 interface CustomSelectProps {
@@ -32,39 +32,8 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   className = '',
   disabled = false,
   customStyles,
-}) => {
+}): JSX.Element => {
   const selectedOption = options.find(option => option.value === value);
-
-interface Option {
-  value: string;
-  label: string;
-}
-
-interface CustomSelectProps {
-  value: string;
-  onValueChange: (value: string) => void;
-  options: Option[];
-  placeholder?: string;
-  disabled?: boolean;
-  className?: string;
-  customStyles?: {
-    trigger?: string;
-    content?: string;
-    item?: string;
-    itemIndicator?: string;
-  };
-}
-
-export const CustomSelect = ({
-  value,
-  onValueChange,
-  options,
-  placeholder,
-  disabled,
-  className = '',
-  customStyles,
-}: CustomSelectProps): JSX.Element => {
-  const selectedOption = options.find((option) => option.value === value);
 
   return (
     <Select.Root value={value} onValueChange={onValueChange} disabled={disabled}>
@@ -124,3 +93,5 @@ export const CustomSelect = ({
     </Select.Root>
   );
 };
+
+export default CustomSelect;

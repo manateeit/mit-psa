@@ -246,34 +246,36 @@ export default function ProjectDetail({
     setShowQuickAdd(true);
   }, [phases]);
 
-  const handleAssigneeChange = async (taskId: string, newAssigneeId: string) => {
-    try {
-      // Find the existing task
-      const task = projectTasks.find(t => t.task_id === taskId);
-      if (!task) {
-        throw new Error('Task not found');
-      }
-
-      // Update the task in the database
-      const updatedTask = await updateTask(taskId, {
-        ...task,
-        assigned_to: newAssigneeId
-      }, task.checklist_items || []);
-
-      if (updatedTask) {
-        // Update local state
-        setProjectTasks(prevTasks =>
-          prevTasks.map((task): IProjectTask =>
-            task.task_id === taskId ? updatedTask : task
-          )
-        );
-        toast.success('Task assignee updated successfully!');
-      }
-    } catch (error) {
-      console.error('Error updating task assignee:', error);
-      toast.error('Failed to update task assignee. Please try again.');
+const handleAssigneeChange = async (taskId: string, newAssigneeId: string) => {
+  try {
+    // Find the existing task
+    const task = projectTasks.find(t => t.task_id === taskId);
+    if (!task) {
+      throw new Error('Task not found');
     }
-  };
+
+    // Update the task in the database with proper number conversion for hours
+    const updatedTask = await updateTask(taskId, {
+      ...task,
+      assigned_to: newAssigneeId,
+      estimated_hours: Number(task.estimated_hours) || 0,
+      actual_hours: Number(task.actual_hours) || 0
+    }, task.checklist_items || []);
+
+    if (updatedTask) {
+      // Update local state
+      setProjectTasks(prevTasks =>
+        prevTasks.map((task): IProjectTask =>
+          task.task_id === taskId ? updatedTask : task
+        )
+      );
+      toast.success('Task assignee updated successfully!');
+    }
+  } catch (error) {
+    console.error('Error updating task assignee:', error);
+    toast.error('Failed to update task assignee. Please try again.');
+  }
+};
 
   const handleEditPhase = (phase: IProjectPhase) => {
     setEditingPhaseId(phase.phase_id);

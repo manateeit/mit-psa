@@ -41,6 +41,8 @@ const TaskEdit: React.FC<TaskEditProps> = ({
   const [assignedUser, setAssignedUser] = useState<string | null>(task.assigned_to);
   const [selectedPhase, setSelectedPhase] = useState<IProjectPhase>(phase);
   const [showMoveConfirmation, setShowMoveConfirmation] = useState(false);
+  const [estimatedHours, setEstimatedHours] = useState<number>(Number(task.estimated_hours) || 0);
+  const [actualHours, setActualHours] = useState<number>(Number(task.actual_hours) || 0);
 
   useEffect(() => {
     const loadTaskData = async () => {
@@ -70,12 +72,12 @@ const TaskEdit: React.FC<TaskEditProps> = ({
       // First move the task to new phase
       const movedTask = await moveTaskToPhase(task.task_id, selectedPhase.phase_id);
       
-      // Then update the task with proper number values
+      // Then update the task
       if (movedTask) {
         const updatedTask = await updateTask(movedTask.task_id, {
           ...movedTask,
-          estimated_hours: Number(movedTask.estimated_hours) || 0,
-          actual_hours: Number(movedTask.actual_hours) || 0
+          estimated_hours: estimatedHours,
+          actual_hours: actualHours
         }, checklistItems);
         onTaskUpdated(updatedTask);
       }
@@ -104,8 +106,8 @@ const TaskEdit: React.FC<TaskEditProps> = ({
         wbs_code: task.wbs_code,
         description: description,
         assigned_to: assignedUser,
-        estimated_hours: Number(task.estimated_hours) || 0,
-        actual_hours: Number(task.actual_hours) || 0,
+        estimated_hours: estimatedHours,
+        actual_hours: actualHours,
         due_date: task.due_date,
         phase_id: phase.phase_id
       };
@@ -258,6 +260,36 @@ const TaskEdit: React.FC<TaskEditProps> = ({
                 size="sm"
                 users={users}
               />
+
+              {/* Hours inputs */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Estimated Hours
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={estimatedHours}
+                    onChange={(e) => setEstimatedHours(Number(e.target.value))}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Actual Hours
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={actualHours}
+                    onChange={(e) => setActualHours(Number(e.target.value))}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+              </div>
 
               <div className="flex items-center justify-between mb-2">
                 <h3 className='font-semibold'>Checklist</h3>
