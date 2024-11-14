@@ -1,8 +1,9 @@
 // server/src/components/projects/TaskQuickAdd.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { ProjectStatus, addTaskToPhase } from '@/lib/actions/projectActions';
+import { getCurrentUser } from '@/lib/auth/session';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Select from '@radix-ui/react-select';
 import { Button } from '@/components/ui/Button';
@@ -31,9 +32,7 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
   onCancel,
   users
 }) => {
-  // Find current user from the users array (assuming first user is current)
-  const currentUserId = users[0]?.user_id || '';
-
+  const [currentUserId, setCurrentUserId] = useState<string>('');
   const [taskName, setTaskName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>(
@@ -42,7 +41,21 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checklistItems, setChecklistItems] = useState<Omit<ITaskChecklistItem, 'tenant'>[]>([]);
   const [isEditingChecklist, setIsEditingChecklist] = useState(false);
-  const [assignedUser, setAssignedUser] = useState<string>(currentUserId);
+  const [assignedUser, setAssignedUser] = useState<string>('');
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const user = await getCurrentUser();
+        if (user) {
+          setCurrentUserId(user.user_id);
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+      }
+    };
+    fetchCurrentUser();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +69,7 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
         project_status_mapping_id: selectedStatus,
         wbs_code: `${phase.wbs_code}.${Date.now()}`,
         description: description,
-        assigned_to: assignedUser,
+        assigned_to: assignedUser || currentUserId, // Use current user if no one is assigned
         estimated_hours: 0,
         actual_hours: 0,
         due_date: new Date(),
