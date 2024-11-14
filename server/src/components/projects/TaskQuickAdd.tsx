@@ -31,6 +31,9 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
   onCancel,
   users
 }) => {
+  // Find current user from the users array (assuming first user is current)
+  const currentUserId = users[0]?.user_id || '';
+
   const [taskName, setTaskName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>(
@@ -39,7 +42,7 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checklistItems, setChecklistItems] = useState<Omit<ITaskChecklistItem, 'tenant'>[]>([]);
   const [isEditingChecklist, setIsEditingChecklist] = useState(false);
-  const [assignedUser, setAssignedUser] = useState<string | null>(null);
+  const [assignedUser, setAssignedUser] = useState<string>(currentUserId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,10 +160,8 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
 
               <UserPicker
                 label="Assigned To"
-                value={assignedUser || ''}
-                onValueChange={(value) => {
-                  setAssignedUser(value || null);
-                }}
+                value={assignedUser}
+                onValueChange={setAssignedUser}
                 size="sm"
                 users={users}
               />
