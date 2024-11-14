@@ -16,7 +16,7 @@ interface AssociatedAssetsProps {
 }
 
 export default function AssociatedAssets({ entityId, entityType, companyId }: AssociatedAssetsProps) {
-    const [associatedAssets, setAssociatedAssets] = useState<(AssetAssociation & { asset?: Asset | null })[]>([]);
+    const [associatedAssets, setAssociatedAssets] = useState<AssetAssociation[]>([]);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [selectedAssetId, setSelectedAssetId] = useState<string>('');
     const [relationshipType, setRelationshipType] = useState<'affected' | 'related'>('affected');
@@ -45,20 +45,23 @@ export default function AssociatedAssets({ entityId, entityType, companyId }: As
     const loadAssociatedAssets = async () => {
         try {
             setIsLoading(true);
-            const associations = await listEntityAssets(entityId, entityType);
+            const assets = await listEntityAssets(entityId, entityType);
             
-            // Fetch full asset details for each association
-            const assetsWithDetails = await Promise.all(
-                associations.map(async (association): Promise<AssetAssociation & { asset?: Asset | null }> => {
-                    const asset = await getAsset(association.asset_id);
-                    return {
-                        ...association,
-                        asset
-                    };
-                })
+            // Create associations with assets
+            const associations: AssetAssociation[] = await Promise.all(
+                assets.map(async (asset): Promise<AssetAssociation> => ({
+                    tenant: asset.tenant,
+                    asset_id: asset.asset_id,
+                    entity_id: entityId,
+                    entity_type: entityType,
+                    relationship_type: relationshipType,
+                    created_by: 'system', // This should come from the actual association data
+                    created_at: new Date().toISOString(), // This should come from the actual association data
+                    asset: asset
+                }))
             );
 
-            setAssociatedAssets(assetsWithDetails);
+            setAssociatedAssets(associations);
         } catch (error) {
             console.error('Error loading associated assets:', error);
             toast.error('Failed to load associated assets');

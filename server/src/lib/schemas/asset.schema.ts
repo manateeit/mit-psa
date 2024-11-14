@@ -1,225 +1,289 @@
 import { z } from 'zod';
 
 // Base schemas
-export const tenantSchema = z.object({
-    tenant: z.string().uuid()
+const assetCompanyInfoSchema = z.object({
+  company_id: z.string().uuid(),
+  company_name: z.string()
 });
 
-// Asset type schemas
-export const assetTypeSchema = tenantSchema.extend({
+const assetRelationshipSchema = z.object({
+  tenant: z.string().uuid(),
+  parent_asset_id: z.string().uuid(),
+  child_asset_id: z.string().uuid(),
+  relationship_type: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  name: z.string()
+});
+
+// Extension table schemas
+const workstationAssetSchema = z.object({
+  tenant: z.string().uuid(),
+  asset_id: z.string().uuid(),
+  os_type: z.string(),
+  os_version: z.string(),
+  cpu_model: z.string(),
+  cpu_cores: z.number(),
+  ram_gb: z.number(),
+  storage_type: z.string(),
+  storage_capacity_gb: z.number(),
+  gpu_model: z.string().optional(),
+  last_login: z.string().optional(),
+  installed_software: z.array(z.unknown())
+});
+
+const networkDeviceAssetSchema = z.object({
+  tenant: z.string().uuid(),
+  asset_id: z.string().uuid(),
+  device_type: z.enum(['switch', 'router', 'firewall', 'access_point', 'load_balancer']),
+  management_ip: z.string(),
+  port_count: z.number(),
+  firmware_version: z.string(),
+  supports_poe: z.boolean(),
+  power_draw_watts: z.number(),
+  vlan_config: z.record(z.unknown()),
+  port_config: z.record(z.unknown())
+});
+
+const serverAssetSchema = z.object({
+  tenant: z.string().uuid(),
+  asset_id: z.string().uuid(),
+  os_type: z.string(),
+  os_version: z.string(),
+  cpu_model: z.string(),
+  cpu_cores: z.number(),
+  ram_gb: z.number(),
+  storage_config: z.array(z.unknown()),
+  raid_config: z.string().optional(),
+  is_virtual: z.boolean(),
+  hypervisor: z.string().optional(),
+  network_interfaces: z.array(z.unknown()),
+  primary_ip: z.string().optional(),
+  installed_services: z.array(z.unknown())
+});
+
+const mobileDeviceAssetSchema = z.object({
+  tenant: z.string().uuid(),
+  asset_id: z.string().uuid(),
+  os_type: z.string(),
+  os_version: z.string(),
+  model: z.string(),
+  imei: z.string().optional(),
+  phone_number: z.string().optional(),
+  carrier: z.string().optional(),
+  last_check_in: z.string().optional(),
+  is_supervised: z.boolean(),
+  installed_apps: z.array(z.unknown())
+});
+
+const printerAssetSchema = z.object({
+  tenant: z.string().uuid(),
+  asset_id: z.string().uuid(),
+  model: z.string(),
+  ip_address: z.string().optional(),
+  is_network_printer: z.boolean(),
+  supports_color: z.boolean(),
+  supports_duplex: z.boolean(),
+  max_paper_size: z.number().optional(),
+  supported_paper_types: z.array(z.unknown()),
+  monthly_duty_cycle: z.number().optional(),
+  supply_levels: z.record(z.unknown())
+});
+
+// Asset schemas
+export const assetSchema = z.object({
+  asset_id: z.string().uuid(),
+  type_id: z.string().uuid(),
+  company_id: z.string().uuid(),
+  asset_tag: z.string(),
+  serial_number: z.string().optional(),
+  name: z.string(),
+  status: z.string(),
+  location: z.string().optional(),
+  purchase_date: z.string().optional(),
+  warranty_end_date: z.string().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  tenant: z.string().uuid(),
+  company: assetCompanyInfoSchema.optional(),
+  relationships: z.array(assetRelationshipSchema).optional(),
+  workstation: workstationAssetSchema.optional(),
+  networkDevice: networkDeviceAssetSchema.optional(),
+  server: serverAssetSchema.optional(),
+  mobileDevice: mobileDeviceAssetSchema.optional(),
+  printer: printerAssetSchema.optional()
+});
+
+export const assetTypeSchema = z.object({
+    tenant: z.string().uuid(),
     type_id: z.string().uuid(),
-    type_name: z.string(),
+    type_name: z.string(), // Remove .nullable() and .transform()
     parent_type_id: z.string().uuid().optional(),
-    attributes_schema: z.record(z.any()).optional(),
+    attributes_schema: z.record(z.unknown()).optional(),
     created_at: z.string(),
     updated_at: z.string()
 });
 
-export const createAssetTypeSchema = z.object({
-    type_name: z.string(),
-    parent_type_id: z.string().uuid().optional(),
-    attributes_schema: z.record(z.any()).optional()
+// Asset association schemas
+export const assetAssociationSchema = z.object({
+  tenant: z.string().uuid(),
+  asset_id: z.string().uuid(),
+  entity_id: z.string().uuid(),
+  entity_type: z.enum(['ticket', 'project']),
+  relationship_type: z.string(),
+  created_by: z.string().uuid(),
+  created_at: z.string(),
+  asset: assetSchema.optional()
 });
 
-// Asset schemas
-export const assetSchema = tenantSchema.extend({
-    asset_id: z.string().uuid(),
-    type_id: z.string().uuid(),
-    company_id: z.string().uuid(),
-    asset_tag: z.string(),
-    serial_number: z.string().optional(),
-    name: z.string(),
-    status: z.string(),
-    location: z.string().optional(),
-    purchase_date: z.string().optional(),
-    warranty_end_date: z.string().optional(),
-    attributes: z.record(z.any()).optional(),
-    created_at: z.string(),
-    updated_at: z.string(),
-    documents: z.array(z.lazy(() => assetDocumentSchema)).optional(),
-    maintenanceSchedules: z.array(z.lazy(() => assetMaintenanceScheduleSchema)).optional(),
-    maintenanceHistory: z.array(z.lazy(() => assetMaintenanceHistorySchema)).optional()
+// Document schemas
+export const assetDocumentSchema = z.object({
+  tenant: z.string().uuid(),
+  association_id: z.string().uuid(),
+  asset_id: z.string().uuid(),
+  document_id: z.string().uuid(),
+  notes: z.string().optional(),
+  created_by: z.string().uuid(),
+  created_at: z.string(),
+  document_name: z.string(),
+  mime_type: z.string(),
+  file_size: z.number()
 });
 
+// Maintenance schemas
+const maintenanceFrequencySchema = z.enum([
+  'daily',
+  'weekly',
+  'monthly',
+  'quarterly',
+  'yearly',
+  'custom'
+]);
+
+const maintenanceTypeSchema = z.enum([
+  'preventive',
+  'inspection',
+  'calibration',
+  'replacement'
+]);
+
+export const assetMaintenanceScheduleSchema = z.object({
+  tenant: z.string().uuid(),
+  schedule_id: z.string().uuid(),
+  asset_id: z.string().uuid(),
+  schedule_name: z.string(),
+  description: z.string().optional(),
+  maintenance_type: maintenanceTypeSchema,
+  frequency: maintenanceFrequencySchema,
+  frequency_interval: z.number(),
+  schedule_config: z.record(z.unknown()),
+  next_maintenance: z.string(),
+  last_maintenance: z.string().optional(),
+  is_active: z.boolean(),
+  created_by: z.string().uuid(),
+  created_at: z.string(),
+  updated_at: z.string()
+});
+
+export const assetMaintenanceHistorySchema = z.object({
+  tenant: z.string().uuid(),
+  history_id: z.string().uuid(),
+  asset_id: z.string().uuid(),
+  schedule_id: z.string().uuid(),
+  performed_at: z.string(),
+  performed_by: z.string().uuid(),
+  notes: z.string().optional(),
+  maintenance_data: z.record(z.unknown()),
+  created_at: z.string()
+});
+
+// Request schemas
 export const createAssetSchema = z.object({
-    type_id: z.string().uuid(),
-    company_id: z.string().uuid(),
-    asset_tag: z.string(),
-    serial_number: z.string().optional(),
-    name: z.string(),
-    status: z.string(),
-    location: z.string().optional(),
-    purchase_date: z.string().optional(),
-    warranty_end_date: z.string().optional(),
-    attributes: z.record(z.any()).optional()
+  type_id: z.string().uuid(),
+  company_id: z.string().uuid(),
+  asset_tag: z.string(),
+  name: z.string(),
+  status: z.string(),
+  location: z.string().optional(),
+  serial_number: z.string().optional(),
+  purchase_date: z.string().optional(),
+  warranty_end_date: z.string().optional(),
+  workstation: workstationAssetSchema.omit({ tenant: true, asset_id: true }).optional(),
+  networkDevice: networkDeviceAssetSchema.omit({ tenant: true, asset_id: true }).optional(),
+  server: serverAssetSchema.omit({ tenant: true, asset_id: true }).optional(),
+  mobileDevice: mobileDeviceAssetSchema.omit({ tenant: true, asset_id: true }).optional(),
+  printer: printerAssetSchema.omit({ tenant: true, asset_id: true }).optional()
 });
 
 export const updateAssetSchema = createAssetSchema.partial();
 
-// Asset history schemas
-export const assetHistorySchema = tenantSchema.extend({
-    history_id: z.string().uuid(),
-    asset_id: z.string().uuid(),
-    changed_by: z.string().uuid(),
-    change_type: z.string(),
-    changes: z.record(z.any()),
-    changed_at: z.string()
-});
-
-// Asset association schemas
-export const assetAssociationSchema = tenantSchema.extend({
-    asset_id: z.string().uuid(),
-    entity_id: z.string().uuid(),
-    entity_type: z.enum(['ticket', 'project']),
-    relationship_type: z.enum(['affected', 'related']),
-    created_at: z.string(),
-    created_by: z.string().uuid(),
-    notes: z.string().optional()
+export const createAssetTypeSchema = z.object({
+  type_name: z.string(),
+  parent_type_id: z.string().uuid().optional(),
+  attributes_schema: z.record(z.unknown()).optional()
 });
 
 export const createAssetAssociationSchema = z.object({
-    asset_id: z.string().uuid(),
-    entity_id: z.string().uuid(),
-    entity_type: z.enum(['ticket', 'project']),
-    relationship_type: z.enum(['affected', 'related']),
-    notes: z.string().optional()
-});
-
-// Asset document schemas
-export const assetDocumentSchema = tenantSchema.extend({
-    association_id: z.string().uuid(),
-    asset_id: z.string().uuid(),
-    document_id: z.string().uuid(),
-    notes: z.string().optional(),
-    created_at: z.string(),
-    created_by: z.string().uuid(),
-    document_name: z.string().optional(),
-    mime_type: z.string().optional(),
-    file_size: z.number().optional(),
-    first_name: z.string().optional(),
-    last_name: z.string().optional()
-});
-
-// Asset maintenance schemas
-export const maintenanceTypeEnum = z.enum(['preventive', 'inspection', 'calibration', 'replacement']);
-export const maintenanceFrequencyEnum = z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom']);
-
-export const assetMaintenanceScheduleSchema = tenantSchema.extend({
-    schedule_id: z.string().uuid(),
-    asset_id: z.string().uuid(),
-    schedule_name: z.string(),
-    description: z.string().optional(),
-    maintenance_type: maintenanceTypeEnum,
-    frequency: maintenanceFrequencyEnum,
-    frequency_interval: z.number().positive(),
-    schedule_config: z.record(z.any()),
-    last_maintenance: z.string().optional(),
-    next_maintenance: z.string(),
-    is_active: z.boolean(),
-    created_by: z.string().uuid(),
-    created_at: z.string(),
-    updated_at: z.string()
+  asset_id: z.string().uuid(),
+  entity_id: z.string().uuid(),
+  entity_type: z.enum(['ticket', 'project']),
+  relationship_type: z.string()
 });
 
 export const createMaintenanceScheduleSchema = z.object({
-    asset_id: z.string().uuid(),
-    schedule_name: z.string(),
-    description: z.string().optional(),
-    maintenance_type: maintenanceTypeEnum,
-    frequency: maintenanceFrequencyEnum,
-    frequency_interval: z.number().positive(),
-    schedule_config: z.record(z.any()),
-    next_maintenance: z.string()
+  asset_id: z.string().uuid(),
+  schedule_name: z.string(),
+  description: z.string().optional(),
+  maintenance_type: maintenanceTypeSchema,
+  frequency: maintenanceFrequencySchema,
+  frequency_interval: z.number(),
+  schedule_config: z.record(z.unknown()),
+  next_maintenance: z.string()
 });
 
-export const updateMaintenanceScheduleSchema = z.object({
-    schedule_name: z.string().optional(),
-    description: z.string().optional(),
-    maintenance_type: maintenanceTypeEnum.optional(),
-    frequency: maintenanceFrequencyEnum.optional(),
-    frequency_interval: z.number().positive().optional(),
-    schedule_config: z.record(z.any()).optional(),
-    next_maintenance: z.string().optional(),
-    is_active: z.boolean().optional()
-});
-
-export const assetMaintenanceNotificationSchema = tenantSchema.extend({
-    notification_id: z.string().uuid(),
-    schedule_id: z.string().uuid(),
-    asset_id: z.string().uuid(),
-    notification_type: z.enum(['upcoming', 'due', 'overdue']),
-    notification_date: z.string(),
-    is_sent: z.boolean(),
-    sent_at: z.string().optional(),
-    notification_data: z.record(z.any()),
-    created_at: z.string()
-});
-
-export const assetMaintenanceHistorySchema = tenantSchema.extend({
-    history_id: z.string().uuid(),
-    schedule_id: z.string().uuid(),
-    asset_id: z.string().uuid(),
-    maintenance_type: maintenanceTypeEnum,
-    description: z.string(),
-    maintenance_data: z.record(z.any()),
-    performed_at: z.string(),
-    performed_by: z.string().uuid(),
-    created_at: z.string()
+export const updateMaintenanceScheduleSchema = createMaintenanceScheduleSchema.partial().extend({
+  is_active: z.boolean().optional()
 });
 
 export const createMaintenanceHistorySchema = z.object({
-    schedule_id: z.string().uuid(),
-    asset_id: z.string().uuid(),
-    maintenance_type: maintenanceTypeEnum,
-    description: z.string(),
-    maintenance_data: z.record(z.any()),
-    performed_at: z.string()
+  asset_id: z.string().uuid(),
+  schedule_id: z.string().uuid(),
+  performed_at: z.string(),
+  notes: z.string().optional(),
+  maintenance_data: z.record(z.unknown())
 });
 
-// Query params schema
 export const assetQuerySchema = z.object({
     company_id: z.string().uuid().optional(),
-    type_id: z.string().uuid().optional(),
+    type_id: z.string().optional(), // Remove UUID validation since it might be empty/null
     status: z.string().optional(),
-    search: z.string().optional(),
-    maintenance_status: z.enum(['due', 'overdue', 'upcoming', 'completed']).optional(),
-    maintenance_type: maintenanceTypeEnum.optional(),
-    start_date: z.string().optional(),
-    end_date: z.string().optional(),
     page: z.number().optional(),
-    limit: z.number().optional()
-});
+    limit: z.number().optional(),
+    include_extension_data: z.boolean().optional()
+  });
 
-// List response schema
-export const assetListResponseSchema = z.object({
-    assets: z.array(assetSchema),
-    total: z.number(),
-    page: z.number(),
-    limit: z.number()
-});
-
-// Maintenance reporting schemas
+// Report schemas
 export const assetMaintenanceReportSchema = z.object({
-    asset_id: z.string().uuid(),
-    asset_name: z.string(),
-    total_schedules: z.number(),
-    active_schedules: z.number(),
-    completed_maintenances: z.number(),
-    upcoming_maintenances: z.number(),
-    last_maintenance: z.string().optional(),
-    next_maintenance: z.string().optional(),
-    compliance_rate: z.number(),
-    maintenance_history: z.array(assetMaintenanceHistorySchema)
+  asset_id: z.string().uuid(),
+  asset_name: z.string(),
+  total_schedules: z.number(),
+  active_schedules: z.number(),
+  completed_maintenances: z.number(),
+  upcoming_maintenances: z.number(),
+  last_maintenance: z.string().optional(),
+  next_maintenance: z.string().optional(),
+  compliance_rate: z.number(),
+  maintenance_history: z.array(z.unknown())
 });
 
 export const clientMaintenanceSummarySchema = z.object({
-    company_id: z.string().uuid(),
-    company_name: z.string(),
-    total_assets: z.number(),
-    assets_with_maintenance: z.number(),
-    total_schedules: z.number(),
-    overdue_maintenances: z.number(),
-    upcoming_maintenances: z.number(),
-    compliance_rate: z.number(),
-    maintenance_by_type: z.record(z.number())
+  company_id: z.string().uuid(),
+  company_name: z.string(),
+  total_assets: z.number(),
+  assets_with_maintenance: z.number(),
+  total_schedules: z.number(),
+  overdue_maintenances: z.number(),
+  upcoming_maintenances: z.number(),
+  compliance_rate: z.number(),
+  maintenance_by_type: z.record(z.number())
 });

@@ -89,6 +89,8 @@ spec:
 
           # ----------- DB ----------------
           {{- if .Values.db.enabled }}
+          - name: DB_TYPE
+            value: "postgres"
           - name: DB_HOST
             value: "db.{{ .Values.namespace }}.svc.cluster.local"
           - name: DB_USER_SERVER
@@ -97,6 +99,18 @@ spec:
             value: "5432"
           - name: DB_NAME_SERVER
             value: "server"
+          - name: DB_USER_ADMIN
+            value: "postgres"
+          - name: DB_PASSWORD_ADMIN
+            valueFrom:
+              secretKeyRef:
+                name: db-credentials
+                key: DB_PASSWORD_SUPERUSER
+          - name: DB_PASSWORD_SUPERUSER
+            valueFrom:
+              secretKeyRef:
+                name: db-credentials
+                key: DB_PASSWORD_SUPERUSER                
           - name: DB_PASSWORD_SERVER
             valueFrom:
               secretKeyRef:
@@ -242,7 +256,11 @@ spec:
             value: "{{ .Values.crypto.key_length }}"
           - name: ALGORITHM
             value: "{{ .Values.crypto.algorithm }}"
-
+          - name: ALGA_AUTH_KEY
+            value: "{{ .Values.crypto.alga_auth_key }}"
+          - name: SECRET_KEY
+            value: "{{ .Values.crypto.secret_key }}"
+            
           # ----------- TOKEN ----------------
           - name: TOKEN_SECRET_KEY
             valueFrom:

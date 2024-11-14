@@ -6,6 +6,8 @@ import { DataTable } from '@/components/ui/DataTable';
 import { Asset, AssetListResponse, ClientMaintenanceSummary } from '@/interfaces/asset.interfaces';
 import { getClientMaintenanceSummary } from '@/lib/actions/asset-actions/assetActions';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface AssetDashboardProps {
   initialAssets: AssetListResponse;
@@ -15,6 +17,7 @@ export default function AssetDashboard({ initialAssets }: AssetDashboardProps) {
   const [assets] = useState<Asset[]>(initialAssets.assets);
   const [maintenanceSummaries, setMaintenanceSummaries] = useState<Record<string, ClientMaintenanceSummary>>({});
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   // Group assets by company
   const assetsByCompany = assets.reduce((acc, asset) => {
@@ -63,18 +66,62 @@ export default function AssetDashboard({ initialAssets }: AssetDashboardProps) {
     { totalSchedules: 0, overdueMaintenances: 0, upcomingMaintenances: 0 }
   );
 
+  const renderAssetDetails = (asset: Asset): string => {
+    if (asset.workstation) {
+      return `${asset.workstation.os_type} - ${asset.workstation.cpu_model} - ${asset.workstation.ram_gb}GB RAM`;
+    }
+    if (asset.networkDevice) {
+      return `${asset.networkDevice.device_type} - ${asset.networkDevice.management_ip || 'No IP'}`;
+    }
+    if (asset.server) {
+      return `${asset.server.os_type} - ${asset.server.cpu_model} - ${asset.server.ram_gb}GB RAM`;
+    }
+    if (asset.mobileDevice) {
+      return `${asset.mobileDevice.os_type} - ${asset.mobileDevice.model}`;
+    }
+    if (asset.printer) {
+      return `${asset.printer.model} - ${asset.printer.is_network_printer ? 'Network' : 'Local'}`;
+    }
+    return 'No details available';
+  };
+
   const columns: ColumnDefinition<Asset>[] = [
     { 
       dataIndex: 'name',
-      title: 'Name'
+      title: 'Name',
+      render: (value: unknown, record: Asset) => (
+        <Link 
+          href={`/msp/assets/${record.asset_id}`}
+          className="text-primary-600 hover:text-primary-700"
+        >
+          {record.name}
+        </Link>
+      )
     },
     { 
       dataIndex: 'asset_tag',
       title: 'Tag'
     },
+    {
+      dataIndex: 'details',
+      title: 'Details',
+      render: (_: unknown, record: Asset) => renderAssetDetails(record)
+    },
     { 
       dataIndex: 'status',
-      title: 'Status'
+      title: 'Status',
+      render: (value: unknown) => {
+        const status = value as string;
+        return (
+          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+            status === 'active' ? 'bg-green-100 text-green-800' :
+            status === 'inactive' ? 'bg-gray-100 text-gray-800' :
+            'bg-amber-100 text-amber-800'
+          }`}>
+            {status}
+          </span>
+        );
+      }
     },
     { 
       dataIndex: ['company', 'company_name'],
@@ -123,7 +170,7 @@ export default function AssetDashboard({ initialAssets }: AssetDashboardProps) {
       <Card className="p-4 border border-[rgb(var(--color-border-200))]">
         <h3 className="text-xl font-semibold mb-4 text-[rgb(var(--color-text-900))]">Asset Status Distribution</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {Object.entries(assetsByStatus).map(([status, count]):JSX.Element => (
+          {Object.entries(assetsByStatus).map(([status, count]): JSX.Element => (
             <div key={status} className="text-center p-4 rounded-lg bg-[rgb(var(--color-border-50))]">
               <p className="text-lg font-medium text-[rgb(var(--color-text-700))]">{status}</p>
               <p className="text-2xl font-bold text-[rgb(var(--color-text-900))]">{count}</p>
@@ -136,7 +183,7 @@ export default function AssetDashboard({ initialAssets }: AssetDashboardProps) {
       <Card className="p-4 border border-[rgb(var(--color-border-200))]">
         <h3 className="text-xl font-semibold mb-4 text-[rgb(var(--color-text-900))]">Assets by Company</h3>
         <div className="space-y-4">
-          {Object.entries(assetsByCompany).map(([companyId, companyAssets]):JSX.Element => {
+          {Object.entries(assetsByCompany).map(([companyId, companyAssets]): JSX.Element => {
             const summary = maintenanceSummaries[companyId];
             const companyName = companyAssets[0]?.company?.company_name || 'Unassigned';
             return (
@@ -184,6 +231,7 @@ export default function AssetDashboard({ initialAssets }: AssetDashboardProps) {
           columns={columns}
           data={assets.slice(0, 5)}
           pagination={false}
+          onRowClick={(asset) => router.push(`/msp/assets/${asset.asset_id}`)}
         />
       </Card>
 

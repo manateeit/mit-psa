@@ -1,13 +1,15 @@
-'use client'
+'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ClientMaintenanceSummary, Asset } from '@/interfaces/asset.interfaces';
+import { ClientMaintenanceSummary, Asset, AssetType } from '@/interfaces/asset.interfaces';
 import { DataTable } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
-import { getClientMaintenanceSummary, listAssets } from '@/lib/actions/asset-actions/assetActions';
+import { getClientMaintenanceSummary, listAssets, listAssetTypes } from '@/lib/actions/asset-actions/assetActions';
 import { Boxes, Plus, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import CustomSelect from '@/components/ui/CustomSelect';
+import { SelectOption } from '@/components/ui/Select';
 
 interface CompanyAssetsProps {
   companyId: string;
@@ -16,6 +18,8 @@ interface CompanyAssetsProps {
 const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
   const [summary, setSummary] = useState<ClientMaintenanceSummary | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
+  const [selectedType, setSelectedType] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
@@ -23,12 +27,14 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [summaryData, assetsData] = await Promise.all([
+        const [summaryData, assetsData, types] = await Promise.all([
           getClientMaintenanceSummary(companyId),
-          listAssets({ company_id: companyId })
+          listAssets({ company_id: companyId, type_id: selectedType }),
+          listAssetTypes()
         ]);
         setSummary(summaryData);
         setAssets(assetsData.assets);
+        setAssetTypes(types);
       } catch (error) {
         console.error('Error loading asset data:', error);
       } finally {
@@ -37,7 +43,26 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
     };
 
     loadData();
-  }, [companyId]);
+  }, [companyId, selectedType]);
+
+  const renderAssetDetails = (asset: Asset): string => {
+    if (asset.workstation) {
+      return `${asset.workstation.os_type} - ${asset.workstation.cpu_model} - ${asset.workstation.ram_gb}GB RAM`;
+    }
+    if (asset.networkDevice) {
+      return `${asset.networkDevice.device_type} - ${asset.networkDevice.management_ip || 'No IP'}`;
+    }
+    if (asset.server) {
+      return `${asset.server.os_type} - ${asset.server.cpu_model} - ${asset.server.ram_gb}GB RAM`;
+    }
+    if (asset.mobileDevice) {
+      return `${asset.mobileDevice.os_type} - ${asset.mobileDevice.model}`;
+    }
+    if (asset.printer) {
+      return `${asset.printer.model} - ${asset.printer.is_network_printer ? 'Network' : 'Local'}`;
+    }
+    return 'No details available';
+  };
 
   const columns = [
     {
@@ -45,7 +70,7 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
       dataIndex: 'asset_tag',
       render: (value: string, record: Asset) => (
         <Link 
-          href={`/msp/companies/${companyId}/assets/${record.asset_id}`}
+          href={`/msp/assets/${record.asset_id}`}
           className="text-primary-600 hover:text-primary-700"
         >
           {value}
@@ -55,6 +80,11 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
     {
       title: 'Name',
       dataIndex: 'name'
+    },
+    {
+      title: 'Details',
+      dataIndex: 'details',
+      render: (_: unknown, record: Asset) => renderAssetDetails(record)
     },
     {
       title: 'Serial Number',
@@ -153,8 +183,22 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex justify-end">
+      {/* Actions and Filters */}
+      <div className="flex justify-between items-center">
+        <div className="w-64">
+          <CustomSelect
+            options={[
+              { value: '', label: 'All Asset Types' },
+              ...assetTypes.map((type): SelectOption => ({
+                value: type.type_id,
+                label: type.type_name
+              }))
+            ]}
+            value={selectedType}
+            onValueChange={setSelectedType}
+            placeholder="Filter by type..."
+          />
+        </div>
         <Link href={`/msp/companies/${companyId}/assets/new`}>
           <Button className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
@@ -169,7 +213,7 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
         columns={columns}
         currentPage={currentPage}
         onPageChange={setCurrentPage}
-        onRowClick={(asset) => router.push(`/msp/companies/${companyId}/assets/${asset.asset_id}`)}
+        onRowClick={(asset) => router.push(`/msp/assets/${asset.asset_id}`)}
       />
 
       {/* Maintenance Type Breakdown */}

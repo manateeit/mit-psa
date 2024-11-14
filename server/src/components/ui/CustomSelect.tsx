@@ -1,4 +1,3 @@
-// components/CustomSelect.tsx
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import * as Select from '@radix-ui/react-select';
@@ -9,10 +8,10 @@ export interface SelectOption {
 }
 
 export interface StyleProps {
-  trigger?: string;
-  content?: string;
-  item?: string;
-  itemIndicator?: string;
+  trigger: string;
+  content: string;
+  item: string;
+  itemIndicator: string;
 }
 
 interface CustomSelectProps {
@@ -36,6 +35,37 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
 }) => {
   const selectedOption = options.find(option => option.value === value);
 
+interface Option {
+  value: string;
+  label: string;
+}
+
+interface CustomSelectProps {
+  value: string;
+  onValueChange: (value: string) => void;
+  options: Option[];
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+  customStyles?: {
+    trigger?: string;
+    content?: string;
+    item?: string;
+    itemIndicator?: string;
+  };
+}
+
+export const CustomSelect = ({
+  value,
+  onValueChange,
+  options,
+  placeholder,
+  disabled,
+  className = '',
+  customStyles,
+}: CustomSelectProps): JSX.Element => {
+  const selectedOption = options.find((option) => option.value === value);
+
   return (
     <Select.Root value={value} onValueChange={onValueChange} disabled={disabled}>
       <Select.Trigger
@@ -54,7 +84,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
           {selectedOption?.label || placeholder}
         </Select.Value>
         <Select.Icon>
-          <ChevronDown className="w-4 h-4 text-gray-400 ml-2" />
+          <ChevronDown className="w-4 h-4 text-gray-500" />
         </Select.Icon>
       </Select.Trigger>
 
@@ -94,5 +124,3 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
     </Select.Root>
   );
 };
-
-export default CustomSelect;
