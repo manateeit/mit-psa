@@ -1,20 +1,28 @@
 // components/CustomSelect.tsx
 import React from 'react';
-import { SelectOption } from './Select';
-import * as Select from '@radix-ui/react-select';
 import { ChevronDown } from 'lucide-react';
+import * as Select from '@radix-ui/react-select';
+
+export interface SelectOption {
+  value: string;
+  label: string;
+}
+
+export interface StyleProps {
+  trigger?: string;
+  content?: string;
+  item?: string;
+  itemIndicator?: string;
+}
 
 interface CustomSelectProps {
   options: SelectOption[];
   value: string;
   onValueChange: (value: string) => void;
   placeholder?: string;
-  customStyles?: {
-    trigger?: string;
-    content?: string;
-    item?: string;
-    itemIndicator?: string;
-  };
+  className?: string;
+  disabled?: boolean;
+  customStyles?: StyleProps;
 }
 
 const CustomSelect: React.FC<CustomSelectProps> = ({
@@ -22,14 +30,25 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   value,
   onValueChange,
   placeholder = 'Select...',
-  customStyles
+  className = '',
+  disabled = false,
+  customStyles,
 }) => {
   const selectedOption = options.find(option => option.value === value);
 
   return (
-    <Select.Root value={value} onValueChange={onValueChange}>
+    <Select.Root value={value} onValueChange={onValueChange} disabled={disabled}>
       <Select.Trigger
-        className={customStyles?.trigger || "inline-flex items-center justify-between border border-gray-300 rounded-lg p-2 bg-white cursor-pointer min-h-[38px] hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[150px] text-sm"}
+        className={`
+          inline-flex items-center justify-between
+          border border-gray-300 rounded-lg p-2
+          bg-white cursor-pointer min-h-[38px]
+          hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+          min-w-[150px] text-sm
+          disabled:opacity-50 disabled:cursor-not-allowed
+          ${className}
+          ${customStyles?.trigger || ''}
+        `}
       >
         <Select.Value placeholder={placeholder}>
           {selectedOption?.label || placeholder}
@@ -41,7 +60,11 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
 
       <Select.Portal>
         <Select.Content
-          className={customStyles?.content || "overflow-hidden bg-white rounded-md shadow-lg border border-gray-200 mt-1"}
+          className={`
+            overflow-hidden bg-white rounded-md shadow-lg
+            border border-gray-200 mt-1
+            ${customStyles?.content || ''}
+          `}
           position="popper"
           sideOffset={4}
         >
@@ -50,12 +73,17 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
               <Select.Item
                 key={option.value}
                 value={option.value}
-                className={customStyles?.item || "relative flex items-center px-3 py-2 text-sm rounded cursor-pointer hover:bg-gray-100 focus:bg-gray-100 focus:outline-none select-none"}
+                className={`
+                  relative flex items-center px-3 py-2 text-sm rounded
+                  cursor-pointer hover:bg-gray-100 focus:bg-gray-100
+                  focus:outline-none select-none
+                  ${customStyles?.item || ''}
+                `}
               >
                 <Select.ItemText>{option.label}</Select.ItemText>
                 {customStyles?.itemIndicator && (
                   <Select.ItemIndicator className={customStyles.itemIndicator}>
-                    <CheckIcon />
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
                   </Select.ItemIndicator>
                 )}
               </Select.Item>
@@ -66,11 +94,5 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
     </Select.Root>
   );
 };
-
-const CheckIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M11.4669 3.72684C11.7558 3.91574 11.8369 4.30308 11.648 4.59198L7.39799 11.092C7.29783 11.2452 7.13556 11.3467 6.95402 11.3699C6.77247 11.3931 6.58989 11.3355 6.45446 11.2124L3.70446 8.71241C3.44905 8.48022 3.43023 8.08494 3.66242 7.82953C3.89461 7.57412 4.28989 7.55529 4.5453 7.78749L6.75292 9.79441L10.6018 3.90792C10.7907 3.61902 11.178 3.53795 11.4669 3.72684Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd" />
-  </svg>
-);
 
 export default CustomSelect;
