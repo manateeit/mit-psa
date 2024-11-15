@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
-import { getCurrentUser } from '../actions/user-actions/userActions';
-import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink, IStatus, IProjectStatusMapping, IStandardStatus, ITaskChecklistItem, ItemType, IProjectTaskCardInfo } from '../../interfaces/project.interfaces';
+import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
+import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink, IStatus, IProjectStatusMapping, IStandardStatus, ITaskChecklistItem, ItemType, IProjectTaskCardInfo } from '@/interfaces/project.interfaces';
 import { Knex } from 'knex';
-import { createTenantKnex } from '../db';
+import { createTenantKnex } from '@/lib/db';
 
 const ProjectModel = {
   updatePhase: async (phaseId: string, phaseData: Partial<IProjectPhase>): Promise<IProjectPhase> => {
@@ -660,6 +660,35 @@ const ProjectModel = {
       return newPhase;
     } catch (error) {
       console.error('Error adding project phase:', error);
+      throw error;
+    }
+  },
+
+  deletePhase: async (phaseId: string): Promise<void> => {
+    try {
+      const {knex: db} = await createTenantKnex();
+      await db.transaction(async (trx: Knex.Transaction) => {
+        // First, delete all checklist items for tasks in this phase
+        await trx('task_checklist_items')
+          .whereIn('task_id', 
+            trx('project_tasks')
+              .select('task_id')
+              .where('phase_id', phaseId)
+          )
+          .del();
+
+        // Delete all tasks in the phase
+        await trx('project_tasks')
+          .where('phase_id', phaseId)
+          .del();
+
+        // Finally, delete the phase itself
+        await trx('project_phases')
+          .where('phase_id', phaseId)
+          .del();
+      });
+    } catch (error) {
+      console.error('Error deleting phase:', error);
       throw error;
     }
   },
