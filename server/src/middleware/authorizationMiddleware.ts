@@ -17,7 +17,6 @@ export async function authorizationMiddleware(req: NextRequest) {
   // Set the tenant based on the user's token
   // Assuming the token contains a 'tenant' field. Adjust this if your token structure is different.
   if (token && token.tenant) {
-    console.log('token: ' + token.tenant);
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set('x-tenant-id', token.tenant.toString());
 

@@ -10,8 +10,6 @@ export default withAuth(
       return NextResponse.redirect(new URL('/signin', req.url));
     }
     
-    console.log("*** Token found");  
-
     const authorizationResult = await authorizationMiddleware(req);
     if (authorizationResult.status === 403) {
       return NextResponse.rewrite(new URL("/Denied", req.url));
