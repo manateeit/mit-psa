@@ -1,22 +1,22 @@
 'use client';
 
 import React from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import CustomSelect from '@/components/ui/CustomSelect';
-import { useRouter } from 'next/navigation';
-import { createAsset } from '@/lib/actions/asset-actions/assetActions';
+import { createAsset, listAssetTypes } from '@/lib/actions/asset-actions/assetActions';
 import { TextArea } from '@/components/ui/TextArea';
-import { CreateAssetRequest } from '@/interfaces/asset.interfaces';
+import { CreateAssetRequest, AssetType } from '@/interfaces/asset.interfaces';
 import { Switch } from '@/components/ui/Switch';
+
 
 interface FormData {
   // Common fields
   name: string;
   asset_tag: string;
-  type: string;
+  type_id: string;
   status: 'active' | 'inactive' | 'maintenance';
   serial_number: string;
   location: string;
@@ -76,10 +76,12 @@ const NewAssetPage = () => {
   const companyId = searchParams?.get('company') || '';
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [assetTypes, setAssetTypes] = React.useState<AssetType[]>([]);
+  const [selectedType, setSelectedType] = React.useState<AssetType | null>(null);
   const [formData, setFormData] = React.useState<FormData>({
     name: '',
     asset_tag: '',
-    type: 'none',
+    type_id: '',
     status: 'active',
     serial_number: '',
     location: '',
@@ -88,92 +90,121 @@ const NewAssetPage = () => {
     notes: ''
   });
 
+  // Fetch asset types on component mount
+  React.useEffect(() => {
+    const fetchAssetTypes = async () => {
+      try {
+        const types = await listAssetTypes();
+        setAssetTypes(types);
+      } catch (error) {
+        console.error('Error fetching asset types:', error);
+      }
+    };
+    fetchAssetTypes();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
+  
     try {
       if (!companyId) {
         throw new Error('Company ID is required');
       }
-
-      if (formData.type === 'none') {
+  
+      if (!formData.type_id) {
         throw new Error('Please select an asset type');
       }
-
+  
+      // Helper function to safely convert date string to ISO format
+      const convertToISODate = (dateString: string | undefined): string | undefined => {
+        if (!dateString || dateString.trim() === '') {
+          return undefined;
+        }
+        return new Date(dateString).toISOString();
+      };
+  
       const assetData: CreateAssetRequest = {
-        type_id: formData.type,
+        type_id: formData.type_id,
         company_id: companyId,
         asset_tag: formData.asset_tag,
         name: formData.name,
         status: formData.status,
         location: formData.location || undefined,
         serial_number: formData.serial_number || undefined,
-        purchase_date: formData.purchase_date || undefined,
-        warranty_end_date: formData.warranty_end_date || undefined
+        purchase_date: convertToISODate(formData.purchase_date),
+        warranty_end_date: convertToISODate(formData.warranty_end_date)
       };
-
-      // Add type-specific data
-      if (formData.type === 'workstation') {
-        assetData.workstation = {
-          os_type: formData.os_type || '',
-          os_version: formData.os_version || '',
-          cpu_model: formData.cpu_model || '',
-          cpu_cores: Number(formData.cpu_cores) || 0,
-          ram_gb: Number(formData.ram_gb) || 0,
-          storage_type: formData.storage_type || '',
-          storage_capacity_gb: Number(formData.storage_capacity_gb) || 0,
-          gpu_model: formData.gpu_model,
-          installed_software: []
-        };
-      } else if (formData.type === 'network_device') {
-        assetData.networkDevice = {
-          device_type: formData.device_type || 'switch',
-          management_ip: formData.management_ip || '',
-          port_count: Number(formData.port_count) || 0,
-          firmware_version: formData.firmware_version || '',
-          supports_poe: formData.supports_poe || false,
-          power_draw_watts: Number(formData.power_draw_watts) || 0,
-          vlan_config: {},
-          port_config: {}
-        };
-      } else if (formData.type === 'server') {
-        assetData.server = {
-          os_type: formData.server_os_type || '',
-          os_version: formData.server_os_version || '',
-          cpu_model: formData.server_cpu_model || '',
-          cpu_cores: Number(formData.server_cpu_cores) || 0,
-          ram_gb: Number(formData.server_ram_gb) || 0,
-          storage_config: [],
-          raid_config: formData.raid_config,
-          is_virtual: formData.is_virtual || false,
-          hypervisor: formData.hypervisor,
-          network_interfaces: [],
-          primary_ip: formData.primary_ip,
-          installed_services: []
-        };
-      } else if (formData.type === 'mobile_device') {
-        assetData.mobileDevice = {
-          os_type: formData.mobile_os_type || '',
-          os_version: formData.mobile_os_version || '',
-          model: formData.model || '',
-          imei: formData.imei,
-          phone_number: formData.phone_number,
-          carrier: formData.carrier,
-          is_supervised: formData.is_supervised || false,
-          installed_apps: []
-        };
-      } else if (formData.type === 'printer') {
-        assetData.printer = {
-          model: formData.printer_model || '',
-          ip_address: formData.ip_address,
-          is_network_printer: formData.is_network_printer || false,
-          supports_color: formData.supports_color || false,
-          supports_duplex: formData.supports_duplex || false,
-          monthly_duty_cycle: Number(formData.monthly_duty_cycle) || 0,
-          supported_paper_types: [],
-          supply_levels: {}
-        };
+  
+      // Add type-specific data based on the selected type's name
+      if (selectedType) {
+        switch (selectedType.type_name.toLowerCase()) {
+          case 'workstation':
+            assetData.workstation = {
+              os_type: formData.os_type || '',
+              os_version: formData.os_version || '',
+              cpu_model: formData.cpu_model || '',
+              cpu_cores: Number(formData.cpu_cores) || 0,
+              ram_gb: Number(formData.ram_gb) || 0,
+              storage_type: formData.storage_type || '',
+              storage_capacity_gb: Number(formData.storage_capacity_gb) || 0,
+              gpu_model: formData.gpu_model || undefined,
+              installed_software: [] // Initialize as empty array
+            };
+            break;
+          case 'network_device':
+            assetData.networkDevice = {
+              device_type: formData.device_type || 'switch',
+              management_ip: formData.management_ip || '',
+              port_count: Number(formData.port_count) || 0,
+              firmware_version: formData.firmware_version || '',
+              supports_poe: formData.supports_poe || false,
+              power_draw_watts: Number(formData.power_draw_watts) || 0,
+              vlan_config: {},
+              port_config: {}
+            };
+            break;
+          case 'server':
+            assetData.server = {
+              os_type: formData.server_os_type || '',
+              os_version: formData.server_os_version || '',
+              cpu_model: formData.server_cpu_model || '',
+              cpu_cores: Number(formData.server_cpu_cores) || 0,
+              ram_gb: Number(formData.server_ram_gb) || 0,
+              storage_config: [],
+              raid_config: formData.raid_config,
+              is_virtual: formData.is_virtual || false,
+              hypervisor: formData.hypervisor,
+              network_interfaces: [],
+              primary_ip: formData.primary_ip,
+              installed_services: []
+            };
+            break;
+          case 'mobile_device':
+            assetData.mobileDevice = {
+              os_type: formData.mobile_os_type || '',
+              os_version: formData.mobile_os_version || '',
+              model: formData.model || '',
+              imei: formData.imei,
+              phone_number: formData.phone_number,
+              carrier: formData.carrier,
+              is_supervised: formData.is_supervised || false,
+              installed_apps: []
+            };
+            break;
+          case 'printer':
+            assetData.printer = {
+              model: formData.printer_model || '',
+              ip_address: formData.ip_address,
+              is_network_printer: formData.is_network_printer || false,
+              supports_color: formData.supports_color || false,
+              supports_duplex: formData.supports_duplex || false,
+              monthly_duty_cycle: Number(formData.monthly_duty_cycle) || 0,
+              supported_paper_types: [],
+              supply_levels: {}
+            };
+            break;
+        }
       }
 
       const asset = await createAsset(assetData);
@@ -186,10 +217,30 @@ const NewAssetPage = () => {
   };
 
   const handleInputChange = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: e.target.value
-    }));
+    setFormData(prev => {
+      // Handle date fields
+      if (e.target.type === 'date') {
+        // Store as ISO string internally but keep the input format as YYYY-MM-DD
+        return {
+          ...prev,
+          [field]: e.target.value // Store the YYYY-MM-DD format directly
+        };
+      }
+  
+      // Handle empty string values for optional fields
+      if (e.target.value === '') {
+        return {
+          ...prev,
+          [field]: undefined
+        };
+      }
+  
+      // Handle all other fields normally
+      return {
+        ...prev,
+        [field]: e.target.value
+      };
+    });
   };
 
   const handleSelectChange = (field: keyof FormData) => (value: string) => {
@@ -197,6 +248,12 @@ const NewAssetPage = () => {
       ...prev,
       [field]: value
     }));
+
+    // Update selected type when type_id changes
+    if (field === 'type_id') {
+      const type = assetTypes.find(t => t.type_id === value);
+      setSelectedType(type || null);
+    }
   };
 
   const handleSwitchChange = (field: keyof FormData) => (checked: boolean) => {
@@ -205,15 +262,6 @@ const NewAssetPage = () => {
       [field]: checked
     }));
   };
-
-  const typeOptions = [
-    { value: 'none', label: 'Select type' },
-    { value: 'workstation', label: 'Workstation' },
-    { value: 'server', label: 'Server' },
-    { value: 'network_device', label: 'Network Device' },
-    { value: 'mobile_device', label: 'Mobile Device' },
-    { value: 'printer', label: 'Printer' }
-  ];
 
   const statusOptions = [
     { value: 'active', label: 'Active' },
@@ -230,7 +278,9 @@ const NewAssetPage = () => {
   ];
 
   const renderTypeSpecificFields = () => {
-    switch (formData.type) {
+    if (!selectedType) return null;
+
+    switch (selectedType.type_name.toLowerCase()) {
       case 'workstation':
         return (
           <div className="space-y-6">
@@ -696,9 +746,12 @@ const NewAssetPage = () => {
                 Type
               </label>
               <CustomSelect
-                options={typeOptions}
-                value={formData.type}
-                onValueChange={handleSelectChange('type')}
+                options={assetTypes.map((type): { label: string; value: string } => ({
+                  value: type.type_id,
+                  label: type.type_name
+                }))}
+                value={formData.type_id}
+                onValueChange={handleSelectChange('type_id')}
                 placeholder="Select type"
               />
             </div>
@@ -761,7 +814,7 @@ const NewAssetPage = () => {
           </div>
 
           {/* Type-specific Fields */}
-          {formData.type !== 'none' && (
+          {selectedType && (
             <div className="border-t pt-6">
               <h2 className="text-lg font-semibold mb-4">Additional Details</h2>
               {renderTypeSpecificFields()}
@@ -790,7 +843,7 @@ const NewAssetPage = () => {
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting || formData.type === 'none'}
+              disabled={isSubmitting || !formData.type_id}
             >
               {isSubmitting ? 'Creating...' : 'Create Asset'}
             </Button>
