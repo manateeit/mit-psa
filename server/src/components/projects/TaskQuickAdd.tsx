@@ -10,7 +10,7 @@ import * as Select from '@radix-ui/react-select';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
 import EditableText from '@/components/ui/EditableText';
-import { FaPencilAlt } from 'react-icons/fa';
+import { ListChecks } from 'lucide-react';
 import UserPicker from '@/components/ui/UserPicker';
 import { toast } from 'react-hot-toast';
 
@@ -204,7 +204,7 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
                   className="text-gray-500 hover:text-gray-700"
                   type="button"
                 >
-                  <FaPencilAlt className="h-5 w-5" />
+                  <ListChecks className="h-5 w-5" />
                 </button>
               </div>
 

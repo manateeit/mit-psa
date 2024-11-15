@@ -685,7 +685,7 @@ export default function ProjectDetail({
           onClose={() => setDeletePhaseConfirmation(null)}
           onConfirm={handleDeletePhase}
           title="Delete Phase"
-          message={`Are you sure you want to delete phase "${deletePhaseConfirmation.phaseName}"? This will also delete all tasks in this phase.`}
+          message={`Are you sure you want to delete phase "${deletePhaseConfirmation.phaseName}"? This will also delete all tasks and their checklists in this phase.`}
           confirmLabel="Delete"
           cancelLabel="Cancel"
         />
