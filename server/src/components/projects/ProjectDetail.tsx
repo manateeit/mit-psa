@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink } from '@/interfaces/project.interfaces';
-import { Clipboard, PlayCircle, PauseCircle, CheckCircle, XCircle, Circle, Pencil, Check, X } from 'lucide-react';
+import { Clipboard, PlayCircle, PauseCircle, CheckCircle, XCircle, Circle, Pencil, Check, X, Trash2 } from 'lucide-react';
 import { useDrawer } from '@/context/DrawerContext';
 import TaskQuickAdd from './TaskQuickAdd';
 import TaskEdit from './TaskEdit';
 import PhaseQuickAdd from './PhaseQuickAdd';
 import { Button } from '@/components/ui/Button';
-import { updateTaskStatus, getProjectTaskStatuses, ProjectStatus, updatePhase, moveTaskToPhase, updateTask } from '@/lib/actions/projectActions';
+import { updateTaskStatus, getProjectTaskStatuses, ProjectStatus, updatePhase, moveTaskToPhase, updateTask, deletePhase } from '@/lib/actions/projectActions';
 import styles from './ProjectDetail.module.css';
 import { Toaster, toast } from 'react-hot-toast';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
@@ -57,6 +57,10 @@ export default function ProjectDetail({
   const [defaultStatus, setDefaultStatus] = useState<ProjectStatus | null>(null);
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [editingPhaseName, setEditingPhaseName] = useState('');
+  const [deletePhaseConfirmation, setDeletePhaseConfirmation] = useState<{
+    phaseId: string;
+    phaseName: string;
+  } | null>(null);
   
   const [dragOverPhaseId, setDragOverPhaseId] = useState<string | null>(null);
   const [moveConfirmation, setMoveConfirmation] = useState<{
@@ -313,6 +317,26 @@ export default function ProjectDetail({
     setEditingPhaseName('');
   };
 
+  const handleDeletePhase = async () => {
+    if (!deletePhaseConfirmation) return;
+
+    try {
+      await deletePhase(deletePhaseConfirmation.phaseId);
+      setProjectPhases(prevPhases => 
+        prevPhases.filter(phase => phase.phase_id !== deletePhaseConfirmation.phaseId)
+      );
+      if (selectedPhase?.phase_id === deletePhaseConfirmation.phaseId) {
+        setSelectedPhase(null);
+      }
+      toast.success('Phase deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting phase:', error);
+      toast.error('Failed to delete phase. Please try again.');
+    } finally {
+      setDeletePhaseConfirmation(null);
+    }
+  };
+
   const handleEmptyTaskUpdate = async (_: IProjectTask | null) => {
     // This is a no-op function for non-edit mode
     return Promise.resolve();
@@ -399,16 +423,31 @@ export default function ProjectDetail({
             ) : (
               <>
                 <span>{phase.wbs_code} {phase.phase_name}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditPhase(phase);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-200"
-                  title="Edit phase name"
-                >
-                  <Pencil className="w-4 h-4 text-gray-500 hover:text-gray-700" />
-                </button>
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditPhase(phase);
+                    }}
+                    className="p-1 rounded hover:bg-gray-200"
+                    title="Edit phase name"
+                  >
+                    <Pencil className="w-4 h-4 text-gray-500 hover:text-gray-700" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletePhaseConfirmation({
+                        phaseId: phase.phase_id,
+                        phaseName: phase.phase_name
+                      });
+                    }}
+                    className="p-1 rounded hover:bg-red-100"
+                    title="Delete phase"
+                  >
+                    <Trash2 className="w-4 h-4 text-gray-500 hover:text-red-700" />
+                  </button>
+                </div>
               </>
             )}
           </li>
@@ -485,7 +524,7 @@ export default function ProjectDetail({
                 onClick={() => handleAddCard(status)}
                 disabled={isAddingTask}
               >
-                {isAddingTask ? 'Adding...' : 'Add Card'}
+                {isAddingTask ? 'Adding...' : 'Add Task'}
               </button>
             </div>
           </div>
@@ -635,6 +674,19 @@ export default function ProjectDetail({
           title="Move Task"
           message={`Are you sure you want to move task "${moveConfirmation.taskName}" from phase "${moveConfirmation.sourcePhase.phase_name}" to "${moveConfirmation.targetPhase.phase_name}"?`}
           confirmLabel="Move"
+          cancelLabel="Cancel"
+        />
+      )}
+
+      {/* Delete Phase Confirmation Dialog */}
+      {deletePhaseConfirmation && (
+        <ConfirmationDialog
+          isOpen={true}
+          onClose={() => setDeletePhaseConfirmation(null)}
+          onConfirm={handleDeletePhase}
+          title="Delete Phase"
+          message={`Are you sure you want to delete phase "${deletePhaseConfirmation.phaseName}"? This will also delete all tasks and their checklists in this phase.`}
+          confirmLabel="Delete"
           cancelLabel="Cancel"
         />
       )}

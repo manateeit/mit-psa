@@ -1,5 +1,4 @@
-'use client';
-
+// server/src/components/projects/TaskEdit.tsx
 import React, { useState, useEffect } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
@@ -9,7 +8,7 @@ import * as Select from '@radix-ui/react-select';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
 import EditableText from '@/components/ui/EditableText';
-import { FaPencilAlt } from 'react-icons/fa';
+import { ListChecks } from 'lucide-react';
 import UserPicker from '@/components/ui/UserPicker';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import { toast } from 'react-hot-toast';
@@ -42,8 +41,6 @@ const TaskEdit: React.FC<TaskEditProps> = ({
   const [assignedUser, setAssignedUser] = useState<string | null>(task.assigned_to);
   const [selectedPhase, setSelectedPhase] = useState<IProjectPhase>(phase);
   const [showMoveConfirmation, setShowMoveConfirmation] = useState(false);
-  const [estimatedHours, setEstimatedHours] = useState<number>(Number(task.estimated_hours) || 0);
-  const [actualHours, setActualHours] = useState<number>(Number(task.actual_hours) || 0);
 
   useEffect(() => {
     const loadTaskData = async () => {
@@ -73,12 +70,12 @@ const TaskEdit: React.FC<TaskEditProps> = ({
       // First move the task to new phase
       const movedTask = await moveTaskToPhase(task.task_id, selectedPhase.phase_id);
       
-      // Then update the task
+      // Then update the task with proper number values
       if (movedTask) {
         const updatedTask = await updateTask(movedTask.task_id, {
           ...movedTask,
-          estimated_hours: estimatedHours,
-          actual_hours: actualHours
+          estimated_hours: Number(movedTask.estimated_hours) || 0,
+          actual_hours: Number(movedTask.actual_hours) || 0
         }, checklistItems);
         onTaskUpdated(updatedTask);
       }
@@ -107,8 +104,8 @@ const TaskEdit: React.FC<TaskEditProps> = ({
         wbs_code: task.wbs_code,
         description: description,
         assigned_to: assignedUser,
-        estimated_hours: estimatedHours,
-        actual_hours: actualHours,
+        estimated_hours: Number(task.estimated_hours) || 0,
+        actual_hours: Number(task.actual_hours) || 0,
         due_date: task.due_date,
         phase_id: phase.phase_id
       };
@@ -160,7 +157,7 @@ const TaskEdit: React.FC<TaskEditProps> = ({
     setChecklistItems([...checklistItems, newItem]);
   };
 
-  const updateChecklistItem = (index: number, field: keyof ITaskChecklistItem, value: string | boolean | null | Date) => {
+  const updateChecklistItem = (index: number, field: keyof ITaskChecklistItem, value: any) => {
     const updatedItems = [...checklistItems];
     updatedItems[index] = { ...updatedItems[index], [field]: value };
     setChecklistItems(updatedItems);
@@ -262,36 +259,6 @@ const TaskEdit: React.FC<TaskEditProps> = ({
                 users={users}
               />
 
-              {/* Hours inputs */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Estimated Hours
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={estimatedHours}
-                    onChange={(e) => setEstimatedHours(Number(e.target.value))}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Actual Hours
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={actualHours}
-                    onChange={(e) => setActualHours(Number(e.target.value))}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-              </div>
-
               <div className="flex items-center justify-between mb-2">
                 <h3 className='font-semibold'>Checklist</h3>
                 <button 
@@ -299,7 +266,7 @@ const TaskEdit: React.FC<TaskEditProps> = ({
                   className="text-gray-500 hover:text-gray-700"
                   type="button"
                 >
-                  <FaPencilAlt className="h-5 w-5" />
+                  <ListChecks className="h-5 w-5" />
                 </button>
               </div>
 

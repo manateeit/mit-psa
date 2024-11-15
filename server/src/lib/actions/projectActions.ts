@@ -83,6 +83,21 @@ export async function updatePhase(phaseId: string, phaseData: Partial<IProjectPh
     }
 }
 
+export async function deletePhase(phaseId: string): Promise<void> {
+    try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+            throw new Error("user not found");
+        }
+
+        await checkPermission(currentUser, 'project', 'delete');
+        await ProjectModel.deletePhase(phaseId);
+    } catch (error) {
+        console.error('Error deleting project phase:', error);
+        throw error;
+    }
+}
+
 export async function moveTaskToPhase(taskId: string, newPhaseId: string): Promise<IProjectTask> {
     try {
         const currentUser = await getCurrentUser();
@@ -570,4 +585,3 @@ export async function deleteTask(taskId: string): Promise<void> {
         throw error;
     }
 }
-

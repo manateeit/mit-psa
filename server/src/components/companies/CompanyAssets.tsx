@@ -19,7 +19,7 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
   const [summary, setSummary] = useState<ClientMaintenanceSummary | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
-  const [selectedType, setSelectedType] = useState<string>('');
+  const [selectedType, setSelectedType] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
@@ -29,7 +29,7 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
       try {
         const [summaryData, assetsData, types] = await Promise.all([
           getClientMaintenanceSummary(companyId),
-          listAssets({ company_id: companyId, type_id: selectedType }),
+          listAssets({ company_id: companyId, type_id: selectedType === 'all' ? undefined : selectedType }),
           listAssetTypes()
         ]);
         setSummary(summaryData);
@@ -188,7 +188,7 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
         <div className="w-64">
           <CustomSelect
             options={[
-              { value: '', label: 'All Asset Types' },
+              { value: 'all', label: 'All Asset Types' },
               ...assetTypes.map((type): SelectOption => ({
                 value: type.type_id,
                 label: type.type_name
@@ -199,7 +199,7 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
             placeholder="Filter by type..."
           />
         </div>
-        <Link href={`/msp/companies/${companyId}/assets/new`}>
+        <Link href={`/msp/assets/new?company=${companyId}`}>
           <Button className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             Add Asset
