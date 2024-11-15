@@ -524,7 +524,7 @@ export default function ProjectDetail({
                 onClick={() => handleAddCard(status)}
                 disabled={isAddingTask}
               >
-                {isAddingTask ? 'Adding...' : 'Add Card'}
+                {isAddingTask ? 'Adding...' : 'Add Task'}
               </button>
             </div>
           </div>
