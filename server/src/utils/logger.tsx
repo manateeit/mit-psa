@@ -89,41 +89,38 @@ const jsonFormat = winston.format.combine(
   winston.format.json()
 );
 
-
-
-
 const prettyFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.errors({ stack: true }),
   winston.format.splat(),
   winston.format.metadata({ fillExcept: ['message', 'level', 'timestamp', 'label'] }),
-  winston.format.printf(({ timestamp, level, message, metadata, stack, ...rest }) => {
-    // Pad the level to a minimum of 10 characters
+  winston.format.printf((info: winston.Logform.TransformableInfo) => {
+    const { timestamp, level, message, metadata = {}, stack, ...rest } = info;
+    const meta = metadata as Record<string, any>;
     const paddedLevel = level.toUpperCase().padEnd(7);
-    const file= getCallerInfo();
+    const file = getCallerInfo();
     let logMessage = `${timestamp} [${paddedLevel}]`;
     
-    if (metadata.label) {
-      logMessage += ` [${metadata.label}]`;
+    if (meta.label) {
+      logMessage += ` [${meta.label}]`;
     }
     
     logMessage += ` [PID:${process.pid}]`;
     
-    if (metadata.filename && metadata.line) {
-      logMessage += ` [${metadata.filename}:${metadata.line}]`;
+    if (meta.filename && meta.line) {
+      logMessage += ` [${meta.filename}:${meta.line}]`;
     }
     
     logMessage += ` (${file}) :`;
 
-     // Stringify objects and arrays
     if (typeof message === 'object' && message !== null) {
       logMessage += ` ${JSON.stringify(message, null, 2)}`;
     } else {
       logMessage += ` ${message}`;
     }
     
-    if (Object.keys(metadata).length > 0) {
-      logMessage += ` ${JSON.stringify(metadata)}`;
+    if (Object.keys(meta).length > 0) {
+      logMessage += ` ${JSON.stringify(meta)}`;
     }
     
     if (stack) {
