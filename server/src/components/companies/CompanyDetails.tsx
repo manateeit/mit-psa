@@ -22,7 +22,7 @@ import { useDrawer } from '@/context/DrawerContext';
 import { ArrowLeft } from 'lucide-react';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { TextArea } from '@/components/ui/TextArea';
 import CompanyAssets from './CompanyAssets';
 
@@ -128,6 +128,12 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
   const [interactions, setInteractions] = useState<IInteraction[]>([]);
   const [currentUser, setCurrentUser] = useState<IUserWithRoles | null>(null);
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const drawer = useDrawer();
+
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -140,9 +146,6 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
 
     fetchUser();
   }, []);
-
-  const drawer = useDrawer();
-  const router = useRouter();
 
   const handleBack = () => {
     if (isInDrawer) {
@@ -210,6 +213,12 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
   const handleDocumentCreated = async (): Promise<void> => {
     // Handle the newly created document if needed
     console.log('New document created');
+  };
+
+  const handleTabChange = (tabValue: string) => {
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    params.set('tab', tabValue);
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const tabContent = [
@@ -389,6 +398,16 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
     }
   ];
 
+  // Find the matching tab label case-insensitively
+  const findTabLabel = (urlTab: string | null | undefined): string => {
+    if (!urlTab) return 'Details';
+    
+    const matchingTab = tabContent.find(
+      tab => tab.label.toLowerCase() === urlTab.toLowerCase()
+    );
+    return matchingTab?.label || 'Details';
+  };
+
   return (
     <div className="max-w-4xl mx-auto bg-gray-50 p-6 relative">
       <Button
@@ -402,7 +421,11 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
       </Button>
       <Heading size="6" className="mb-6 mt-12">{editedCompany.company_name}</Heading>
 
-      <CustomTabs tabs={tabContent} />
+      <CustomTabs 
+        tabs={tabContent} 
+        defaultTab={findTabLabel(searchParams?.get('tab'))}
+        onTabChange={handleTabChange}
+      />
 
       <QuickAddTicket 
         open={isQuickAddTicketOpen}
