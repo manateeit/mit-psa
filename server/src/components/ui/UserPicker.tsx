@@ -2,7 +2,7 @@
 import React from 'react';
 import AvatarIcon from '@/components/ui/AvatarIcon';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { Select } from '@/components/ui/Select';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface UserPickerProps {
   label: string;
@@ -16,12 +16,17 @@ const UserPicker: React.FC<UserPickerProps> = ({ label, value, onValueChange, si
   const currentUser = users.find(user => user.user_id === value);
   
   const options = [
-    { value: '', label: 'Not assigned' },
+    { value: 'unassigned', label: 'Not assigned' },
     ...users.map((user): { value: string; label: string; } => ({
       value: user.user_id,
       label: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unnamed User',
     }))
   ];
+
+  // Convert empty string to 'unassigned' and vice versa
+  const handleValueChange = (newValue: string) => {
+    onValueChange(newValue === 'unassigned' ? '' : newValue);
+  };
 
   return (
     <div className="relative">
@@ -36,9 +41,9 @@ const UserPicker: React.FC<UserPickerProps> = ({ label, value, onValueChange, si
         )}
         <h5 className="font-bold">{label}</h5>
       </div>
-      <Select
-        value={value}
-        onChange={onValueChange}
+      <CustomSelect
+        value={value || 'unassigned'}
+        onValueChange={handleValueChange}
         options={options}
         placeholder="Select user..."
       />
