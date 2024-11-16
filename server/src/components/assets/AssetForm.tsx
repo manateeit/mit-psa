@@ -5,20 +5,10 @@ import { Asset, CreateAssetRequest, WorkstationAsset, NetworkDeviceAsset, Server
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { getAsset, updateAsset } from '@/lib/actions/asset-actions/assetActions';
 import { useRouter } from 'next/navigation';
-import { 
-  Monitor,
-  Network,
-  Server,
-  Smartphone,
-  Printer as PrinterIcon,
-  Router,
-  Shield,
-  Radio,
-  Scale
-} from 'lucide-react';
+import { Monitor, Network, Server, Smartphone, Printer as PrinterIcon, Router, Shield, Radio, Scale } from 'lucide-react';
 import { Text } from '@radix-ui/themes';
 
 interface AssetFormProps {
@@ -258,9 +248,9 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
           <label className="block text-sm font-medium text-[rgb(var(--color-text-700))]">
             OS Type
           </label>
-          <Select
+          <CustomSelect
             value={formData.workstation.os_type || ''}
-            onChange={(value) => handleTypeSpecificChange('workstation', 'os_type', value)}
+            onValueChange={(value) => handleTypeSpecificChange('workstation', 'os_type', value)}
             options={OS_TYPES}
             className="mt-1"
           />
@@ -311,9 +301,9 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
           <label className="block text-sm font-medium text-[rgb(var(--color-text-700))]">
             Storage Type
           </label>
-          <Select
+          <CustomSelect
             value={formData.workstation.storage_type || ''}
-            onChange={(value) => handleTypeSpecificChange('workstation', 'storage_type', value)}
+            onValueChange={(value) => handleTypeSpecificChange('workstation', 'storage_type', value)}
             options={STORAGE_TYPES}
             className="mt-1"
           />
@@ -353,9 +343,9 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
           <label className="block text-sm font-medium text-[rgb(var(--color-text-700))]">
             Device Type
           </label>
-          <Select
+          <CustomSelect
             value={formData.networkDevice.device_type || ''}
-            onChange={(value) => handleTypeSpecificChange('networkDevice', 'device_type', value)}
+            onValueChange={(value) => handleTypeSpecificChange('networkDevice', 'device_type', value)}
             options={NETWORK_DEVICE_TYPES}
             className="mt-1"
           />
@@ -427,9 +417,9 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
           <label className="block text-sm font-medium text-[rgb(var(--color-text-700))]">
             OS Type
           </label>
-          <Select
+          <CustomSelect
             value={formData.server.os_type || ''}
-            onChange={(value) => handleTypeSpecificChange('server', 'os_type', value)}
+            onValueChange={(value) => handleTypeSpecificChange('server', 'os_type', value)}
             options={OS_TYPES}
             className="mt-1"
           />
@@ -533,9 +523,9 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
           <label className="block text-sm font-medium text-[rgb(var(--color-text-700))]">
             OS Type
           </label>
-          <Select
+          <CustomSelect
             value={formData.mobileDevice.os_type || ''}
-            onChange={(value) => handleTypeSpecificChange('mobileDevice', 'os_type', value)}
+            onValueChange={(value) => handleTypeSpecificChange('mobileDevice', 'os_type', value)}
             options={[
               { value: 'ios', label: 'iOS' },
               { value: 'android', label: 'Android' }
@@ -883,10 +873,10 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                 <label htmlFor="status" className="block text-sm font-medium text-[rgb(var(--color-text-700))]">
                   Status
                 </label>
-                <Select
+                <CustomSelect
                   id="status"
                   value={formData.status}
-                  onChange={handleSelectChange}
+                  onValueChange={handleSelectChange}
                   options={STATUS_OPTIONS}
                   required
                   className="mt-1"

@@ -61,11 +61,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
           `}
           {...props}
         >
-          {placeholder && (
-            <option value="" disabled hidden>
-              {placeholder}
-            </option>
-          )}
+          <option value="">{placeholder}</option>
           {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -93,12 +89,13 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
             hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
             min-w-[150px] text-sm text-gray-900
             disabled:opacity-50 disabled:cursor-not-allowed
+            data-[placeholder]:text-gray-500
             ${className}
             ${customStyles?.trigger || ''}
           `}
         >
           <RadixSelect.Value placeholder={placeholder}>
-            {selectedOption?.label || placeholder}
+            {selectedOption?.label}
           </RadixSelect.Value>
           <RadixSelect.Icon>
             <ChevronDown className="w-4 h-4 text-gray-500" />
@@ -109,7 +106,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
           <RadixSelect.Content
             className={`
               overflow-hidden bg-white rounded-md shadow-lg
-              border border-gray-200 mt-1
+              border border-gray-200 mt-1 z-50
               ${customStyles?.content || ''}
             `}
             position="popper"
@@ -122,7 +119,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
                   value={option.value}
                   className={`
                     relative flex items-center px-3 py-2 text-sm rounded text-gray-900
-                    cursor-pointer hover:bg-gray-100 focus:bg-gray-100
+                    cursor-pointer bg-white hover:bg-gray-100 focus:bg-gray-100
                     focus:outline-none select-none
                     ${customStyles?.item || ''}
                   `}

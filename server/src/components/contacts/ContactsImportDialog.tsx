@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { DataTable } from '@/components/ui/DataTable';
 import { Switch } from '@/components/ui/Switch';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
@@ -73,7 +73,7 @@ const ContactsImportDialog: React.FC<ContactsImportDialogProps> = ({
 
   const getFieldOptions = () => {
     return [
-      { value: '', label: 'Select field' },
+      { value: 'unassigned', label: 'Select field' },
       ...Object.entries(CONTACT_FIELDS).map(([value, label]: [string, string]): FieldOption => ({
         value,
         label,
@@ -134,7 +134,7 @@ const ContactsImportDialog: React.FC<ContactsImportDialogProps> = ({
     setColumnMappings(prev =>
       prev.map((mapping: ICSVColumnMapping): ICSVColumnMapping =>
         mapping.csvHeader === csvHeader
-          ? { ...mapping, contactField: value as MappableField | null }
+          ? { ...mapping, contactField: value === 'unassigned' ? null : value as MappableField }  // Convert 'unassigned' to null
           : mapping
       )
     );
@@ -440,10 +440,10 @@ const ContactsImportDialog: React.FC<ContactsImportDialogProps> = ({
                 {columnMappings.map((mapping: ICSVColumnMapping, index: number): JSX.Element => (
                   <div key={index} className="flex items-center gap-4">
                     <span className="w-1/3">{mapping.csvHeader}</span>
-                    <Select
+                    <CustomSelect
                       options={getFieldOptions()}
-                      value={mapping.contactField || ''}
-                      onChange={(value) => handleMapColumn(mapping.csvHeader, value)}
+                      value={mapping.contactField || 'unassigned'}
+                      onValueChange={(value) => handleMapColumn(mapping.csvHeader, value)}
                       className="w-2/3"
                     />
                   </div>
