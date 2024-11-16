@@ -4,13 +4,19 @@ import { ITicket } from '@/interfaces/ticket.interfaces';
 import Ticket from '@/lib/models/ticket';
 import { formatDistanceToNow } from 'date-fns';
 import BackNav from '@/components/ui/BackNav';
+import { getTenantForCurrentRequest } from '@/lib/tenant';
 
 const TicketPage = async ({ params }: { params: { id: string } }) => {
   const { id } = params;
 
   let ticket: ITicket | undefined;
+  let tenant: string | undefined;
 
   try {
+    // Get tenant first
+    const tenantResult = await getTenantForCurrentRequest();
+    tenant = tenantResult || undefined;
+    
     // Get ticket details
     ticket = await Ticket.get(id);
   } catch (error) {
@@ -38,7 +44,7 @@ const TicketPage = async ({ params }: { params: { id: string } }) => {
         )}
       </div>
 
-      <TicketDetails initialTicket={ticket} />
+      <TicketDetails initialTicket={{...ticket, tenant}} />
     </div>
   );
 }

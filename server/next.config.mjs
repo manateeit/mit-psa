@@ -10,7 +10,6 @@ const __dirname = path.dirname(__filename);
 const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['knex'],
-    externalDir: true,
   },
   webpack: (config, { isServer }) => {
     // Disable webpack cache

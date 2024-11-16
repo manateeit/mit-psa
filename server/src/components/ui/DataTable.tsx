@@ -33,6 +33,7 @@ export const DataTable = <T extends object>({
   currentPage = 1,
   onPageChange,
   pageSize = 10,
+  totalItems,
 }: DataTableProps<T>): React.ReactElement => {
   // Create stable column definitions
   const tableColumns = useMemo<ColumnDef<T>[]>(
@@ -50,16 +51,12 @@ export const DataTable = <T extends object>({
     }))]
   );
 
-  // Calculate pagination values
-  const totalPages = Math.ceil(data.length / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, data.length);
-  
-  // Get the current page's data
-  const currentPageData = useMemo(() => data.slice(startIndex, endIndex), [data, startIndex, endIndex]);
+  // Calculate pagination values using totalItems if provided, otherwise use data.length
+  const total = totalItems ?? data.length;
+  const totalPages = Math.ceil(total / pageSize);
 
   const table = useReactTable({
-    data: currentPageData,
+    data,
     columns: tableColumns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -145,7 +142,7 @@ export const DataTable = <T extends object>({
               Previous
             </button>
             <span className="text-sm text-[rgb(var(--color-text-700))]">
-              Page {currentPage} of {totalPages} ({data.length} total records)
+              Page {currentPage} of {totalPages} ({total} total records)
             </span>
             <button
               onClick={handleNextPage}

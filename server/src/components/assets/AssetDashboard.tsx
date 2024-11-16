@@ -4,17 +4,18 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { DataTable } from '@/components/ui/DataTable';
 import { Asset, AssetListResponse, ClientMaintenanceSummary } from '@/interfaces/asset.interfaces';
-import { getClientMaintenanceSummary } from '@/lib/actions/asset-actions/assetActions';
+import { getClientMaintenanceSummary, listAssets } from '@/lib/actions/asset-actions/assetActions';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { QuickAddAsset } from './QuickAddAsset';
 
 interface AssetDashboardProps {
   initialAssets: AssetListResponse;
 }
 
 export default function AssetDashboard({ initialAssets }: AssetDashboardProps) {
-  const [assets] = useState<Asset[]>(initialAssets.assets);
+  const [assets, setAssets] = useState<Asset[]>(initialAssets.assets);
   const [maintenanceSummaries, setMaintenanceSummaries] = useState<Record<string, ClientMaintenanceSummary>>({});
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -85,6 +86,16 @@ export default function AssetDashboard({ initialAssets }: AssetDashboardProps) {
     return 'No details available';
   };
 
+  const handleAssetAdded = async () => {
+    try {
+      const response = await listAssets({});
+      setAssets(response.assets);
+    } catch (error) {
+      console.error('Error reloading assets:', error);
+    }
+    router.refresh();
+  };
+
   const columns: ColumnDefinition<Asset>[] = [
     { 
       dataIndex: 'name',
@@ -139,6 +150,12 @@ export default function AssetDashboard({ initialAssets }: AssetDashboardProps) {
 
   return (
     <div className="space-y-6 p-6">
+      {/* Header with Add Asset Button */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-[rgb(var(--color-text-900))]">Assets</h1>
+        <QuickAddAsset onAssetAdded={handleAssetAdded} />
+      </div>
+
       {/* Overview Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-4 border border-[rgb(var(--color-border-200))]">

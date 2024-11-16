@@ -23,4 +23,5 @@ export interface DataTableProps<T> {
   currentPage?: number;
   onPageChange?: (page: number) => void;
   pageSize?: number;
+  totalItems?: number;  // Added for server-side pagination support
 }
