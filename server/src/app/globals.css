@@ -14,6 +14,11 @@ body,
     margin: 0;
 }
 
+/* Add placeholder styles */
+::placeholder,
+[data-placeholder] {
+    color: rgb(var(--color-text-400)) !important;
+}
 
 .dark {
     --background: 0, 0, 0;

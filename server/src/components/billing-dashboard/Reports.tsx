@@ -2,10 +2,23 @@
 import React, { useState } from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 // You'll need to create these functions
-// import { generateRevenueByCycle, generateBillableHoursByCycle, generateClientProfitability } from '@/lib/actions/reportActions';
+// import { generateRevenueByCycle, generateBillableHoursByCycle, generateClientProfitability } from ''lib/actions/reportActions'' (see below for file content);
+
+const REPORT_TYPE_OPTIONS = [
+  { value: 'revenue', label: 'Revenue by Time Period' },
+  { value: 'billableHours', label: 'Billable Hours by Time Period' },
+  { value: 'clientProfitability', label: 'Client Profitability' },
+];
+
+const TIME_PERIOD_OPTIONS = [
+  { value: 'lastMonth', label: 'Last Month' },
+  { value: 'lastQuarter', label: 'Last Quarter' },
+  { value: 'lastYear', label: 'Last Year' },
+  { value: 'customRange', label: 'Custom Range' },
+];
 
 const Reports: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<string>('');
@@ -14,6 +27,11 @@ const Reports: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const handleGenerateReport = async () => {
+    if (!selectedReport || !timePeriod) {
+      setError('Please select both report type and time period');
+      return;
+    }
+
     try {
       let data;
       switch (selectedReport) {
@@ -49,26 +67,24 @@ const Reports: React.FC = () => {
           </div>
         )}
         <div className="space-y-4">
-          <Select
-            options={[
-              { value: 'revenue', label: 'Revenue by Time Period' },
-              { value: 'billableHours', label: 'Billable Hours by Time Period' },
-              { value: 'clientProfitability', label: 'Client Profitability' },
-            ]}
-            onChange={setSelectedReport}
+          <CustomSelect
+            options={REPORT_TYPE_OPTIONS}
+            onValueChange={setSelectedReport}
             value={selectedReport}
+            placeholder="Select report type..."
           />
-          <Select
-            options={[
-              { value: 'lastMonth', label: 'Last Month' },
-              { value: 'lastQuarter', label: 'Last Quarter' },
-              { value: 'lastYear', label: 'Last Year' },
-              { value: 'customRange', label: 'Custom Range' },
-            ]}
-            onChange={setTimePeriod}
+          <CustomSelect
+            options={TIME_PERIOD_OPTIONS}
+            onValueChange={setTimePeriod}
             value={timePeriod}
+            placeholder="Select time period..."
           />
-          <Button onClick={handleGenerateReport}>Generate Report</Button>
+          <Button 
+            onClick={handleGenerateReport}
+            disabled={!selectedReport || !timePeriod}
+          >
+            Generate Report
+          </Button>
         </div>
         {reportData && (
           <div className="mt-4">

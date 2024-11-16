@@ -5,8 +5,8 @@ import { fetchAllInvoices, getInvoiceTemplates } from '@/lib/actions/invoiceActi
 import { InvoiceViewModel, IInvoiceTemplate } from '@/interfaces/invoice.interfaces';
 import TemplateRenderer from './TemplateRenderer';
 import PaperInvoice from './PaperInvoice';
-import { Select, SelectOption } from '../ui/Select';
-import { Button } from '../ui/Button';
+import CustomSelect from '@/components/ui/CustomSelect';
+import { Button } from '@/components/ui/Button';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 
@@ -91,13 +91,14 @@ const Invoices: React.FC = () => {
       {selectedInvoice && templates.length > 0 && (
         <div className="mt-8">
           <h3 className="text-xl font-semibold mb-4">Select Template</h3>
-          <Select
-            options={templates.map((template): SelectOption => ({
+          <CustomSelect
+            options={templates.map((template) => ({
               value: template.template_id,
               label: template.name
             }))}
-            onChange={handleTemplateSelect}
+            onValueChange={handleTemplateSelect}
             value={selectedTemplate?.template_id || templates[0].template_id}
+            placeholder="Select invoice template..."
           />
         </div>
       )}

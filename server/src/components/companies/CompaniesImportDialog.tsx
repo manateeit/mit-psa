@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { DataTable } from '@/components/ui/DataTable';
 import { Switch } from '@/components/ui/Switch';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
@@ -102,7 +102,7 @@ const CompaniesImportDialog: React.FC<CompaniesImportDialogProps> = ({
 
   const getFieldOptions = useCallback(() => {
     return [
-      { value: '', label: 'Select field' },
+      { value: 'unassigned', label: 'Select field' },
       ...Object.entries(COMPANY_FIELDS).map(([value, label]): { value: string; label: string } => ({
         value,
         label,
@@ -206,7 +206,7 @@ const CompaniesImportDialog: React.FC<CompaniesImportDialogProps> = ({
     setColumnMappings(prev =>
       prev.map((mapping): ICSVColumnMapping => 
         mapping.csvHeader === csvHeader
-          ? { ...mapping, companyField: value as MappableCompanyField | null }
+          ? { ...mapping, companyField: value === 'unassigned' ? null : value as MappableCompanyField }
           : mapping
       )
     );
@@ -357,10 +357,10 @@ const CompaniesImportDialog: React.FC<CompaniesImportDialogProps> = ({
                     .map((mapping, index): JSX.Element => (
                       <div key={index} className="flex items-center gap-4 mb-4">
                         <span className="w-1/3">{mapping.csvHeader}</span>
-                        <Select
+                        <CustomSelect
                           options={getFieldOptions()}
-                          value={mapping.companyField || ''}
-                          onChange={(value) => handleMapColumn(mapping.csvHeader, value)}
+                          value={mapping.companyField || 'unassigned'}
+                          onValueChange={(value) => handleMapColumn(mapping.csvHeader, value)}
                           className="w-2/3"
                         />
                       </div>
@@ -374,10 +374,10 @@ const CompaniesImportDialog: React.FC<CompaniesImportDialogProps> = ({
                     .map((mapping, index): JSX.Element => (
                       <div key={index} className="flex items-center gap-4 mb-4">
                         <span className="w-1/3">{mapping.csvHeader}</span>
-                        <Select
+                        <CustomSelect
                           options={getFieldOptions()}
-                          value={mapping.companyField || ''}
-                          onChange={(value) => handleMapColumn(mapping.csvHeader, value)}
+                          value={mapping.companyField || 'unassigned'}
+                          onValueChange={(value) => handleMapColumn(mapping.csvHeader, value)}
                           className="w-2/3"
                         />
                       </div>
