@@ -11,7 +11,6 @@ import styles from './TicketDetails.module.css';
 import UserPicker from '@/components/ui/UserPicker';
 import AvatarIcon from '@/components/ui/AvatarIcon';
 import { TimeEntryDialog } from '@/components/time-management/TimeEntryDialog';
-import { useTenant } from '@/components/TenantProvider';
 import { toast } from 'react-hot-toast';
 
 interface TicketPropertiesProps {
@@ -29,6 +28,7 @@ interface TicketPropertiesProps {
   currentTimeSheet: ITimeSheet | null;
   currentTimePeriod: ITimePeriod | null;
   userId: string;
+  tenant: string;
   onStart: () => void;
   onPause: () => void;
   onStop: () => void;
@@ -56,6 +56,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
   currentTimeSheet,
   currentTimePeriod,
   userId,
+  tenant,
   onStart,
   onPause,
   onStop,
@@ -68,11 +69,6 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
   onRemoveAgent,
 }) => {
   const [showAgentPicker, setShowAgentPicker] = useState(false);
-  const tenant = useTenant();
-
-  if (!tenant) {
-    throw new Error('tenant is not defined');
-  }
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);

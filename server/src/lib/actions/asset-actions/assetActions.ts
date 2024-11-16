@@ -143,42 +143,104 @@ export async function getAsset(asset_id: string): Promise<Asset> {
 }
 
 function formatAssetForOutput(asset: any): Asset {
-    // Format dates
+    // Format base asset data
     const formattedAsset = {
-        ...asset,
-        created_at: typeof asset.created_at === 'string'
+      ...asset,
+      // Format dates
+      created_at: typeof asset.created_at === 'string'
         ? asset.created_at
         : new Date(asset.created_at).toISOString(),
-        updated_at: typeof asset.updated_at === 'string'
+      updated_at: typeof asset.updated_at === 'string'
         ? asset.updated_at
         : new Date(asset.updated_at).toISOString(),
-        purchase_date: asset.purchase_date
+      purchase_date: asset.purchase_date
         ? new Date(asset.purchase_date).toISOString()
         : undefined,
-        warranty_end_date: asset.warranty_end_date
+      warranty_end_date: asset.warranty_end_date
         ? new Date(asset.warranty_end_date).toISOString()
-        : undefined
-    };
-
-    // Format workstation data if it exists
-    if (formattedAsset.workstation) {
-        formattedAsset.workstation = {
-        ...formattedAsset.workstation,
-        gpu_model: formattedAsset.workstation.gpu_model || undefined,
-        last_login: formattedAsset.workstation.last_login
-            ? new Date(formattedAsset.workstation.last_login).toISOString()
+        : undefined,
+      // Handle optional fields
+      serial_number: asset.serial_number || undefined,
+      location: asset.location || undefined,
+      // Ensure company data is properly structured
+      company: asset.company ? {
+        company_id: asset.company.company_id,
+        company_name: asset.company.company_name || ''
+      } : undefined,
+      // Ensure relationships is always an array
+      relationships: Array.isArray(asset.relationships) ? asset.relationships : [],
+  
+      // Format extension data
+      ...(asset.workstation && {
+        workstation: {
+          ...asset.workstation,
+          gpu_model: asset.workstation.gpu_model || undefined,
+          last_login: asset.workstation.last_login
+            ? new Date(asset.workstation.last_login).toISOString()
             : undefined,
-        installed_software: Array.isArray(formattedAsset.workstation.installed_software)
-            ? formattedAsset.workstation.installed_software
+          installed_software: Array.isArray(asset.workstation.installed_software)
+            ? asset.workstation.installed_software
             : []
-        };
-    }
-
-    // Ensure relationships is always an array
-    formattedAsset.relationships = formattedAsset.relationships || [];
-
+        }
+      }),
+  
+      ...(asset.networkDevice && {
+        networkDevice: {
+          ...asset.networkDevice,
+          vlan_config: asset.networkDevice.vlan_config || {},
+          port_config: asset.networkDevice.port_config || {}
+        }
+      }),
+  
+      ...(asset.server && {
+        server: {
+          ...asset.server,
+          storage_config: Array.isArray(asset.server.storage_config)
+            ? asset.server.storage_config
+            : [],
+          network_interfaces: Array.isArray(asset.server.network_interfaces)
+            ? asset.server.network_interfaces
+            : [],
+          installed_services: Array.isArray(asset.server.installed_services)
+            ? asset.server.installed_services
+            : [],
+          raid_config: asset.server.raid_config || undefined,
+          hypervisor: asset.server.hypervisor || undefined,
+          primary_ip: asset.server.primary_ip || undefined
+        }
+      }),
+  
+      ...(asset.mobileDevice && {
+        mobileDevice: {
+          ...asset.mobileDevice,
+          imei: asset.mobileDevice.imei || undefined,
+          phone_number: asset.mobileDevice.phone_number || undefined,
+          carrier: asset.mobileDevice.carrier || undefined,
+          last_check_in: asset.mobileDevice.last_check_in
+            ? new Date(asset.mobileDevice.last_check_in).toISOString()
+            : undefined,
+          installed_apps: Array.isArray(asset.mobileDevice.installed_apps)
+            ? asset.mobileDevice.installed_apps
+            : []
+        }
+      }),
+  
+      ...(asset.printer && {
+        printer: {
+          ...asset.printer,
+          ip_address: asset.printer.ip_address || undefined,
+          max_paper_size: asset.printer.max_paper_size || undefined,
+          monthly_duty_cycle: asset.printer.monthly_duty_cycle || undefined,
+          supported_paper_types: Array.isArray(asset.printer.supported_paper_types)
+            ? asset.printer.supported_paper_types
+            : [],
+          supply_levels: asset.printer.supply_levels || {}
+        }
+      })
+    };
+  
     return formattedAsset;
-}
+  }
 
 export async function createAsset(data: CreateAssetRequest): Promise<Asset> {
     const { knex, tenant } = await createTenantKnex();
