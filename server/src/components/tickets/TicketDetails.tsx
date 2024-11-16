@@ -10,7 +10,6 @@ import { TimeEntryDialog } from '../time-management/TimeEntryDialog';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
 import { useDrawer } from '@/context/DrawerContext';
-import { useTenant } from '@/components/TenantProvider';
 import { findUserById, getAllUsers, getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { findChannelById, getAllChannels } from '@/lib/actions/channel-actions/channelActions';
 import { findCommentsByTicketId, deleteComment, createComment, updateComment, findCommentById } from '@/lib/actions/comment-actions/commentActions';
@@ -29,13 +28,13 @@ import { addTicketResource, getTicketResources, removeTicketResource } from '@/l
 import TechnicianDispatchDashboard from '@/components/technician-dispatch/TechnicianDispatchDashboard';
 
 interface TicketDetailsProps {
-  initialTicket: ITicket;
+  initialTicket: ITicket & { tenant: string | undefined };
 }
 
 const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
   const { data: session } = useSession();
   const userId = session?.user?.id;
-  const tenant = useTenant();
+  const tenant = initialTicket.tenant;
   if (!tenant) {
     throw new Error('tenant is not defined');
   }
@@ -187,7 +186,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
               company={company} 
               documents={[]} 
               contacts={[]} 
-              isInDrawer={true} // Add this prop
+              isInDrawer={true}
             />
           );
         } else {
@@ -225,7 +224,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
             company_id: contactCompany.company_id
           }}
           companies={[contactCompany]}
-          isInDrawer={true} // Add isInDrawer prop
+          isInDrawer={true}
         />
       );
     } else {
@@ -311,7 +310,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
         ticket_id: ticket.ticket_id || '',
         note: newCommentContent,
         user_id: userId,
-        author_type: 'user', // Set author_type to 'user' since this is a user-created comment
+        author_type: 'user',
         is_internal: activeTab === 'Internal',
         is_resolution: activeTab === 'Resolution',
         is_initial_description: false,
@@ -521,6 +520,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
             currentTimeSheet={currentTimeSheet}
             currentTimePeriod={currentTimePeriod}
             userId={userId || ''}
+            tenant={tenant}
           />
           {ticket.company_id && ticket.ticket_id && (
             <div className="mt-6">
