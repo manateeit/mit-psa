@@ -7,9 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { TextArea } from '@/components/ui/TextArea';
 import { IUser } from '@/interfaces/auth.interfaces';
-import { fetchWorkItemsForTimeSheet } from '@/lib/actions/timeEntryActions';
-import { Select } from '@/components/ui/Select';
-import { saveTimeEntry } from '@/lib/actions/timeEntryActions';
+import { fetchWorkItemsForTimeSheet, saveTimeEntry } from '@/lib/actions/timeEntryActions';
 import { parseISO } from 'date-fns';
 
 interface TimeSheetApprovalProps {
