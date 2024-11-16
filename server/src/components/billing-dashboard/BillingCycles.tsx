@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { DataTable } from '@/components/ui/DataTable';
-import { Select } from '@/components/ui/Select';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { Button } from '@/components/ui/Button';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { RefreshCw, Info } from 'lucide-react';
@@ -10,6 +10,15 @@ import { getAllBillingCycles, updateBillingCycle } from '@/lib/actions/billingCy
 import { getAllCompanies } from '@/lib/actions/companyActions';
 import { ICompany } from '@/interfaces';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
+
+const BILLING_CYCLE_OPTIONS = [
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'bi-weekly', label: 'Bi-Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'semi-annually', label: 'Semi-Annually' },
+  { value: 'annually', label: 'Annually' },
+];
 
 const BillingCycles: React.FC = () => {
   const [billingCycles, setBillingCycles] = useState<{ [companyId: string]: string }>({});
@@ -40,6 +49,8 @@ const BillingCycles: React.FC = () => {
   };
 
   const handleBillingCycleChange = async (companyId: string, cycle: string) => {
+    if (!cycle) return;
+    
     // Optimistic update
     setBillingCycles(prev => ({ ...prev, [companyId]: cycle }));
 
@@ -68,17 +79,11 @@ const BillingCycles: React.FC = () => {
       title: 'Actions',
       dataIndex: 'company_id',
       render: (value) => (
-        <Select
-          options={[
-            { value: 'weekly', label: 'Weekly' },
-            { value: 'bi-weekly', label: 'Bi-Weekly' },
-            { value: 'monthly', label: 'Monthly' },
-            { value: 'quarterly', label: 'Quarterly' },
-            { value: 'semi-annually', label: 'Semi-Annually' },
-            { value: 'annually', label: 'Annually' },
-          ]}
-          onChange={(selectedValue) => handleBillingCycleChange(value as string, selectedValue)}
+        <CustomSelect
+          options={BILLING_CYCLE_OPTIONS}
+          onValueChange={(selectedValue) => handleBillingCycleChange(value as string, selectedValue)}
           value={billingCycles[value as string] || ''}
+          placeholder="Select billing cycle..."
         />
       ),
     },

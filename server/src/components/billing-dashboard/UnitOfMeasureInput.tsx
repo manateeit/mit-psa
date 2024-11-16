@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Select } from '../ui/Select';
-import { Input } from '../ui/Input';
+import CustomSelect from '@/components/ui/CustomSelect';
+import { Input } from '@/components/ui/Input';
 
 interface UnitOfMeasureInputProps {
   value: string;
@@ -23,19 +23,22 @@ export function UnitOfMeasureInput({
   value,
   onChange,
   placeholder = "Unit of Measure (e.g., hours, items, GB)",
-  className = "w-full",
+  className = "",
   required = false
 }: UnitOfMeasureInputProps) {
-  const [selectedUnit, setSelectedUnit] = useState(value);
+  const [selectedUnit, setSelectedUnit] = useState('');
   const [customUnit, setCustomUnit] = useState('');
 
   useEffect(() => {
     if (standardUnits.some(unit => unit.value === value)) {
       setSelectedUnit(value);
       setCustomUnit('');
-    } else {
+    } else if (value) {
       setSelectedUnit('custom');
       setCustomUnit(value);
+    } else {
+      setSelectedUnit('');
+      setCustomUnit('');
     }
   }, [value]);
 
@@ -54,12 +57,12 @@ export function UnitOfMeasureInput({
 
   return (
     <div className={`flex flex-col space-y-2 ${className}`}>
-      <Select
+      <CustomSelect
         options={standardUnits}
-        onChange={handleUnitChange}
+        onValueChange={handleUnitChange}
         value={selectedUnit}
         placeholder={placeholder}
-        required={required}
+        className="w-full"
       />
       {selectedUnit === 'custom' && (
         <Input

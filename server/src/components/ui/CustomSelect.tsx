@@ -87,14 +87,16 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
             border border-gray-300 rounded-lg p-2
             bg-white cursor-pointer min-h-[38px]
             hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-            min-w-[150px] text-sm text-gray-900
+            text-sm
             disabled:opacity-50 disabled:cursor-not-allowed
-            data-[placeholder]:text-gray-500
             ${className}
             ${customStyles?.trigger || ''}
           `}
         >
-          <RadixSelect.Value placeholder={placeholder}>
+          <RadixSelect.Value 
+            placeholder={placeholder}
+            className="flex-1 text-left"
+          >
             {selectedOption?.label}
           </RadixSelect.Value>
           <RadixSelect.Icon>
@@ -106,7 +108,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
           <RadixSelect.Content
             className={`
               overflow-hidden bg-white rounded-md shadow-lg
-              border border-gray-200 mt-1 z-50
+              border border-gray-200 mt-1 z-50 min-w-[var(--radix-select-trigger-width)]
               ${customStyles?.content || ''}
             `}
             position="popper"

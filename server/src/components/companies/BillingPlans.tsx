@@ -1,8 +1,9 @@
 import React from 'react';
-import { Button, Select } from '@radix-ui/themes';
-import { ICompanyBillingPlan, IBillingPlan, IServiceCategory } from '../../interfaces/billing.interfaces';
+import { Button } from '@radix-ui/themes';
+import { ICompanyBillingPlan, IBillingPlan, IServiceCategory } from '@/interfaces/billing.interfaces';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface BillingPlansProps {
     companyBillingPlans: ICompanyBillingPlan[];
@@ -30,38 +31,33 @@ const BillingPlans: React.FC<BillingPlansProps> = ({
             title: 'Plan',
             dataIndex: 'plan_id',
             render: (value, record) => (
-                <Select.Root
+                <CustomSelect
                     value={value}
                     onValueChange={(newValue) => onCompanyPlanChange(record.company_billing_plan_id, newValue)}
-                >
-                    <Select.Trigger />
-                    <Select.Content>
-                        {billingPlans.map((plan): React.ReactNode => (
-                            <Select.Item key={plan.plan_id} value={plan.plan_id || ''}>
-                                {plan.plan_name}
-                            </Select.Item>
-                        ))}
-                    </Select.Content>
-                </Select.Root>
+                    options={billingPlans.map((plan) => ({
+                        value: plan.plan_id || '',
+                        label: plan.plan_name
+                    }))}
+                    placeholder="Select plan..."
+                />
             )
         },
         {
             title: 'Category',
             dataIndex: 'service_category',
             render: (value, record) => (
-                <Select.Root
-                    value={value || ''}
+                <CustomSelect
+                    value={value || 'unassigned'}
                     onValueChange={(newValue) => onCompanyPlanChange(record.company_billing_plan_id, newValue)}
-                >
-                    <Select.Trigger />
-                    <Select.Content>
-                        {serviceCategories.map((category): React.ReactNode => (
-                            <Select.Item key={category.category_id} value={category.category_id}>
-                                {category.category_name}
-                            </Select.Item>
-                        ))}
-                    </Select.Content>
-                </Select.Root>
+                    options={[
+                        { value: 'unassigned', label: 'Select category' },
+                        ...serviceCategories.map((category) => ({
+                            value: category.category_id,
+                            label: category.category_name
+                        }))
+                    ]}
+                    placeholder="Select category..."
+                />
             )
         },
         {
