@@ -53,7 +53,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
   const [channelOptions, setChannelOptions] = useState<{ value: string, label: string }[]>([]);
   const [priorityOptions, setPriorityOptions] = useState<{ value: string, label: string }[]>([]);
 
-  const [userMap, setUserMap] = useState<Record<string, { user_id: string; first_name: string; last_name: string; email?: string }>>({});
+  const [userMap, setUserMap] = useState<Record<string, { user_id: string; first_name: string; last_name: string; email?: string, user_type: string }>>({});
 
   const [newCommentContent, setNewCommentContent] = useState('');
   const [activeTab, setActiveTab] = useState('Comments');
@@ -137,10 +137,11 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
             user_id: user.user_id, 
             first_name: user.first_name || '', 
             last_name: user.last_name || '',
-            email: user.email // Include email in the userMap
+            email: user.email,
+            user_type: user.user_type
           };
           return acc;
-        }, {} as Record<string, { user_id: string; first_name: string; last_name: string; email?: string }>);
+        }, {} as Record<string, { user_id: string; first_name: string; last_name: string; email?: string, user_type: string }>);
         setUserMap(userMapData);
 
         const statuses = await getTicketStatuses();

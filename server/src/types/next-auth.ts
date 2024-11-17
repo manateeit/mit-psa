@@ -5,6 +5,9 @@ declare module "next-auth" {
         username: string;
         proToken: string;
         tenant?: string;
+        user_type: string;
+        companyId?: string;
+        contactId?: string;
     }
 
     interface Session {
@@ -16,6 +19,9 @@ declare module "next-auth" {
             image?: string;
             proToken: string;
             tenant?: string;
+            user_type: string;
+            companyId?: string;
+            contactId?: string;
         };
     }
 
@@ -27,5 +33,8 @@ declare module "next-auth" {
         image: string;
         proToken: string;
         tenant?: string;
+        user_type: string;
+        companyId?: string;
+        contactId?: string;
     }
 }
