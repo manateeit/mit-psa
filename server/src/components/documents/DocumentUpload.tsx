@@ -9,7 +9,7 @@ import { Upload, X, Loader2, FileUp } from 'lucide-react';
 interface DocumentUploadProps {
     userId: string;
     entityId?: string;
-    entityType?: 'ticket' | 'company' | 'contact' | 'schedule';
+    entityType?: 'ticket' | 'company' | 'contact' | 'schedule' | 'asset';
     onUploadComplete: (result: { success: boolean; document: IDocument }) => void;
     onCancel: () => void;
 }
@@ -20,6 +20,7 @@ interface UploadOptions {
     ticketId?: string;
     contactNameId?: string;
     scheduleId?: string;
+    assetId?: string;
 }
 
 export default function DocumentUpload({
@@ -86,13 +87,16 @@ export default function DocumentUpload({
                     case 'schedule':
                         options.scheduleId = entityId;
                         break;
+                    case 'asset':
+                        options.assetId = entityId;
+                        break;
                 }
             }
 
             console.log('Uploading document with options:', options); // Debug log
 
             const result = await uploadDocument(formData, options);
-            
+
             if (result.success && result.document) {
                 console.log('Upload successful:', result.document); // Debug log
                 onUploadComplete({
@@ -123,7 +127,7 @@ export default function DocumentUpload({
             >
                 <div className="space-y-4">
                     <div className="flex flex-col items-center justify-center text-gray-600">
-                        <Upload 
+                        <Upload
                             className={`w-12 h-12 mb-4 ${isDragging ? 'text-purple-500' : 'text-gray-400'}`}
                             strokeWidth={1.5}
                         />

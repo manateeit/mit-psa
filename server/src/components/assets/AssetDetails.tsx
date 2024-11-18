@@ -7,10 +7,11 @@ import { getAssetMaintenanceReport } from '@/lib/actions/asset-actions/assetActi
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { 
-  Edit, 
-  AlertTriangle, 
-  CheckCircle2, 
+import Documents from '@/components/documents/Documents';
+import {
+  Edit,
+  AlertTriangle,
+  CheckCircle2,
   Clock,
   Monitor,
   Network,
@@ -79,7 +80,7 @@ export default function AssetDetails({ asset }: AssetDetailsProps) {
 
   const getAssetTypeIcon = () => {
     const iconClass = "h-16 w-16 text-primary-500";
-    
+
     if (asset.workstation) return <Monitor className={iconClass} />;
     if (asset.networkDevice) return <Network className={iconClass} />;
     if (asset.server) return <Server className={iconClass} />;
@@ -514,7 +515,7 @@ export default function AssetDetails({ asset }: AssetDetailsProps) {
         <Text as="div" size="4" weight="medium" className="mb-4">Related Assets</Text>
         <div className="space-y-2">
           {asset.relationships.map((rel: AssetRelationship): JSX.Element => (
-            <div key={`${rel.parent_asset_id}-${rel.child_asset_id}`} 
+            <div key={`${rel.parent_asset_id}-${rel.child_asset_id}`}
                  className="flex justify-between items-center p-2 bg-gray-50 rounded">
               <div>
                 <Text as="div" size="2" weight="medium">{rel.relationship_type}</Text>
@@ -556,6 +557,21 @@ export default function AssetDetails({ asset }: AssetDetailsProps) {
     {
       label: "Related Assets",
       content: renderRelatedAssets()
+    },
+    {
+      label: "Documents",
+      content: (
+        <Card className="p-6">
+          <Documents
+            documents={[]} // Initial empty array
+            gridColumns={3}
+            userId={asset.tenant}
+            entityId={asset.asset_id}
+            entityType="asset"
+            isLoading={false}
+          />
+        </Card>
+      )
     }
   ];
 

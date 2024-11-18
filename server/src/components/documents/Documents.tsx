@@ -15,14 +15,14 @@ interface DocumentsProps {
     gridColumns?: 3 | 4;
     userId: string;
     entityId?: string;
-    entityType?: 'ticket' | 'company' | 'contact' | 'schedule';
+    entityType?: 'ticket' | 'company' | 'contact' | 'schedule' | 'asset';
     isLoading?: boolean;
     onDocumentCreated?: () => Promise<void>;
 }
 
-const Documents = ({ 
-    documents: initialDocuments, 
-    gridColumns, 
+const Documents = ({
+    documents: initialDocuments,
+    gridColumns,
     userId,
     entityId,
     entityType,
@@ -48,8 +48,8 @@ const Documents = ({
     }, [initialDocuments]);
 
     // Set grid columns based on the number of columns
-    const gridColumnsClass = gridColumns === 4 
-        ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
+    const gridColumnsClass = gridColumns === 4
+        ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
         : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
 
     // Handle file upload completion
@@ -96,7 +96,7 @@ const Documents = ({
     // Handle document disassociation
     const handleDisassociate = async (document: IDocument) => {
         if (!entityId || !entityType) return;
-        
+
         try {
             await removeDocumentAssociations(entityId, entityType, [document.document_id]);
             setDocuments(prev => prev.filter(d => d.document_id !== document.document_id));
@@ -114,7 +114,7 @@ const Documents = ({
             <div className="flex justify-between items-center">
                 <div className="flex space-x-2">
                     {/* Upload new document button */}
-                    <Button 
+                    <Button
                         onClick={() => setShowUpload(true)}
                         className="bg-[#6941C6] text-white hover:bg-[#5B34B5]"
                     >

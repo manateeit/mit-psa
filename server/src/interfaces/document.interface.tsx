@@ -10,6 +10,7 @@ export interface IDocument extends TenantEntity {
     company_id?: string;
     ticket_id?: string;
     schedule_id?: string;
+    asset_id?: string;  // Added for asset document associations
     order_number: number;
     created_by: string;
     edited_by?: string;
