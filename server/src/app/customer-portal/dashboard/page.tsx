@@ -1,17 +1,8 @@
-import { getServerSession } from 'next-auth';
-import { redirect } from 'next/navigation';
-import { options } from '../../api/auth/[...nextauth]/options';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { getDashboardMetrics, getRecentActivity, type RecentActivity } from '@/lib/actions/dashboard';
 
 export default async function Dashboard() {
-  const session = await getServerSession(options);
-  
-  if (!session?.user?.user_type || session.user.user_type !== 'client') {
-    redirect('/auth/signin?callbackUrl=/customer-portal/dashboard');
-  }
-
   try {
     const [metrics, activities] = await Promise.all([
       getDashboardMetrics(),
@@ -105,7 +96,7 @@ export default async function Dashboard() {
                 }
 
                 return (
-                  <div 
+                  <div
                     key={`${activity.type}-${index}`}
                     className={`border-l-4 ${borderColor} ${bgColor} p-4`}
                   >

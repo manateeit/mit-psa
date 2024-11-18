@@ -78,16 +78,16 @@ export const options: NextAuthOptions = {
 
                     console.log('Attempting to authenticate user:', credentials.email);
                     const user = await authenticateUser(credentials.email, credentials.password);
-                    if (!user) { 
+                    if (!user) {
                         console.log('Authentication failed: No user returned');
-                        return null; 
+                        return null;
                     }
                     console.log('User authenticated successfully:', {
                         userId: user.user_id,
                         userType: user.user_type,
                         hasTwoFactor: user.two_factor_enabled
                     });
-            
+
                     // If it's a client user, get the contact and company information
                     let companyId = null;
                     if (user.user_type === 'client' && user.contact_id) {
@@ -96,12 +96,12 @@ export const options: NextAuthOptions = {
                         console.log('Database connection established');
 
                         const contact = await connection('contacts')
-                            .where({ 
+                            .where({
                                 contact_name_id: user.contact_id,
                           tenant: user.tenant
                         })
                         .first();
-                      
+
                         console.log('Contact lookup result:', {
                             found: !!contact,
                             contactId: user.contact_id,
@@ -116,7 +116,7 @@ export const options: NextAuthOptions = {
                             logger.warn(`No contact found for user ${user.email} with contact_id ${user.contact_id}`);
                     }
                     }
-            
+
                     // 2FA Verification
                     if (user.two_factor_enabled) {
                         console.log('2FA is enabled for user, starting verification');
@@ -166,8 +166,6 @@ export const options: NextAuthOptions = {
                 } catch (error) {
                     console.log('==== Authorization Error ====');
                     console.error('Error details:', {
-                        // message: error.message,
-                        // stack: error.stack,
                         email: credentials?.email
                     });
                     logger.warn("Error authorizing email", credentials?.email, error);
@@ -304,7 +302,7 @@ export const options: NextAuthOptions = {
                 // If there was an error during token validation, return a special session
                 return { expires: "0" };
             }
-          
+
             logger.debug("Session Token:", token);
             if (token && session.user) {
                 session.user.id = token.id as string;

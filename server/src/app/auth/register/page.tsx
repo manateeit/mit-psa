@@ -7,11 +7,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 
-import { EyeOpenIcon, EyeClosedIcon, CheckCircledIcon, CrossCircledIcon } from '@radix-ui/react-icons'; 
+import { EyeOpenIcon, EyeClosedIcon, CheckCircledIcon, CrossCircledIcon } from '@radix-ui/react-icons';
 import * as Label from '@radix-ui/react-label';
 
 import { AlertProps, TPasswordCriteria } from '@/interfaces';
-import { registerUser } from '@/lib/actions/useRegister'; 
+import { registerUser } from '@/lib/actions/useRegister';
 import Alert from '@/components/auth/Alert';
 
 
@@ -77,7 +77,7 @@ export default function Register() {
           title: 'Password ',
           message: 'Please ensure your password meets all the specified criteria.',
         });
-        
+
         return;
       }
       const wasSuccess = await registerUser({
@@ -123,7 +123,7 @@ export default function Register() {
 
 
 
-  const CriteriaIcon = ({ met }: { met: boolean }) => 
+  const CriteriaIcon = ({ met }: { met: boolean }) =>
     !hasStartedTyping ? null : met ? <CheckCircledIcon className="h-4 w-4 text-green-500" /> : <CrossCircledIcon className="h-4 w-4 text-red-500" />;
 
   return (
@@ -227,7 +227,7 @@ export default function Register() {
                 />
               </div>
               <div>
-                
+
                 <Label.Root className="block text-sm font-medium text-gray-700">
                   Password
                 </Label.Root>

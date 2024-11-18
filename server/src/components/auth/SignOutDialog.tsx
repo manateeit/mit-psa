@@ -1,0 +1,46 @@
+'use client';
+
+import { useState } from 'react';
+import { signOut } from 'next-auth/react';
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/Dialog';
+import { Button } from '@/components/ui/Button';
+
+interface SignOutDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function SignOutDialog({ isOpen, onClose }: SignOutDialogProps) {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSignOut = async () => {
+    setIsLoading(true);
+    await signOut({ callbackUrl: '/auth/signin?callbackUrl=/customer-portal/dashboard' });
+  };
+
+  return (
+    <Dialog isOpen={isOpen} onClose={onClose}>
+      <DialogHeader>
+        <DialogTitle>Sign Out</DialogTitle>
+        <DialogDescription>
+          Are you sure you want to sign out?
+        </DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button
+          variant="outline"
+          onClick={onClose}
+          disabled={isLoading}
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSignOut}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Signing out...' : 'Sign out'}
+        </Button>
+      </DialogFooter>
+    </Dialog>
+  );
+}

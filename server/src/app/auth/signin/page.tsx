@@ -2,10 +2,10 @@
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import MspLoginForm from '@/components/auth/MspLoginForm';
 import ClientLoginForm from '@/components/auth/ClientLoginForm';
+import RegisterForm from '@/components/auth/RegisterForm';
 import TwoFactorInput from '@/components/auth/TwoFA';
 import Alert from '@/components/auth/Alert';
 import { AlertProps } from '@/interfaces';
@@ -14,10 +14,32 @@ export default function SignIn() {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [alertInfo, setAlertInfo] = useState<AlertProps>({ type: 'success', title: '', message: '' });
   const [isOpen2FA, setIsOpen2FA] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
   const searchParams = useSearchParams();
 
   const callbackUrl = searchParams?.get('callbackUrl') || '';
   const isCustomerPortal = callbackUrl.includes('/customer-portal');
+  const error = searchParams?.get('error');
+  const registered = searchParams?.get('registered');
+
+  // Handle error and success messages from URL parameters
+  useState(() => {
+    if (error === 'AccessDenied') {
+      setAlertInfo({
+        type: 'error',
+        title: 'Access Denied',
+        message: 'You do not have permission to access this page.'
+      });
+      setIsAlertOpen(true);
+    } else if (registered === 'true') {
+      setAlertInfo({
+        type: 'success',
+        title: 'Registration Successful',
+        message: 'Your account has been created. Please sign in.'
+      });
+      setIsAlertOpen(true);
+    }
+  });
 
   const handle2FA = (twoFactorCode: string) => {
     setIsOpen2FA(false);
@@ -40,10 +62,10 @@ export default function SignIn() {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <TwoFactorInput 
-        isOpen={isOpen2FA} 
-        onClose={() => setIsOpen2FA(false)} 
-        onComplete={handle2FA} 
+      <TwoFactorInput
+        isOpen={isOpen2FA}
+        onClose={() => setIsOpen2FA(false)}
+        onComplete={handle2FA}
       />
 
       <Alert
@@ -67,7 +89,7 @@ export default function SignIn() {
           {isCustomerPortal ? 'Customer Portal' : 'AI-Enhanced PSA Platform for MSPs'}
         </span>
       </div>
-      
+
       {/* Left side with testimonial - only show for MSP login */}
       {!isCustomerPortal && (
         <div className="hidden lg:flex lg:w-1/2 bg-white p-12 flex-col justify-center items-center">
@@ -97,26 +119,50 @@ export default function SignIn() {
         </div>
       )}
 
-      {/* Right side with SignIn form */}
+      {/* Right side with SignIn/Register form */}
       <div className={`w-full ${isCustomerPortal ? '' : 'lg:w-1/2'} flex items-center justify-center`}>
         <Card className="max-w-md w-full m-8">
           <CardHeader>
             <CardTitle className="text-2xl font-bold">
-              {isCustomerPortal ? 'Customer Portal Login' : 'MSP Dashboard Login'}
+              {isCustomerPortal ? (
+                showRegister ? 'Create Account' : 'Customer Portal Login'
+              ) : (
+                'MSP Dashboard Login'
+              )}
             </CardTitle>
             <CardDescription>
-              {isCustomerPortal 
-                ? 'Please enter your credentials to access the customer portal.'
-                : 'Welcome back! Please enter your details.'}
+              {isCustomerPortal ? (
+                showRegister ?
+                  'Create your account to access the customer portal.' :
+                  'Please enter your credentials to access the customer portal.'
+              ) : (
+                'Welcome back! Please enter your details.'
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {isCustomerPortal ? (
-              <ClientLoginForm
-                callbackUrl={callbackUrl}
-                onError={handleError}
-                onTwoFactorRequired={() => setIsOpen2FA(true)}
-              />
+              showRegister ? (
+                <>
+                  <RegisterForm />
+                  <p className="mt-4 text-center text-sm text-gray-600">
+                    Already have an account?{' '}
+                    <button
+                      onClick={() => setShowRegister(false)}
+                      className="font-medium text-blue-600 hover:text-blue-500"
+                    >
+                      Sign in
+                    </button>
+                  </p>
+                </>
+              ) : (
+                <ClientLoginForm
+                  callbackUrl={callbackUrl}
+                  onError={handleError}
+                  onTwoFactorRequired={() => setIsOpen2FA(true)}
+                  onRegister={() => setShowRegister(true)}
+                />
+              )
             ) : (
               <MspLoginForm
                 callbackUrl={callbackUrl}
