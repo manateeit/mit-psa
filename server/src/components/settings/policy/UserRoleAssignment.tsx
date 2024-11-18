@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Select, Flex, Text } from '@radix-ui/themes';
+import { Flex, Text } from '@radix-ui/themes';
 import { Button } from '@/components/ui/Button';
 import { assignRoleToUser, removeRoleFromUser, getRoles, getUserRoles } from '@/lib/actions/policyActions';
 import { findUserById } from '@/lib/actions/user-actions/userActions';
 import { IUser, IRole } from '@/interfaces/auth.interfaces';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
+import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 
 export default function UserRoleAssignment() {
   const [users, setUsers] = useState<IUser[]>([]);
@@ -60,7 +61,7 @@ export default function UserRoleAssignment() {
     {
       title: 'Roles',
       dataIndex: 'user_id',
-      render: (_, record) => userRoles[record.user_id]?.map((role):string => role.role_name).join(', '),
+      render: (_, record) => userRoles[record.user_id]?.map((role): string => role.role_name).join(', '),
     },
     {
       title: 'Actions',
@@ -77,31 +78,37 @@ export default function UserRoleAssignment() {
     },
   ];
 
+  const userOptions = users.map((user): SelectOption => ({
+    value: user.user_id,
+    label: user.username
+  }));
+
+  const roleOptions = roles.map((role): SelectOption => ({
+    value: role.role_id,
+    label: role.role_name
+  }));
+
   return (
     <div>
       <Flex direction="column" gap="4">
         <Text size="5" weight="bold">Assign Roles to Users</Text>
-        <Flex gap="2">
-          <Select.Root value={selectedUser} onValueChange={setSelectedUser}>
-            <Select.Trigger placeholder="Select User" />
-            <Select.Content>
-              {users.map((user):JSX.Element => (
-                <Select.Item key={user.user_id} value={user.user_id}>
-                  {user.username}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Root>
-          <Select.Root value={selectedRole} onValueChange={setSelectedRole}>
-            <Select.Trigger placeholder="Select Role" />
-            <Select.Content>
-              {roles.map((role):JSX.Element => (
-                <Select.Item key={role.role_id} value={role.role_id}>
-                  {role.role_name}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Root>
+        <Flex gap="2" align="center">
+          <div className="relative z-20 inline-block">
+            <CustomSelect
+              value={selectedUser}
+              onValueChange={setSelectedUser}
+              options={userOptions}
+              placeholder="Select User"
+            />
+          </div>
+          <div className="relative z-10 inline-block">
+            <CustomSelect
+              value={selectedRole}
+              onValueChange={setSelectedRole}
+              options={roleOptions}
+              placeholder="Select Role"
+            />
+          </div>
           <Button onClick={handleAssignRole}>Assign Role</Button>
         </Flex>
 

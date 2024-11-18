@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { IInvoiceTemplate } from '@/interfaces/invoice.interfaces';
 import { getInvoiceTemplates, saveInvoiceTemplate } from '@/lib/actions/invoiceActions';
-import { Button } from '../ui/Button';
-import { Select, SelectOption } from '../ui/Select';
-import { TextArea } from '../ui/TextArea';
+import { Button } from '@/components/ui/Button';
+import CustomSelect from '@/components/ui/CustomSelect';
+import { TextArea } from '@/components/ui/TextArea';
 import { parseInvoiceTemplate } from '@/lib/invoice-dsl/templateLanguage';
 
 interface TemplateSelectorProps {
@@ -14,7 +14,7 @@ interface TemplateSelectorProps {
 }
 
 const TemplateSelector: React.FC<TemplateSelectorProps> = ({ onTemplateSelect, templates, onTemplatesUpdate, selectedTemplate }) => {
-    const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
     const [customTemplate, setCustomTemplate] = useState('');
     const [error, setError] = useState<string | null>(null);
 
@@ -72,10 +72,14 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({ onTemplateSelect, t
 
     return (
         <div className="space-y-4">
-            <Select
-                options={templates.map((t):SelectOption => ({ value: t.template_id, label: t.name }))}
-                onChange={handleTemplateChange}
-                value={selectedTemplateId || ''}
+            <CustomSelect
+                options={templates.map((t): { value: string; label: string } => ({ 
+                    value: t.template_id, 
+                    label: t.name 
+                }))}
+                onValueChange={handleTemplateChange}
+                value={selectedTemplateId}
+                placeholder="Select invoice template..."
             />
             <TextArea
                 value={customTemplate}

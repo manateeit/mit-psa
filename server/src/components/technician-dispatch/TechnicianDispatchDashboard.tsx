@@ -8,6 +8,7 @@ import { IUser } from '@/interfaces/auth.interfaces';
 import { getAllUsers } from '@/lib/actions/user-actions/userActions';
 import { searchWorkItems } from '@/lib/actions/workItemActions';
 import { addScheduleEntry, updateScheduleEntry, getScheduleEntries, deleteScheduleEntry } from '@/lib/actions/scheduleActions';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 const getEventColors = (type: WorkItemType) => {
   switch (type) {
@@ -328,6 +329,18 @@ const TechnicianDispatchDashboard: React.FC = () => {
   const [totalItems, setTotalItems] = useState(0);
   const ITEMS_PER_PAGE = 10;
 
+  const typeOptions = [
+    { value: 'all', label: 'All Types' },
+    { value: 'ticket', label: 'Tickets' },
+    { value: 'project_task', label: 'Project Tasks' },
+    { value: 'non_billable_category', label: 'Non-Billable' }
+  ];
+
+  const sortOptions = [
+    { value: 'name', label: 'Sort by Name' },
+    { value: 'type', label: 'Sort by Type' }
+  ];
+
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
   const searchParamsRef = useRef({
     selectedType,
@@ -593,31 +606,25 @@ const TechnicianDispatchDashboard: React.FC = () => {
             />
 
             <div className="flex gap-2">
-              <select
+              <CustomSelect
                 value={selectedType}
-                onChange={(e) => {
-                  setSelectedType(e.target.value as WorkItemType | 'all');
+                onValueChange={(value: string) => {
+                  setSelectedType(value as WorkItemType | 'all');
                   setCurrentPage(1);
                 }}
-                className="p-2 border border-[rgb(var(--color-border-200))] rounded bg-white text-[rgb(var(--color-text-900))] flex-1 focus:outline-none focus:border-[rgb(var(--color-primary-400))] focus:ring-1 focus:ring-[rgb(var(--color-primary-400))]"
-              >
-                <option value="all">All Types</option>
-                <option value="ticket">Tickets</option>
-                <option value="project_task">Project Tasks</option>
-                <option value="non_billable_category">Non-Billable</option>
-              </select>
+                options={typeOptions}
+                className="flex-1"
+              />
 
-              <select
+              <CustomSelect
                 value={sortBy}
-                onChange={(e) => {
-                  setSortBy(e.target.value as 'name' | 'type');
+                onValueChange={(value: string) => {
+                  setSortBy(value as 'name' | 'type');
                   setCurrentPage(1);
                 }}
-                className="p-2 border border-[rgb(var(--color-border-200))] rounded bg-white text-[rgb(var(--color-text-900))] flex-1 focus:outline-none focus:border-[rgb(var(--color-primary-400))] focus:ring-1 focus:ring-[rgb(var(--color-primary-400))]"
-              >
-                <option value="name">Sort by Name</option>
-                <option value="type">Sort by Type</option>
-              </select>
+                options={sortOptions}
+                className="flex-1"
+              />
 
               <button
                 onClick={() => {

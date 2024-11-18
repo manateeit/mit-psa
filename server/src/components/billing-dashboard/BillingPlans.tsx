@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { QuickAddBillingPlan } from './QuickAddBillingPlan';
 import { UnitOfMeasureInput } from './UnitOfMeasureInput';
 import { getBillingPlans } from '@/lib/actions/billingPlanAction';
@@ -219,18 +219,22 @@ const BillingPlans: React.FC<BillingPlansProps> = ({ initialServices }) => {
                 pagination={false}
               />
               <div className="flex space-x-2 mt-4">
-                <Select
-                  options={availableServices.map((s): { value: string; label: string } => ({ value: s.service_id!, label: s.service_name }))}
-                  onChange={(value) => setSelectedServiceToAdd(value)}
-                  value={selectedServiceToAdd || ''}
+                <CustomSelect
+                  options={availableServices.map((s): { value: string; label: string } => ({
+                    value: s.service_id!,
+                    label: s.service_name
+                  }))}
+                  onValueChange={setSelectedServiceToAdd}
+                  value={selectedServiceToAdd || 'unassigned'}
+                  placeholder="Select service..."
                 />
                 <Button
                   onClick={() => {
-                    if (selectedServiceToAdd) {
+                    if (selectedServiceToAdd && selectedServiceToAdd !== 'unassigned') {
                       handleAddPlanService(selectedServiceToAdd);
                     }
                   }}
-                  disabled={!selectedServiceToAdd || availableServices.length === 0}
+                  disabled={!selectedServiceToAdd || selectedServiceToAdd === 'unassigned' || availableServices.length === 0}
                 >
                   Add Service
                 </Button>

@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { getRecentInteractions, getInteractionTypes } from '@/lib/actions/interactionActions';
 import { useDrawer } from '@/context/DrawerContext';
 import InteractionDetails from './InteractionDetails';
-import { Select } from '@/components/ui/Select';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
@@ -128,7 +128,7 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
         </DialogHeader>
         <DialogContent>
           <div className="space-y-4">
-            <Select
+            <CustomSelect
               options={[
                 { value: '', label: 'All Types' },
                 ...interactionTypes.map((type): { value: string; label: string } => ({
@@ -137,19 +137,19 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
                 }))
               ]}
               value={interactionTypeId}
-              onChange={(value) => setInteractionTypeId(value)}
+              onValueChange={setInteractionTypeId}
               placeholder="Interaction Type"
             />
-            <Select
+            <CustomSelect
               options={[{ value: '', label: 'All Users' }, ...users.map((user): { value: string; label: string } => ({ value: user.id, label: user.name }))]}
               value={selectedUser}
-              onChange={(value) => setSelectedUser(value)}
+              onValueChange={setSelectedUser}
               placeholder="Filter by User"
             />
-            <Select
+            <CustomSelect
               options={[{ value: '', label: 'All Contacts' }, ...contacts.map((contact): { value: string; label: string } => ({ value: contact.id, label: contact.name }))]}
               value={selectedContact}
-              onChange={(value) => setSelectedContact(value)}
+              onValueChange={setSelectedContact}
               placeholder="Filter by Contact"
             />
             <Input
@@ -176,7 +176,7 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
       </Dialog>
       
       <ul className="space-y-4 overflow-y-auto max-h-[calc(100vh-300px)]">
-        {filteredInteractions.map((interaction: IInteraction):JSX.Element => (
+        {filteredInteractions.map((interaction: IInteraction): JSX.Element => (
           <li key={interaction.interaction_id} className="flex items-start space-x-3 p-2 hover:bg-gray-100 rounded cursor-pointer" onClick={() => handleInteractionClick(interaction)}>
             <InteractionIcon type={interaction.type_name} />
             <div>

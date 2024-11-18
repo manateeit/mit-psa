@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import CustomTabs from '@/components/ui/CustomTabs';
 import { Input } from '@/components/ui/Input';
@@ -13,6 +15,7 @@ import { useSession } from 'next-auth/react';
 import { Switch } from '@/components/ui/Switch';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface SettingSectionProps<T extends object> {
   title: string;
@@ -186,6 +189,7 @@ const TicketingSettings = (): JSX.Element => {
     fetchData();
   }, []);
 
+  
     // Only clear selected parent category when changing channel filter if it's not a subcategory
     useEffect(() => {
       if (categoryChannelFilter !== 'all' && selectedParentCategory) {
@@ -216,7 +220,7 @@ const TicketingSettings = (): JSX.Element => {
       // If a specific channel is selected, show categories for that channel
       return category.channel_id === categoryChannelFilter;
     });
-  
+
     const toggleChannelStatus = async (channelId: string, currentStatus: boolean): Promise<void> => {
       try {
         await updateChannel(channelId, { is_inactive: !currentStatus });
@@ -227,7 +231,7 @@ const TicketingSettings = (): JSX.Element => {
         console.error('Error toggling channel status:', error);
       }
     };
-  
+
     const addChannel = async (): Promise<void> => {
       if (newChannel.trim() !== '') {
         try {
@@ -242,19 +246,19 @@ const TicketingSettings = (): JSX.Element => {
         }
       }
     };
-  
+
     const addStatus = async (): Promise<void> => {
       if (newStatus.trim() === '') {
         return;
       }
-  
+      
       try {
         const addedStatus = await createStatus({
           name: newStatus.trim(),
           status_type: 'ticket',
           is_closed: false,
         });
-        
+
         if (addedStatus) {
           setStatuses([...statuses, addedStatus]);
           setNewStatus('');
@@ -268,7 +272,7 @@ const TicketingSettings = (): JSX.Element => {
         }
       }
     };
-  
+
     const addPriority = async (): Promise<void> => {
       if (newPriority.trim() !== '') {
         try {
@@ -284,7 +288,7 @@ const TicketingSettings = (): JSX.Element => {
         }
       }
     };
-  
+
     const updateChannelItem = async (updatedChannel: IChannel): Promise<void> => {
       try {
         await updateChannel(updatedChannel.channel_id!, updatedChannel);
@@ -295,7 +299,7 @@ const TicketingSettings = (): JSX.Element => {
         console.error('Error updating channel:', error);
       }
     };
-  
+
     const updateStatusItem = async (updatedStatus: ITicketStatus): Promise<void> => {
       try {
         await updateStatus(updatedStatus.status_id!, updatedStatus);
@@ -306,7 +310,7 @@ const TicketingSettings = (): JSX.Element => {
         console.error('Error updating status:', error);
       }
     };
-  
+
     const updatePriorityItem = async (updatedPriority: IPriority): Promise<void> => {
       try {
         await updatePriority(updatedPriority.priority_id, updatedPriority);
@@ -317,26 +321,26 @@ const TicketingSettings = (): JSX.Element => {
         console.error('Error updating priority:', error);
       }
     };
-  
+
     const handleEditCategory = (category: ITicketCategory) => {
       setEditingCategory(category.category_id);
       setEditedCategoryName(category.category_name);
     };
-  
+
     const handleSaveCategory = async (categoryId: string) => {
       if (!editedCategoryName.trim()) {
         return;
       }
-  
+
       try {
         const category = categories.find(c => c.category_id === categoryId);
         if (!category) return;
-  
+
         const updatedCategory = await updateTicketCategory(categoryId, {
           ...category,
           category_name: editedCategoryName.trim()
         });
-        
+
         setCategories(categories.map((c):ITicketCategory => 
           c.category_id === categoryId ? updatedCategory : c
         ));
@@ -351,7 +355,7 @@ const TicketingSettings = (): JSX.Element => {
         }
       }
     };
-  
+
     const addCategory = async (): Promise<void> => {
       if (newCategory.trim() === '') {
         return;
@@ -359,7 +363,7 @@ const TicketingSettings = (): JSX.Element => {
     
       try {
         let selectedChannelId: string | undefined;
-    
+      
         // If adding a subcategory, use the parent's channel
         if (selectedParentCategory) {
           const parentCategory = categories.find(c => c.category_id === selectedParentCategory);
@@ -374,12 +378,12 @@ const TicketingSettings = (): JSX.Element => {
           alert('Please select a specific channel from the dropdown first before adding a category.');
           return;
         }
-    
+      
         // Add type check for selectedChannelId
         if (!selectedChannelId) {
           throw new Error('No channel selected');
         }
-    
+      
         const addedCategory = await createTicketCategory(
           newCategory.trim(),
           selectedChannelId,
@@ -397,7 +401,6 @@ const TicketingSettings = (): JSX.Element => {
         }
       }
     };
-  
     const handleDeleteChannel = async (channelId: string): Promise<void> => {
       try {
         await deleteChannel(channelId);
@@ -406,7 +409,7 @@ const TicketingSettings = (): JSX.Element => {
         console.error('Error deleting channel:', error);
       }
     };
-  
+
     const handleDeleteStatus = async (statusId: string): Promise<void> => {
       try {
         await deleteStatus(statusId);
@@ -415,7 +418,7 @@ const TicketingSettings = (): JSX.Element => {
         console.error('Error deleting status:', error);
       }
     };
-  
+
     const handleDeletePriority = async (priorityId: string): Promise<void> => {
       try {
         await deletePriority(priorityId);
@@ -424,21 +427,21 @@ const TicketingSettings = (): JSX.Element => {
         console.error('Error deleting priority:', error);
       }
     };
-  
+
     const handleDeleteCategory = async (categoryId: string): Promise<void> => {
       const category = categories.find(c => c.category_id === categoryId);
       if (!category) return;
-  
+
       const hasSubcategories = categories.some(c => c.parent_category === categoryId);
       if (hasSubcategories) {
         alert(`Cannot delete "${category.category_name}" because it has subcategories.\n\nPlease delete all subcategories first.`);
         return;
       }
-  
+
       if (!confirm(`Are you sure you want to delete the category "${category.category_name}"?\n\nThis action cannot be undone.`)) {
         return;
       }
-  
+
       try {
         await deleteTicketCategory(categoryId);
         setCategories(categories.filter(c => c.category_id !== categoryId));
@@ -481,11 +484,8 @@ const TicketingSettings = (): JSX.Element => {
     return matchesChannel && isTopLevel;
   });
 
-  // Then get all visible categories (top-level and non-collapsed subcategories)
-  const visibleCategories = topLevelCategories.reduce((acc: ITicketCategory[], category) => {
-    // Add the top-level category
+    const visibleCategories = topLevelCategories.reduce((acc: ITicketCategory[], category): ITicketCategory[] => {
     acc.push(category);
-    // Add subcategories only if parent is not collapsed
     if (!collapsedCategories.has(category.category_id)) {
       const subcategories = categories.filter(c => c.parent_category === category.category_id);
       acc.push(...subcategories);
@@ -514,6 +514,20 @@ const TicketingSettings = (): JSX.Element => {
         </div>
       ),
     },
+  ];
+
+  const filterStatusOptions = [
+    { value: 'all', label: 'All Channels' },
+    { value: 'active', label: 'Active Channels' },
+    { value: 'inactive', label: 'Inactive Channels' }
+  ];
+
+  const channelFilterOptions = [
+    { value: 'all', label: 'All Channels' },
+    ...channels.map((channel): { value: string; label: string } => ({
+      value: channel.channel_id || '',
+      label: channel.channel_name || ''
+    }))
   ];
 
   const statusColumns: ColumnDefinition<ITicketStatus>[] = [
@@ -602,15 +616,12 @@ const TicketingSettings = (): JSX.Element => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="border border-gray-400 rounded-md p-2 w-64 text-sm"
             />
-            <select
+            <CustomSelect
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
-              className="border border-gray-400 rounded-md p-2 w-64 text-sm text-gray-500 bg-white"
-            >
-              <option value="all">All Channels</option>
-              <option value="active">Active Channels</option>
-              <option value="inactive">Inactive Channels</option>
-            </select>
+              onValueChange={(value: string) => setFilterStatus(value as 'all' | 'active' | 'inactive')}
+              options={filterStatusOptions}
+              className="w-64"
+            />
           </div>
           <SettingSection<IChannel>
             title="Channels"
@@ -657,118 +668,112 @@ const TicketingSettings = (): JSX.Element => {
         columns={priorityColumns}
       />
     },
-        {
-          label: "Categories",
-          content: (
-            <div>
-              <div className="flex justify-end mb-4 gap-6">
-                <select
-                  value={categoryChannelFilter}
-                  onChange={(e) => setCategoryChannelFilter(e.target.value)}
-                  className="border border-gray-400 rounded-md p-2 w-64 text-sm text-gray-500 bg-white"
-                >
-                  <option value="all">All Channels</option>
-                  {channels.map((channel):JSX.Element => (
-                    <option key={channel.channel_id} value={channel.channel_id}>
-                      {channel.channel_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="bg-white p-6 rounded-lg shadow-sm">
-                <h3 className="text-lg font-semibold mb-4 text-gray-800">Categories</h3>
-                <DataTable
-                  data={visibleCategories}
-                  columns={[...categoryColumns, {
-                    title: 'Action',
-                    dataIndex: 'action',
-                    render: (_, item) => (
-                      <div className="flex items-center justify-end space-x-2">
-                        {editingCategory === item.category_id ? (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleSaveCategory(item.category_id)}
-                            >
-                              Save
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setEditingCategory('');
-                                setEditedCategoryName('');
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditCategory(item)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedParentCategory(item.category_id)}
-                              title="Add Subcategory"
-                            >
-                              <Network className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteCategory(item.category_id)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    ),
-                  }]}
-                  pagination={true}
-                />
-                <div className="flex space-x-2 mt-4">
-                  <Input
-                    type="text"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    placeholder={selectedParentCategory ? "New Subcategory" : "New Category"}
-                    className="flex-grow"
-                  />
-                <Button 
-                  onClick={addCategory} 
-                  className="bg-primary-500 text-white hover:bg-primary-600"
-                  disabled={!newCategory.trim()}
-                >
-                  <Plus className="h-4 w-4 mr-2" /> Add
-                </Button>
-                </div>
-                {selectedParentCategory && (
-                  <div className="mt-2 text-sm text-gray-500">
-                    Adding subcategory to: {categories.find(c => c.category_id === selectedParentCategory)?.category_name}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedParentCategory('')}
-                      className="ml-2"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+    {
+      label: "Categories",
+      content: (
+        <div>
+          <div className="flex justify-end mb-4 gap-6">
+            <CustomSelect
+              value={categoryChannelFilter}
+              onValueChange={(value: string) => setCategoryChannelFilter(value)}
+              options={channelFilterOptions}
+              className="w-64"
+            />
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-sm">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800">Categories</h3>
+            <DataTable
+              data={visibleCategories}
+              columns={[...categoryColumns, {
+                title: 'Action',
+                dataIndex: 'action',
+                render: (_, item) => (
+                  <div className="flex items-center justify-end space-x-2">
+                    {editingCategory === item.category_id ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSaveCategory(item.category_id)}
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditingCategory('');
+                            setEditedCategoryName('');
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditCategory(item)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedParentCategory(item.category_id)}
+                          title="Add Subcategory"
+                        >
+                          <Network className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteCategory(item.category_id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </div>
-                )}
-              </div>
+                ),
+              }]}
+              pagination={true}
+            />
+            <div className="flex space-x-2 mt-4">
+              <Input
+                type="text"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                placeholder={selectedParentCategory ? "New Subcategory" : "New Category"}
+                className="flex-grow"
+              />
+              <Button 
+                onClick={addCategory} 
+                className="bg-primary-500 text-white hover:bg-primary-600"
+                disabled={!newCategory.trim()}
+              >
+                <Plus className="h-4 w-4 mr-2" /> Add
+              </Button>
             </div>
-          )
-        }
-      ];
+            {selectedParentCategory && (
+              <div className="mt-2 text-sm text-gray-500">
+                Adding subcategory to: {categories.find(c => c.category_id === selectedParentCategory)?.category_name}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedParentCategory('')}
+                  className="ml-2"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )
+    }
+  ];
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">

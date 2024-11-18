@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { IInvoiceTemplate, IInvoice, InvoiceViewModel } from '@/interfaces/invoice.interfaces';
 import TemplateSelector from './TemplateSelector';
 import TemplateRenderer from './TemplateRenderer';
-import { Select, SelectOption } from '../ui/Select';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { sampleInvoices } from '@/utils/sampleInvoiceData';
 import PaperInvoice from './PaperInvoice';
 
@@ -20,7 +20,6 @@ const InvoiceTemplateManager: React.FC<InvoiceTemplateManagerProps> = ({
 }) => {
   const [localTemplates, setLocalTemplates] = useState<IInvoiceTemplate[]>(templates);
   const [selectedSampleInvoice, setSelectedSampleInvoice] = useState<InvoiceViewModel>(sampleInvoices[0]);
-
 
   const handleTemplatesUpdate = (updatedTemplates: IInvoiceTemplate[]) => {
     setLocalTemplates(updatedTemplates);
@@ -49,13 +48,14 @@ const InvoiceTemplateManager: React.FC<InvoiceTemplateManagerProps> = ({
       </div>
       <div className="space-y-4">
         <h3 className="text-xl font-semibold">Select Sample Invoice</h3>
-        <Select
-          options={sampleInvoices.map((invoice):SelectOption => ({
+        <CustomSelect
+          options={sampleInvoices.map((invoice): { value: string; label: string } => ({
             value: invoice.invoice_number,
             label: `Invoice #${invoice.invoice_number} - ${invoice.custom_fields?.project}`
           }))}
-          onChange={handleSampleInvoiceSelect}
+          onValueChange={handleSampleInvoiceSelect}
           value={selectedSampleInvoice.invoice_number}
+          placeholder="Select sample invoice..."
         />
       </div>
       {selectedTemplate && selectedSampleInvoice && (

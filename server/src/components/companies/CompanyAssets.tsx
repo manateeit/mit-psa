@@ -18,9 +18,9 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import CustomSelect from '@/components/ui/CustomSelect';
-import { SelectOption } from '@/components/ui/Select';
+import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 import { QuickAddAsset } from '@/components/assets/QuickAddAsset';
+
 
 interface CompanyAssetsProps {
   companyId: string;

@@ -1,15 +1,15 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import UserList from './UserList';
 import { getAllUsers, addUser, getUserWithRoles, deleteUser } from '@/lib/actions/user-actions/userActions';
 import { getAllRoles } from '@/lib/actions/user-actions/userActions';
 import { IUser, IRole } from '@/interfaces/auth.interfaces';
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Label } from "@/components/ui/Label";
-import { Select } from "@/components/ui/Select";
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 
 const UserManagement = (): JSX.Element => {
   const [users, setUsers] = useState<IUser[]>([]);
@@ -102,6 +102,12 @@ const UserManagement = (): JSX.Element => {
     }
   };
 
+  const statusOptions = [
+    { value: 'all', label: 'All Users' },
+    { value: 'active', label: 'Active Users' },
+    { value: 'inactive', label: 'Inactive Users' }
+  ];
+
   return (
     <Card>
       <CardHeader>
@@ -118,15 +124,14 @@ const UserManagement = (): JSX.Element => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="border border-gray-400 rounded-md p-2 w-64 text-sm"
             />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
-              className="border border-gray-400 rounded-md p-2 w-64 text-sm text-gray-500 bg-white"
-            >
-              <option value="all">All Users</option>
-              <option value="active">Active Users</option>
-              <option value="inactive">Inactive Users</option>
-            </select>
+            <div className="relative z-10">
+              <CustomSelect
+                value={filterStatus}
+                onValueChange={(value) => setFilterStatus(value as 'all' | 'active' | 'inactive')}
+                options={statusOptions}
+                placeholder="Select Status"
+              />
+            </div>
           </div>
           <Button onClick={() => setShowNewUserForm(true)}>Create New User</Button>
         </div>
@@ -168,13 +173,16 @@ const UserManagement = (): JSX.Element => {
                   onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                 />
               </div>
-              <div>
-                <Label htmlFor="role">Primary Role</Label>
-                <Select
-                  id="role"
+              <div className="relative z-20">
+                <CustomSelect
+                  label="Primary Role"
                   value={newUser.role}
-                  onChange={(value) => setNewUser({ ...newUser, role: value })}
-                  options={roles.map((role): { value: string; label: string } => ({ value: role.role_id, label: role.role_name }))}
+                  onValueChange={(value) => setNewUser({ ...newUser, role: value })}
+                  options={roles.map((role): SelectOption => ({ 
+                    value: role.role_id, 
+                    label: role.role_name 
+                  }))}
+                  placeholder="Select Role"
                 />
               </div>
               <Button onClick={handleCreateUser}>Create User</Button>

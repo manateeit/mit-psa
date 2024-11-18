@@ -9,7 +9,7 @@ import { getInteractionsForEntity, getInteractionTypes } from '@/lib/actions/int
 import { useDrawer } from '@/context/DrawerContext';
 import { getInteractionById } from '@/lib/actions/interactionActions';
 import InteractionDetails from './InteractionDetails';
-import { Select } from '@/components/ui/Select';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
@@ -21,7 +21,6 @@ interface InteractionsFeedProps {
   interactions: IInteraction[];
   setInteractions: React.Dispatch<React.SetStateAction<IInteraction[]>>;
 }
-
 
 const InteractionIcon = ({ type }: { type: string }) => {
   switch (type) {
@@ -81,7 +80,7 @@ const InteractionsFeed: React.FC<InteractionsFeedProps> = ({ entityId, entityTyp
         try {
           const updatedInteraction = await getInteractionById(interaction.interaction_id);
           setInteractions(prevInteractions => 
-            prevInteractions.map((i):IInteraction => 
+            prevInteractions.map((i): IInteraction => 
               i.interaction_id === updatedInteraction.interaction_id ? updatedInteraction : i
             )
           );
@@ -140,7 +139,7 @@ const InteractionsFeed: React.FC<InteractionsFeedProps> = ({ entityId, entityTyp
       </div>
       <CardContent>
         <ul className="space-y-2">
-          {filteredInteractions.map((interaction):JSX.Element => (
+          {filteredInteractions.map((interaction): JSX.Element => (
             <li 
               key={interaction.interaction_id} 
               className="flex items-start space-x-3 p-4 hover:bg-gray-50 rounded-lg cursor-pointer border-b border-gray-200 last:border-b-0"
@@ -164,10 +163,10 @@ const InteractionsFeed: React.FC<InteractionsFeedProps> = ({ entityId, entityTyp
         </DialogHeader>
         <DialogContent>
           <div className="space-y-4">
-            <Select
-              options={[{ value: '', label: 'All Types' }, ...interactionTypes.map((type):{value: string, label: string} => ({ value: type.type_id, label: type.type_name }))]}
+            <CustomSelect
+              options={[{ value: '', label: 'All Types' }, ...interactionTypes.map((type): { value: string; label: string } => ({ value: type.type_id, label: type.type_name }))]}
               value={selectedType}
-              onChange={(value) => setSelectedType(value)}
+              onValueChange={setSelectedType}
               placeholder="Interaction Type"
             />
             <Input

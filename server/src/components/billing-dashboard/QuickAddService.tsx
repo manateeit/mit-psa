@@ -1,10 +1,10 @@
 'use client'
 import React, { useState, useEffect } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import { Button } from '../ui/Button'
-import { Input } from '../ui/Input'
-import { Select } from '../ui/Select'
-import { Switch } from '../ui/Switch'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import CustomSelect from '@/components/ui/CustomSelect'
+import { Switch } from '@/components/ui/Switch'
 import { createService } from '@/lib/actions/serviceActions'
 import { getServiceCategories } from '@/lib/actions/categoryActions'
 import { IService, IServiceCategory, ServiceType } from '@/interfaces/billing.interfaces'
@@ -15,11 +15,14 @@ interface QuickAddServiceProps {
   onServiceAdded: () => void
 }
 
-// Define service type options
+interface ServiceFormData extends Omit<IService, 'service_id' | 'tenant' | 'service_type'> {
+  service_type: string;
+}
+
 const SERVICE_TYPE_OPTIONS = [
-  { value: 'Fixed' as ServiceType, label: 'Fixed Price' },
-  { value: 'Time' as ServiceType, label: 'Time Based' },
-  { value: 'Usage' as ServiceType, label: 'Usage Based' }
+  { value: 'Fixed', label: 'Fixed Price' },
+  { value: 'Time', label: 'Time Based' },
+  { value: 'Usage', label: 'Usage Based' }
 ];
 
 export function QuickAddService({ onServiceAdded }: QuickAddServiceProps) {
@@ -29,9 +32,9 @@ export function QuickAddService({ onServiceAdded }: QuickAddServiceProps) {
   const tenant = useTenant()
 
   // Initialize service state with all fields
-  const [serviceData, setServiceData] = useState<Omit<IService, 'service_id' | 'tenant'>>({
+  const [serviceData, setServiceData] = useState<ServiceFormData>({
     service_name: '',
-    service_type: 'Fixed', // Default to Fixed type
+    service_type: '',
     default_rate: 0,
     unit_of_measure: '',
     category_id: '',
@@ -62,8 +65,19 @@ export function QuickAddService({ onServiceAdded }: QuickAddServiceProps) {
         return
       }
 
-      console.log('[QuickAddService] Submitting service data:', serviceData)
-      await createService(serviceData)
+      if (!serviceData.category_id) {
+        setError('Category is required')
+        return
+      }
+
+      // Only include valid service type when submitting
+      const submitData: Omit<IService, 'service_id' | 'tenant'> = {
+        ...serviceData,
+        service_type: serviceData.service_type as ServiceType
+      }
+
+      console.log('[QuickAddService] Submitting service data:', submitData)
+      await createService(submitData)
       console.log('[QuickAddService] Service created successfully')
       
       onServiceAdded()
@@ -71,7 +85,7 @@ export function QuickAddService({ onServiceAdded }: QuickAddServiceProps) {
       // Reset form
       setServiceData({
         service_name: '',
-        service_type: 'Fixed', // Reset to Fixed type
+        service_type: '',
         default_rate: 0,
         unit_of_measure: '',
         category_id: '',
@@ -84,6 +98,11 @@ export function QuickAddService({ onServiceAdded }: QuickAddServiceProps) {
       setError('Failed to create service')
     }
   }
+
+  const categoryOptions = categories.map((cat): { value: string; label: string } => ({ 
+    value: cat.category_id, 
+    label: cat.category_name 
+  }))
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -109,17 +128,12 @@ export function QuickAddService({ onServiceAdded }: QuickAddServiceProps) {
 
             <div>
               <label htmlFor="serviceType" className="block text-sm font-medium text-gray-700">Service Type</label>
-              <Select
+              <CustomSelect
                 options={SERVICE_TYPE_OPTIONS}
                 value={serviceData.service_type}
-                onChange={(value) => {
-                  // Ensure value is a valid ServiceType
-                  if (value === 'Fixed' || value === 'Time' || value === 'Usage') {
-                    setServiceData({ ...serviceData, service_type: value })
-                  }
-                }}
-                placeholder="Select Service Type"
-                required
+                onValueChange={(value) => setServiceData({ ...serviceData, service_type: value })}
+                placeholder="Select service type..."
+                className="w-full"
               />
             </div>
 
@@ -140,19 +154,18 @@ export function QuickAddService({ onServiceAdded }: QuickAddServiceProps) {
               <UnitOfMeasureInput
                 value={serviceData.unit_of_measure}
                 onChange={(value) => setServiceData({ ...serviceData, unit_of_measure: value })}
+                placeholder="Select unit of measure..."
               />
             </div>
 
             <div>
               <label htmlFor="category" className="block text-sm font-medium text-gray-700">Category</label>
-              <Select
-                options={categories.map((cat): { value: string; label: string } => ({ 
-                  value: cat.category_id, 
-                  label: cat.category_name 
-                }))}
-                onChange={(value) => setServiceData({ ...serviceData, category_id: value })}
+              <CustomSelect
+                options={categoryOptions}
+                onValueChange={(value) => setServiceData({ ...serviceData, category_id: value })}
                 value={serviceData.category_id}
-                placeholder="Select Category"
+                placeholder="Select category..."
+                className="w-full"
               />
             </div>
 

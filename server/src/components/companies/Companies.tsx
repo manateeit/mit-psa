@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import React, { useState, useEffect } from 'react';
 import { ICompany } from '@/interfaces/company.interfaces';
 import GenericDialog from '../ui/GenericDialog';
@@ -340,8 +340,8 @@ const Companies: React.FC = () => {
     );
   }
 
-return (
-    <div className="w-full">
+  return (
+    <div className="flex flex-col min-h-full">
       <div className="flex justify-end mb-4 flex-wrap gap-6">
         {/* Search */}
         <input
@@ -451,7 +451,7 @@ return (
       </div>
 
       {/* Companies */}
-      <div className="w-full">
+      <div className="flex-1">
         {viewMode === 'grid' ? (
           <CompaniesGrid
             filteredCompanies={filteredCompanies}

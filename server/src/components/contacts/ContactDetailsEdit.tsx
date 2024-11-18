@@ -14,6 +14,7 @@ import { ICompany } from '@/interfaces/company.interfaces';
 import { TagManager } from '@/components/tags';
 import { ArrowLeft } from 'lucide-react';
 import { Switch } from '@/components/ui/Switch';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface ContactDetailsEditProps {
   initialContact: IContact;
@@ -175,7 +176,7 @@ interface TableRowProps {
   value: string;
   onChange: (value: string) => void;
   type?: string;
-  options?: string[];
+  options?: { value: string; label: string }[];
   placeholder?: string;
 }
 
@@ -184,15 +185,11 @@ const TableRow: React.FC<TableRowProps> = ({ label, value, onChange, type = "tex
     <td className="py-2 font-semibold">{label}:</td>
     <td className="py-2">
       {options ? (
-        <select
+        <CustomSelect
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="border rounded px-2 py-1"
-        >
-          {options.map((option):JSX.Element => (
-            <option key={option} value={option}>{option}</option>
-          ))}
-        </select>
+          onValueChange={onChange}
+          options={options}
+        />
       ) : (
         <Input
           type={type}

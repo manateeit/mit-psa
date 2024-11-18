@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getCompanyTaxSettings, updateCompanyTaxSettings, getTaxRates, createDefaultTaxSettings } from '../lib/actions/taxSettingsActions';
 import { ICompanyTaxSettings, ITaxRate, ITaxComponent, ITaxRateThreshold, ITaxHoliday } from '../interfaces/tax.interfaces';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface TaxSettingsFormProps {
   companyId: string;
@@ -217,23 +218,24 @@ const TaxSettingsForm: React.FC<TaxSettingsFormProps> = ({ companyId }) => {
     );
   }
 
+  const taxRateOptions = taxRates.map((rate): { value: string; label: string } => ({
+    value: rate.tax_rate_id,
+    label: `${rate.name} (${rate.tax_percentage}%)`
+  }));
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <h2 className="text-2xl font-bold">Company Tax Settings</h2>
       <div>
-        <label htmlFor="taxRate" className="block text-sm font-medium text-gray-700">Tax Rate:</label>
-        <select
-          id="taxRate"
-          value={taxSettings.tax_rate_id}
-          onChange={(e) => handleTaxRateChange(e.target.value)}
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-        >
-          {taxRates.map((rate): JSX.Element => (
-            <option key={rate.tax_rate_id} value={rate.tax_rate_id}>
-              {rate.name} ({rate.tax_percentage}%)
-            </option>
-          ))}
-        </select>
+        <div className="inline-block">
+          <CustomSelect
+            label="Tax Rate"
+            value={taxSettings.tax_rate_id}
+            onValueChange={handleTaxRateChange}
+            options={taxRateOptions}
+            placeholder="Select Tax Rate"
+          />
+        </div>
       </div>
       <div>
         <label htmlFor="reverseCharge" className="flex items-center">
@@ -343,7 +345,7 @@ const TaxSettingsForm: React.FC<TaxSettingsFormProps> = ({ companyId }) => {
 
       <div>
         <h3 className="text-lg font-medium text-gray-900">Tax Holidays</h3>
-        {taxSettings.tax_holidays?.map((holiday, index):JSX.Element => (
+        {taxSettings.tax_holidays?.map((holiday, index): JSX.Element => (
           <div key={index} className="mt-4 space-y-2">
             <input
               type="date"

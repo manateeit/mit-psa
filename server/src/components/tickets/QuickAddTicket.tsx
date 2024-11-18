@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Button } from '../ui/Button';
+import { Button } from '@/components/ui/Button';
 import { X, AlertCircle } from 'lucide-react';
 import { addTicket } from '@/lib/actions/ticket-actions/ticketActions';
 import { getAllUsers, getCurrentUser } from '@/lib/actions/user-actions/userActions';
@@ -17,7 +17,7 @@ import { ChannelPicker } from '@/components/settings/general/ChannelPicker';
 import { CompanyPicker } from '../companies/CompanyPicker';
 import { CategoryPicker } from './CategoryPicker';
 import { useSession } from 'next-auth/react';
-import { Select, SelectOption } from '../ui/Select';
+import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 
 interface QuickAddTicketProps {
     open: boolean;
@@ -296,32 +296,34 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
                             onClientTypeFilterChange={setClientTypeFilter}
                         />
 
-                        {selectedCompanyType === 'company' && contacts.length > 0 && (
-                            <Select
+                    {selectedCompanyType === 'company' && contacts.length > 0 && (
+                        <div className="relative z-20">
+                            <CustomSelect
                                 value={contactId || ''}
-                                onChange={(value) => setContactId(value || null)}
-                                options={contacts.map((contact):SelectOption => ({
+                                onValueChange={(value) => setContactId(value || null)}
+                                options={contacts.map((contact): SelectOption => ({
                                     value: contact.contact_name_id,
                                     label: contact.full_name
                                 }))}
                                 placeholder="Select Contact"
-                                required={selectedCompanyType === 'company'}
                                 disabled={!companyId || selectedCompanyType !== 'company'}
                             />
-                        )}
+                        </div>
+                    )}
 
-                        <Select
+                    <div className="relative z-30">
+                        <CustomSelect
                             value={assignedTo}
-                            onChange={setAssignedTo}
-                            options={users.map((user):SelectOption => ({
+                            onValueChange={setAssignedTo}
+                            options={users.map((user): SelectOption => ({
                                 value: user.user_id,
                                 label: `${user.first_name} ${user.last_name}`
                             }))}
                             placeholder="Assign To"
-                            required
                         />
-                        
-                        <ChannelPicker
+                    </div>
+
+                    <ChannelPicker
                             channels={channels}
                             onSelect={handleChannelChange}
                             selectedChannelId={channelId}
@@ -338,27 +340,29 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
                             className="w-full"
                         />
 
-                        <Select
+                    <div className="relative z-20">
+                        <CustomSelect
                             value={statusId}
-                            onChange={setStatusId}
-                            options={statuses.map((status):SelectOption => ({
+                            onValueChange={setStatusId}
+                            options={statuses.map((status): SelectOption => ({
                                 value: status.status_id!,
                                 label: status.name ?? ""
                             }))}
                             placeholder="Select Status"
-                            required
                         />
+                    </div>
 
-                        <Select
+                    <div className="relative z-10">
+                        <CustomSelect
                             value={priorityId}
-                            onChange={setPriorityId}
-                            options={priorities.map((priority):SelectOption => ({
+                            onValueChange={setPriorityId}
+                            options={priorities.map((priority): SelectOption => ({
                                 value: priority.priority_id,
                                 label: priority.priority_name
                             }))}
                             placeholder="Select Priority"
-                            required
                         />
+                    </div>
 
                         <div className="flex justify-end space-x-2 pt-4">
                             <Dialog.Close asChild>

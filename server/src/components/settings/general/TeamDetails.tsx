@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { getTeamById, updateTeam, removeUserFromTeam, assignManagerToTeam, addUserToTeam } from '@/lib/actions/team-actions/teamActions';
 import { getAllUsers, getMultipleUsersWithRoles } from '@/lib/actions/user-actions/userActions';
 import { ITeam, IUser, IRole, IUserWithRoles } from '@/interfaces/auth.interfaces';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface TeamDetailsProps {
   teamId: string;
@@ -13,8 +14,8 @@ const TeamDetails: React.FC<TeamDetailsProps> = ({ teamId, onUpdate }): JSX.Elem
   const [team, setTeam] = useState<ITeam | null>(null);
   const [teamName, setTeamName] = useState('');
   const [allUsers, setAllUsers] = useState<IUser[]>([]);
-  const [selectedManagerId, setSelectedManagerId] = useState<string>('');
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [selectedManagerId, setSelectedManagerId] = useState<string | undefined>(undefined);
+  const [selectedUserId, setSelectedUserId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +30,7 @@ const TeamDetails: React.FC<TeamDetailsProps> = ({ teamId, onUpdate }): JSX.Elem
       const fetchedTeam = await getTeamById(teamId);
       setTeam(fetchedTeam);
       setTeamName(fetchedTeam.team_name);
-      setSelectedManagerId(fetchedTeam.manager_id || '');
+      setSelectedManagerId(fetchedTeam.manager_id || undefined);
       setError(null);
       onUpdate(fetchedTeam);
     } catch (err) {
@@ -103,7 +104,7 @@ const TeamDetails: React.FC<TeamDetailsProps> = ({ teamId, onUpdate }): JSX.Elem
         const updatedTeam = await addUserToTeam(team.team_id, selectedUserId);
         setTeam(updatedTeam);
         onUpdate(updatedTeam);
-        setSelectedUserId('');
+        setSelectedUserId(undefined);
         setError(null);
       } catch (err) {
         console.error('Error adding team member:', err);
@@ -119,6 +120,18 @@ const TeamDetails: React.FC<TeamDetailsProps> = ({ teamId, onUpdate }): JSX.Elem
   if (!team) {
     return <div className="text-text-600">No team found</div>;
   }
+
+  const managerOptions = allUsers.map((user): { value: string; label: string } => ({
+    value: user.user_id,
+    label: `${user.first_name} ${user.last_name}`
+  }));
+
+  const memberOptions = allUsers
+    .filter(user => !team.members.some(member => member.user_id === user.user_id))
+    .map((user): { value: string; label: string } => ({
+      value: user.user_id,
+      label: `${user.first_name} ${user.last_name}`
+    }));
 
   return (
     <div className="space-y-6 p-4 rounded-lg border border-border-200 bg-white">
@@ -151,21 +164,17 @@ const TeamDetails: React.FC<TeamDetailsProps> = ({ teamId, onUpdate }): JSX.Elem
             : 'No manager assigned'}
         </div>
         <div className="flex gap-2">
-          <select
-            value={selectedManagerId}
-            onChange={(e) => setSelectedManagerId(e.target.value)}
-            className="flex-1 p-2 border border-border-200 rounded focus:outline-none focus:border-primary-500"
-          >
-            <option value="">Select a manager</option>
-            {allUsers.map((user):JSX.Element => (
-              <option key={user.user_id} value={user.user_id}>
-                {user.first_name} {user.last_name}
-              </option>
-            ))}
-          </select>
+          <CustomSelect
+            value={selectedManagerId || ''}
+            onValueChange={setSelectedManagerId}
+            options={managerOptions}
+            placeholder="Select a manager"
+            className="flex-1"
+          />
           <button
             onClick={handleAssignManager}
-            className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors"
+            disabled={!selectedManagerId}
+            className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Assign
           </button>
@@ -175,23 +184,17 @@ const TeamDetails: React.FC<TeamDetailsProps> = ({ teamId, onUpdate }): JSX.Elem
       <div>
         <label className="block text-sm font-medium text-text-700 mb-1">Add Team Member</label>
         <div className="flex gap-2">
-          <select
-            value={selectedUserId}
-            onChange={(e) => setSelectedUserId(e.target.value)}
-            className="flex-1 p-2 border border-border-200 rounded focus:outline-none focus:border-primary-500"
-          >
-            <option value="">Select a user</option>
-            {allUsers
-              .filter(user => !team.members.some(member => member.user_id === user.user_id))
-              .map((user):JSX.Element => (
-                <option key={user.user_id} value={user.user_id}>
-                  {user.first_name} {user.last_name}
-                </option>
-              ))}
-          </select>
+          <CustomSelect
+            value={selectedUserId || ''}
+            onValueChange={setSelectedUserId}
+            options={memberOptions}
+            placeholder="Select a user"
+            className="flex-1"
+          />
           <button
             onClick={handleAddMember}
-            className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors"
+            disabled={!selectedUserId}
+            className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Add
           </button>
@@ -201,14 +204,14 @@ const TeamDetails: React.FC<TeamDetailsProps> = ({ teamId, onUpdate }): JSX.Elem
       <div>
         <label className="block text-sm font-medium text-text-700 mb-2">Team Members</label>
         <ul className="space-y-2">
-          {team.members.map((member):JSX.Element => (
+          {team.members.map((member): JSX.Element => (
             <li key={member.user_id} className="flex items-center justify-between p-3 rounded border border-border-200 hover:border-primary-200 transition-colors">
               <div>
                 <div className="font-medium text-text-800">
                   {member.first_name} {member.last_name}
                 </div>
                 <div className="text-sm text-text-600">
-                  {member.roles.map((role):string => role.role_name).join(', ')}
+                  {member.roles.map((role): string => role.role_name).join(', ')}
                 </div>
               </div>
               <button

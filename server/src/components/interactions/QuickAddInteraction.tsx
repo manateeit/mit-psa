@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Button } from '../ui/Button';
-import { Select } from '@/components/ui/Select';
+import { Button } from '@/components/ui/Button';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { Input } from '@/components/ui/Input';
 import { addInteraction, getInteractionTypes, getInteractionById } from '@/lib/actions/interactionActions';
 import { IInteraction, IInteractionType } from '@/interfaces/interaction.interfaces';
@@ -98,13 +98,15 @@ export function QuickAddInteraction({
         <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-96">
           <Dialog.Title className="text-lg font-bold mb-4">Add New Interaction</Dialog.Title>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Select
-              options={interactionTypes.map((type): {value: string, label: string} => ({ value: type.type_id, label: type.type_name }))}
+            <CustomSelect
+              options={interactionTypes.map((type): { value: string; label: string } => ({ 
+                value: type.type_id, 
+                label: type.type_name 
+              }))}
               value={typeId}
-              onChange={(value) => setTypeId(value)}
+              onValueChange={setTypeId}
               placeholder="Select Interaction Type"
               className="w-full"
-              required
             />
             <Input
               type="text"

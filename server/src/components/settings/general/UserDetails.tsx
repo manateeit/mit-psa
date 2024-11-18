@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/Switch';
 import { Card } from '@/components/ui/Card';
-import { Select } from '@/components/ui/Select';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface UserDetailsProps {
   userId: string;
@@ -215,10 +215,10 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId, onUpdate }) => {
             ))}
           </div>
           <div className="mt-2 flex gap-2">
-            <Select
+            <CustomSelect
               options={availableRoleOptions}
               value={selectedRole}
-              onChange={setSelectedRole}
+              onValueChange={setSelectedRole}
               className="flex-1"
               placeholder="Select role to add"
             />

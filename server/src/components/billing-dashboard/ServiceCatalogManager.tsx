@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { Select } from '../ui/Select';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { UnitOfMeasureInput } from './UnitOfMeasureInput';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/Dialog';
 import { getServices, updateService, deleteService } from '@/lib/actions/serviceActions';
@@ -11,16 +11,15 @@ import { getServiceCategories } from '@/lib/actions/serviceCategoryActions';
 import { IService, IServiceCategory, ServiceType } from '@/interfaces/billing.interfaces';
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Switch } from '../ui/Switch';
-import { SelectOption } from '../ui/Select';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import { QuickAddService } from './QuickAddService';
 
 // Define service type options
 const SERVICE_TYPE_OPTIONS = [
-  { value: 'Fixed' as ServiceType, label: 'Fixed Price' },
-  { value: 'Time' as ServiceType, label: 'Time Based' },
-  { value: 'Usage' as ServiceType, label: 'Usage Based' }
+  { value: 'Fixed', label: 'Fixed Price' },
+  { value: 'Time', label: 'Time Based' },
+  { value: 'Usage', label: 'Usage Based' }
 ];
 
 const ServiceCatalogManager: React.FC = () => {
@@ -172,17 +171,15 @@ const ServiceCatalogManager: React.FC = () => {
               value={editingService?.service_name || ''}
               onChange={(e) => setEditingService({ ...editingService!, service_name: e.target.value })}
             />
-            <Select
+            <CustomSelect
               options={SERVICE_TYPE_OPTIONS}
               value={editingService?.service_type || 'Fixed'}
-              onChange={(value) => {
-                // Ensure value is a valid ServiceType
+              onValueChange={(value) => {
                 if (value === 'Fixed' || value === 'Time' || value === 'Usage') {
-                  setEditingService({ ...editingService!, service_type: value })
+                  setEditingService({ ...editingService!, service_type: value as ServiceType })
                 }
               }}
-              placeholder="Select Service Type"
-              required
+              placeholder="Select service type..."
             />
             <Input
               type="number"
@@ -190,11 +187,14 @@ const ServiceCatalogManager: React.FC = () => {
               value={editingService?.default_rate || ''}
               onChange={(e) => setEditingService({ ...editingService!, default_rate: parseFloat(e.target.value) })}
             />
-            <Select
-              options={categories.map((cat): SelectOption => ({ value: cat.category_id, label: cat.category_name }))}
-              onChange={(value) => setEditingService({ ...editingService!, category_id: value })}
-              value={editingService?.category_id || ''}
-              placeholder="Select Category"
+            <CustomSelect
+              options={categories.map((cat): { value: string; label: string } => ({
+                value: cat.category_id,
+                label: cat.category_name
+              }))}
+              onValueChange={(value) => setEditingService({ ...editingService!, category_id: value })}
+              value={editingService?.category_id || 'unassigned'}
+              placeholder="Select category..."
             />
             <UnitOfMeasureInput
               value={editingService?.unit_of_measure || ''}

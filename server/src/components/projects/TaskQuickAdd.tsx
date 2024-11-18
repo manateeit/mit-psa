@@ -6,13 +6,13 @@ import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { ProjectStatus, addTaskToPhase, updateTask } from '@/lib/actions/projectActions';
 import { getCurrentUser } from '@/lib/auth/session';
 import * as Dialog from '@radix-ui/react-dialog';
-import * as Select from '@radix-ui/react-select';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
 import EditableText from '@/components/ui/EditableText';
 import { ListChecks } from 'lucide-react';
 import UserPicker from '@/components/ui/UserPicker';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { toast } from 'react-hot-toast';
 
 interface TaskQuickAddProps {
@@ -159,6 +159,11 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
     const updatedItems = checklistItems.filter((_, i) => i !== index);
     setChecklistItems(updatedItems);
   };
+  
+  const statusOptions = projectStatuses.map((status): { value: string; label: string } => ({
+    value: status.project_status_mapping_id,
+    label: status.custom_name || status.name
+  }));
 
   return (
     <>
@@ -186,32 +191,13 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
                   rows={3}
                 />
 
-                <Select.Root value={selectedStatus} onValueChange={setSelectedStatus}>
-                  <Select.Trigger className="inline-flex items-center justify-between w-full px-4 py-2 text-sm font-medium bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
-                    <Select.Value>
-                      {projectStatuses.find(s => s.project_status_mapping_id === selectedStatus)?.name || 'Select status'}
-                    </Select.Value>
-                    <Select.Icon><ChevronDownIcon /></Select.Icon>
-                  </Select.Trigger>
-                  <Select.Portal>
-                    <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg">
-                      <Select.Viewport className="p-1">
-                        {projectStatuses.map((status): JSX.Element => (
-                          <Select.Item
-                            key={status.project_status_mapping_id}
-                            value={status.project_status_mapping_id}
-                            className="relative flex items-center px-8 py-2 text-sm text-gray-900 cursor-default select-none hover:bg-purple-100"
-                          >
-                            <Select.ItemText>{status.custom_name || status.name}</Select.ItemText>
-                            <Select.ItemIndicator className="absolute left-2 inline-flex items-center">
-                              <CheckIcon />
-                            </Select.ItemIndicator>
-                          </Select.Item>
-                        ))}
-                      </Select.Viewport>
-                    </Select.Content>
-                  </Select.Portal>
-                </Select.Root>
+                <CustomSelect
+                  value={selectedStatus}
+                  onValueChange={setSelectedStatus}
+                  options={statusOptions}
+                  placeholder="Select status"
+                  className="w-full"
+                />
 
                 <UserPicker
                   label="Assigned To"
@@ -294,35 +280,23 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
                     {isSubmitting ? (task ? 'Updating...' : 'Adding...') : (task ? 'Update' : 'Save')}
                   </Button>
                 </div>
-                </div>
-              </form>
-            </Dialog.Content>
-          </Dialog.Portal>
-        </Dialog.Root>
+              </div>
+            </form>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
-        <ConfirmationDialog
-          isOpen={showCancelConfirm}
-          onClose={handleCancelDismiss}
-          onConfirm={handleCancelConfirm}
-          title="Cancel Task Creation"
-          message="Are you sure you want to cancel? Any unsaved changes will be lost."
-          confirmLabel="Yes, cancel"
-          cancelLabel="No, continue editing"
-        />
-      </>
-    );
-  };
-
-const ChevronDownIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M2.5 4L6 7.5L9.5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
-const CheckIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M11.4669 3.72684C11.7558 3.91574 11.8369 4.30308 11.648 4.59198L7.39799 11.092C7.29783 11.2452 7.13556 11.3467 6.95402 11.3699C6.77247 11.3931 6.58989 11.3355 6.45446 11.2124L3.70446 8.71241C3.44905 8.48022 3.43023 8.08494 3.66242 7.82953C3.89461 7.57412 4.28989 7.55529 4.5453 7.78749L6.75292 9.79441L10.6018 3.90792C10.7907 3.61902 11.178 3.53795 11.4669 3.72684Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd" />
-  </svg>
-);
+      <ConfirmationDialog
+        isOpen={showCancelConfirm}
+        onClose={handleCancelDismiss}
+        onConfirm={handleCancelConfirm}
+        title="Cancel Task Creation"
+        message="Are you sure you want to cancel? Any unsaved changes will be lost."
+        confirmLabel="Yes, cancel"
+        cancelLabel="No, continue editing"
+      />
+    </>
+  );
+};
 
 export default TaskQuickAdd;
