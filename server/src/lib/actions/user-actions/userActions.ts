@@ -1,13 +1,14 @@
 'use server'
 
-import User from '../../../lib/models/user';
-import { IUser, IRole, IUserWithRoles, IRoleWithPermissions, IUserRole } from '../../../interfaces/auth.interfaces';
+import User from '@/lib/models/user';
+import { IUser, IRole, IUserWithRoles, IRoleWithPermissions, IUserRole } from '@/interfaces/auth.interfaces';
 import { getServerSession } from "next-auth/next";
 import { revalidatePath } from 'next/cache';
-import { createTenantKnex } from '../../../lib/db';
-import { hashPassword } from '../../../utils/encryption/encryption';
-import Tenant from '../../../lib/models/tenant';
-import UserPreferences from '../../../lib/models/userPreferences';
+import { createTenantKnex } from '@/lib/db';
+import { getAdminConnection } from '@/lib/db/admin';
+import { hashPassword } from '@/utils/encryption/encryption';
+import Tenant from '@/lib/models/tenant';
+import UserPreferences from '@/lib/models/userPreferences';
 
 export async function addUser(userData: { firstName: string; lastName: string; email: string, password: string, roleId?: string }): Promise<IUser> {
   try {
@@ -16,7 +17,7 @@ export async function addUser(userData: { firstName: string; lastName: string; e
     if (!userData.roleId) {
       throw new Error("Role is required");
     }
-    
+
     const newUser = await db.transaction(async (trx) => {
       const [user] = await trx('users')
         .insert({
@@ -98,7 +99,7 @@ export async function getAllUsers(includeInactive: boolean = true): Promise<IUse
 
     if (!tenant) {
       throw new Error('Tenant is required');
-    } 
+    }
 
     const users = await User.getAll(includeInactive);
     const usersWithRoles = await Promise.all(users.map(async (user: IUser): Promise<IUserWithRoles> => {
@@ -127,7 +128,7 @@ export async function updateUser(userId: string, userData: Partial<IUser>): Prom
 export async function updateUserRoles(userId: string, roleIds: string[]): Promise<void> {
   try {
     const {knex: db, tenant} = await createTenantKnex();
-    
+
     await db.transaction(async (trx) => {
       // Delete existing roles
       await trx('user_roles')
@@ -250,17 +251,15 @@ export async function setUserPreference(userId: string, settingName: string, set
   }
 }
 
-export async function verifyContactEmail(email: string): Promise<{ exists: boolean; isActive: boolean; companyId?: string }> {
+
+export async function verifyContactEmail(email: string): Promise<{ exists: boolean; isActive: boolean; companyId?: string; tenant?: string }> {
   try {
-    const {knex: db, tenant} = await createTenantKnex();
-    
+    const db = await getAdminConnection();
+
     // Check if the email exists in contacts table
     const contact = await db('contacts')
-      .where({ 
-        email: email,
-        tenant: tenant || undefined
-      })
-      .select('contact_name_id', 'company_id', 'is_inactive')
+      .where({ email })
+      .select('contact_name_id', 'company_id', 'is_inactive', 'tenant')
       .first();
 
     if (!contact) {
@@ -270,7 +269,8 @@ export async function verifyContactEmail(email: string): Promise<{ exists: boole
     return {
       exists: true,
       isActive: !contact.is_inactive,
-      companyId: contact.company_id || undefined
+      companyId: contact.company_id,
+      tenant: contact.tenant
     };
   } catch (error) {
     console.error('Failed to verify contact email:', error);
@@ -280,12 +280,24 @@ export async function verifyContactEmail(email: string): Promise<{ exists: boole
 
 export async function registerClientUser(
   email: string,
-  password: string,
-  companyName: string,
-  tenant: string
-): Promise<IUser | { message: string }> {
+  password: string
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const {knex: db} = await createTenantKnex();
+    const db = await getAdminConnection();
+
+    // First verify the contact exists and get their tenant
+    const contact = await db('contacts')
+      .where({ email })
+      .select('contact_name_id', 'company_id', 'tenant', 'is_inactive')
+      .first();
+
+    if (!contact) {
+      return { success: false, error: 'Contact not found' };
+    }
+
+    if (contact.is_inactive) {
+      return { success: false, error: 'Contact is inactive' };
+    }
 
     // Check if user already exists
     const existingUser = await db('users')
@@ -293,16 +305,8 @@ export async function registerClientUser(
       .first();
 
     if (existingUser) {
-      return { message: 'User with this email already exists' };
+      return { success: false, error: 'User with this email already exists' };
     }
-
-    // Create tenant record first
-    await db('tenants').insert({
-      tenant_id: tenant,
-      tenant_name: companyName,
-      created_at: new Date(),
-      is_inactive: false
-    });
 
     // Create the user with client user type
     const [user] = await db('users')
@@ -310,16 +314,18 @@ export async function registerClientUser(
         email,
         username: email,
         hashed_password: hashPassword(password),
-        tenant,
+        tenant: contact.tenant,
         user_type: 'client',
+        contact_id: contact.contact_name_id,
         is_inactive: false,
-        created_at: new Date()
+        created_at: new Date(),
+        role: 'user' // Set the role field to match what addUser uses
       })
       .returning('*');
 
     // Get the default client role
     const [clientRole] = await db('roles')
-      .where({ role_name: 'client', tenant })
+      .where({ role_name: 'client', tenant: contact.tenant })
       .returning('*');
 
     if (!clientRole) {
@@ -328,7 +334,7 @@ export async function registerClientUser(
         .insert({
           role_name: 'client',
           description: 'Default client user role',
-          tenant
+          tenant: contact.tenant
         })
         .returning('*');
 
@@ -336,21 +342,20 @@ export async function registerClientUser(
       await db('user_roles').insert({
         user_id: user.user_id,
         role_id: newRole.role_id,
-        tenant
+        tenant: contact.tenant
       });
     } else {
       // Assign existing client role to the user
       await db('user_roles').insert({
         user_id: user.user_id,
         role_id: clientRole.role_id,
-        tenant
+        tenant: contact.tenant
       });
     }
 
-    return user;
+    return { success: true };
   } catch (error) {
     console.error('Error registering client user:', error);
-    return { message: 'Failed to register user' };
+    return { success: false, error: 'Failed to register user' };
   }
 }
-

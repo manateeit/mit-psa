@@ -12,9 +12,10 @@ interface ClientLoginFormProps {
   callbackUrl: string;
   onError: (error: string) => void;
   onTwoFactorRequired: () => void;
+  onRegister: () => void;
 }
 
-export default function ClientLoginForm({ callbackUrl, onError, onTwoFactorRequired }: ClientLoginFormProps) {
+export default function ClientLoginForm({ callbackUrl, onError, onTwoFactorRequired, onRegister }: ClientLoginFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -65,7 +66,7 @@ export default function ClientLoginForm({ callbackUrl, onError, onTwoFactorRequi
           autoComplete="email"
         />
       </div>
-      
+
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
         <Input
@@ -91,18 +92,19 @@ export default function ClientLoginForm({ callbackUrl, onError, onTwoFactorRequi
       </Button>
 
       <div className="flex justify-between text-sm">
-        <Link 
+        <Link
           href="/customer-portal/auth/forgot-password"
           className="text-blue-600 hover:text-blue-800 transition-colors"
         >
           Forgot your password?
         </Link>
-        <Link 
-          href="/customer-portal/auth/register"
+        <button
+          type="button"
+          onClick={onRegister}
           className="text-blue-600 hover:text-blue-800 transition-colors"
         >
           Register
-        </Link>
+        </button>
       </div>
     </form>
   )
