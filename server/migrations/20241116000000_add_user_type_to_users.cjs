@@ -4,9 +4,7 @@
  */
 exports.up = function(knex) {
   return knex.schema.alterTable('users', (table) => {
-      table.uuid('contact_id').references('contact_id').inTable('contacts').onDelete('SET NULL');
-      // Allow existing client users to be migrated
-      table.boolean('needs_contact_association').defaultTo(false);
+      table.enu('user_type', ['internal', 'client']).notNullable().defaultTo('internal');
     });
 };
 
@@ -16,7 +14,6 @@ exports.up = function(knex) {
 */
 exports.down = function(knex) {
   return knex.schema.alterTable('users', (table) => {
-      table.dropColumn('contact_id');
-      table.dropColumn('needs_contact_association');
+      table.dropColumn('user_type');
     });
 };
