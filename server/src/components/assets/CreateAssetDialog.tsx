@@ -5,13 +5,12 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import CustomSelect from '@/components/ui/CustomSelect';
+import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 import { Asset, CreateAssetRequest, AssetType, WorkstationAsset, NetworkDeviceAsset } from '@/interfaces/asset.interfaces';
 import { ICompany } from '@/interfaces';
 import { createAsset, listAssetTypes } from '@/lib/actions/asset-actions/assetActions';
 import { getAllCompanies } from '@/lib/actions/companyActions';
 import { CompanyPicker } from '@/components/companies/CompanyPicker';
-import { SelectOption } from '@/components/ui/Select';
 
 interface CreateAssetDialogProps {
   onClose: () => void;

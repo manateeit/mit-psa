@@ -8,8 +8,7 @@ import { IScheduleEntry, IRecurrencePattern } from '@/interfaces/schedule.interf
 import { WorkItemPicker } from './WorkItemPicker';
 import { IWorkItem } from '@/interfaces/workItem.interfaces';
 import { getWorkItemById } from '@/lib/actions/workItemActions';
-import * as Select from '@radix-ui/react-select';
-import { ChevronDownIcon } from '@radix-ui/react-icons';
+import CustomSelect from '@/components/ui/CustomSelect';
 import SelectedWorkItem from './SelectedWorkItem';
 
 interface EntryPopupProps {
@@ -79,6 +78,20 @@ const EntryPopup: React.FC<EntryPopupProps> = ({ event, slot, onClose, onSave })
     }
   }, [event, slot]);
 
+  const recurrenceOptions = [
+    { value: 'none', label: 'None' },
+    { value: 'daily', label: 'Daily' },
+    { value: 'weekly', label: 'Weekly' },
+    { value: 'monthly', label: 'Monthly' },
+    { value: 'yearly', label: 'Yearly' }
+  ];
+
+  const endTypeOptions = [
+    { value: 'never', label: 'Never' },
+    { value: 'date', label: 'On Date' },
+    { value: 'count', label: 'After' }
+  ];
+
   const handleRecurrenceChange = (value: string) => {
     if (value === 'none') {
       setRecurrencePattern(null);
@@ -110,6 +123,17 @@ const EntryPopup: React.FC<EntryPopupProps> = ({ event, slot, onClose, onSave })
       work_item_type: workItem?.type as "ticket" | "project_task" | "non_billable_category"
     }));
     setIsEditingWorkItem(false);
+  };
+
+  const handleEndTypeChange = (value: string) => {
+    setRecurrencePattern(prev => {
+      if (prev === null) return null;
+      return {
+        ...prev,
+        endDate: value === 'date' ? new Date() : undefined,
+        count: value === 'count' ? 1 : undefined
+      };
+    });
   };
 
   const handleSave = () => {
@@ -204,41 +228,14 @@ const EntryPopup: React.FC<EntryPopupProps> = ({ event, slot, onClose, onSave })
         </div>
       </div>
       <div className="space-y-4">
-        <label htmlFor="recurrence" className="block text-sm font-medium text-gray-700">
-          Recurrence
-        </label>
-        <Select.Root
-          value={recurrencePattern?.frequency || 'none'}
-          onValueChange={handleRecurrenceChange}
-        >
-          <Select.Trigger className="inline-flex items-center justify-between rounded-md px-3 py-2 text-sm leading-none gap-1 bg-white text-violet11 shadow-[0_2px_10px] shadow-black/10 hover:bg-mauve3 focus:shadow-[0_0_0_2px] focus:shadow-black data-[placeholder]:text-violet9 outline-none">
-            <Select.Value placeholder="Select frequency" />
-            <Select.Icon>
-              <ChevronDownIcon />
-            </Select.Icon>
-          </Select.Trigger>
-          <Select.Portal>
-            <Select.Content className="overflow-hidden bg-white rounded-md shadow-[0px_10px_38px_-10px_rgba(22,_23,_24,_0.35),0px_10px_20px_-15px_rgba(22,_23,_24,_0.2)]">
-              <Select.Viewport className="p-1">
-                <Select.Item value="none" className="text-sm leading-none text-violet11 rounded-[3px] flex items-center h-[25px] pr-[35px] pl-[25px] relative select-none data-[disabled]:text-mauve8 data-[disabled]:pointer-events-none data-[highlighted]:outline-none data-[highlighted]:bg-violet9 data-[highlighted]:text-violet1">
-                  <Select.ItemText>None</Select.ItemText>
-                </Select.Item>
-                <Select.Item value="daily" className="text-sm leading-none text-violet11 rounded-[3px] flex items-center h-[25px] pr-[35px] pl-[25px] relative select-none data-[disabled]:text-mauve8 data-[disabled]:pointer-events-none data-[highlighted]:outline-none data-[highlighted]:bg-violet9 data-[highlighted]:text-violet1">
-                  <Select.ItemText>Daily</Select.ItemText>
-                </Select.Item>
-                <Select.Item value="weekly" className="text-sm leading-none text-violet11 rounded-[3px] flex items-center h-[25px] pr-[35px] pl-[25px] relative select-none data-[disabled]:text-mauve8 data-[disabled]:pointer-events-none data-[highlighted]:outline-none data-[highlighted]:bg-violet9 data-[highlighted]:text-violet1">
-                  <Select.ItemText>Weekly</Select.ItemText>
-                </Select.Item>
-                <Select.Item value="monthly" className="text-sm leading-none text-violet11 rounded-[3px] flex items-center h-[25px] pr-[35px] pl-[25px] relative select-none data-[disabled]:text-mauve8 data-[disabled]:pointer-events-none data-[highlighted]:outline-none data-[highlighted]:bg-violet9 data-[highlighted]:text-violet1">
-                  <Select.ItemText>Monthly</Select.ItemText>
-                </Select.Item>
-                <Select.Item value="yearly" className="text-sm leading-none text-violet11 rounded-[3px] flex items-center h-[25px] pr-[35px] pl-[25px] relative select-none data-[disabled]:text-mauve8 data-[disabled]:pointer-events-none data-[highlighted]:outline-none data-[highlighted]:bg-violet9 data-[highlighted]:text-violet1">
-                  <Select.ItemText>Yearly</Select.ItemText>
-                </Select.Item>
-              </Select.Viewport>
-            </Select.Content>
-          </Select.Portal>
-        </Select.Root>
+        <div className="relative z-10">
+          <CustomSelect
+            label="Recurrence"
+            value={recurrencePattern?.frequency || 'none'}
+            onValueChange={handleRecurrenceChange}
+            options={recurrenceOptions}
+          />
+        </div>
       </div>
       {recurrencePattern && (
         <div className="space-y-4">
@@ -260,29 +257,12 @@ const EntryPopup: React.FC<EntryPopupProps> = ({ event, slot, onClose, onSave })
             />
           </div>
           <div>
-            <label htmlFor="endType" className="block text-sm font-medium text-gray-700">
-              End
-            </label>
-            <select
-              id="endType"
+            <CustomSelect
+              label="End"
               value={recurrencePattern.endDate ? 'date' : recurrencePattern.count ? 'count' : 'never'}
-              onChange={(e) => {
-                const value = e.target.value;
-                setRecurrencePattern(prev => {
-                  if (prev === null) return null;
-                  return {
-                    ...prev,
-                    endDate: value === 'date' ? new Date() : undefined,
-                    count: value === 'count' ? 1 : undefined
-                  };
-                });
-              }}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-            >
-              <option value="never">Never</option>
-              <option value="date">On Date</option>
-              <option value="count">After</option>
-            </select>
+              onValueChange={handleEndTypeChange}
+              options={endTypeOptions}
+            />
           </div>
           {recurrencePattern.endDate && (
             <div>

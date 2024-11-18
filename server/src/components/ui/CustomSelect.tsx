@@ -1,4 +1,4 @@
-import React, { SelectHTMLAttributes } from 'react';
+import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import * as RadixSelect from '@radix-ui/react-select';
 
@@ -14,7 +14,7 @@ export interface StyleProps {
   itemIndicator?: string;
 }
 
-interface CustomSelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> {
+interface CustomSelectProps {
   options: SelectOption[];
   value: string;
   onValueChange: (value: string) => void;
@@ -23,7 +23,6 @@ interface CustomSelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>
   disabled?: boolean;
   customStyles?: StyleProps;
   label?: string;
-  simple?: boolean;
 }
 
 const CustomSelect: React.FC<CustomSelectProps> = ({
@@ -35,44 +34,9 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   disabled = false,
   customStyles,
   label,
-  simple = false,
-  ...props
 }): JSX.Element => {
   const selectedOption = options.find(option => option.value === value);
 
-  // Simple mode uses native select
-  if (simple) {
-    return (
-      <div className="mb-4">
-        {label && (
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {label}
-          </label>
-        )}
-        <select
-          value={value}
-          onChange={(e) => onValueChange(e.target.value)}
-          disabled={disabled}
-          className={`
-            w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
-            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ${className}
-          `}
-          {...props}
-        >
-          <option value="">{placeholder}</option>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-    );
-  }
-
-  // Complex mode uses Radix UI
   return (
     <div className={label ? 'mb-4' : ''}>
       {label && (
@@ -87,7 +51,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
             border border-gray-300 rounded-lg p-2
             bg-white cursor-pointer min-h-[38px]
             hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-            text-sm
+            text-sm w-full
             disabled:opacity-50 disabled:cursor-not-allowed
             ${className}
             ${customStyles?.trigger || ''}
@@ -108,11 +72,12 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
           <RadixSelect.Content
             className={`
               overflow-hidden bg-white rounded-md shadow-lg
-              border border-gray-200 mt-1 z-50 min-w-[var(--radix-select-trigger-width)]
+              border border-gray-200 mt-1 z-50 w-fit
               ${customStyles?.content || ''}
             `}
             position="popper"
             sideOffset={4}
+            align="start"
           >
             <RadixSelect.Viewport className="p-1">
               {options.map((option) => (
@@ -122,7 +87,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
                   className={`
                     relative flex items-center px-3 py-2 text-sm rounded text-gray-900
                     cursor-pointer bg-white hover:bg-gray-100 focus:bg-gray-100
-                    focus:outline-none select-none
+                    focus:outline-none select-none whitespace-nowrap
                     ${customStyles?.item || ''}
                   `}
                 >

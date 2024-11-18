@@ -7,6 +7,7 @@ import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import { IProject, ICompany } from '@/interfaces';
 import { Button } from '@/components/ui/Button';
+import CustomSelect from '@/components/ui/CustomSelect';
 import ProjectQuickAdd from './ProjectQuickAdd';
 import { deleteProject } from '@/lib/actions/projectActions';
 import { toast } from 'react-hot-toast';
@@ -94,11 +95,17 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
     setProjects([...projects, newProject]);
   };
 
+  const statusOptions = [
+    { value: 'all', label: 'All projects' },
+    { value: 'active', label: 'Active projects' },
+    { value: 'inactive', label: 'Inactive projects' }
+  ];
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Projects</h1>
-        <div className="flex space-x-4">
+        <div className="flex items-center space-x-4">
           <input
             type="text"
             placeholder="Search projects"
@@ -106,15 +113,17 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <select 
-            className="border border-gray-300 rounded-md p-2"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
-          >
-            <option value="all">All projects</option>
-            <option value="active">Active projects</option>
-            <option value="inactive">Inactive projects</option>
-          </select>
+          <div className="relative z-10">
+            <CustomSelect
+              options={statusOptions}
+              value={filterStatus}
+              onValueChange={(value) => setFilterStatus(value as 'all' | 'active' | 'inactive')}
+              placeholder="Select status"
+              customStyles={{
+                content: 'mt-1'
+              }}
+            />
+          </div>
           <Button onClick={() => setShowQuickAdd(true)}>
             Add Project
           </Button>

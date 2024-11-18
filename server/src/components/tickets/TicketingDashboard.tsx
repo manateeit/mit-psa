@@ -7,7 +7,7 @@ import { ITicket, ITicketListItem, ITicketCategory } from '@/interfaces/ticket.i
 import { IUser } from '@/interfaces/auth.interfaces';
 import { QuickAddTicket } from './QuickAddTicket';
 import { CategoryPicker } from './CategoryPicker';
-import CustomSelect from '../ui/CustomSelect';
+import CustomSelect, { SelectOption } from '../ui/CustomSelect';
 import { Button } from '../ui/Button';
 import { getAllChannels } from '@/lib/actions/channel-actions/channelActions';
 import { getTicketStatuses } from '@/lib/actions/status-actions/statusActions';
@@ -16,7 +16,6 @@ import { getAllUsers } from '@/lib/actions/user-actions/userActions';
 import { getTicketCategories } from '@/lib/actions/ticketCategoryActions';
 import { ChannelPicker } from '@/components/settings/general/ChannelPicker';
 import { IChannel } from '@/interfaces';
-import { SelectOption } from '../ui/Select';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import { getTicketsForList } from '@/lib/actions/ticket-actions/ticketActions';

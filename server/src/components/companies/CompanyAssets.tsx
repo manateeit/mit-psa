@@ -8,8 +8,7 @@ import { getClientMaintenanceSummary, listAssets, listAssetTypes } from '@/lib/a
 import { Boxes, Plus, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import CustomSelect from '@/components/ui/CustomSelect';
-import { SelectOption } from '@/components/ui/Select';
+import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 
 interface CompanyAssetsProps {
   companyId: string;

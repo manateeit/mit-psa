@@ -9,7 +9,7 @@ import { getInteractionsForEntity, getInteractionTypes } from '@/lib/actions/int
 import { useDrawer } from '@/context/DrawerContext';
 import { getInteractionById } from '@/lib/actions/interactionActions';
 import InteractionDetails from './InteractionDetails';
-import { Select } from '@/components/ui/Select';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
@@ -164,10 +164,10 @@ const InteractionsFeed: React.FC<InteractionsFeedProps> = ({ entityId, entityTyp
         </DialogHeader>
         <DialogContent>
           <div className="space-y-4">
-            <Select
-              options={[{ value: '', label: 'All Types' }, ...interactionTypes.map((type):{value: string, label: string} => ({ value: type.type_id, label: type.type_name }))]}
+            <CustomSelect
+              options={[{ value: '', label: 'All Types' }, ...interactionTypes.map((type) => ({ value: type.type_id, label: type.type_name }))]}
               value={selectedType}
-              onChange={(value) => setSelectedType(value)}
+              onValueChange={setSelectedType}
               placeholder="Interaction Type"
             />
             <Input

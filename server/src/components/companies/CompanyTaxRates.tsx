@@ -1,8 +1,9 @@
 import React from 'react';
-import { Button, Select } from '@radix-ui/themes';
-import { ITaxRate, ICompanyTaxRate } from '../../interfaces/billing.interfaces';
+import { Button } from '@radix-ui/themes';
+import { ITaxRate, ICompanyTaxRate } from '@/interfaces/billing.interfaces';
 import { DataTable } from '../ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface CompanyTaxRatesProps {
     companyTaxRates: ICompanyTaxRate[];
@@ -73,6 +74,11 @@ const CompanyTaxRates: React.FC<CompanyTaxRatesProps> = ({
         }
     ];
 
+    const taxRateOptions = taxRates.map((taxRate) => ({
+        value: taxRate.tax_rate_id!,
+        label: `${taxRate.region} - ${taxRate.tax_percentage}%`
+    }));
+
     return (
         <div className="space-y-4">
             <h3 className="font-semibold">Company Tax Rates</h3>
@@ -84,22 +90,14 @@ const CompanyTaxRates: React.FC<CompanyTaxRatesProps> = ({
             />
 
             <div className="flex items-center gap-2 mt-4">
-                <Select.Root
-                    value={selectedTaxRate}
-                    onValueChange={onSelectTaxRate}
-                >
-                    <Select.Trigger className="flex-1" />
-                    <Select.Content>
-                        <Select.Group>
-                            <Select.Label>Select Tax Rate</Select.Label>
-                            {taxRates.map((taxRate):JSX.Element => (
-                                <Select.Item key={taxRate.tax_rate_id} value={taxRate.tax_rate_id!}>
-                                    {taxRate.region} - {taxRate.tax_percentage}%
-                                </Select.Item>
-                            ))}
-                        </Select.Group>
-                    </Select.Content>
-                </Select.Root>
+                <div className="flex-1">
+                    <CustomSelect
+                        value={selectedTaxRate}
+                        onValueChange={onSelectTaxRate}
+                        options={taxRateOptions}
+                        placeholder="Select Tax Rate"
+                    />
+                </div>
                 <Button 
                     onClick={onAdd}
                     className="bg-blue-600 text-white hover:bg-blue-700 transition-colors whitespace-nowrap px-4"

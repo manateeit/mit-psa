@@ -9,7 +9,7 @@ import AvatarIcon from '@/components/ui/AvatarIcon';
 import { IComment } from '@/interfaces/comment.interface';
 import { IContact } from '@/interfaces/contact.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { Select } from '@/components/ui/Select';
+import CustomSelect from '@/components/ui/CustomSelect';
 import UserPicker from '@/components/ui/UserPicker';
 import ContactPickerDialog from '@/components/ui/ContactPickerDialog';
 import { Button } from '@/components/ui/Button';
@@ -147,18 +147,17 @@ const CommentItem: React.FC<CommentItemProps> = ({
     return (
       <div>
         <div className="mb-4 space-y-4">
-          <div>
+          <div className="max-w-xs">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Author Type
             </label>
-            <Select
+            <CustomSelect
               value={authorType}
-              onChange={handleAuthorTypeChange}
+              onValueChange={handleAuthorTypeChange}
               options={[
                 { value: 'user', label: 'User' },
                 { value: 'contact', label: 'Contact' }
               ]}
-              className="w-full"
             />
           </div>
           

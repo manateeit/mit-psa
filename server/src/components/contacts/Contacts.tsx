@@ -18,9 +18,9 @@ import CompanyDetails from '../companies/CompanyDetails';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import { TagManager, TagFilter } from '@/components/tags';
-import { getUniqueTagTexts } from '@/utils/colorUtils';
-import { getAvatarUrl } from '@/utils/colorUtils';
+import { getUniqueTagTexts, getAvatarUrl } from '@/utils/colorUtils';
 import GenericDialog from '@/components/ui/GenericDialog';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface ContactsProps {
   initialContacts: IContact[];
@@ -44,6 +44,12 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<IContact | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const statusOptions = [
+    { value: 'all', label: 'All contacts' },
+    { value: 'active', label: 'Active contacts' },
+    { value: 'inactive', label: 'Inactive contacts' }
+  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -444,15 +450,12 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
               }}
             />
 
-            <select
-              className="border border-gray-300 rounded-md p-2"
+            <CustomSelect
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
-            >
-              <option value="all">All contacts</option>
-              <option value="active">Active contacts</option>
-              <option value="inactive">Inactive contacts</option>
-            </select>
+              onValueChange={(value) => setFilterStatus(value as 'all' | 'active' | 'inactive')}
+              options={statusOptions}
+              className="min-w-[180px]"
+            />
           </div>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>

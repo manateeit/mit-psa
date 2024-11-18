@@ -5,8 +5,7 @@ import { Asset, AssetAssociation } from '@/interfaces/asset.interfaces';
 import { listEntityAssets, getAsset, createAssetAssociation, removeAssetAssociation, listAssets } from '@/lib/actions/asset-actions/assetActions';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
-import CustomSelect from '@/components/ui/CustomSelect';
-import { SelectOption } from '@/components/ui/Select';
+import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 import { toast } from 'react-hot-toast';
 
 interface AssociatedAssetsProps {
