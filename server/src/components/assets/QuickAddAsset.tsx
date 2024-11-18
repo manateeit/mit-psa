@@ -4,10 +4,9 @@ import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 import { createAsset, listAssetTypes } from '@/lib/actions/asset-actions/assetActions';
 import { AssetType, CreateAssetRequest } from '@/interfaces/asset.interfaces';
-import { SelectOption } from '@/components/ui/CustomSelect';
 import { CompanyPicker } from '@/components/companies/CompanyPicker';
 import { ICompany } from '@/interfaces';
 import { getAllCompanies } from '@/lib/actions/companyActions';
@@ -267,7 +266,7 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700">Device Type</label>
-              <Select
+              <CustomSelect
                 options={[
                   { value: 'switch', label: 'Switch' },
                   { value: 'router', label: 'Router' },
@@ -276,11 +275,11 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
                   { value: 'load_balancer', label: 'Load Balancer' }
                 ]}
                 value={formData.networkDevice.device_type}
-                onChange={(value) => setFormData(prev => ({
+                onValueChange={(value) => setFormData(prev => ({
                   ...prev,
                   networkDevice: { ...prev.networkDevice, device_type: value as NetworkDeviceType }
                 }))}
-                required
+                placeholder="Select device type"
               />
             </div>
             <div>
@@ -333,17 +332,17 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700">OS Type</label>
-              <Select
+              <CustomSelect
                 options={[
                   { value: 'ios', label: 'iOS' },
                   { value: 'android', label: 'Android' }
                 ]}
                 value={formData.mobileDevice.os_type}
-                onChange={(value) => setFormData(prev => ({
+                onValueChange={(value) => setFormData(prev => ({
                   ...prev,
                   mobileDevice: { ...prev.mobileDevice, os_type: value }
                 }))}
-                required
+                placeholder="Select OS type"
               />
             </div>
             <div>
@@ -430,29 +429,27 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Type</label>
-              <Select
+              <CustomSelect
                 options={assetTypes.map((type): SelectOption => ({
                   value: type.type_id,
                   label: type.type_name
                 }))}
                 value={formData.type_id}
-                onChange={(value) => {
+                onValueChange={(value) => {
                   setFormData(prev => ({ ...prev, type_id: value }));
                   setSelectedType(assetTypes.find(t => t.type_id === value) || null);
                 }}
                 placeholder="Select type"
-                required
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Status</label>
-              <Select
+              <CustomSelect
                 options={STATUS_OPTIONS}
                 value={formData.status}
-                onChange={(value) => setFormData(prev => ({ ...prev, status: value as AssetStatus }))}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as AssetStatus }))}
                 placeholder="Select status"
-                required
               />
             </div>
 
