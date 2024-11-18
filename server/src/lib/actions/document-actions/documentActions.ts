@@ -11,9 +11,9 @@ import { join } from 'path';
 import { CacheFactory } from '../../cache/CacheFactory';
 import Document from '../../models/document';
 import DocumentAssociation from '../../models/document-association';
-import { 
-    IDocument, 
-    IDocumentType, 
+import {
+    IDocument,
+    IDocumentType,
     ISharedDocumentType,
     DocumentFilters,
     PreviewResponse,
@@ -27,7 +27,7 @@ import { NextResponse } from 'next/server';
 
 export async function createDocumentAssociations(
   entity_id: string,
-  entity_type: 'ticket' | 'company' | 'contact' | 'schedule',
+  entity_type: 'ticket' | 'company' | 'contact' | 'schedule' | 'asset',
   document_ids: string[]
 ): Promise<{ success: boolean }> {
   try {
@@ -45,7 +45,7 @@ export async function createDocumentAssociations(
     }));
 
     await Promise.all(
-      associations.map((association): Promise<Pick<IDocumentAssociation, "association_id">> => 
+      associations.map((association): Promise<Pick<IDocumentAssociation, "association_id">> =>
         DocumentAssociation.create(association)
       )
     );
@@ -291,8 +291,143 @@ export async function getAllDocuments(filters?: DocumentFilters): Promise<IDocum
   }
 }
 
-// Remove document associations
-export async function removeDocumentAssociations(entity_id: string, entity_type: string, document_ids?: string[]) {
+
+// Upload new document
+export async function uploadDocument(
+  file: FormData,
+  options: {
+    userId: string;
+    companyId?: string;
+    ticketId?: string;
+    contactNameId?: string;
+    scheduleId?: string;
+    assetId?: string;
+  }
+) {
+  try {
+    const { tenant } = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('No tenant found');
+    }
+
+      // Extract file from FormData
+      const fileData = file.get('file') as File;
+      if (!fileData) {
+        throw new Error('No file provided');
+      }
+
+      // Validate first
+      await validateDocumentUpload(fileData);
+
+      const buffer = Buffer.from(await fileData.arrayBuffer());
+
+      // Upload file to storage
+      const uploadResult = await StorageService.uploadFile(tenant, buffer, fileData.name, {
+        mime_type: fileData.type,
+        uploaded_by: options.userId
+      });
+
+      // Get document type based on mime type
+      const { typeId, isShared } = await getDocumentTypeId(fileData.type);
+
+      // Create document record
+      const document: IDocument = {
+        document_id: uuidv4(),
+        document_name: fileData.name,
+        content: '',
+        type_id: isShared ? null : typeId,
+        shared_type_id: isShared ? typeId : undefined,
+        user_id: options.userId,
+        order_number: 0,
+        created_by: options.userId,
+        tenant,
+        file_id: uploadResult.file_id,
+        storage_path: uploadResult.storage_path,
+        mime_type: fileData.type,
+        file_size: fileData.size
+      };
+
+      const result = await Document.insert(document);
+      const documentWithId = { ...document, document_id: result.document_id };
+
+    // Create associations if any entity IDs are provided
+    const associations: IDocumentAssociationInput[] = [];
+
+    if (options.ticketId) {
+      associations.push({
+        document_id: documentWithId.document_id,
+        entity_id: options.ticketId,
+        entity_type: 'ticket',
+        tenant
+      });
+    }
+
+    if (options.companyId) {
+      associations.push({
+        document_id: documentWithId.document_id,
+        entity_id: options.companyId,
+        entity_type: 'company',
+        tenant
+      });
+    }
+
+    if (options.contactNameId) {
+      associations.push({
+        document_id: documentWithId.document_id,
+        entity_id: options.contactNameId,
+        entity_type: 'contact',
+        tenant
+      });
+    }
+
+    if (options.scheduleId) {
+      associations.push({
+        document_id: documentWithId.document_id,
+        entity_id: options.scheduleId,
+        entity_type: 'schedule',
+        tenant
+      });
+    }
+
+    if (options.assetId) {
+      associations.push({
+        document_id: documentWithId.document_id,
+        entity_id: options.assetId,
+        entity_type: 'asset',
+        tenant
+      });
+    }
+
+    // Create all associations
+    if (associations.length > 0) {
+      await Promise.all(
+        associations.map((association): Promise<Pick<IDocumentAssociation, "association_id">> =>
+          DocumentAssociation.create(association)
+        )
+      );
+    }
+
+    return {
+      success: true,
+      document: documentWithId
+    };
+  } catch (error) {
+    console.error('Error uploading document:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to upload document'
+    };
+  }
+}
+
+// ... (keep other existing functions)
+
+// Update the type in the function signature
+export async function removeDocumentAssociations(
+  entity_id: string,
+  entity_type: 'ticket' | 'company' | 'contact' | 'schedule' | 'asset',
+  document_ids?: string[]
+) {
   try {
     const { knex, tenant } = await createTenantKnex();
     if (!tenant) {
@@ -317,133 +452,15 @@ export async function removeDocumentAssociations(entity_id: string, entity_type:
   }
 }
 
-// Upload new document
-export async function uploadDocument(
-  file: FormData,
-  options: {
-    userId: string;
-    companyId?: string;
-    ticketId?: string;
-    contactNameId?: string;
-    scheduleId?: string;
-  }
-) {
-  try {
-    const { tenant } = await createTenantKnex();
-    if (!tenant) {
-      throw new Error('No tenant found');
-    }
-
-    // Extract file from FormData
-    const fileData = file.get('file') as File;
-    if (!fileData) {
-      throw new Error('No file provided');
-    }
-
-    // Validate first
-    await validateDocumentUpload(fileData);
-    
-    const buffer = Buffer.from(await fileData.arrayBuffer());
-
-    // Upload file to storage
-    const uploadResult = await StorageService.uploadFile(tenant, buffer, fileData.name, {
-      mime_type: fileData.type,
-      uploaded_by: options.userId
-    });
-
-    // Get document type based on mime type
-    const { typeId, isShared } = await getDocumentTypeId(fileData.type);
-
-    // Create document record
-    const document: IDocument = {
-      document_id: uuidv4(),
-      document_name: fileData.name,
-      content: '',
-      type_id: isShared ? null : typeId,
-      shared_type_id: isShared ? typeId : undefined,
-      user_id: options.userId,
-      order_number: 0,
-      created_by: options.userId,
-      tenant,
-      file_id: uploadResult.file_id,
-      storage_path: uploadResult.storage_path,
-      mime_type: fileData.type,
-      file_size: fileData.size
-    };
-
-    const result = await Document.insert(document);
-    const documentWithId = { ...document, document_id: result.document_id };
-
-    // Create associations if any entity IDs are provided
-    const associations: IDocumentAssociationInput[] = [];
-    
-    if (options.ticketId) {
-      associations.push({
-        document_id: documentWithId.document_id,
-        entity_id: options.ticketId,
-        entity_type: 'ticket',
-        tenant
-      });
-    }
-    
-    if (options.companyId) {
-      associations.push({
-        document_id: documentWithId.document_id,
-        entity_id: options.companyId,
-        entity_type: 'company',
-        tenant
-      });
-    }
-    
-    if (options.contactNameId) {
-      associations.push({
-        document_id: documentWithId.document_id,
-        entity_id: options.contactNameId,
-        entity_type: 'contact',
-        tenant
-      });
-    }
-    
-    if (options.scheduleId) {
-      associations.push({
-        document_id: documentWithId.document_id,
-        entity_id: options.scheduleId,
-        entity_type: 'schedule',
-        tenant
-      });
-    }
-
-    // Create all associations
-    if (associations.length > 0) {
-      await Promise.all(
-        associations.map((association): Promise<Pick<IDocumentAssociation, "association_id">> => 
-          DocumentAssociation.create(association)
-        )
-      );
-    }
-    
-    return {
-      success: true,
-      document: documentWithId
-    };
-  } catch (error) {
-    console.error('Error uploading document:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to upload document'
-    };
-  }
-}
-
 // Add new document
 export async function addDocument(data: DocumentInput) {
   try {
-    const new_document: IDocument = { 
-      ...data, 
+    const new_document: IDocument = {
+      ...data,
       document_id: uuidv4()
     };
 
-    console.log('Adding document:', new_document);    
+    console.log('Adding document:', new_document);
     const document = await Document.insert(new_document);
     return { _id: document.document_id };
   } catch (error) {
@@ -565,7 +582,7 @@ export async function getDocumentPreview(
       // Read the cached preview image
       const imageBuffer = await sharp(cachedPreview).toBuffer();
       const base64Image = `data:image/png;base64,${imageBuffer.toString('base64')}`;
-      
+
       return {
         success: true,
         previewImage: base64Image,
@@ -592,7 +609,7 @@ export async function getDocumentPreview(
 
         // Create temp directory for processing
         const tempDir = join(config.providers[config.defaultProvider!].basePath!, 'pdf-previews');
-        
+
         // Ensure temp directory exists
         try {
           await mkdir(tempDir, { recursive: true });
@@ -605,7 +622,7 @@ export async function getDocumentPreview(
         }
 
         const tempPdfPath = join(tempDir, `${file_id}.pdf`);
-        
+
         try {
           // Write the PDF file
           await writeFile(tempPdfPath, buffer);
@@ -649,7 +666,7 @@ export async function getDocumentPreview(
             unlink(result.path!)
           ]);
 
-          return { 
+          return {
             success: true,
             previewImage: base64Image,
             pageCount,
@@ -664,7 +681,7 @@ export async function getDocumentPreview(
             console.error('Cleanup error:', cleanupError);
           }
           // Fallback to basic info if image conversion fails
-          return { 
+          return {
             success: true,
             pageCount,
             content: `PDF Document\nPages: ${pageCount}\n\nPreview image generation failed.`
@@ -714,9 +731,9 @@ export async function getDocumentPreview(
     }
 
     // For unsupported types
-    return { 
-      success: false, 
-      error: 'Preview not available for this file type' 
+    return {
+      success: false,
+      error: 'Preview not available for this file type'
     };
   } catch (error) {
     console.error('Preview file error:', error);
@@ -733,7 +750,7 @@ async function validateDocumentUpload(file: File): Promise<void> {
   if (!tenant) {
     throw new Error('No tenant found');
   }
-  
+
   await StorageService.validateFileUpload(
     tenant,
     file.type,
@@ -744,7 +761,7 @@ async function validateDocumentUpload(file: File): Promise<void> {
 // Get document type ID
 async function getDocumentTypeId(mimeType: string): Promise<{ typeId: string, isShared: boolean }> {
   const { knex, tenant } = await createTenantKnex();
-  
+
   // First try to find a tenant-specific type
   const tenantType = await knex('document_types')
     .where({ tenant, type_name: mimeType })
@@ -765,7 +782,7 @@ async function getDocumentTypeId(mimeType: string): Promise<{ typeId: string, is
 
   // If no exact match, try to find a match for the general type (e.g., "image/*" for "image/png")
   const generalType = mimeType.split('/')[0] + '/*';
-  
+
   // Check tenant-specific general type first
   const generalTenantType = await knex('document_types')
     .where({ tenant, type_name: generalType })

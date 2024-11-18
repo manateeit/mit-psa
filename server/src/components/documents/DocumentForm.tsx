@@ -1,7 +1,12 @@
-// server/src/components/documents/DocumentForm.tsx
+'use client';
+
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { IDocument } from '@/interfaces/document.interface';
+import { Input } from '@/components/ui/Input';
+import { TextArea } from '@/components/ui/TextArea';
+import { Button } from '@/components/ui/Button';
+import { Text } from '@radix-ui/themes';
 
 interface DocumentFormProps {
   onSubmit: (data: Partial<IDocument>) => void;
@@ -13,96 +18,109 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ onSubmit }) => {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div>
-        <label htmlFor="document_name" className="block text-sm font-medium text-gray-700">Document Name</label>
-        <input
-          type="text"
-          id="document_name"
+        <Text as="label" size="2" weight="medium" className="block mb-2">
+          Document Name
+        </Text>
+        <Input
           {...register('document_name', { required: 'Document name is required' })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
         />
-        {errors.document_name && <p className="mt-1 text-sm text-red-600">{errors.document_name.message}</p>}
+        {errors.document_name && (
+          <Text as="p" size="1" color="red" className="mt-1">
+            {errors.document_name.message}
+          </Text>
+        )}
       </div>
 
       <div>
-        <label htmlFor="type_id" className="block text-sm font-medium text-gray-700">Document Type ID</label>
-        <input
-          type="text"
-          id="type_id"
-          {...register('type_id', { required: 'Document type ID is required' })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+        <Text as="label" size="2" weight="medium" className="block mb-2">
+          Document Type
+        </Text>
+        <Input
+          {...register('type_id', { required: 'Document type is required' })}
         />
-        {errors.type_id && <p className="mt-1 text-sm text-red-600">{errors.type_id.message}</p>}
+        {errors.type_id && (
+          <Text as="p" size="1" color="red" className="mt-1">
+            {errors.type_id.message}
+          </Text>
+        )}
       </div>
 
       <div>
-        <label htmlFor="user_id" className="block text-sm font-medium text-gray-700">User ID</label>
-        <input
-          type="text"
-          id="user_id"
+        <Text as="label" size="2" weight="medium" className="block mb-2">
+          User ID
+        </Text>
+        <Input
           {...register('user_id', { required: 'User ID is required' })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
         />
-        {errors.user_id && <p className="mt-1 text-sm text-red-600">{errors.user_id.message}</p>}
+        {errors.user_id && (
+          <Text as="p" size="1" color="red" className="mt-1">
+            {errors.user_id.message}
+          </Text>
+        )}
       </div>
 
       <div>
-        <label htmlFor="contact_name_id" className="block text-sm font-medium text-gray-700">Contact Name ID</label>
-        <input
-          type="text"
-          id="contact_name_id"
+        <Text as="label" size="2" weight="medium" className="block mb-2">
+          Contact Name ID
+        </Text>
+        <Input
           {...register('contact_name_id')}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
         />
       </div>
 
       <div>
-        <label htmlFor="company_id" className="block text-sm font-medium text-gray-700">Company ID</label>
-        <input
-          type="text"
-          id="company_id"
+        <Text as="label" size="2" weight="medium" className="block mb-2">
+          Company ID
+        </Text>
+        <Input
           {...register('company_id')}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
         />
       </div>
 
       <div>
-        <label htmlFor="ticket_id" className="block text-sm font-medium text-gray-700">Ticket ID</label>
-        <input
-          type="text"
-          id="ticket_id"
+        <Text as="label" size="2" weight="medium" className="block mb-2">
+          Ticket ID
+        </Text>
+        <Input
           {...register('ticket_id')}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
         />
       </div>
 
       <div>
-        <label htmlFor="order_number" className="block text-sm font-medium text-gray-700">Order Number</label>
-        <input
+        <Text as="label" size="2" weight="medium" className="block mb-2">
+          Order Number
+        </Text>
+        <Input
           type="number"
-          id="order_number"
           {...register('order_number', { required: 'Order number is required' })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
         />
-        {errors.order_number && <p className="mt-1 text-sm text-red-600">{errors.order_number.message}</p>}
+        {errors.order_number && (
+          <Text as="p" size="1" color="red" className="mt-1">
+            {errors.order_number.message}
+          </Text>
+        )}
       </div>
 
       <div>
-        <label htmlFor="content" className="block text-sm font-medium text-gray-700">Content</label>
-        <textarea
-          id="content"
+        <Text as="label" size="2" weight="medium" className="block mb-2">
+          Content
+        </Text>
+        <TextArea
           {...register('content', { required: 'Content is required' })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
           rows={4}
         />
-        {errors.content && <p className="mt-1 text-sm text-red-600">{errors.content.message}</p>}
+        {errors.content && (
+          <Text as="p" size="1" color="red" className="mt-1">
+            {errors.content.message}
+          </Text>
+        )}
       </div>
 
-      <button
-        type="submit"
-        className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-      >
-        Create Document
-      </button>
+      <div className="pt-4">
+        <Button type="submit" className="w-full">
+          Create Document
+        </Button>
+      </div>
     </form>
   );
 };
