@@ -13,15 +13,15 @@ export const PropertyEditor: React.FC<PropertyEditorProps> = ({ block, onUpdate,
 
     const fieldOptions = [
         { value: '', label: 'Select a field' },
-        ...availableFields.map(field => ({ value: field, label: field }))
+        ...availableFields.map((field): { value: string; label: string } => ({ value: field, label: field }))
     ];
 
-    const widthOptions = [...Array(12)].map((_, i) => ({
+    const widthOptions = [...Array(12)].map((_, i): { value: string; label: string } => ({
         value: (i + 1).toString(),
         label: `${i + 1} column(s)`
     }));
 
-    const heightOptions = [...Array(10)].map((_, i) => ({
+    const heightOptions = [...Array(10)].map((_, i): { value: string; label: string } => ({
         value: (i + 1).toString(),
         label: `${i + 1} row(s)`
     }));

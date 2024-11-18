@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { TaxRegion } from '@/types/types.d';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Button } from '@/components/ui//Button';
-import { Input } from '@/components/ui//Input';
-import CustomSelect from '@/components/ui/CustomSelect';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 import { ITimeEntry, ITimeEntryWithWorkItem, ITimePeriod } from '@/interfaces/timeEntry.interfaces';
 import { IWorkItem } from '@/interfaces/workItem.interfaces';
 import { BsClock } from 'react-icons/bs';
@@ -324,7 +324,7 @@ export function TimeEntryDialog({
                 value={selectedEntryIndex.toString()}
                 onValueChange={(value) => setSelectedEntryIndex(parseInt(value))}
                 className="w-64"
-                options={entries.map((entry, index) => ({
+                options={entries.map((entry, index): SelectOption => ({
                   value: index.toString(),
                   label: `Entry ${index + 1}${entry.service_id ? ` - ${services.find(s => s.id === entry.service_id)?.name || ''}` : ''}`
                 }))}
@@ -352,7 +352,7 @@ export function TimeEntryDialog({
                       onValueChange={(value) => handleServiceChange(selectedEntryIndex, value)}
                       disabled={!isEditable}
                       className="mt-1 w-full"
-                      options={services.map((service) => ({
+                      options={services.map((service): SelectOption => ({
                         value: service.id,
                         label: service.name
                       }))}
@@ -368,7 +368,7 @@ export function TimeEntryDialog({
                       onValueChange={(value) => handleTaxRegionChange(selectedEntryIndex, value)}
                       disabled={!isEditable || !services.find(s => s.id === selectedEntry.service_id)?.is_taxable}
                       className="mt-1 w-full"
-                      options={taxRegions.map((region) => ({
+                      options={taxRegions.map((region): SelectOption => ({
                         value: region.id,
                         label: region.name
                       }))}

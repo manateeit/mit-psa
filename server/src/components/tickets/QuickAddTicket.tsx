@@ -17,7 +17,7 @@ import { ChannelPicker } from '@/components/settings/general/ChannelPicker';
 import { CompanyPicker } from '../companies/CompanyPicker';
 import { CategoryPicker } from './CategoryPicker';
 import { useSession } from 'next-auth/react';
-import CustomSelect from '@/components/ui/CustomSelect';
+import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 
 interface QuickAddTicketProps {
     open: boolean;
@@ -296,34 +296,34 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
                             onClientTypeFilterChange={setClientTypeFilter}
                         />
 
-                        {selectedCompanyType === 'company' && contacts.length > 0 && (
-                            <div className="relative z-20">
-                                <CustomSelect
-                                    value={contactId || ''}
-                                    onValueChange={(value) => setContactId(value || null)}
-                                    options={contacts.map((contact) => ({
-                                        value: contact.contact_name_id,
-                                        label: contact.full_name
-                                    }))}
-                                    placeholder="Select Contact"
-                                    disabled={!companyId || selectedCompanyType !== 'company'}
-                                />
-                            </div>
-                        )}
-
-                        <div className="relative z-30">
+                    {selectedCompanyType === 'company' && contacts.length > 0 && (
+                        <div className="relative z-20">
                             <CustomSelect
-                                value={assignedTo}
-                                onValueChange={setAssignedTo}
-                                options={users.map((user) => ({
-                                    value: user.user_id,
-                                    label: `${user.first_name} ${user.last_name}`
+                                value={contactId || ''}
+                                onValueChange={(value) => setContactId(value || null)}
+                                options={contacts.map((contact): SelectOption => ({
+                                    value: contact.contact_name_id,
+                                    label: contact.full_name
                                 }))}
-                                placeholder="Assign To"
+                                placeholder="Select Contact"
+                                disabled={!companyId || selectedCompanyType !== 'company'}
                             />
                         </div>
-                        
-                        <ChannelPicker
+                    )}
+
+                    <div className="relative z-30">
+                        <CustomSelect
+                            value={assignedTo}
+                            onValueChange={setAssignedTo}
+                            options={users.map((user): SelectOption => ({
+                                value: user.user_id,
+                                label: `${user.first_name} ${user.last_name}`
+                            }))}
+                            placeholder="Assign To"
+                        />
+                    </div>
+
+                    <ChannelPicker
                             channels={channels}
                             onSelect={handleChannelChange}
                             selectedChannelId={channelId}
@@ -340,29 +340,29 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
                             className="w-full"
                         />
 
-                        <div className="relative z-20">
-                            <CustomSelect
-                                value={statusId}
-                                onValueChange={setStatusId}
-                                options={statuses.map((status) => ({
-                                    value: status.status_id!,
-                                    label: status.name ?? ""
-                                }))}
-                                placeholder="Select Status"
-                            />
-                        </div>
+                    <div className="relative z-20">
+                        <CustomSelect
+                            value={statusId}
+                            onValueChange={setStatusId}
+                            options={statuses.map((status): SelectOption => ({
+                                value: status.status_id!,
+                                label: status.name ?? ""
+                            }))}
+                            placeholder="Select Status"
+                        />
+                    </div>
 
-                        <div className="relative z-10">
-                            <CustomSelect
-                                value={priorityId}
-                                onValueChange={setPriorityId}
-                                options={priorities.map((priority) => ({
-                                    value: priority.priority_id,
-                                    label: priority.priority_name
-                                }))}
-                                placeholder="Select Priority"
-                            />
-                        </div>
+                    <div className="relative z-10">
+                        <CustomSelect
+                            value={priorityId}
+                            onValueChange={setPriorityId}
+                            options={priorities.map((priority): SelectOption => ({
+                                value: priority.priority_id,
+                                label: priority.priority_name
+                            }))}
+                            placeholder="Select Priority"
+                        />
+                    </div>
 
                         <div className="flex justify-end space-x-2 pt-4">
                             <Dialog.Close asChild>

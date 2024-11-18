@@ -10,6 +10,7 @@ import { IBillingPlan, IPlanService, IService } from '@/interfaces/billing.inter
 import { useTenant } from '../TenantProvider';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
+
 interface BillingPlansProps {
   initialServices: IService[];
 }
@@ -219,7 +220,7 @@ const BillingPlans: React.FC<BillingPlansProps> = ({ initialServices }) => {
               />
               <div className="flex space-x-2 mt-4">
                 <CustomSelect
-                  options={availableServices.map((s) => ({
+                  options={availableServices.map((s): { value: string; label: string } => ({
                     value: s.service_id!,
                     label: s.service_name
                   }))}

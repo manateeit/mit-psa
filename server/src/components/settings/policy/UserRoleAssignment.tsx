@@ -8,7 +8,7 @@ import { findUserById } from '@/lib/actions/user-actions/userActions';
 import { IUser, IRole } from '@/interfaces/auth.interfaces';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
-import CustomSelect from '@/components/ui/CustomSelect';
+import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 
 export default function UserRoleAssignment() {
   const [users, setUsers] = useState<IUser[]>([]);
@@ -78,12 +78,12 @@ export default function UserRoleAssignment() {
     },
   ];
 
-  const userOptions = users.map((user) => ({
+  const userOptions = users.map((user): SelectOption => ({
     value: user.user_id,
     label: user.username
   }));
 
-  const roleOptions = roles.map((role) => ({
+  const roleOptions = roles.map((role): SelectOption => ({
     value: role.role_id,
     label: role.role_name
   }));

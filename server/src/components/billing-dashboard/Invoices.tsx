@@ -92,7 +92,7 @@ const Invoices: React.FC = () => {
         <div className="mt-8">
           <h3 className="text-xl font-semibold mb-4">Select Template</h3>
           <CustomSelect
-            options={templates.map((template) => ({
+            options={templates.map((template): { value: string; label: string } => ({
               value: template.template_id,
               label: template.name
             }))}

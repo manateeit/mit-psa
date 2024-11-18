@@ -218,7 +218,7 @@ const TaxSettingsForm: React.FC<TaxSettingsFormProps> = ({ companyId }) => {
     );
   }
 
-  const taxRateOptions = taxRates.map((rate) => ({
+  const taxRateOptions = taxRates.map((rate): { value: string; label: string } => ({
     value: rate.tax_rate_id,
     label: `${rate.name} (${rate.tax_percentage}%)`
   }));
@@ -345,7 +345,7 @@ const TaxSettingsForm: React.FC<TaxSettingsFormProps> = ({ companyId }) => {
 
       <div>
         <h3 className="text-lg font-medium text-gray-900">Tax Holidays</h3>
-        {taxSettings.tax_holidays?.map((holiday, index):JSX.Element => (
+        {taxSettings.tax_holidays?.map((holiday, index): JSX.Element => (
           <div key={index} className="mt-4 space-y-2">
             <input
               type="date"

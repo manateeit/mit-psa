@@ -34,7 +34,7 @@ const BillingPlans: React.FC<BillingPlansProps> = ({
                 <CustomSelect
                     value={value}
                     onValueChange={(newValue) => onCompanyPlanChange(record.company_billing_plan_id, newValue)}
-                    options={billingPlans.map((plan) => ({
+                    options={billingPlans.map((plan): { value: string; label: string } => ({
                         value: plan.plan_id || '',
                         label: plan.plan_name
                     }))}
@@ -51,7 +51,7 @@ const BillingPlans: React.FC<BillingPlansProps> = ({
                     onValueChange={(newValue) => onCompanyPlanChange(record.company_billing_plan_id, newValue)}
                     options={[
                         { value: 'unassigned', label: 'Select category' },
-                        ...serviceCategories.map((category) => ({
+                        ...serviceCategories.map((category): { value: string; label: string } => ({
                             value: category.category_id,
                             label: category.category_name
                         }))

@@ -74,7 +74,7 @@ const CompanyTaxRates: React.FC<CompanyTaxRatesProps> = ({
         }
     ];
 
-    const taxRateOptions = taxRates.map((taxRate) => ({
+    const taxRateOptions = taxRates.map((taxRate): { value: string; label: string } => ({
         value: taxRate.tax_rate_id!,
         label: `${taxRate.region} - ${taxRate.tax_percentage}%`
     }));
