@@ -121,14 +121,14 @@ const TeamDetails: React.FC<TeamDetailsProps> = ({ teamId, onUpdate }): JSX.Elem
     return <div className="text-text-600">No team found</div>;
   }
 
-  const managerOptions = allUsers.map(user => ({
+  const managerOptions = allUsers.map((user): { value: string; label: string } => ({
     value: user.user_id,
     label: `${user.first_name} ${user.last_name}`
   }));
 
   const memberOptions = allUsers
     .filter(user => !team.members.some(member => member.user_id === user.user_id))
-    .map(user => ({
+    .map((user): { value: string; label: string } => ({
       value: user.user_id,
       label: `${user.first_name} ${user.last_name}`
     }));
@@ -204,14 +204,14 @@ const TeamDetails: React.FC<TeamDetailsProps> = ({ teamId, onUpdate }): JSX.Elem
       <div>
         <label className="block text-sm font-medium text-text-700 mb-2">Team Members</label>
         <ul className="space-y-2">
-          {team.members.map((member):JSX.Element => (
+          {team.members.map((member): JSX.Element => (
             <li key={member.user_id} className="flex items-center justify-between p-3 rounded border border-border-200 hover:border-primary-200 transition-colors">
               <div>
                 <div className="font-medium text-text-800">
                   {member.first_name} {member.last_name}
                 </div>
                 <div className="text-sm text-text-600">
-                  {member.roles.map((role):string => role.role_name).join(', ')}
+                  {member.roles.map((role): string => role.role_name).join(', ')}
                 </div>
               </div>
               <button

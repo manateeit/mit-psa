@@ -160,12 +160,10 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
     setChecklistItems(updatedItems);
   };
   
-  const statusOptions = projectStatuses.map(status => ({
+  const statusOptions = projectStatuses.map((status): { value: string; label: string } => ({
     value: status.project_status_mapping_id,
     label: status.custom_name || status.name
   }));
-
-  // ... other functions remain the same ...
 
   return (
     <>

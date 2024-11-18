@@ -99,7 +99,7 @@ export function QuickAddService({ onServiceAdded }: QuickAddServiceProps) {
     }
   }
 
-  const categoryOptions = categories.map((cat) => ({ 
+  const categoryOptions = categories.map((cat): { value: string; label: string } => ({ 
     value: cat.category_id, 
     label: cat.category_name 
   }))

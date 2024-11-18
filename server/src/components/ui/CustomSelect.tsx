@@ -80,7 +80,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
             align="start"
           >
             <RadixSelect.Viewport className="p-1">
-              {options.map((option) => (
+              {options.map((option): JSX.Element => (
                 <RadixSelect.Item
                   key={option.value}
                   value={option.value}

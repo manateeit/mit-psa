@@ -168,12 +168,12 @@ const TaskEdit: React.FC<TaskEditProps> = ({
     setChecklistItems(updatedItems);
   };
 
-  const phaseOptions = phases.map(p => ({
+  const phaseOptions = phases.map((p): { value: string; label: string } => ({
     value: p.phase_id,
     label: p.phase_name
   }));
 
-  const statusOptions = projectStatuses.map(status => ({
+  const statusOptions = projectStatuses.map((status): { value: string; label: string } => ({
     value: status.project_status_mapping_id,
     label: status.custom_name || status.name
   }));

@@ -188,7 +188,7 @@ const ServiceCatalogManager: React.FC = () => {
               onChange={(e) => setEditingService({ ...editingService!, default_rate: parseFloat(e.target.value) })}
             />
             <CustomSelect
-              options={categories.map((cat) => ({
+              options={categories.map((cat): { value: string; label: string } => ({
                 value: cat.category_id,
                 label: cat.category_name
               }))}

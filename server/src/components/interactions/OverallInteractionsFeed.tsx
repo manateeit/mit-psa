@@ -131,7 +131,7 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
             <CustomSelect
               options={[
                 { value: '', label: 'All Types' },
-                ...interactionTypes.map((type) => ({
+                ...interactionTypes.map((type): { value: string; label: string } => ({
                   value: type.type_id,
                   label: type.type_name
                 }))
@@ -141,13 +141,13 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
               placeholder="Interaction Type"
             />
             <CustomSelect
-              options={[{ value: '', label: 'All Users' }, ...users.map((user) => ({ value: user.id, label: user.name }))]}
+              options={[{ value: '', label: 'All Users' }, ...users.map((user): { value: string; label: string } => ({ value: user.id, label: user.name }))]}
               value={selectedUser}
               onValueChange={setSelectedUser}
               placeholder="Filter by User"
             />
             <CustomSelect
-              options={[{ value: '', label: 'All Contacts' }, ...contacts.map((contact) => ({ value: contact.id, label: contact.name }))]}
+              options={[{ value: '', label: 'All Contacts' }, ...contacts.map((contact): { value: string; label: string } => ({ value: contact.id, label: contact.name }))]}
               value={selectedContact}
               onValueChange={setSelectedContact}
               placeholder="Filter by Contact"
@@ -176,7 +176,7 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
       </Dialog>
       
       <ul className="space-y-4 overflow-y-auto max-h-[calc(100vh-300px)]">
-        {filteredInteractions.map((interaction: IInteraction):JSX.Element => (
+        {filteredInteractions.map((interaction: IInteraction): JSX.Element => (
           <li key={interaction.interaction_id} className="flex items-start space-x-3 p-2 hover:bg-gray-100 rounded cursor-pointer" onClick={() => handleInteractionClick(interaction)}>
             <InteractionIcon type={interaction.type_name} />
             <div>

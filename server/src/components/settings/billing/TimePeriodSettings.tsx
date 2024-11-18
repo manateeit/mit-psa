@@ -1,9 +1,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
-import { Label } from "@/components/ui/Label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { Label } from '@/components/ui/Label';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { ITimePeriodSettings } from '@/interfaces/timeEntry.interfaces';
 import { getActiveTimePeriodSettings, updateTimePeriodSettings, createTimePeriodSettings, deleteTimePeriodSettings } from '@/lib/actions/time-period-settings-actions/timePeriodSettingsActions';
@@ -17,7 +17,7 @@ const monthNames = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-const monthOptions = monthNames.map((name, index) => ({
+const monthOptions = monthNames.map((name, index): { value: string; label: string } => ({
   value: (index + 1).toString(),
   label: name
 }));
@@ -112,7 +112,7 @@ const TimePeriodSettings: React.FC = () => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {settings.map((setting):JSX.Element => (
+          {settings.map((setting): JSX.Element => (
             <TimePeriodSettingItem
               key={setting.time_period_settings_id}
               setting={setting}

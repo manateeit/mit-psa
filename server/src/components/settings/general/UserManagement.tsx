@@ -9,7 +9,7 @@ import { IUser, IRole } from '@/interfaces/auth.interfaces';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import CustomSelect from '@/components/ui/CustomSelect';
+import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 
 const UserManagement = (): JSX.Element => {
   const [users, setUsers] = useState<IUser[]>([]);
@@ -178,7 +178,7 @@ const UserManagement = (): JSX.Element => {
                   label="Primary Role"
                   value={newUser.role}
                   onValueChange={(value) => setNewUser({ ...newUser, role: value })}
-                  options={roles.map((role) => ({ 
+                  options={roles.map((role): SelectOption => ({ 
                     value: role.role_id, 
                     label: role.role_name 
                   }))}

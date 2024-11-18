@@ -73,7 +73,7 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({ onTemplateSelect, t
     return (
         <div className="space-y-4">
             <CustomSelect
-                options={templates.map((t) => ({ 
+                options={templates.map((t): { value: string; label: string } => ({ 
                     value: t.template_id, 
                     label: t.name 
                 }))}

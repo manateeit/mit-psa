@@ -49,7 +49,7 @@ const InvoiceTemplateManager: React.FC<InvoiceTemplateManagerProps> = ({
       <div className="space-y-4">
         <h3 className="text-xl font-semibold">Select Sample Invoice</h3>
         <CustomSelect
-          options={sampleInvoices.map((invoice) => ({
+          options={sampleInvoices.map((invoice): { value: string; label: string } => ({
             value: invoice.invoice_number,
             label: `Invoice #${invoice.invoice_number} - ${invoice.custom_fields?.project}`
           }))}

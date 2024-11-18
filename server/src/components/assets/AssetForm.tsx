@@ -704,11 +704,12 @@ export default function AssetForm({ assetId }: AssetFormProps) {
                   required
                   className="mt-1"
                 />
+                </div>
               </div>
 
-              <div>
-                <label htmlFor="asset_tag" className="block text-sm font-medium text-[rgb(var(--color-text-700))]">
-                  Asset Tag
+          <div>
+            <label className="block text-sm font-medium text-[rgb(var(--color-text-700))]">
+            Asset Tag
                 </label>
                 <Input
                   id="asset_tag"
@@ -735,18 +736,15 @@ export default function AssetForm({ assetId }: AssetFormProps) {
 
               <div>
                 <label htmlFor="status" className="block text-sm font-medium text-[rgb(var(--color-text-700))]">
-                  Status
-                </label>
-                <CustomSelect
-                  id="status"
-                  value={formData.status}
-                  onValueChange={handleSelectChange}
-                  options={STATUS_OPTIONS}
-                  required
-                  className="mt-1"
-                />
-              </div>
-            </div>
+              Status
+            </label>
+            <CustomSelect
+              value={formData.status}
+              onValueChange={handleSelectChange}
+              options={STATUS_OPTIONS}
+              className="mt-1"
+            />
+          </div>
 
             <div className="space-y-4">
               <div>

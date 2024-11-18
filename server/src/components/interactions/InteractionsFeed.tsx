@@ -22,7 +22,6 @@ interface InteractionsFeedProps {
   setInteractions: React.Dispatch<React.SetStateAction<IInteraction[]>>;
 }
 
-
 const InteractionIcon = ({ type }: { type: string }) => {
   switch (type) {
     case 'call': return <Phone className="text-gray-500" />;
@@ -81,7 +80,7 @@ const InteractionsFeed: React.FC<InteractionsFeedProps> = ({ entityId, entityTyp
         try {
           const updatedInteraction = await getInteractionById(interaction.interaction_id);
           setInteractions(prevInteractions => 
-            prevInteractions.map((i):IInteraction => 
+            prevInteractions.map((i): IInteraction => 
               i.interaction_id === updatedInteraction.interaction_id ? updatedInteraction : i
             )
           );
@@ -140,7 +139,7 @@ const InteractionsFeed: React.FC<InteractionsFeedProps> = ({ entityId, entityTyp
       </div>
       <CardContent>
         <ul className="space-y-2">
-          {filteredInteractions.map((interaction):JSX.Element => (
+          {filteredInteractions.map((interaction): JSX.Element => (
             <li 
               key={interaction.interaction_id} 
               className="flex items-start space-x-3 p-4 hover:bg-gray-50 rounded-lg cursor-pointer border-b border-gray-200 last:border-b-0"
@@ -165,7 +164,7 @@ const InteractionsFeed: React.FC<InteractionsFeedProps> = ({ entityId, entityTyp
         <DialogContent>
           <div className="space-y-4">
             <CustomSelect
-              options={[{ value: '', label: 'All Types' }, ...interactionTypes.map((type) => ({ value: type.type_id, label: type.type_name }))]}
+              options={[{ value: '', label: 'All Types' }, ...interactionTypes.map((type): { value: string; label: string } => ({ value: type.type_id, label: type.type_name }))]}
               value={selectedType}
               onValueChange={setSelectedType}
               placeholder="Interaction Type"

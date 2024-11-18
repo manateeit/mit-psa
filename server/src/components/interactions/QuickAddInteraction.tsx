@@ -99,7 +99,10 @@ export function QuickAddInteraction({
           <Dialog.Title className="text-lg font-bold mb-4">Add New Interaction</Dialog.Title>
           <form onSubmit={handleSubmit} className="space-y-4">
             <CustomSelect
-              options={interactionTypes.map((type) => ({ value: type.type_id, label: type.type_name }))}
+              options={interactionTypes.map((type): { value: string; label: string } => ({ 
+                value: type.type_id, 
+                label: type.type_name 
+              }))}
               value={typeId}
               onValueChange={setTypeId}
               placeholder="Select Interaction Type"
