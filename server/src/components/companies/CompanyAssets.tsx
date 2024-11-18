@@ -5,10 +5,22 @@ import { ClientMaintenanceSummary, Asset, AssetType } from '@/interfaces/asset.i
 import { DataTable } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
 import { getClientMaintenanceSummary, listAssets, listAssetTypes } from '@/lib/actions/asset-actions/assetActions';
-import { Boxes, Plus, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
+import { 
+  Boxes, 
+  AlertTriangle, 
+  CheckCircle2, 
+  Clock,
+  Monitor,
+  Server,
+  Smartphone,
+  Printer,
+  Network
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
+import { QuickAddAsset } from '@/components/assets/QuickAddAsset';
+
 
 interface CompanyAssetsProps {
   companyId: string;
@@ -21,28 +33,58 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
   const [selectedType, setSelectedType] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const router = useRouter();
+  const pageSize = 10;
+
+  const getAssetTypeIcon = (type: string) => {
+    const iconProps = { className: "h-5 w-5 inline-block mr-2" };
+    switch (type.toLowerCase()) {
+      case 'workstation':
+        return <Monitor {...iconProps} />;
+      case 'server':
+        return <Server {...iconProps} />;
+      case 'mobile_device':
+        return <Smartphone {...iconProps} />;
+      case 'printer':
+        return <Printer {...iconProps} />;
+      case 'network_device':
+        return <Network {...iconProps} />;
+      default:
+        return <Boxes {...iconProps} />;
+    }
+  };
+
+  const loadData = async () => {
+    try {
+      const [summaryData, assetsData, types] = await Promise.all([
+        getClientMaintenanceSummary(companyId),
+        listAssets({ 
+          company_id: companyId, 
+          type_id: selectedType === 'all' ? undefined : selectedType,
+          page: currentPage,
+          limit: pageSize
+        }),
+        listAssetTypes()
+      ]);
+      setSummary(summaryData);
+      setAssets(assetsData.assets);
+      setTotalItems(assetsData.total);
+      setAssetTypes(types);
+    } catch (error) {
+      console.error('Error loading asset data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [summaryData, assetsData, types] = await Promise.all([
-          getClientMaintenanceSummary(companyId),
-          listAssets({ company_id: companyId, type_id: selectedType === 'all' ? undefined : selectedType }),
-          listAssetTypes()
-        ]);
-        setSummary(summaryData);
-        setAssets(assetsData.assets);
-        setAssetTypes(types);
-      } catch (error) {
-        console.error('Error loading asset data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadData();
-  }, [companyId, selectedType]);
+  }, [companyId, selectedType, currentPage]);
+
+  const handleAssetAdded = () => {
+    loadData();
+  };
 
   const renderAssetDetails = (asset: Asset): string => {
     if (asset.workstation) {
@@ -71,6 +113,7 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
         <Link 
           href={`/msp/assets/${record.asset_id}`}
           className="text-primary-600 hover:text-primary-700"
+          prefetch={false}
         >
           {value}
         </Link>
@@ -79,6 +122,16 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
     {
       title: 'Name',
       dataIndex: 'name'
+    },
+    {
+      title: 'Type',
+      dataIndex: 'type_name',
+      render: (value: string) => (
+        <div className="flex items-center">
+          {getAssetTypeIcon(value)}
+          <span>{value}</span>
+        </div>
+      )
     },
     {
       title: 'Details',
@@ -198,12 +251,10 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
             placeholder="Filter by type..."
           />
         </div>
-        <Link href={`/msp/assets/new?company=${companyId}`}>
-          <Button className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Add Asset
-          </Button>
-        </Link>
+        <QuickAddAsset 
+          companyId={companyId} 
+          onAssetAdded={handleAssetAdded} 
+        />
       </div>
 
       {/* Assets Table */}
@@ -213,6 +264,8 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
         currentPage={currentPage}
         onPageChange={setCurrentPage}
         onRowClick={(asset) => router.push(`/msp/assets/${asset.asset_id}`)}
+        totalItems={totalItems}
+        pageSize={pageSize}
       />
 
       {/* Maintenance Type Breakdown */}

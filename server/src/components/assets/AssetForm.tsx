@@ -193,17 +193,45 @@ export default function AssetForm({ assetId }: AssetFormProps) {
     }));
   };
 
-  const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, value: unknown) => {
-    setFormData(prev => ({
-      ...prev,
-      [type]: {
-        ...(prev[type] as Record<string, unknown>),
-        [field]: value
-      }
-    }));
-  };
+const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, value: unknown) => {
+    setFormData(prev => {
+      const currentTypeData = prev[type];
+      if (!currentTypeData) return prev;
 
-  const handleSelectChange = (value: string, field: string = 'status') => {
+      // Type guard to ensure we're working with an object
+      if (typeof currentTypeData !== 'object') return prev;
+
+      // Special handling for network device type
+      if (type === 'networkDevice' && field === 'device_type') {
+        const deviceType = String(value);
+        const validDeviceTypes = ['switch', 'router', 'firewall', 'access_point', 'load_balancer'] as const;
+        type DeviceType = typeof validDeviceTypes[number];
+
+        const isValidDeviceType = (type: string): type is DeviceType =>
+          validDeviceTypes.includes(type as DeviceType);
+
+        const validDeviceType = isValidDeviceType(deviceType) ? deviceType : 'switch';
+
+        return {
+          ...prev,
+          networkDevice: {
+            ...currentTypeData,
+            device_type: validDeviceType
+          }
+        } as AssetFormData;
+      }
+
+      // Handle other fields
+      return {
+        ...prev,
+        [type]: {
+          ...currentTypeData,
+          [field]: value
+        }
+      } as AssetFormData;
+    });
+  };
+  const handleSelectChange = (value: string, field: keyof AssetFormData = 'status') => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -640,7 +668,7 @@ export default function AssetForm({ assetId }: AssetFormProps) {
     );
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!asset) return;
 
@@ -648,7 +676,115 @@ export default function AssetForm({ assetId }: AssetFormProps) {
     setError(null);
 
     try {
-      await updateAsset(assetId, formData);
+      // Format the data before sending
+      const formattedData = {
+        ...formData,
+        // Convert dates to ISO strings if they exist, otherwise undefined
+        purchase_date: formData.purchase_date 
+          ? new Date(formData.purchase_date + 'T00:00:00Z').toISOString()
+          : undefined,
+        warranty_end_date: formData.warranty_end_date
+          ? new Date(formData.warranty_end_date + 'T00:00:00Z').toISOString()
+          : undefined,
+        // Ensure optional fields are undefined instead of empty strings
+        location: formData.location?.trim() || undefined,
+        serial_number: formData.serial_number?.trim() || undefined,
+      };
+
+      // Format workstation data if it exists
+      if (formData.workstation) {
+        formattedData.workstation = {
+          ...formData.workstation,
+          os_type: formData.workstation.os_type?.trim(),
+          os_version: formData.workstation.os_version?.trim(),
+          cpu_model: formData.workstation.cpu_model?.trim(),
+          storage_type: formData.workstation.storage_type?.trim(),
+          gpu_model: formData.workstation.gpu_model?.trim() || undefined,
+          installed_software: Array.isArray(formData.workstation.installed_software) 
+            ? formData.workstation.installed_software 
+            : []
+        };
+      }
+
+  // Format network device data if it exists
+  if (formData.networkDevice) {
+    const deviceType = formData.networkDevice.device_type?.trim();
+    // Type guard for network device type
+    const isValidDeviceType = (type: string): type is NetworkDeviceAsset['device_type'] =>
+      ['switch', 'router', 'firewall', 'access_point', 'load_balancer'].includes(type);
+
+    // Validate device type
+    const validDeviceType = isValidDeviceType(deviceType) ? deviceType : 'switch';
+
+    formattedData.networkDevice = {
+      ...formData.networkDevice,
+      device_type: validDeviceType,
+      management_ip: formData.networkDevice.management_ip?.trim(),
+      firmware_version: formData.networkDevice.firmware_version?.trim(),
+      vlan_config: formData.networkDevice.vlan_config || {},
+      port_config: formData.networkDevice.port_config || {}
+    };
+  }
+
+      // Format server data if it exists
+      if (formData.server) {
+        formattedData.server = {
+          ...formData.server,
+          os_type: formData.server.os_type?.trim(),
+          os_version: formData.server.os_version?.trim(),
+          cpu_model: formData.server.cpu_model?.trim(),
+          storage_config: Array.isArray(formData.server.storage_config) 
+            ? formData.server.storage_config 
+            : [],
+          raid_config: formData.server.raid_config?.trim() || undefined,
+          hypervisor: formData.server.hypervisor?.trim() || undefined,
+          network_interfaces: Array.isArray(formData.server.network_interfaces) 
+            ? formData.server.network_interfaces 
+            : [],
+          primary_ip: formData.server.primary_ip?.trim() || undefined,
+          installed_services: Array.isArray(formData.server.installed_services) 
+            ? formData.server.installed_services 
+            : []
+        };
+      }
+
+      // Format mobile device data if it exists
+      if (formData.mobileDevice) {
+        formattedData.mobileDevice = {
+          ...formData.mobileDevice,
+          os_type: formData.mobileDevice.os_type?.trim(),
+          os_version: formData.mobileDevice.os_version?.trim(),
+          model: formData.mobileDevice.model?.trim(),
+          imei: formData.mobileDevice.imei?.trim() || undefined,
+          phone_number: formData.mobileDevice.phone_number?.trim() || undefined,
+          carrier: formData.mobileDevice.carrier?.trim() || undefined,
+          installed_apps: Array.isArray(formData.mobileDevice.installed_apps) 
+            ? formData.mobileDevice.installed_apps 
+            : []
+        };
+      }
+
+      // Format printer data if it exists
+      if (formData.printer) {
+        formattedData.printer = {
+          ...formData.printer,
+          model: formData.printer.model?.trim(),
+          ip_address: formData.printer.ip_address?.trim() || undefined,
+          supported_paper_types: Array.isArray(formData.printer.supported_paper_types) 
+            ? formData.printer.supported_paper_types 
+            : [],
+          supply_levels: formData.printer.supply_levels || {}
+        };
+      }
+
+      // Remove any undefined or empty string values from the root object
+      const cleanedData = Object.fromEntries(
+        Object.entries(formattedData).filter(([_, value]) => 
+          value !== undefined && value !== ''
+        )
+      ) as typeof formattedData;
+
+      await updateAsset(assetId, cleanedData);
       router.push(`/msp/assets/${assetId}`);
       router.refresh();
     } catch (error) {
@@ -795,10 +931,10 @@ export default function AssetForm({ assetId }: AssetFormProps) {
           <Card className="p-6 border border-[rgb(var(--color-border-200))]">
             <Text size="5" weight="medium" className="block mb-6 text-[rgb(var(--color-text-900))]">
               {asset.workstation ? 'Workstation Details' :
-               asset.networkDevice ? 'Network Device Details' :
-               asset.server ? 'Server Details' :
-               asset.mobileDevice ? 'Mobile Device Details' :
-               'Printer Details'}
+                asset.networkDevice ? 'Network Device Details' :
+                asset.server ? 'Server Details' :
+                asset.mobileDevice ? 'Mobile Device Details' :
+                'Printer Details'}
             </Text>
             {asset.workstation && renderWorkstationFields()}
             {asset.networkDevice && renderNetworkDeviceFields()}
@@ -834,3 +970,4 @@ export default function AssetForm({ assetId }: AssetFormProps) {
     </div>
   );
 }
+
