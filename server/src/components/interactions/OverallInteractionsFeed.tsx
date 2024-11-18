@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { getRecentInteractions, getInteractionTypes } from '@/lib/actions/interactionActions';
 import { useDrawer } from '@/context/DrawerContext';
 import InteractionDetails from './InteractionDetails';
-import { Select } from '@/components/ui/Select';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
@@ -128,28 +128,28 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
         </DialogHeader>
         <DialogContent>
           <div className="space-y-4">
-            <Select
+            <CustomSelect
               options={[
                 { value: '', label: 'All Types' },
-                ...interactionTypes.map((type): { value: string; label: string } => ({
+                ...interactionTypes.map((type) => ({
                   value: type.type_id,
                   label: type.type_name
                 }))
               ]}
               value={interactionTypeId}
-              onChange={(value) => setInteractionTypeId(value)}
+              onValueChange={setInteractionTypeId}
               placeholder="Interaction Type"
             />
-            <Select
-              options={[{ value: '', label: 'All Users' }, ...users.map((user): { value: string; label: string } => ({ value: user.id, label: user.name }))]}
+            <CustomSelect
+              options={[{ value: '', label: 'All Users' }, ...users.map((user) => ({ value: user.id, label: user.name }))]}
               value={selectedUser}
-              onChange={(value) => setSelectedUser(value)}
+              onValueChange={setSelectedUser}
               placeholder="Filter by User"
             />
-            <Select
-              options={[{ value: '', label: 'All Contacts' }, ...contacts.map((contact): { value: string; label: string } => ({ value: contact.id, label: contact.name }))]}
+            <CustomSelect
+              options={[{ value: '', label: 'All Contacts' }, ...contacts.map((contact) => ({ value: contact.id, label: contact.name }))]}
               value={selectedContact}
-              onChange={(value) => setSelectedContact(value)}
+              onValueChange={setSelectedContact}
               placeholder="Filter by Contact"
             />
             <Input

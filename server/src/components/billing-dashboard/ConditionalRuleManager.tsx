@@ -1,6 +1,9 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { IConditionalRule, IInvoiceTemplate } from '@/interfaces/invoice.interfaces';
 import { getConditionalRules, saveConditionalRule } from '@/lib/actions/invoiceActions';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface ConditionalRuleManagerProps {
   template: IInvoiceTemplate;
@@ -9,6 +12,13 @@ interface ConditionalRuleManagerProps {
 const ConditionalRuleManager: React.FC<ConditionalRuleManagerProps> = ({ template }) => {
   const [rules, setRules] = useState<IConditionalRule[]>([]);
   const [newRule, setNewRule] = useState<Partial<IConditionalRule>>({});
+
+  const actionOptions = [
+    { value: '', label: 'Select Action' },
+    { value: 'show', label: 'Show' },
+    { value: 'hide', label: 'Hide' },
+    { value: 'format', label: 'Format' }
+  ];
 
   useEffect(() => {
     fetchRules();
@@ -47,15 +57,11 @@ const ConditionalRuleManager: React.FC<ConditionalRuleManagerProps> = ({ templat
           value={newRule.condition || ''}
           onChange={(e) => setNewRule({...newRule, condition: e.target.value})}
         />
-        <select
+        <CustomSelect
           value={newRule.action || ''}
-          onChange={(e) => setNewRule({...newRule, action: e.target.value as IConditionalRule['action']})}
-        >
-          <option value="">Select Action</option>
-          <option value="show">Show</option>
-          <option value="hide">Hide</option>
-          <option value="format">Format</option>
-        </select>
+          onValueChange={(value) => setNewRule({...newRule, action: value as IConditionalRule['action']})}
+          options={actionOptions}
+        />
         <input
           type="text"
           placeholder="Target"

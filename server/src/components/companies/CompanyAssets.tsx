@@ -5,10 +5,10 @@ import { ClientMaintenanceSummary, Asset, AssetType } from '@/interfaces/asset.i
 import { DataTable } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
 import { getClientMaintenanceSummary, listAssets, listAssetTypes } from '@/lib/actions/asset-actions/assetActions';
-import { 
-  Boxes, 
-  AlertTriangle, 
-  CheckCircle2, 
+import {
+  Boxes,
+  AlertTriangle,
+  CheckCircle2,
   Clock,
   Monitor,
   Server,
@@ -18,8 +18,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import CustomSelect from '@/components/ui/CustomSelect';
-import { SelectOption } from '@/components/ui/Select';
+import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 import { QuickAddAsset } from '@/components/assets/QuickAddAsset';
 
 interface CompanyAssetsProps {
@@ -59,8 +58,8 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
     try {
       const [summaryData, assetsData, types] = await Promise.all([
         getClientMaintenanceSummary(companyId),
-        listAssets({ 
-          company_id: companyId, 
+        listAssets({
+          company_id: companyId,
           type_id: selectedType === 'all' ? undefined : selectedType,
           page: currentPage,
           limit: pageSize
@@ -110,7 +109,7 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
       title: 'Asset Tag',
       dataIndex: 'asset_tag',
       render: (value: string, record: Asset) => (
-        <Link 
+        <Link
           href={`/msp/assets/${record.asset_id}`}
           className="text-primary-600 hover:text-primary-700"
           prefetch={false}
@@ -148,7 +147,7 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
       dataIndex: 'status',
       render: (value: string) => (
         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-          value === 'active' 
+          value === 'active'
             ? 'bg-green-100 text-green-800'
             : value === 'inactive'
             ? 'bg-gray-100 text-gray-800'
@@ -251,9 +250,9 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
             placeholder="Filter by type..."
           />
         </div>
-        <QuickAddAsset 
-          companyId={companyId} 
-          onAssetAdded={handleAssetAdded} 
+        <QuickAddAsset
+          companyId={companyId}
+          onAssetAdded={handleAssetAdded}
         />
       </div>
 

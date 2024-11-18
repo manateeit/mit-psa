@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import CustomTabs from '@/components/ui/CustomTabs';
 import { Input } from '@/components/ui/Input';
@@ -13,6 +15,7 @@ import { useSession } from 'next-auth/react';
 import { Switch } from '@/components/ui/Switch';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface SettingSectionProps<T extends object> {
   title: string;
@@ -516,6 +519,20 @@ const TicketingSettings = (): JSX.Element => {
     },
   ];
 
+  const filterStatusOptions = [
+    { value: 'all', label: 'All Channels' },
+    { value: 'active', label: 'Active Channels' },
+    { value: 'inactive', label: 'Inactive Channels' }
+  ];
+
+  const channelFilterOptions = [
+    { value: 'all', label: 'All Channels' },
+    ...channels.map(channel => ({
+      value: channel.channel_id || '',
+      label: channel.channel_name || ''
+    }))
+  ];
+
   const statusColumns: ColumnDefinition<ITicketStatus>[] = [
     {
       title: 'Name',
@@ -602,15 +619,12 @@ const TicketingSettings = (): JSX.Element => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="border border-gray-400 rounded-md p-2 w-64 text-sm"
             />
-            <select
+            <CustomSelect
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
-              className="border border-gray-400 rounded-md p-2 w-64 text-sm text-gray-500 bg-white"
-            >
-              <option value="all">All Channels</option>
-              <option value="active">Active Channels</option>
-              <option value="inactive">Inactive Channels</option>
-            </select>
+              onValueChange={(value: string) => setFilterStatus(value as 'all' | 'active' | 'inactive')}
+              options={filterStatusOptions}
+              className="w-64"
+            />
           </div>
           <SettingSection<IChannel>
             title="Channels"
@@ -657,118 +671,112 @@ const TicketingSettings = (): JSX.Element => {
         columns={priorityColumns}
       />
     },
-        {
-          label: "Categories",
-          content: (
-            <div>
-              <div className="flex justify-end mb-4 gap-6">
-                <select
-                  value={categoryChannelFilter}
-                  onChange={(e) => setCategoryChannelFilter(e.target.value)}
-                  className="border border-gray-400 rounded-md p-2 w-64 text-sm text-gray-500 bg-white"
-                >
-                  <option value="all">All Channels</option>
-                  {channels.map((channel):JSX.Element => (
-                    <option key={channel.channel_id} value={channel.channel_id}>
-                      {channel.channel_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="bg-white p-6 rounded-lg shadow-sm">
-                <h3 className="text-lg font-semibold mb-4 text-gray-800">Categories</h3>
-                <DataTable
-                  data={visibleCategories}
-                  columns={[...categoryColumns, {
-                    title: 'Action',
-                    dataIndex: 'action',
-                    render: (_, item) => (
-                      <div className="flex items-center justify-end space-x-2">
-                        {editingCategory === item.category_id ? (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleSaveCategory(item.category_id)}
-                            >
-                              Save
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setEditingCategory('');
-                                setEditedCategoryName('');
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditCategory(item)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedParentCategory(item.category_id)}
-                              title="Add Subcategory"
-                            >
-                              <Network className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteCategory(item.category_id)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    ),
-                  }]}
-                  pagination={true}
-                />
-                <div className="flex space-x-2 mt-4">
-                  <Input
-                    type="text"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    placeholder={selectedParentCategory ? "New Subcategory" : "New Category"}
-                    className="flex-grow"
-                  />
-                <Button 
-                  onClick={addCategory} 
-                  className="bg-primary-500 text-white hover:bg-primary-600"
-                  disabled={!newCategory.trim()}
-                >
-                  <Plus className="h-4 w-4 mr-2" /> Add
-                </Button>
-                </div>
-                {selectedParentCategory && (
-                  <div className="mt-2 text-sm text-gray-500">
-                    Adding subcategory to: {categories.find(c => c.category_id === selectedParentCategory)?.category_name}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedParentCategory('')}
-                      className="ml-2"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+    {
+      label: "Categories",
+      content: (
+        <div>
+          <div className="flex justify-end mb-4 gap-6">
+            <CustomSelect
+              value={categoryChannelFilter}
+              onValueChange={(value: string) => setCategoryChannelFilter(value)}
+              options={channelFilterOptions}
+              className="w-64"
+            />
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-sm">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800">Categories</h3>
+            <DataTable
+              data={visibleCategories}
+              columns={[...categoryColumns, {
+                title: 'Action',
+                dataIndex: 'action',
+                render: (_, item) => (
+                  <div className="flex items-center justify-end space-x-2">
+                    {editingCategory === item.category_id ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSaveCategory(item.category_id)}
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditingCategory('');
+                            setEditedCategoryName('');
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditCategory(item)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedParentCategory(item.category_id)}
+                          title="Add Subcategory"
+                        >
+                          <Network className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteCategory(item.category_id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </div>
-                )}
-              </div>
+                ),
+              }]}
+              pagination={true}
+            />
+            <div className="flex space-x-2 mt-4">
+              <Input
+                type="text"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                placeholder={selectedParentCategory ? "New Subcategory" : "New Category"}
+                className="flex-grow"
+              />
+              <Button 
+                onClick={addCategory} 
+                className="bg-primary-500 text-white hover:bg-primary-600"
+                disabled={!newCategory.trim()}
+              >
+                <Plus className="h-4 w-4 mr-2" /> Add
+              </Button>
             </div>
-          )
-        }
-      ];
+            {selectedParentCategory && (
+              <div className="mt-2 text-sm text-gray-500">
+                Adding subcategory to: {categories.find(c => c.category_id === selectedParentCategory)?.category_name}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedParentCategory('')}
+                  className="ml-2"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )
+    }
+  ];
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">

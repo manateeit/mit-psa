@@ -1,37 +1,48 @@
+'use client';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
-import { Select, SelectOption } from "@/components/ui/Select";
+import CustomSelect from '@/components/ui/CustomSelect';
 import { ITimePeriodSettings } from '@/interfaces/timeEntry.interfaces';
 import { getActiveTimePeriodSettings, updateTimePeriodSettings, createTimePeriodSettings, deleteTimePeriodSettings } from '@/lib/actions/time-period-settings-actions/timePeriodSettingsActions';
 import { ISO8601String } from '@/types/types.d';
 import { formatISO, parseISO } from 'date-fns';
+
+type FrequencyUnit = 'day' | 'week' | 'month' | 'year';
 
 const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-const monthOptions: SelectOption[] = monthNames.map((name, index): SelectOption => ({
+const monthOptions = monthNames.map((name, index) => ({
   value: (index + 1).toString(),
   label: name
 }));
 
+const frequencyUnitOptions: Array<{ value: FrequencyUnit; label: string }> = [
+  { value: 'day', label: 'Day' },
+  { value: 'week', label: 'Week' },
+  { value: 'month', label: 'Month' },
+  { value: 'year', label: 'Year' }
+];
+
 const getMonthName = (monthNumber: number): string => monthNames[monthNumber - 1];
-const getMonthNumber = (monthName: string): number => monthNames.indexOf(monthName) + 1;
+
+const defaultFrequencyUnit: FrequencyUnit = 'month';
 
 const TimePeriodSettings: React.FC = () => {
   const [settings, setSettings] = useState<ITimePeriodSettings[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showNewSettingForm, setShowNewSettingForm] = useState<boolean>(false);
-  const [newSetting, setNewSetting] = useState<Partial<ITimePeriodSettings>>({
+  const [newSetting, setNewSetting] = useState<Partial<ITimePeriodSettings> & { frequency_unit: FrequencyUnit }>({
     start_day: 1,
     end_day: 31,
     frequency: 1,
-    frequency_unit: 'month',
+    frequency_unit: defaultFrequencyUnit,
     is_active: true,
     effective_from: formatISO(new Date()) as ISO8601String,
   });
@@ -60,7 +71,7 @@ const TimePeriodSettings: React.FC = () => {
         start_day: 1,
         end_day: 31,
         frequency: 1,
-        frequency_unit: 'month',
+        frequency_unit: defaultFrequencyUnit,
         is_active: true,
         effective_from: formatISO(new Date()) as ISO8601String,
       });
@@ -127,8 +138,8 @@ const TimePeriodSettings: React.FC = () => {
 };
 
 interface NewTimePeriodSettingFormProps {
-  newSetting: Partial<ITimePeriodSettings>;
-  setNewSetting: React.Dispatch<React.SetStateAction<Partial<ITimePeriodSettings>>>;
+  newSetting: Partial<ITimePeriodSettings> & { frequency_unit: FrequencyUnit };
+  setNewSetting: React.Dispatch<React.SetStateAction<Partial<ITimePeriodSettings> & { frequency_unit: FrequencyUnit }>>;
   onAdd: () => void;
   onCancel: () => void;
 }
@@ -139,20 +150,13 @@ const NewTimePeriodSettingForm: React.FC<NewTimePeriodSettingFormProps> = ({ new
     setNewSetting({ ...newSetting, [name]: parseInt(value, 10) });
   };
 
-  const handleSelectChange = (name: string, value: string) => {
+  const handleSelectChange = (name: string) => (value: string) => {
     if (name === 'frequency_unit') {
-      setNewSetting({ ...newSetting, [name]: value as 'day' | 'week' | 'month' | 'year' });
+      setNewSetting({ ...newSetting, [name]: value as FrequencyUnit });
     } else if (name === 'start_month' || name === 'end_month') {
       setNewSetting({ ...newSetting, [name]: parseInt(value, 10) });
     }
   };
-
-  const frequencyUnitOptions: SelectOption[] = [
-    { value: 'day', label: 'Day' },
-    { value: 'week', label: 'Week' },
-    { value: 'month', label: 'Month' },
-    { value: 'year', label: 'Year' },
-  ];
 
   return (
     <div className="border p-4 rounded-md">
@@ -165,11 +169,10 @@ const NewTimePeriodSettingForm: React.FC<NewTimePeriodSettingFormProps> = ({ new
         value={newSetting.frequency}
         onChange={handleInputChange}
       />
-      <Select
-        id="frequency_unit"
+      <CustomSelect
         label="Frequency Unit"
         value={newSetting.frequency_unit}
-        onChange={(value) => handleSelectChange('frequency_unit', value)}
+        onValueChange={handleSelectChange('frequency_unit')}
         options={frequencyUnitOptions}
       />
       {(newSetting.frequency_unit === 'week' || newSetting.frequency_unit === 'month') && (
@@ -191,18 +194,17 @@ const NewTimePeriodSettingForm: React.FC<NewTimePeriodSettingFormProps> = ({ new
             type="number"
             min={1}
             max={newSetting.frequency_unit === 'week' ? 7 : 31}
-            value={(newSetting.end_day) ? newSetting.end_day : ''}
+            value={newSetting.end_day || ''}
             onChange={handleInputChange}
           />
         </>
       )}
       {newSetting.frequency_unit === 'year' && (
         <>
-          <Select
-            id="start_month"
+          <CustomSelect
             label="Start Month"
-            value={newSetting.start_month?.toString()}
-            onChange={(value) => handleSelectChange('start_month', value)}
+            value={(newSetting.start_month || 1).toString()}
+            onValueChange={handleSelectChange('start_month')}
             options={monthOptions}
           />
           <Label htmlFor="start_day_of_month">Start Day of Month</Label>
@@ -215,11 +217,10 @@ const NewTimePeriodSettingForm: React.FC<NewTimePeriodSettingFormProps> = ({ new
             value={newSetting.start_day_of_month}
             onChange={handleInputChange}
           />
-          <Select
-            id="end_month"
+          <CustomSelect
             label="End Month"
-            value={newSetting.end_month?.toString()}
-            onChange={(value) => handleSelectChange('end_month', value)}
+            value={(newSetting.end_month || 12).toString()}
+            onValueChange={handleSelectChange('end_month')}
             options={monthOptions}
           />
           <Label htmlFor="end_day_of_month">End Day of Month</Label>
@@ -247,7 +248,10 @@ interface TimePeriodSettingItemProps {
 }
 
 const TimePeriodSettingItem: React.FC<TimePeriodSettingItemProps> = ({ setting, onUpdate, onDelete }) => {
-  const [editedSetting, setEditedSetting] = useState<ITimePeriodSettings>(setting);
+  const [editedSetting, setEditedSetting] = useState<ITimePeriodSettings>({
+    ...setting,
+    frequency_unit: setting.frequency_unit as FrequencyUnit || defaultFrequencyUnit
+  });
   const [isEditing, setIsEditing] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -255,9 +259,9 @@ const TimePeriodSettingItem: React.FC<TimePeriodSettingItemProps> = ({ setting, 
     setEditedSetting({ ...editedSetting, [name]: parseInt(value, 10) });
   };
 
-  const handleSelectChange = (name: string, value: string) => {
+  const handleSelectChange = (name: string) => (value: string) => {
     if (name === 'frequency_unit') {
-      setEditedSetting({ ...editedSetting, [name]: value as 'day' | 'week' | 'month' | 'year' });
+      setEditedSetting({ ...editedSetting, [name]: value as FrequencyUnit });
     } else if (name === 'start_month' || name === 'end_month') {
       setEditedSetting({ ...editedSetting, [name]: parseInt(value, 10) });
     }
@@ -267,13 +271,6 @@ const TimePeriodSettingItem: React.FC<TimePeriodSettingItemProps> = ({ setting, 
     onUpdate(editedSetting);
     setIsEditing(false);
   };
-
-  const frequencyUnitOptions: SelectOption[] = [
-    { value: 'day', label: 'Day' },
-    { value: 'week', label: 'Week' },
-    { value: 'month', label: 'Month' },
-    { value: 'year', label: 'Year' },
-  ];
 
   return (
     <div className="border p-4 rounded-md">
@@ -288,11 +285,10 @@ const TimePeriodSettingItem: React.FC<TimePeriodSettingItemProps> = ({ setting, 
             value={editedSetting.frequency}
             onChange={handleInputChange}
           />
-          <Select
-            id="frequency_unit"
+          <CustomSelect
             label="Frequency Unit"
             value={editedSetting.frequency_unit}
-            onChange={(value) => handleSelectChange('frequency_unit', value)}
+            onValueChange={handleSelectChange('frequency_unit')}
             options={frequencyUnitOptions}
           />
           {(editedSetting.frequency_unit === 'week' || editedSetting.frequency_unit === 'month') && (
@@ -321,12 +317,10 @@ const TimePeriodSettingItem: React.FC<TimePeriodSettingItemProps> = ({ setting, 
           )}
           {editedSetting.frequency_unit === 'year' && (
             <>
-              <Label htmlFor="start_month">Start Month</Label>
-              <Select
-                id="start_month"
+              <CustomSelect
                 label="Start Month"
-                value={editedSetting.start_month?.toString()}
-                onChange={(value) => handleSelectChange('start_month', value)}
+                value={(editedSetting.start_month || 1).toString()}
+                onValueChange={handleSelectChange('start_month')}
                 options={monthOptions}
               />
               <Label htmlFor="start_day_of_month">Start Day of Month</Label>
@@ -339,12 +333,10 @@ const TimePeriodSettingItem: React.FC<TimePeriodSettingItemProps> = ({ setting, 
                 value={editedSetting.start_day_of_month}
                 onChange={handleInputChange}
               />
-              <Label htmlFor="end_month">End Month</Label>
-              <Select
-                id="end_month"
+              <CustomSelect
                 label="End Month"
-                value={editedSetting.end_month?.toString()}
-                onChange={(value) => handleSelectChange('end_month', value)}
+                value={(editedSetting.end_month || 12).toString()}
+                onValueChange={handleSelectChange('end_month')}
                 options={monthOptions}
               />
               <Label htmlFor="end_day_of_month">End Day of Month</Label>

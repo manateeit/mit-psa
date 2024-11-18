@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { TaxRegion } from '@/types/types.d';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { Select, SelectOption } from '../ui/Select';
+import { Button } from '@/components/ui//Button';
+import { Input } from '@/components/ui//Input';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { ITimeEntry, ITimeEntryWithWorkItem, ITimePeriod } from '@/interfaces/timeEntry.interfaces';
 import { IWorkItem } from '@/interfaces/workItem.interfaces';
 import { BsClock } from 'react-icons/bs';
@@ -320,11 +320,11 @@ export function TimeEntryDialog({
 
           <div className="mb-4">
             <div className="flex items-center space-x-4">
-              <Select
+              <CustomSelect
                 value={selectedEntryIndex.toString()}
-                onChange={(value) => setSelectedEntryIndex(parseInt(value))}
+                onValueChange={(value) => setSelectedEntryIndex(parseInt(value))}
                 className="w-64"
-                options={entries.map((entry, index): { value: string; label: string } => ({
+                options={entries.map((entry, index) => ({
                   value: index.toString(),
                   label: `Entry ${index + 1}${entry.service_id ? ` - ${services.find(s => s.id === entry.service_id)?.name || ''}` : ''}`
                 }))}
@@ -347,38 +347,32 @@ export function TimeEntryDialog({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Service <span className="text-red-500">*</span></label>
-                    <Select
-                      value={selectedEntry.service_id}
-                      onChange={(value) => handleServiceChange(selectedEntryIndex, value)}
+                    <CustomSelect
+                      value={selectedEntry.service_id || ''}
+                      onValueChange={(value) => handleServiceChange(selectedEntryIndex, value)}
                       disabled={!isEditable}
                       className="mt-1 w-full"
-                      options={[
-                        { value: "", label: "Select a service" },
-                        ...services.map((service):SelectOption => ({
-                          value: service.id,
-                          label: service.name
-                        }))
-                      ]}
-                      required
+                      options={services.map((service) => ({
+                        value: service.id,
+                        label: service.name
+                      }))}
+                      placeholder="Select a service"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
                       Tax Region {services.find(s => s.id === selectedEntry.service_id)?.is_taxable && <span className="text-red-500">*</span>}
                     </label>
-                    <Select
-                      value={selectedEntry.tax_region}
-                      onChange={(value) => handleTaxRegionChange(selectedEntryIndex, value)}
+                    <CustomSelect
+                      value={selectedEntry.tax_region || ''}
+                      onValueChange={(value) => handleTaxRegionChange(selectedEntryIndex, value)}
                       disabled={!isEditable || !services.find(s => s.id === selectedEntry.service_id)?.is_taxable}
                       className="mt-1 w-full"
-                      options={[
-                        { value: "", label: "Select a tax region" },
-                        ...taxRegions.map((region):SelectOption => ({
-                          value: region.id,
-                          label: region.name
-                        }))
-                      ]}
-                      required={services.find(s => s.id === selectedEntry.service_id)?.is_taxable}
+                      options={taxRegions.map((region) => ({
+                        value: region.id,
+                        label: region.name
+                      }))}
+                      placeholder="Select a tax region"
                     />
                   </div>
                 </div>

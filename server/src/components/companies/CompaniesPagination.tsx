@@ -1,6 +1,7 @@
 "use client";
 import { CaretLeftIcon, CaretRightIcon } from '@radix-ui/react-icons';
-import { ICompany } from "@/interfaces/company.interfaces";
+import { ICompany } from '@/interfaces/company.interfaces';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface CompaniesPaginationProps {
     filteredCompanies: ICompany[];
@@ -56,13 +57,20 @@ const CompaniesPagination = ({
     const firstItemIndex = (currentPage - 1) * itemsPerPage + 1;
     const lastItemIndex = Math.min(currentPage * itemsPerPage, filteredCompanies.length);
 
+    const itemsPerPageOptions = [
+        { value: '9', label: '9 cards/page' },
+        { value: '18', label: '18 cards/page' },
+        { value: '27', label: '27 cards/page' },
+        { value: '36', label: '36 cards/page' }
+    ];
+
     return (
-        <div className="flex py-3 items-center justify-end gap-6">
-            <p className="text-sm text-gray-700">
+        <div className="flex py-3 items-center justify-end pr-6">
+            <p className="text-sm text-gray-700 mr-6">
                 {firstItemIndex} - {lastItemIndex} of {filteredCompanies.length} companies
             </p>
 
-            <div className="inline-flex rounded-md gap-1" aria-label="Pagination">
+            <div className="inline-flex rounded-md gap-2 mr-8" aria-label="Pagination">
                 <button 
                     onClick={() => handleArrowClick('left')} 
                     className="px-1 py-1 border border-gray-300 text-sm font-medium text-gray-500 hover:bg-gray-50 rounded"
@@ -78,16 +86,12 @@ const CompaniesPagination = ({
                 </button>
             </div>
 
-            <select
-                value={itemsPerPage}
-                onChange={(e) => onItemsPerPageChange(Number(e.target.value) as ItemsPerPage)}
-                className="border border-gray-300 rounded-md px-2 py-1 w-36 text-gray-500"
-            >
-                <option value={9}>9 cards/page</option>
-                <option value={18}>18 cards/page</option>
-                <option value={27}>27 cards/page</option>
-                <option value={36}>36 cards/page</option>
-            </select>
+            <CustomSelect
+                value={itemsPerPage.toString()}
+                onValueChange={(value) => onItemsPerPageChange(Number(value) as ItemsPerPage)}
+                options={itemsPerPageOptions}
+                placeholder="Cards per page"
+            />
         </div>
     );
 };

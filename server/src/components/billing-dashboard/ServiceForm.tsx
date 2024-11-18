@@ -1,9 +1,9 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Button } from '../ui/Button'
-import { Input } from '../ui/Input'
-import { Select } from '../ui/Select'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import CustomSelect from '@/components/ui/CustomSelect'
 import { createService } from '@/lib/actions/serviceActions'
 import { ServiceType } from '@/interfaces'
 import { UnitOfMeasureInput } from './UnitOfMeasureInput'
@@ -44,16 +44,15 @@ export const ServiceForm: React.FC = () => {
         required
       />
 
-      <Select
+      <CustomSelect
         options={[
           { value: 'Fixed', label: 'Fixed Price' },
           { value: 'Time', label: 'Time-Based' },
           { value: 'Usage', label: 'Usage-Based' }
         ]}
         value={serviceType}
-        onChange={(value) => setServiceType(value as ServiceType)}
+        onValueChange={(value) => setServiceType(value as ServiceType)}
         placeholder="Select Service Type"
-        required
       />
 
       <Input

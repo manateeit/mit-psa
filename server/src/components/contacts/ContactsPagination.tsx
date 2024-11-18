@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { IContact } from "@/interfaces/contact.interfaces";
+import { IContact } from '@/interfaces/contact.interfaces';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface ContactsPaginationProps {
     filteredContacts: IContact[];
@@ -58,6 +59,13 @@ const ContactsPagination = ({ filteredContacts }: ContactsPaginationProps) => {
         setCurrentPage(1); // Reset to first page when rows per page changes
     }, [filteredContacts, numRowsPerPage]);
 
+    const rowsPerPageOptions = [
+        { value: '10', label: '10 cards/page' },
+        { value: '20', label: '20 cards/page' },
+        { value: '50', label: '50 cards/page' },
+        { value: '100', label: '100 cards/page' }
+    ];
+
     return (
         <div className="flex py-3 items-center justify-end gap-6">
             {/* Pagination info */}
@@ -76,17 +84,15 @@ const ContactsPagination = ({ filteredContacts }: ContactsPaginationProps) => {
                 </button>
             </div>
 
-            {/* Dropdown */}
-            <select
-                value={numRowsPerPage}
-                onChange={(e) => setNumRowsPerPage(Number(e.target.value) as RowsPerPage)}
-                className="border border-gray-300 rounded-md px-2 py-1 w-36 text-gray-500"
-            >
-                <option value={10}>10 rows/page</option>
-                <option value={20}>20 rows/page</option>
-                <option value={50}>50 rows/page</option>
-                <option value={100}>100 rows/page</option>
-            </select>
+            {/* Cards per page selector */}
+            <div className="inline-block">
+                <CustomSelect
+                    value={numRowsPerPage.toString()}
+                    onValueChange={(value) => setNumRowsPerPage(Number(value) as RowsPerPage)}
+                    options={rowsPerPageOptions}
+                    placeholder="Cards per page"
+                />
+            </div>
         </div>
     );
 };

@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Flex, Text, Select, Checkbox } from '@radix-ui/themes';
+import { Flex, Text, Checkbox } from '@radix-ui/themes';
 import { getPermissions, getRoles, getRolePermissions, assignPermissionToRole, removePermissionFromRole } from '@/lib/actions/policyActions';
 import { IPermission, IRole } from '@/interfaces/auth.interfaces';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 export default function PermissionManagement() {
   const [permissions, setPermissions] = useState<IPermission[]>([]);
@@ -100,6 +101,19 @@ export default function PermissionManagement() {
   };
 
   const resources = Array.from(new Set(permissions.map((p: IPermission): string => p.resource)));
+  
+  const resourceOptions = [
+    { value: 'all', label: 'All Resources' },
+    ...resources.map((resource): { value: string; label: string } => ({
+      value: resource,
+      label: resource
+    }))
+  ];
+
+  const roleOptions = roles.map((role): { value: string; label: string } => ({
+    value: role.role_id,
+    label: role.role_name
+  }));
 
   const columns: ColumnDefinition<IPermission>[] = [
     {
@@ -147,30 +161,25 @@ export default function PermissionManagement() {
         <Flex direction="column" gap="2">
           <Flex align="center" gap="2">
             <Text size="2" weight="bold" style={{ width: '100px' }}>Resource:</Text>
-            <Select.Root value={selectedResource || 'all'} onValueChange={setSelectedResource}>
-              <Select.Trigger placeholder="Select Resource" />
-              <Select.Content>
-                <Select.Item value="all">All Resources</Select.Item>
-                {resources.map((resource: string): JSX.Element => (
-                  <Select.Item key={resource} value={resource}>
-                    {resource}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
+            <div className="relative z-20 inline-block">
+              <CustomSelect
+                value={selectedResource || 'all'}
+                onValueChange={setSelectedResource}
+                options={resourceOptions}
+                placeholder="Select Resource"
+              />
+            </div>
           </Flex>
           <Flex align="center" gap="2">
             <Text size="2" weight="bold" style={{ width: '100px' }}>Role:</Text>
-            <Select.Root value={selectedRole} onValueChange={setSelectedRole}>
-              <Select.Trigger placeholder="Select Role" />
-              <Select.Content>
-                {roles.map((role: IRole): JSX.Element => (
-                  <Select.Item key={role.role_id} value={role.role_id}>
-                    {role.role_name}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
+            <div className="relative z-10 inline-block">
+              <CustomSelect
+                value={selectedRole}
+                onValueChange={setSelectedRole}
+                options={roleOptions}
+                placeholder="Select Role"
+              />
+            </div>
           </Flex>
         </Flex>
         
