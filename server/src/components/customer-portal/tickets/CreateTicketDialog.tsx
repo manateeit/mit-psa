@@ -5,7 +5,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { TextArea } from '@/components/ui/TextArea';
-import { Select } from '@/components/ui/Select';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { X, AlertCircle } from 'lucide-react';
 import { createClientTicket } from '@/lib/actions/client-tickets';
 
@@ -88,12 +88,11 @@ export function CreateTicketDialog({ open, onClose }: CreateTicketDialogProps) {
             </div>
 
             <div>
-              <Select
+              <CustomSelect
                 value={priority}
-                onChange={(value) => setPriority(value)}
+                onValueChange={(value) => setPriority(value)}
                 options={priorities}
                 placeholder="Select Priority"
-                required
               />
             </div>
 
