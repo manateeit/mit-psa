@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
+import { Search } from 'lucide-react';
 
 const UserManagement = (): JSX.Element => {
   const [users, setUsers] = useState<IUser[]>([]);
@@ -117,13 +118,16 @@ const UserManagement = (): JSX.Element => {
       <CardContent>
         <div className="flex justify-between mb-4">
           <div className="flex gap-6">
-            <input
-              type="text"
-              placeholder="Search users"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="border border-gray-400 rounded-md p-2 w-64 text-sm"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search users"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="border-2 border-gray-200 focus:border-purple-500 rounded-md pl-10 pr-4 py-2 w-64 outline-none bg-white"
+              />
+              <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            </div>
             <div className="relative z-10">
               <CustomSelect
                 value={filterStatus}

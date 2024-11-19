@@ -81,13 +81,13 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
             px-3 
             py-2 
             border 
-            border-gray-300 
+            border-gray-200 
             rounded-md 
             shadow-sm 
             focus:outline-none 
             focus:ring-2 
-            focus:ring-blue-500 
-            focus:border-blue-500 
+            focus:ring-purple-500 
+            focus:border-transparent 
             resize-none 
             overflow-hidden 
             whitespace-pre-wrap

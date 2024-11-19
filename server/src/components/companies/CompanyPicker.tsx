@@ -80,18 +80,18 @@ export const CompanyPicker: React.FC<CompanyPickerProps> = ({
     : null;
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="rounded-md" ref={dropdownRef}>
       <button 
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-2 border rounded flex justify-between items-center bg-white text-left"
+        className="w-full p-2 border-2 border-gray-200 rounded-md flex justify-between items-center text-left outline-none transition-colors duration-200 hover:border-gray-300 focus:border-purple-500"
       >
         <span>{selectedCompany ? selectedCompany.company_name : 'Select Client'}</span>
         <ChevronDownIcon />
       </button>
       
-      {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg">
+    {isOpen && (
+      <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg">
           <div className="p-4 space-y-4">
             <div className="flex justify-between items-center space-x-4">
               <div className="flex-1">

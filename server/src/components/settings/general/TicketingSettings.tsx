@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import CustomTabs from '@/components/ui/CustomTabs';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { Plus, X, Edit2, ChevronRight, ChevronDown, Network } from "lucide-react";
+import { Plus, X, Edit2, ChevronRight, ChevronDown, Network, Search } from "lucide-react";
 import { getAllChannels, createChannel, deleteChannel, updateChannel } from '@/lib/actions/channel-actions/channelActions';
 import { getTicketStatuses, createStatus, deleteStatus, updateStatus } from '@/lib/actions/status-actions/statusActions';
 import { getAllPriorities, createPriority, deletePriority, updatePriority } from '@/lib/actions/priorityActions';
@@ -609,13 +609,16 @@ const TicketingSettings = (): JSX.Element => {
       content: (
         <div>
           <div className="flex justify-end mb-4 gap-6">
-            <input
-              type="text"
-              placeholder="Search channels"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="border border-gray-400 rounded-md p-2 w-64 text-sm"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search channels"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="border-2 border-gray-200 focus:border-purple-500 rounded-md pl-10 pr-4 py-2 w-64 outline-none bg-white"
+              />
+              <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            </div>
             <CustomSelect
               value={filterStatus}
               onValueChange={(value: string) => setFilterStatus(value as 'all' | 'active' | 'inactive')}

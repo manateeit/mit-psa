@@ -5,6 +5,8 @@ import { Asset } from '@/interfaces/asset.interfaces';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
+import { Input } from '@/components/ui/Input';
+import { TextArea } from '@/components/ui/TextArea';
 import { createTicketFromAsset } from '@/lib/actions/ticket-actions/ticketActions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
@@ -79,43 +81,28 @@ export default function CreateTicketFromAssetButton({ asset }: CreateTicketFromA
                 title="Create Ticket from Asset"
             >
                 <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                            Title
-                        </label>
-                        <input
-                            type="text"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                            placeholder="Enter ticket title"
-                        />
-                    </div>
+                    <Input
+                        label="Title"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="Enter ticket title"
+                    />
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                            Description
-                        </label>
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows={4}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                            placeholder="Describe the issue..."
-                        />
-                    </div>
+                    <TextArea
+                        label="Description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Describe the issue..."
+                        rows={4}
+                    />
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                            Priority
-                        </label>
-                        <CustomSelect
-                            options={priorityOptions}
-                            value={priority}
-                            onValueChange={setPriority}
-                            placeholder="Select priority..."
-                        />
-                    </div>
+                    <CustomSelect
+                        label="Priority"
+                        options={priorityOptions}
+                        value={priority}
+                        onValueChange={setPriority}
+                        placeholder="Select priority..."
+                    />
 
                     <div className="mt-4 flex justify-end space-x-2">
                         <Button

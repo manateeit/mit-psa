@@ -497,10 +497,14 @@ export default function ProjectDetail({
                     onClick={() => handleTaskSelected(task)}
                     className="bg-white p-3 mb-2 rounded shadow-sm cursor-pointer hover:shadow-md transition-shadow duration-200 border border-gray-200 flex flex-col gap-1"
                   >
-                    <p className="font-semibold text-sm mb-1">{task.task_name}</p>
+                    <p className="font-semibold text-base mb-1">{task.task_name}</p>
+                    {task.description && (
+                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                        {task.description}
+                      </p>
+                    )}
                     <div onClick={(e) => e.stopPropagation()}>
                       <UserPicker
-                        label="Assigned to"
                         value={task.assigned_to || ''}
                         onValueChange={(newAssigneeId: string) => handleAssigneeChange(task.task_id, newAssigneeId)}
                         size="sm"

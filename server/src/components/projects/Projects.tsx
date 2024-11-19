@@ -11,6 +11,7 @@ import CustomSelect from '@/components/ui/CustomSelect';
 import ProjectQuickAdd from './ProjectQuickAdd';
 import { deleteProject } from '@/lib/actions/projectActions';
 import { toast } from 'react-hot-toast';
+import { Search } from 'lucide-react';
 
 interface ProjectsProps {
   initialProjects: IProject[];
@@ -106,13 +107,16 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Projects</h1>
         <div className="flex items-center space-x-4">
-          <input
-            type="text"
-            placeholder="Search projects"
-            className="border border-gray-300 rounded-md p-2"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search projects"
+              className="border-2 border-gray-200 focus:border-purple-500 rounded-md pl-10 pr-4 py-2 w-64 outline-none bg-white"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          </div>
           <div className="relative z-10">
             <CustomSelect
               options={statusOptions}
