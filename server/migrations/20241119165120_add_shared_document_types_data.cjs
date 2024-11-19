@@ -5,164 +5,164 @@
 exports.up = async function(knex) {
     await knex('shared_document_types').insert([
         {
-            type_name: 'JPEG Image',
+            type_name: 'image/jpeg',
             icon: '📸',
-            description: 'image/jpeg'
+            description: 'JPEG Image'
         },
         {
-            type_name: 'PNG Image',
+            type_name: 'image/png',
             icon: '🖼️',
-            description: 'image/png'
+            description: 'PNG Image'
         },
         {
-            type_name: 'GIF Image',
+            type_name: 'image/gif',
             icon: '🎭',
-            description: 'image/gif'
+            description: 'GIF Image'
         },
         {
-            type_name: 'SVG Image',
+            type_name: 'image/svg+xml',
             icon: '🎨',
-            description: 'image/svg+xml'
+            description: 'SVG Image'
         },
         {
-            type_name: 'WebP Image',
+            type_name: 'image/webp',
             icon: '📸',
-            description: 'image/webp'
+            description: 'WebP Image'
         },
         {
-            type_name: 'PDF Document',
+            type_name: 'application/pdf',
             icon: '📄',
-            description: 'application/pdf'
+            description: 'PDF Document'
         },
         {
-            type_name: 'Word Document',
+            type_name: 'application/msword',
             icon: '📝',
-            description: 'application/msword'
+            description: 'Word Document'
         },
         {
-            type_name: 'Word Document (DOCX)',
+            type_name: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             icon: '📝',
-            description: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            description: 'Word Document (DOCX)'
         },
         {
-            type_name: 'Excel Spreadsheet',
+            type_name: 'application/vnd.ms-excel',
             icon: '📊',
-            description: 'application/vnd.ms-excel'
+            description: 'Excel Spreadsheet'
         },
         {
-            type_name: 'Excel Spreadsheet (XLSX)',
+            type_name: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             icon: '📊',
-            description: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            description: 'Excel Spreadsheet (XLSX)'
         },
         {
-            type_name: 'PowerPoint Presentation',
+            type_name: 'application/vnd.ms-powerpoint',
             icon: '📽️',
-            description: 'application/vnd.ms-powerpoint'
+            description: 'PowerPoint Presentation'
         },
         {
-            type_name: 'PowerPoint Presentation (PPTX)',
+            type_name: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
             icon: '📽️',
-            description: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            description: 'PowerPoint Presentation (PPTX)'
         },
         {
-            type_name: 'Plain Text',
+            type_name: 'text/plain',
             icon: '📝',
-            description: 'text/plain'
+            description: 'Plain Text'
         },
         {
-            type_name: 'HTML Document',
+            type_name: 'text/html',
             icon: '🌐',
-            description: 'text/html'
+            description: 'HTML Document'
         },
         {
-            type_name: 'CSS Stylesheet',
+            type_name: 'text/css',
             icon: '🎨',
-            description: 'text/css'
+            description: 'CSS Stylesheet'
         },
         {
-            type_name: 'JavaScript Code',
+            type_name: 'text/javascript',
             icon: '⚙️',
-            description: 'text/javascript'
+            description: 'JavaScript Code'
         },
         {
-            type_name: 'Markdown Document',
+            type_name: 'text/markdown',
             icon: '📑',
-            description: 'text/markdown'
+            description: 'Markdown Document'
         },
         {
-            type_name: 'ZIP Archive',
+            type_name: 'application/zip',
             icon: '📦',
-            description: 'application/zip'
+            description: 'ZIP Archive'
         },
         {
-            type_name: 'RAR Archive',
+            type_name: 'application/x-rar-compressed',
             icon: '📦',
-            description: 'application/x-rar-compressed'
+            description: 'RAR Archive'
         },
         {
-            type_name: '7-Zip Archive',
+            type_name: 'application/x-7z-compressed',
             icon: '📦',
-            description: 'application/x-7z-compressed'
+            description: '7-Zip Archive'
         },
         {
-            type_name: 'TAR Archive',
+            type_name: 'application/x-tar',
             icon: '📦',
-            description: 'application/x-tar'
+            description: 'TAR Archive'
         },
         {
-            type_name: 'GZIP Archive',
+            type_name: 'application/gzip',
             icon: '📦',
-            description: 'application/gzip'
+            description: 'GZIP Archive'
         },
         {
-            type_name: 'MP3 Audio',
+            type_name: 'audio/mpeg',
             icon: '🎵',
-            description: 'audio/mpeg'
+            description: 'MP3 Audio'
         },
         {
-            type_name: 'WAV Audio',
+            type_name: 'audio/wav',
             icon: '🎵',
-            description: 'audio/wav'
+            description: 'WAV Audio'
         },
         {
-            type_name: 'OGG Audio',
+            type_name: 'audio/ogg',
             icon: '🎵',
-            description: 'audio/ogg'
+            description: 'OGG Audio'
         },
         {
-            type_name: 'MP4 Video',
+            type_name: 'video/mp4',
             icon: '🎥',
-            description: 'video/mp4'
+            description: 'MP4 Video'
         },
         {
-            type_name: 'WebM Video',
+            type_name: 'video/webm',
             icon: '🎥',
-            description: 'video/webm'
+            description: 'WebM Video'
         },
         {
-            type_name: 'OGG Video',
+            type_name: 'video/ogg',
             icon: '🎥',
-            description: 'video/ogg'
+            description: 'OGG Video'
         },
         {
-            type_name: 'JSON Data',
+            type_name: 'application/json',
             icon: '📊',
-            description: 'application/json'
+            description: 'JSON Data'
         },
         {
-            type_name: 'XML Data',
+            type_name: 'application/xml',
             icon: '📊',
-            description: 'application/xml'
+            description: 'XML Data'
         },
         {
-            type_name: 'CSV Data',
+            type_name: 'text/csv',
             icon: '📊',
-            description: 'text/csv'
+            description: 'CSV Data'
         },
         {
-            type_name: 'Unknown File Type',
+            type_name: 'application/octet-stream',
             icon: '❓',
-            description: 'application/octet-stream'
+            description: 'Unknown File Type'
         }
     ]);
 };
