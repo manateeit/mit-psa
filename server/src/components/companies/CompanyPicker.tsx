@@ -84,17 +84,17 @@ export const CompanyPicker: React.FC<CompanyPickerProps> = ({
       <button 
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-2 border-2 border-gray-200 rounded-md flex justify-between items-center text-left outline-none transition-colors duration-200 hover:border-gray-300 focus:border-purple-500"
+        className="w-full p-2 border-2 border-gray-200 rounded-md flex justify-between items-center text-left outline-none transition-colors duration-200 hover:border-gray-300 focus:border-purple-500 bg-white"
       >
         <span>{selectedCompany ? selectedCompany.company_name : 'Select Client'}</span>
         <ChevronDownIcon />
       </button>
       
-    {isOpen && (
-      <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg">
-          <div className="p-4 space-y-4">
+      {isOpen && (
+        <div className="absolute left-0 right-0 z-[100] mt-1 bg-white border rounded-md shadow-lg">
+          <div className="p-4 space-y-4 bg-white">
             <div className="flex justify-between items-center space-x-4">
-              <div className="flex-1">
+              <div className="flex-1 relative z-[110]">
                 <CustomSelect
                   value={filterState}
                   onValueChange={handleFilterStateChange}
@@ -106,7 +106,7 @@ export const CompanyPicker: React.FC<CompanyPickerProps> = ({
                   placeholder="Filter by status"
                 />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 relative z-[110]">
                 <CustomSelect
                   value={clientTypeFilter}
                   onValueChange={handleClientTypeFilterChange}
@@ -125,7 +125,7 @@ export const CompanyPicker: React.FC<CompanyPickerProps> = ({
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="max-h-60 overflow-y-auto border-t">
+          <div className="max-h-60 overflow-y-auto border-t bg-white">
             {filteredCompanies.map((company):JSX.Element => (
               <button
                 type="button"

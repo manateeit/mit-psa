@@ -342,6 +342,15 @@ const Companies: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-full">
+      {/* Create Client Dialog */}
+      <GenericDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        title="Create New Client"
+      >
+        <CompanyForm onSubmit={handleAddCompany} />
+      </GenericDialog>
+
       <div className="flex justify-end mb-4 flex-wrap gap-6">
         {/* Search */}
         <div className="relative">
@@ -356,16 +365,18 @@ const Companies: React.FC = () => {
         </div>
 
         {/* Company Picker */}
-        <div className="w-64 relative [&>div]:rounded-md overflow-hidden bg-white">
-          <CompanyPicker
-            onSelect={(companyId) => setSelectedCompanyId(companyId)}
-            selectedCompanyId={selectedCompanyId}
-            companies={statusFilteredCompanies}
-            filterState={filterStatus}
-            onFilterStateChange={(state) => setFilterStatus(state)}
-            clientTypeFilter={clientTypeFilter}
-            onClientTypeFilterChange={(type) => setClientTypeFilter(type)}
-          />
+        <div className="w-64 relative [&>div]:rounded-md overflow-visible">
+          <div className="relative z-[1000]">
+            <CompanyPicker
+              onSelect={(companyId) => setSelectedCompanyId(companyId)}
+              selectedCompanyId={selectedCompanyId}
+              companies={statusFilteredCompanies}
+              filterState={filterStatus}
+              onFilterStateChange={(state) => setFilterStatus(state)}
+              clientTypeFilter={clientTypeFilter}
+              onClientTypeFilterChange={(type) => setClientTypeFilter(type)}
+            />
+          </div>
         </div>
 
         {/* Actions */}
