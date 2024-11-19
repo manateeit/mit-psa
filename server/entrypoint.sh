@@ -13,9 +13,9 @@ NODE_ENV=${NODE_ENV:-production}
 # done
 
 
-version="0.0.1"
+version="0.0.2"
 commit="abc123"
-date="04-11-2024"
+date="19-11-2024"
 author="NineMinds"
 
 # Function to print colored text
@@ -93,10 +93,10 @@ print_color "36" "
                     *                                                  *
                     *               ALGA PSA NEXT.JS                   *
                     *                                                  *
-                    *               Version .: $version                *
-                    *               Commit  .: $commit                 *
-                    *               Date    .: $date                   *
-                    *               Author  .: $author                 *
+                    *               Version .: $version                  *
+                    *               Commit  .: $commit                  *
+                    *               Date    .: $date              *
+                    *               Author  .: $author                *
                     *                                                  *
                     ****************************************************
 "
