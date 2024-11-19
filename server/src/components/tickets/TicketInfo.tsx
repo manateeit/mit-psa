@@ -1,10 +1,11 @@
 // server/src/components/tickets/TicketInfo.tsx
 import React, { useEffect, useState } from 'react';
 import { ITicket, IComment, ITicketCategory } from '@/interfaces';
-import EditableField from '@/components/ui/EditableField';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { CategoryPicker } from './CategoryPicker';
 import styles from './TicketDetails.module.css';
 import { getTicketCategories } from '@/lib/actions/ticketCategoryActions';
+import { Pencil, Check } from 'lucide-react';
 
 interface TicketInfoProps {
   ticket: ITicket;
@@ -26,6 +27,8 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
   onSelectChange,
 }) => {
   const [categories, setCategories] = useState<ITicketCategory[]>([]);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState(ticket.title);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -39,6 +42,27 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
 
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    setTitleValue(ticket.title);
+  }, [ticket.title]);
+
+  const handleTitleSubmit = () => {
+    if (titleValue.trim() !== '') {
+      onSelectChange('title', titleValue.trim());
+      setIsEditingTitle(false);
+    }
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setTitleValue(ticket.title);
+      setIsEditingTitle(false);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleTitleSubmit();
+    }
+  };
 
   // Helper function to get category channel
   const getCategoryChannel = (categoryId: string): string | undefined => {
@@ -87,35 +111,89 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
     return ticket.category_id || '';
   };
 
+  const customStyles = {
+    trigger: "w-fit !inline-flex items-center justify-between rounded px-3 py-2 text-sm font-medium bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+    content: "bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 overflow-auto",
+    item: "text-gray-900 cursor-default select-none relative py-2 pl-3 pr-9 hover:bg-indigo-600 hover:text-white",
+    itemIndicator: "absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600",
+  };
+
   return (
     <div className={`${styles['card']}`}>
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4">{ticket.title}</h1>
+        <div className="flex items-center gap-2 mb-4">
+          {isEditingTitle ? (
+            <div className="flex items-center gap-2 flex-1">
+              <input
+                type="text"
+                value={titleValue}
+                onChange={(e) => setTitleValue(e.target.value)}
+                onKeyDown={handleTitleKeyDown}
+                autoFocus
+                className="text-2xl font-bold flex-1 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              <button
+                onClick={handleTitleSubmit}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors duration-200"
+                title="Save title"
+              >
+                <Check className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+          ) : (
+            <>
+              <h1 className="text-2xl font-bold">{ticket.title}</h1>
+              <button
+                onClick={() => setIsEditingTitle(true)}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors duration-200"
+                title="Edit title"
+              >
+                <Pencil className="w-4 h-4 text-gray-500" />
+              </button>
+            </>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-4 mb-4">
-          <EditableField
-            label="Status"
-            value={ticket.status_id || ''}
-            options={statusOptions}
-            onValueChange={(value) => onSelectChange('status_id', value)}
-          />
-          <EditableField
-            label="Assigned To"
-            value={ticket.assigned_to || ''}
-            options={agentOptions}
-            onValueChange={(value) => onSelectChange('assigned_to', value)}
-          />
-          <EditableField
-            label="Channel"
-            value={ticket.channel_id || ''}
-            options={channelOptions}
-            onValueChange={(value) => onSelectChange('channel_id', value)}
-          />
-          <EditableField
-            label="Priority"
-            value={ticket.priority_id || ''}
-            options={priorityOptions}
-            onValueChange={(value) => onSelectChange('priority_id', value)}
-          />
+          <div>
+            <h5 className="font-bold mb-2">Status</h5>
+            <CustomSelect
+              value={ticket.status_id || ''}
+              options={statusOptions}
+              onValueChange={(value) => onSelectChange('status_id', value)}
+              customStyles={customStyles}
+              className="!w-fit"
+            />
+          </div>
+          <div>
+            <h5 className="font-bold mb-2">Assigned To</h5>
+            <CustomSelect
+              value={ticket.assigned_to || ''}
+              options={agentOptions}
+              onValueChange={(value) => onSelectChange('assigned_to', value)}
+              customStyles={customStyles}
+              className="!w-fit"
+            />
+          </div>
+          <div>
+            <h5 className="font-bold mb-2">Channel</h5>
+            <CustomSelect
+              value={ticket.channel_id || ''}
+              options={channelOptions}
+              onValueChange={(value) => onSelectChange('channel_id', value)}
+              customStyles={customStyles}
+              className="!w-fit"
+            />
+          </div>
+          <div>
+            <h5 className="font-bold mb-2">Priority</h5>
+            <CustomSelect
+              value={ticket.priority_id || ''}
+              options={priorityOptions}
+              onValueChange={(value) => onSelectChange('priority_id', value)}
+              customStyles={customStyles}
+              className="!w-fit"
+            />
+          </div>
           <div className="col-span-2">
             <h5 className="font-bold mb-1">Category</h5>
             <div className="w-fit">
