@@ -67,18 +67,22 @@ const Reports: React.FC = () => {
           </div>
         )}
         <div className="space-y-4">
-          <CustomSelect
-            options={REPORT_TYPE_OPTIONS}
-            onValueChange={setSelectedReport}
-            value={selectedReport}
-            placeholder="Select report type..."
-          />
-          <CustomSelect
-            options={TIME_PERIOD_OPTIONS}
-            onValueChange={setTimePeriod}
-            value={timePeriod}
-            placeholder="Select time period..."
-          />
+          <div className="w-fit">
+            <CustomSelect
+              options={REPORT_TYPE_OPTIONS}
+              onValueChange={setSelectedReport}
+              value={selectedReport}
+              placeholder="Select report type..."
+            />
+          </div>
+          <div className="w-fit">
+            <CustomSelect
+              options={TIME_PERIOD_OPTIONS}
+              onValueChange={setTimePeriod}
+              value={timePeriod}
+              placeholder="Select time period..."
+            />
+          </div>
           <Button 
             onClick={handleGenerateReport}
             disabled={!selectedReport || !timePeriod}

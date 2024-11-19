@@ -48,9 +48,9 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
         <RadixSelect.Trigger
           className={`
             inline-flex items-center justify-between
-            border border-gray-300 rounded-lg p-2
+            border border-gray-200 rounded-lg p-2
             bg-white cursor-pointer min-h-[38px]
-            hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+            hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent
             text-sm w-full
             disabled:opacity-50 disabled:cursor-not-allowed
             ${className}

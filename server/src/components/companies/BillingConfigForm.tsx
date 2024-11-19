@@ -92,7 +92,7 @@ const BillingConfigForm: React.FC<BillingConfigFormProps> = ({
                     name="credit_limit"
                     value={billingConfig.credit_limit}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
             </div>
 

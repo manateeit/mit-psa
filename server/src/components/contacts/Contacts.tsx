@@ -427,15 +427,15 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
       <div className="bg-white shadow rounded-lg p-4">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Search size={20} className="text-gray-400" />
+            <div className="relative">
               <input
                 type="text"
                 placeholder="Search contacts"
-                className="border border-gray-300 rounded-md p-2"
+                className="border-2 border-gray-200 focus:border-purple-500 rounded-md pl-10 pr-4 py-2 w-64 outline-none bg-white"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
+              <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             </div>
             
             <TagFilter

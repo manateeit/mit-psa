@@ -8,7 +8,7 @@ import { createCompany, getAllCompanies, deleteCompany, importCompaniesFromCSV, 
 import { useRouter } from 'next/navigation';
 import CompaniesGrid from './CompaniesGrid';
 import CompaniesList from './CompaniesList';
-import { TrashIcon, MoreVertical, CloudDownload, Upload, LayoutGrid, LayoutList } from 'lucide-react';
+import { TrashIcon, MoreVertical, CloudDownload, Upload, LayoutGrid, LayoutList, Search } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { CompanyPicker } from '../companies/CompanyPicker';
 import { getCurrentUser, getUserPreference, setUserPreference } from '@/lib/actions/user-actions/userActions';
@@ -344,16 +344,19 @@ const Companies: React.FC = () => {
     <div className="flex flex-col min-h-full">
       <div className="flex justify-end mb-4 flex-wrap gap-6">
         {/* Search */}
-        <input
-          type="text"
-          placeholder="Search"
-          className="border border-gray-400 rounded-md p-2 w-64"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search clients"
+            className="border-2 border-gray-200 focus:border-purple-500 rounded-md pl-10 pr-4 py-2 w-64 outline-none bg-white"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+        </div>
 
         {/* Company Picker */}
-        <div className="w-64">
+        <div className="w-64 relative [&>div]:rounded-md overflow-hidden bg-white">
           <CompanyPicker
             onSelect={(companyId) => setSelectedCompanyId(companyId)}
             selectedCompanyId={selectedCompanyId}
@@ -471,114 +474,6 @@ const Companies: React.FC = () => {
           />
         )}
       </div>
-
-      {/* Dialogs */}
-      <GenericDialog
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        title="Add New Client"
-      >
-        <CompanyForm onSubmit={handleAddCompany} />
-      </GenericDialog>
-
-      {/* Single Delete Confirmation Dialog */}
-      <GenericDialog
-        isOpen={isDeleteDialogOpen}
-        onClose={resetDeleteState}
-        title="Delete Company"
-      >
-        <div className="p-6">
-          {deleteError ? (
-            <>
-              <p className="mb-6 text-red-600 whitespace-pre-line text-sm leading-relaxed">
-                {deleteError}
-              </p>
-              <div className="flex justify-end">
-                <Button
-                  onClick={resetDeleteState}
-                  className="px-6 py-2 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded shadow-sm transition-colors"
-                >
-                  Close
-                </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="mb-4">Are you sure you want to delete this company? This action cannot be undone.</p>
-              <div className="flex justify-end gap-4">
-                <Button
-                  onClick={resetDeleteState}
-                  className="px-6 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={confirmDelete}
-                  className="px-6 py-2 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded shadow-sm transition-colors"
-                >
-                  Delete
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </GenericDialog>
-
-      {/* Multi-Delete Confirmation Dialog */}
-      <GenericDialog
-        isOpen={isMultiDeleteDialogOpen}
-        onClose={() => {
-          setIsMultiDeleteDialogOpen(false);
-          setMultiDeleteError(null);
-        }}
-        title="Delete Selected Companies"
-      >
-        <div className="p-6">
-          {multiDeleteError ? (
-            <>
-              <p className="mb-4 text-red-600 whitespace-pre-line">{multiDeleteError}</p>
-              <div className="flex justify-end">
-                <Button
-                  onClick={() => {
-                    setIsMultiDeleteDialogOpen(false);
-                    setMultiDeleteError(null);
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded shadow-sm transition-colors"
-                >
-                  Close
-                </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="mb-4">
-                Are you sure you want to delete {selectedCompanies.length} selected companies? This action cannot be undone.
-              </p>
-              <div className="flex justify-end gap-4">
-                <Button
-                  onClick={() => setIsMultiDeleteDialogOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={confirmMultiDelete}
-                  className="px-4 py-2 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded shadow-sm transition-colors"
-                >
-                  Delete Selected
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </GenericDialog>
-
-      {/* Import Dialog */}
-      <CompaniesImportDialog
-        isOpen={isImportDialogOpen}
-        onClose={() => setIsImportDialogOpen(false)}
-        onImportComplete={handleImportComplete}
-      />
     </div>
   );
 };

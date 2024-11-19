@@ -68,13 +68,19 @@ const BillingConfiguration: React.FC<BillingConfigurationProps> = ({ company, on
     const [companyTaxRates, setCompanyTaxRates] = useState<ICompanyTaxRate[]>([]);
     const [selectedTaxRate, setSelectedTaxRate] = useState<string>('');
 
+    const formatStartDate = (date: any): string => {
+        if (!date) return new Date().toISOString().split('T')[0];
+        if (typeof date === 'string') return date.includes('T') ? date.split('T')[0] : date;
+        return new Date().toISOString().split('T')[0];
+    };
+
     useEffect(() => {
         const fetchData = async () => {
             const billingPlans = await getCompanyBillingPlan(company.company_id);
             const billingPlansWithStringDates: CompanyBillingPlanWithStringDates[] = billingPlans.map((plan: ICompanyBillingPlan): CompanyBillingPlanWithStringDates => ({
                 ...plan,
-                start_date: plan.start_date.split('T')[0],
-                end_date: plan.end_date ? plan.end_date.split('T')[0] : null
+                start_date: formatStartDate(plan.start_date),
+                end_date: plan.end_date ? (typeof plan.end_date === 'string' ? plan.end_date.split('T')[0] : null) : null
             }));
             setCompanyBillingPlans(billingPlansWithStringDates);
 
@@ -127,8 +133,8 @@ const BillingConfiguration: React.FC<BillingConfigurationProps> = ({ company, on
             const updatedBillingPlans = await getCompanyBillingPlan(company.company_id);
             const updatedBillingPlansWithStringDates: CompanyBillingPlanWithStringDates[] = updatedBillingPlans.map((plan: ICompanyBillingPlan): CompanyBillingPlanWithStringDates => ({
                 ...plan,
-                start_date: plan.start_date.split('T')[0],
-                end_date: plan.end_date ? plan.end_date.split('T')[0] : null
+                start_date: formatStartDate(plan.start_date),
+                end_date: plan.end_date ? (typeof plan.end_date === 'string' ? plan.end_date.split('T')[0] : null) : null
             }));
             setCompanyBillingPlans(updatedBillingPlansWithStringDates);
         } catch (error) {
@@ -147,8 +153,8 @@ const BillingConfiguration: React.FC<BillingConfigurationProps> = ({ company, on
             const updatedBillingPlans = await getCompanyBillingPlan(company.company_id);
             const updatedBillingPlansWithStringDates: CompanyBillingPlanWithStringDates[] = updatedBillingPlans.map((plan: ICompanyBillingPlan): CompanyBillingPlanWithStringDates => ({
                 ...plan,
-                start_date: plan.start_date.split('T')[0],
-                end_date: plan.end_date ? plan.end_date.split('T')[0] : null
+                start_date: formatStartDate(plan.start_date),
+                end_date: plan.end_date ? (typeof plan.end_date === 'string' ? plan.end_date.split('T')[0] : null) : null
             }));
             setCompanyBillingPlans(updatedBillingPlansWithStringDates);
             setIsAddingNewPlan(false);
@@ -163,8 +169,8 @@ const BillingConfiguration: React.FC<BillingConfigurationProps> = ({ company, on
             const updatedBillingPlans = await getCompanyBillingPlan(company.company_id);
             const updatedBillingPlansWithStringDates: CompanyBillingPlanWithStringDates[] = updatedBillingPlans.map((plan: ICompanyBillingPlan): CompanyBillingPlanWithStringDates => ({
                 ...plan,
-                start_date: plan.start_date.split('T')[0],
-                end_date: plan.end_date ? plan.end_date.split('T')[0] : null
+                start_date: formatStartDate(plan.start_date),
+                end_date: plan.end_date ? (typeof plan.end_date === 'string' ? plan.end_date.split('T')[0] : null) : null
             }));
             setCompanyBillingPlans(updatedBillingPlansWithStringDates);
         } catch (error) {
@@ -189,8 +195,8 @@ const BillingConfiguration: React.FC<BillingConfigurationProps> = ({ company, on
                 const updatedBillingPlans = await getCompanyBillingPlan(company.company_id);
                 const updatedBillingPlansWithStringDates: CompanyBillingPlanWithStringDates[] = updatedBillingPlans.map((plan: ICompanyBillingPlan): CompanyBillingPlanWithStringDates => ({
                     ...plan,
-                    start_date: plan.start_date.split('T')[0],
-                    end_date: plan.end_date ? plan.end_date.split('T')[0] : null
+                    start_date: formatStartDate(plan.start_date),
+                    end_date: plan.end_date ? (typeof plan.end_date === 'string' ? plan.end_date.split('T')[0] : null) : null
                 }));
                 setCompanyBillingPlans(updatedBillingPlansWithStringDates);
                 setEditingBillingPlan(null);
