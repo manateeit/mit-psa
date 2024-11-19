@@ -26,7 +26,7 @@ const coerceBoolean = (val: unknown): boolean | undefined => {
 const appSchema = z.object({
   VERSION: z.string().default('0.0.0'),
   APP_NAME: z.string().default('sebastian'),
-  HOST: z.string().url().default('http://localhost:3000'),
+  HOST: z.string().default('localhost:3000'),
   APP_HOST: z.string().default('localhost:3000'),
   APP_ENV: z.enum(['development', 'production', 'test']).default('development'),
   VERIFY_EMAIL_ENABLED: z.preprocess(coerceBoolean, z.boolean()).default(true),
