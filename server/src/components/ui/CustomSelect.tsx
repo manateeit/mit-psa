@@ -72,7 +72,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
           <RadixSelect.Content
             className={`
               overflow-hidden bg-white rounded-md shadow-lg
-              border border-gray-200 mt-1 z-50 w-fit
+              border border-gray-200 mt-1 z-[60] w-fit
               ${customStyles?.content || ''}
             `}
             position="popper"
