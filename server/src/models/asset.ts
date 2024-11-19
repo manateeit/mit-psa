@@ -3,7 +3,6 @@ import { AssetRelationshipModel } from './assetRelationship';
 import { createTenantKnex } from '../lib/db';
 import { 
     Asset, 
-    AssetType, 
     AssetHistory, 
     AssetAssociation,
     CreateAssetRequest, 
@@ -103,53 +102,6 @@ async function upsertExtensionData(
     }
 }
 
-export class AssetTypeModel {
-    static async create(data: Omit<AssetType, 'tenant' | 'type_id' | 'created_at' | 'updated_at'>): Promise<AssetType> {
-        const { knex, tenant } = await createTenantKnex();
-        const [assetType] = await knex('asset_types')
-            .insert({
-                ...data,
-                tenant,
-            })
-            .returning('*');
-        return convertDatesToISOString(assetType);
-    }
-
-    static async findById(type_id: string): Promise<AssetType | null> {
-        const { knex, tenant } = await createTenantKnex();
-        const assetType = await knex('asset_types')
-            .where({ tenant, type_id })
-            .first();
-        return assetType ? convertDatesToISOString(assetType) : null;
-    }
-
-    static async update(type_id: string, data: Partial<AssetType>): Promise<AssetType> {
-        const { knex, tenant } = await createTenantKnex();
-        const [assetType] = await knex('asset_types')
-            .where({ tenant, type_id })
-            .update({
-                ...data,
-                updated_at: new Date().toISOString(),
-            })
-            .returning('*');
-        return convertDatesToISOString(assetType);
-    }
-
-    static async list(): Promise<AssetType[]> {
-        const { knex, tenant } = await createTenantKnex();
-        const assetTypes = await knex('asset_types').where({ tenant });
-        return convertDatesToISOString(assetTypes);
-    }
-
-    static async delete(type_id: string): Promise<void> {
-        const { knex, tenant } = await createTenantKnex();
-        await knex('asset_types')
-            .where({ tenant, type_id })
-            .delete();
-    }
-}
-
-
 export class AssetModel {
     static async create(data: CreateAssetRequest): Promise<Asset> {
         const { knex, tenant } = await createTenantKnex();
@@ -168,15 +120,6 @@ export class AssetModel {
                 throw new Error('Company not found');
             }
 
-            // Get asset type
-            const assetType = await trx('asset_types')
-                .where({ tenant, type_id: data.type_id })
-                .first();
-
-            if (!assetType) {
-                throw new Error('Asset type not found');
-            }
-
             // Create base asset
             const [asset] = await trx('assets')
                 .insert({
@@ -186,18 +129,13 @@ export class AssetModel {
                 .returning('*');
 
             // Handle extension table data based on asset type
-            if (assetType.type_name) {
-                const extensionData = data[assetType.type_name.toLowerCase() as keyof CreateAssetRequest];
-                if (extensionData) {
-                    await upsertExtensionData(trx, tenant, asset.asset_id, assetType.type_name, extensionData);
-                }
+            const extensionData = data[data.asset_type as keyof CreateAssetRequest];
+            if (extensionData) {
+                await upsertExtensionData(trx, tenant, asset.asset_id, data.asset_type, extensionData);
             }
 
             // Get extension data
-            let extensionData = null;
-            if (assetType.type_name) {
-                extensionData = await getExtensionData(trx, tenant, asset.asset_id, assetType.type_name);
-            }
+            const typeExtensionData = await getExtensionData(trx, tenant, asset.asset_id, data.asset_type);
 
             // Transform company data
             const transformedCompany: ICompany = {
@@ -229,8 +167,8 @@ export class AssetModel {
             return convertDatesToISOString({
                 ...asset,
                 company: transformedCompany,
-                ...(extensionData && assetType.type_name ? {
-                    [assetType.type_name.toLowerCase()]: extensionData
+                ...(typeExtensionData ? {
+                    [data.asset_type]: typeExtensionData
                 } : {})
             });
         });
@@ -265,16 +203,11 @@ export class AssetModel {
                 'companies.invoice_delivery_method',
                 'companies.tax_region',
                 'companies.tax_exemption_certificate',
-                'companies.notes as company_notes',
-                'asset_types.type_name'
+                'companies.notes as company_notes'
             )
             .leftJoin('companies', function() {
                 this.on('assets.company_id', '=', 'companies.company_id')
                     .andOn('companies.tenant', '=', knex.raw('?', [tenant]));
-            })
-            .leftJoin('asset_types', function() {
-                this.on('assets.type_id', '=', 'asset_types.type_id')
-                    .andOn('asset_types.tenant', '=', knex.raw('?', [tenant]));
             })
             .where({ 'assets.tenant': tenant, 'assets.asset_id': asset_id })
             .first();
@@ -282,10 +215,7 @@ export class AssetModel {
         if (!asset) return null;
 
         // Get extension data if applicable
-        let extensionData = null;
-        if (asset.type_name) {
-            extensionData = await getExtensionData(knex, tenant, asset_id, asset.type_name);
-        }
+        const extensionData = await getExtensionData(knex, tenant, asset_id, asset.asset_type);
 
         // Get relationships
         const relationships = await AssetRelationshipModel.findByAsset(asset_id);
@@ -294,13 +224,12 @@ export class AssetModel {
         const transformedAsset = {
             ...asset,
             relationships,
-            ...(extensionData && asset.type_name ? {
-                [asset.type_name.toLowerCase()]: extensionData
+            ...(extensionData ? {
+                [asset.asset_type]: extensionData
             } : {})
         };
 
         return convertDatesToISOString(transformedAsset);
-
     }
 
     static async list(params: AssetQueryParams): Promise<AssetListResponse> {
@@ -312,7 +241,7 @@ export class AssetModel {
         const { 
             company_id, 
             company_name, 
-            type_id, 
+            asset_type, 
             status, 
             search, 
             maintenance_status,
@@ -346,16 +275,11 @@ export class AssetModel {
                 'companies.invoice_delivery_method',
                 'companies.tax_region',
                 'companies.tax_exemption_certificate',
-                'companies.notes as company_notes',
-                'asset_types.type_name'
+                'companies.notes as company_notes'
             )
             .innerJoin('companies', function() {
                 this.on('assets.company_id', '=', 'companies.company_id')
                     .andOn('companies.tenant', '=', 'assets.tenant');
-            })
-            .leftJoin('asset_types', function() {
-                this.on('assets.type_id', '=', 'asset_types.type_id')
-                    .andOn('asset_types.tenant', '=', 'assets.tenant');
             })
             .where('assets.tenant', tenant);
 
@@ -365,8 +289,8 @@ export class AssetModel {
         if (company_name) {
             baseQuery = baseQuery.where('companies.company_name', 'ilike', `%${company_name}%`);
         }
-        if (type_id) {
-            baseQuery = baseQuery.where('assets.type_id', type_id);
+        if (asset_type) {
+            baseQuery = baseQuery.where('assets.asset_type', asset_type);
         }
         if (status) {
             baseQuery = baseQuery.where('assets.status', status);
@@ -443,14 +367,13 @@ export class AssetModel {
                 tax_region,
                 tax_exemption_certificate,
                 company_notes,
-                type_name,
                 ...assetData 
             } = asset;
 
             // Get extension data if requested
             let extensionData = null;
-            if (include_extension_data && type_name) {
-                extensionData = await getExtensionData(knex, tenant, asset.asset_id, type_name);
+            if (include_extension_data) {
+                extensionData = await getExtensionData(knex, tenant, asset.asset_id, asset.asset_type);
             }
 
             return convertDatesToISOString({
@@ -480,8 +403,8 @@ export class AssetModel {
                     tax_exemption_certificate,
                     tenant
                 } : undefined,
-                ...(extensionData && type_name ? {
-                    [type_name.toLowerCase()]: extensionData
+                ...(extensionData ? {
+                    [asset.asset_type]: extensionData
                 } : {})
             });
         }));

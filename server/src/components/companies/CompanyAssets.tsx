@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ClientMaintenanceSummary, Asset, AssetType } from '@/interfaces/asset.interfaces';
+import { ClientMaintenanceSummary, Asset } from '@/interfaces/asset.interfaces';
 import { DataTable } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
-import { getClientMaintenanceSummary, listAssets, listAssetTypes } from '@/lib/actions/asset-actions/assetActions';
+import { getClientMaintenanceSummary, listAssets } from '@/lib/actions/asset-actions/assetActions';
 import {
   Boxes,
   AlertTriangle,
@@ -21,15 +21,24 @@ import { useRouter } from 'next/navigation';
 import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 import { QuickAddAsset } from '@/components/assets/QuickAddAsset';
 
-
 interface CompanyAssetsProps {
   companyId: string;
 }
 
+type AssetType = 'workstation' | 'network_device' | 'server' | 'mobile_device' | 'printer';
+
+const ASSET_TYPE_OPTIONS: SelectOption[] = [
+  { value: 'all', label: 'All Asset Types' },
+  { value: 'workstation', label: 'Workstation' },
+  { value: 'network_device', label: 'Network Device' },
+  { value: 'server', label: 'Server' },
+  { value: 'mobile_device', label: 'Mobile Device' },
+  { value: 'printer', label: 'Printer' }
+];
+
 const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
   const [summary, setSummary] = useState<ClientMaintenanceSummary | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [selectedType, setSelectedType] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,7 +46,7 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
   const router = useRouter();
   const pageSize = 10;
 
-  const getAssetTypeIcon = (type: string) => {
+  const getAssetTypeIcon = (type: string): JSX.Element => {
     const iconProps = { className: "h-5 w-5 inline-block mr-2" };
     switch (type.toLowerCase()) {
       case 'workstation':
@@ -57,20 +66,18 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
 
   const loadData = async () => {
     try {
-      const [summaryData, assetsData, types] = await Promise.all([
+      const [summaryData, assetsData] = await Promise.all([
         getClientMaintenanceSummary(companyId),
         listAssets({
           company_id: companyId,
-          type_id: selectedType === 'all' ? undefined : selectedType,
+          asset_type: selectedType === 'all' ? undefined : (selectedType as AssetType),
           page: currentPage,
           limit: pageSize
-        }),
-        listAssetTypes()
+        })
       ]);
       setSummary(summaryData);
       setAssets(assetsData.assets);
       setTotalItems(assetsData.total);
-      setAssetTypes(types);
     } catch (error) {
       console.error('Error loading asset data:', error);
     } finally {
@@ -90,14 +97,14 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
     if (asset.workstation) {
       return `${asset.workstation.os_type} - ${asset.workstation.cpu_model} - ${asset.workstation.ram_gb}GB RAM`;
     }
-    if (asset.networkDevice) {
-      return `${asset.networkDevice.device_type} - ${asset.networkDevice.management_ip || 'No IP'}`;
+    if (asset.network_device) {
+      return `${asset.network_device.device_type} - ${asset.network_device.management_ip || 'No IP'}`;
     }
     if (asset.server) {
       return `${asset.server.os_type} - ${asset.server.cpu_model} - ${asset.server.ram_gb}GB RAM`;
     }
-    if (asset.mobileDevice) {
-      return `${asset.mobileDevice.os_type} - ${asset.mobileDevice.model}`;
+    if (asset.mobile_device) {
+      return `${asset.mobile_device.os_type} - ${asset.mobile_device.model}`;
     }
     if (asset.printer) {
       return `${asset.printer.model} - ${asset.printer.is_network_printer ? 'Network' : 'Local'}`;
@@ -125,18 +132,18 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
     },
     {
       title: 'Type',
-      dataIndex: 'type_name',
+      dataIndex: 'asset_type',
       render: (value: string) => (
         <div className="flex items-center">
           {getAssetTypeIcon(value)}
-          <span>{value}</span>
+          <span>{value.split('_').map((word: string): string => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}</span>
         </div>
       )
     },
     {
       title: 'Details',
       dataIndex: 'details',
-      render: (_: unknown, record: Asset) => renderAssetDetails(record)
+      render: (_: unknown, record: Asset): string => renderAssetDetails(record)
     },
     {
       title: 'Serial Number',
@@ -239,13 +246,7 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
       <div className="flex justify-between items-center">
         <div className="w-64">
           <CustomSelect
-            options={[
-              { value: 'all', label: 'All Asset Types' },
-              ...assetTypes.map((type): SelectOption => ({
-                value: type.type_id,
-                label: type.type_name
-              }))
-            ]}
+            options={ASSET_TYPE_OPTIONS}
             value={selectedType}
             onValueChange={setSelectedType}
             placeholder="Filter by type..."
@@ -263,7 +264,7 @@ const CompanyAssets: React.FC<CompanyAssetsProps> = ({ companyId }) => {
         columns={columns}
         currentPage={currentPage}
         onPageChange={setCurrentPage}
-        onRowClick={(asset) => router.push(`/msp/assets/${asset.asset_id}`)}
+        onRowClick={(asset: Asset) => router.push(`/msp/assets/${asset.asset_id}`)}
         totalItems={totalItems}
         pageSize={pageSize}
       />

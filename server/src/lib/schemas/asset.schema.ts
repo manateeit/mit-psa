@@ -32,7 +32,7 @@ const workstationAssetSchema = z.object({
   installed_software: z.array(z.unknown())
 });
 
-const networkDeviceAssetSchema = z.object({
+const network_device_asset_schema = z.object({
   tenant: z.string().uuid(),
   asset_id: z.string().uuid(),
   device_type: z.enum(['switch', 'router', 'firewall', 'access_point', 'load_balancer']),
@@ -93,7 +93,7 @@ const printerAssetSchema = z.object({
 // Asset schemas
 export const assetSchema = z.object({
   asset_id: z.string().uuid(),
-  type_id: z.string().uuid(),
+  asset_type: z.enum(['workstation', 'network_device', 'server', 'mobile_device', 'printer', 'unknown']),
   company_id: z.string().uuid(),
   asset_tag: z.string(),
   serial_number: z.string().optional(),
@@ -108,20 +108,10 @@ export const assetSchema = z.object({
   company: assetCompanyInfoSchema.optional(),
   relationships: z.array(assetRelationshipSchema).optional(),
   workstation: workstationAssetSchema.optional(),
-  networkDevice: networkDeviceAssetSchema.optional(),
+  network_device: network_device_asset_schema.optional(),
   server: serverAssetSchema.optional(),
-  mobileDevice: mobileDeviceAssetSchema.optional(),
+  mobile_device: mobileDeviceAssetSchema.optional(),
   printer: printerAssetSchema.optional()
-});
-
-export const assetTypeSchema = z.object({
-    tenant: z.string().uuid(),
-    type_id: z.string().uuid(),
-    type_name: z.string(), // Remove .nullable() and .transform()
-    parent_type_id: z.string().uuid().optional(),
-    attributes_schema: z.record(z.unknown()).optional(),
-    created_at: z.string(),
-    updated_at: z.string()
 });
 
 // Asset association schemas
@@ -199,7 +189,7 @@ export const assetMaintenanceHistorySchema = z.object({
 
 // Request schemas
 export const createAssetSchema = z.object({
-  type_id: z.string().uuid(),
+  asset_type: z.enum(['workstation', 'network_device', 'server', 'mobile_device', 'printer', 'unknown']),
   company_id: z.string().uuid(),
   asset_tag: z.string(),
   name: z.string(),
@@ -209,19 +199,13 @@ export const createAssetSchema = z.object({
   purchase_date: z.string().optional(),
   warranty_end_date: z.string().optional(),
   workstation: workstationAssetSchema.omit({ tenant: true, asset_id: true }).optional(),
-  networkDevice: networkDeviceAssetSchema.omit({ tenant: true, asset_id: true }).optional(),
+  network_device: network_device_asset_schema.omit({ tenant: true, asset_id: true }).optional(),
   server: serverAssetSchema.omit({ tenant: true, asset_id: true }).optional(),
-  mobileDevice: mobileDeviceAssetSchema.omit({ tenant: true, asset_id: true }).optional(),
+  mobile_device: mobileDeviceAssetSchema.omit({ tenant: true, asset_id: true }).optional(),
   printer: printerAssetSchema.omit({ tenant: true, asset_id: true }).optional()
 });
 
 export const updateAssetSchema = createAssetSchema.partial();
-
-export const createAssetTypeSchema = z.object({
-  type_name: z.string(),
-  parent_type_id: z.string().uuid().optional(),
-  attributes_schema: z.record(z.unknown()).optional()
-});
 
 export const createAssetAssociationSchema = z.object({
   asset_id: z.string().uuid(),
@@ -254,13 +238,18 @@ export const createMaintenanceHistorySchema = z.object({
 });
 
 export const assetQuerySchema = z.object({
-    company_id: z.string().uuid().optional(),
-    type_id: z.string().optional(), // Remove UUID validation since it might be empty/null
-    status: z.string().optional(),
-    page: z.number().optional(),
-    limit: z.number().optional(),
-    include_extension_data: z.boolean().optional()
-  });
+  company_id: z.string().uuid().optional(),
+  company_name: z.string().optional(),
+  asset_type: z.enum(['workstation', 'network_device', 'server', 'mobile_device', 'printer', 'unknown']).optional(),
+  status: z.string().optional(),
+  search: z.string().optional(),
+  maintenance_status: z.enum(['due', 'overdue', 'upcoming', 'completed']).optional(),
+  maintenance_type: maintenanceTypeSchema.optional(),
+  page: z.number().optional(),
+  limit: z.number().optional(),
+  include_extension_data: z.boolean().optional(),
+  include_company_details: z.boolean().optional()
+});
 
 // Report schemas
 export const assetMaintenanceReportSchema = z.object({

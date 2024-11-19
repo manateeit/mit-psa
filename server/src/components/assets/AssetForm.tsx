@@ -15,11 +15,11 @@ interface AssetFormProps {
   assetId: string;
 }
 
-type AssetFormData = Omit<CreateAssetRequest, 'workstation' | 'networkDevice' | 'server' | 'mobileDevice' | 'printer'> & {
+type AssetFormData = Omit<CreateAssetRequest, 'workstation' | 'network_device' | 'server' | 'mobile_device' | 'printer'> & {
   workstation?: Omit<WorkstationAsset, 'tenant' | 'asset_id'>;
-  networkDevice?: Omit<NetworkDeviceAsset, 'tenant' | 'asset_id'>;
+  network_device?: Omit<NetworkDeviceAsset, 'tenant' | 'asset_id'>;
   server?: Omit<ServerAsset, 'tenant' | 'asset_id'>;
-  mobileDevice?: Omit<MobileDeviceAsset, 'tenant' | 'asset_id'>;
+  mobile_device?: Omit<MobileDeviceAsset, 'tenant' | 'asset_id'>;
   printer?: Omit<PrinterAsset, 'tenant' | 'asset_id'>;
 };
 
@@ -56,7 +56,7 @@ export default function AssetForm({ assetId }: AssetFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<AssetFormData>({
-    type_id: '',
+    asset_type: 'unknown',
     company_id: '',
     name: '',
     asset_tag: '',
@@ -88,7 +88,7 @@ export default function AssetForm({ assetId }: AssetFormProps) {
           : '';
   
         setFormData({
-          type_id: data.type_id,
+          asset_type: data.asset_type,
           company_id: data.company_id,
           name: data.name || '',
           asset_tag: data.asset_tag || '',
@@ -108,15 +108,15 @@ export default function AssetForm({ assetId }: AssetFormProps) {
             gpu_model: data.workstation.gpu_model || '',
             installed_software: data.workstation.installed_software || []
           } : undefined,
-          networkDevice: data.networkDevice ? {
-            device_type: data.networkDevice.device_type || '',
-            management_ip: data.networkDevice.management_ip || '',
-            port_count: data.networkDevice.port_count || 0,
-            firmware_version: data.networkDevice.firmware_version || '',
-            supports_poe: data.networkDevice.supports_poe || false,
-            power_draw_watts: data.networkDevice.power_draw_watts || 0,
-            vlan_config: data.networkDevice.vlan_config || {},
-            port_config: data.networkDevice.port_config || {}
+          network_device: data.network_device ? {
+            device_type: data.network_device.device_type || '',
+            management_ip: data.network_device.management_ip || '',
+            port_count: data.network_device.port_count || 0,
+            firmware_version: data.network_device.firmware_version || '',
+            supports_poe: data.network_device.supports_poe || false,
+            power_draw_watts: data.network_device.power_draw_watts || 0,
+            vlan_config: data.network_device.vlan_config || {},
+            port_config: data.network_device.port_config || {}
           } : undefined,
           server: data.server ? {
             os_type: data.server.os_type || '',
@@ -132,15 +132,15 @@ export default function AssetForm({ assetId }: AssetFormProps) {
             primary_ip: data.server.primary_ip || '',
             installed_services: data.server.installed_services || []
           } : undefined,
-          mobileDevice: data.mobileDevice ? {
-            os_type: data.mobileDevice.os_type || '',
-            os_version: data.mobileDevice.os_version || '',
-            model: data.mobileDevice.model || '',
-            imei: data.mobileDevice.imei || '',
-            phone_number: data.mobileDevice.phone_number || '',
-            carrier: data.mobileDevice.carrier || '',
-            is_supervised: data.mobileDevice.is_supervised || false,
-            installed_apps: data.mobileDevice.installed_apps || []
+          mobile_device: data.mobile_device ? {
+            os_type: data.mobile_device.os_type || '',
+            os_version: data.mobile_device.os_version || '',
+            model: data.mobile_device.model || '',
+            imei: data.mobile_device.imei || '',
+            phone_number: data.mobile_device.phone_number || '',
+            carrier: data.mobile_device.carrier || '',
+            is_supervised: data.mobile_device.is_supervised || false,
+            installed_apps: data.mobile_device.installed_apps || []
           } : undefined,
           printer: data.printer ? {
             model: data.printer.model || '',
@@ -169,8 +169,8 @@ export default function AssetForm({ assetId }: AssetFormProps) {
     const iconClass = "h-16 w-16 text-primary-500 mb-4";
     
     if (asset?.workstation) return <Monitor className={iconClass} />;
-    if (asset?.networkDevice) {
-      switch (asset.networkDevice.device_type) {
+    if (asset?.network_device) {
+      switch (asset.network_device.device_type) {
         case 'switch': return <Network className={iconClass} />;
         case 'router': return <Router className={iconClass} />;
         case 'firewall': return <Shield className={iconClass} />;
@@ -180,7 +180,7 @@ export default function AssetForm({ assetId }: AssetFormProps) {
       }
     }
     if (asset?.server) return <Server className={iconClass} />;
-    if (asset?.mobileDevice) return <Smartphone className={iconClass} />;
+    if (asset?.mobile_device) return <Smartphone className={iconClass} />;
     if (asset?.printer) return <PrinterIcon className={iconClass} />;
     return null;
   };
@@ -193,7 +193,7 @@ export default function AssetForm({ assetId }: AssetFormProps) {
     }));
   };
 
-const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, value: unknown) => {
+  const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, value: unknown) => {
     setFormData(prev => {
       const currentTypeData = prev[type];
       if (!currentTypeData) return prev;
@@ -202,7 +202,7 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
       if (typeof currentTypeData !== 'object') return prev;
 
       // Special handling for network device type
-      if (type === 'networkDevice' && field === 'device_type') {
+      if (type === 'network_device' && field === 'device_type') {
         const deviceType = String(value);
         const validDeviceTypes = ['switch', 'router', 'firewall', 'access_point', 'load_balancer'] as const;
         type DeviceType = typeof validDeviceTypes[number];
@@ -214,7 +214,7 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
 
         return {
           ...prev,
-          networkDevice: {
+          network_device: {
             ...currentTypeData,
             device_type: validDeviceType
           }
@@ -334,8 +334,8 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
   };
 
   const renderNetworkDeviceFields = () => {
-    if (!asset?.networkDevice) return null;
-    if (!formData.networkDevice) return null;
+    if (!asset?.network_device) return null;
+    if (!formData.network_device) return null;
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -344,8 +344,8 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
             Device Type
           </label>
           <CustomSelect
-            value={formData.networkDevice.device_type || ''}
-            onValueChange={(value) => handleTypeSpecificChange('networkDevice', 'device_type', value)}
+            value={formData.network_device.device_type || ''}
+            onValueChange={(value) => handleTypeSpecificChange('network_device', 'device_type', value)}
             options={NETWORK_DEVICE_TYPES}
             className="mt-1"
           />
@@ -355,8 +355,8 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
             Management IP
           </label>
           <Input
-            value={formData.networkDevice.management_ip || ''}
-            onChange={(e) => handleTypeSpecificChange('networkDevice', 'management_ip', e.target.value)}
+            value={formData.network_device.management_ip || ''}
+            onChange={(e) => handleTypeSpecificChange('network_device', 'management_ip', e.target.value)}
             className="mt-1"
           />
         </div>
@@ -366,8 +366,8 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
           </label>
           <Input
             type="number"
-            value={formData.networkDevice.port_count || ''}
-            onChange={(e) => handleTypeSpecificChange('networkDevice', 'port_count', parseInt(e.target.value))}
+            value={formData.network_device.port_count || ''}
+            onChange={(e) => handleTypeSpecificChange('network_device', 'port_count', parseInt(e.target.value))}
             className="mt-1"
           />
         </div>
@@ -376,8 +376,8 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
             Firmware Version
           </label>
           <Input
-            value={formData.networkDevice.firmware_version || ''}
-            onChange={(e) => handleTypeSpecificChange('networkDevice', 'firmware_version', e.target.value)}
+            value={formData.network_device.firmware_version || ''}
+            onChange={(e) => handleTypeSpecificChange('network_device', 'firmware_version', e.target.value)}
             className="mt-1"
           />
         </div>
@@ -387,8 +387,8 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
           </label>
           <Input
             type="number"
-            value={formData.networkDevice.power_draw_watts || ''}
-            onChange={(e) => handleTypeSpecificChange('networkDevice', 'power_draw_watts', parseInt(e.target.value))}
+            value={formData.network_device.power_draw_watts || ''}
+            onChange={(e) => handleTypeSpecificChange('network_device', 'power_draw_watts', parseInt(e.target.value))}
             className="mt-1"
           />
         </div>
@@ -396,8 +396,8 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
           <label className="flex items-center space-x-2 text-sm font-medium text-[rgb(var(--color-text-700))]">
             <input
               type="checkbox"
-              checked={formData.networkDevice.supports_poe || false}
-              onChange={(e) => handleTypeSpecificChange('networkDevice', 'supports_poe', e.target.checked)}
+              checked={formData.network_device.supports_poe || false}
+              onChange={(e) => handleTypeSpecificChange('network_device', 'supports_poe', e.target.checked)}
               className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
             />
             <span>Supports PoE</span>
@@ -514,8 +514,8 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
   };
 
   const renderMobileDeviceFields = () => {
-    if (!asset?.mobileDevice) return null;
-    if (!formData.mobileDevice) return null;
+    if (!asset?.mobile_device) return null;
+    if (!formData.mobile_device) return null;
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -524,8 +524,8 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
             OS Type
           </label>
           <CustomSelect
-            value={formData.mobileDevice.os_type || ''}
-            onValueChange={(value) => handleTypeSpecificChange('mobileDevice', 'os_type', value)}
+            value={formData.mobile_device.os_type || ''}
+            onValueChange={(value) => handleTypeSpecificChange('mobile_device', 'os_type', value)}
             options={[
               { value: 'ios', label: 'iOS' },
               { value: 'android', label: 'Android' }
@@ -538,8 +538,8 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
             OS Version
           </label>
           <Input
-            value={formData.mobileDevice.os_version || ''}
-            onChange={(e) => handleTypeSpecificChange('mobileDevice', 'os_version', e.target.value)}
+            value={formData.mobile_device.os_version || ''}
+            onChange={(e) => handleTypeSpecificChange('mobile_device', 'os_version', e.target.value)}
             className="mt-1"
           />
         </div>
@@ -548,8 +548,8 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
             Model
           </label>
           <Input
-            value={formData.mobileDevice.model || ''}
-            onChange={(e) => handleTypeSpecificChange('mobileDevice', 'model', e.target.value)}
+            value={formData.mobile_device.model || ''}
+            onChange={(e) => handleTypeSpecificChange('mobile_device', 'model', e.target.value)}
             className="mt-1"
           />
         </div>
@@ -558,8 +558,8 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
             IMEI
           </label>
           <Input
-            value={formData.mobileDevice.imei || ''}
-            onChange={(e) => handleTypeSpecificChange('mobileDevice', 'imei', e.target.value)}
+            value={formData.mobile_device.imei || ''}
+            onChange={(e) => handleTypeSpecificChange('mobile_device', 'imei', e.target.value)}
             className="mt-1"
           />
         </div>
@@ -568,8 +568,8 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
             Phone Number
           </label>
           <Input
-            value={formData.mobileDevice.phone_number || ''}
-            onChange={(e) => handleTypeSpecificChange('mobileDevice', 'phone_number', e.target.value)}
+            value={formData.mobile_device.phone_number || ''}
+            onChange={(e) => handleTypeSpecificChange('mobile_device', 'phone_number', e.target.value)}
             className="mt-1"
           />
         </div>
@@ -578,8 +578,8 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
             Carrier
           </label>
           <Input
-            value={formData.mobileDevice.carrier || ''}
-            onChange={(e) => handleTypeSpecificChange('mobileDevice', 'carrier', e.target.value)}
+            value={formData.mobile_device.carrier || ''}
+            onChange={(e) => handleTypeSpecificChange('mobile_device', 'carrier', e.target.value)}
             className="mt-1"
           />
         </div>
@@ -587,8 +587,8 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
           <label className="flex items-center space-x-2 text-sm font-medium text-[rgb(var(--color-text-700))]">
             <input
               type="checkbox"
-              checked={formData.mobileDevice.is_supervised || false}
-              onChange={(e) => handleTypeSpecificChange('mobileDevice', 'is_supervised', e.target.checked)}
+              checked={formData.mobile_device.is_supervised || false}
+              onChange={(e) => handleTypeSpecificChange('mobile_device', 'is_supervised', e.target.checked)}
               className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
             />
             <span>Supervised Device</span>
@@ -668,7 +668,7 @@ const handleTypeSpecificChange = (type: keyof AssetFormData, field: string, valu
     );
   };
 
-const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!asset) return;
 
@@ -706,25 +706,25 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         };
       }
 
-  // Format network device data if it exists
-  if (formData.networkDevice) {
-    const deviceType = formData.networkDevice.device_type?.trim();
-    // Type guard for network device type
-    const isValidDeviceType = (type: string): type is NetworkDeviceAsset['device_type'] =>
-      ['switch', 'router', 'firewall', 'access_point', 'load_balancer'].includes(type);
+      // Format network device data if it exists
+      if (formData.network_device) {
+        const deviceType = formData.network_device.device_type?.trim();
+        // Type guard for network device type
+        const isValidDeviceType = (type: string): type is NetworkDeviceAsset['device_type'] =>
+          ['switch', 'router', 'firewall', 'access_point', 'load_balancer'].includes(type);
 
-    // Validate device type
-    const validDeviceType = isValidDeviceType(deviceType) ? deviceType : 'switch';
+        // Validate device type
+        const validDeviceType = isValidDeviceType(deviceType) ? deviceType : 'switch';
 
-    formattedData.networkDevice = {
-      ...formData.networkDevice,
-      device_type: validDeviceType,
-      management_ip: formData.networkDevice.management_ip?.trim(),
-      firmware_version: formData.networkDevice.firmware_version?.trim(),
-      vlan_config: formData.networkDevice.vlan_config || {},
-      port_config: formData.networkDevice.port_config || {}
-    };
-  }
+        formattedData.network_device = {
+          ...formData.network_device,
+          device_type: validDeviceType,
+          management_ip: formData.network_device.management_ip?.trim(),
+          firmware_version: formData.network_device.firmware_version?.trim(),
+          vlan_config: formData.network_device.vlan_config || {},
+          port_config: formData.network_device.port_config || {}
+        };
+      }
 
       // Format server data if it exists
       if (formData.server) {
@@ -749,17 +749,17 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       }
 
       // Format mobile device data if it exists
-      if (formData.mobileDevice) {
-        formattedData.mobileDevice = {
-          ...formData.mobileDevice,
-          os_type: formData.mobileDevice.os_type?.trim(),
-          os_version: formData.mobileDevice.os_version?.trim(),
-          model: formData.mobileDevice.model?.trim(),
-          imei: formData.mobileDevice.imei?.trim() || undefined,
-          phone_number: formData.mobileDevice.phone_number?.trim() || undefined,
-          carrier: formData.mobileDevice.carrier?.trim() || undefined,
-          installed_apps: Array.isArray(formData.mobileDevice.installed_apps) 
-            ? formData.mobileDevice.installed_apps 
+      if (formData.mobile_device) {
+        formattedData.mobile_device = {
+          ...formData.mobile_device,
+          os_type: formData.mobile_device.os_type?.trim(),
+          os_version: formData.mobile_device.os_version?.trim(),
+          model: formData.mobile_device.model?.trim(),
+          imei: formData.mobile_device.imei?.trim() || undefined,
+          phone_number: formData.mobile_device.phone_number?.trim() || undefined,
+          carrier: formData.mobile_device.carrier?.trim() || undefined,
+          installed_apps: Array.isArray(formData.mobile_device.installed_apps) 
+            ? formData.mobile_device.installed_apps 
             : []
         };
       }
@@ -784,7 +784,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         )
       ) as typeof formattedData;
 
-      await updateAsset(assetId, cleanedData);
+      await updateAsset(assetId, formattedData);
       router.push(`/msp/assets/${assetId}`);
       router.refresh();
     } catch (error) {
@@ -927,19 +927,19 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
           </div>
         </Card>
 
-        {(asset.workstation || asset.networkDevice || asset.server || asset.mobileDevice || asset.printer) && (
+        {(asset.workstation || asset.network_device || asset.server || asset.mobile_device || asset.printer) && (
           <Card className="p-6 border border-[rgb(var(--color-border-200))]">
             <Text size="5" weight="medium" className="block mb-6 text-[rgb(var(--color-text-900))]">
               {asset.workstation ? 'Workstation Details' :
-                asset.networkDevice ? 'Network Device Details' :
+                asset.network_device ? 'Network Device Details' :
                 asset.server ? 'Server Details' :
-                asset.mobileDevice ? 'Mobile Device Details' :
+                asset.mobile_device ? 'Mobile Device Details' :
                 'Printer Details'}
             </Text>
             {asset.workstation && renderWorkstationFields()}
-            {asset.networkDevice && renderNetworkDeviceFields()}
+            {asset.network_device && renderNetworkDeviceFields()}
             {asset.server && renderServerFields()}
-            {asset.mobileDevice && renderMobileDeviceFields()}
+            {asset.mobile_device && renderMobileDeviceFields()}
             {asset.printer && renderPrinterFields()}
           </Card>
         )}
@@ -970,4 +970,3 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     </div>
   );
 }
-

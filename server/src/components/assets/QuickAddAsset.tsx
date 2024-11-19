@@ -5,8 +5,8 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
-import { createAsset, listAssetTypes } from '@/lib/actions/asset-actions/assetActions';
-import { AssetType, CreateAssetRequest } from '@/interfaces/asset.interfaces';
+import { createAsset } from '@/lib/actions/asset-actions/assetActions';
+import { CreateAssetRequest } from '@/interfaces/asset.interfaces';
 import { CompanyPicker } from '@/components/companies/CompanyPicker';
 import { ICompany } from '@/interfaces';
 import { getAllCompanies } from '@/lib/actions/companyActions';
@@ -18,6 +18,7 @@ interface QuickAddAssetProps {
 
 type NetworkDeviceType = 'switch' | 'router' | 'firewall' | 'access_point' | 'load_balancer';
 type AssetStatus = 'active' | 'inactive' | 'maintenance';
+type AssetType = 'workstation' | 'network_device' | 'server' | 'mobile_device' | 'printer';
 
 const STATUS_OPTIONS: SelectOption[] = [
   { value: 'active', label: 'Active' },
@@ -25,17 +26,25 @@ const STATUS_OPTIONS: SelectOption[] = [
   { value: 'maintenance', label: 'Maintenance' }
 ];
 
+const ASSET_TYPE_OPTIONS: SelectOption[] = [
+  { value: 'workstation', label: 'Workstation' },
+  { value: 'network_device', label: 'Network Device' },
+  { value: 'server', label: 'Server' },
+  { value: 'mobile_device', label: 'Mobile Device' },
+  { value: 'printer', label: 'Printer' }
+];
+
 interface FormData {
   name: string;
   asset_tag: string;
-  type_id: string;
+  asset_type: AssetType | '';
   status: AssetStatus;
   serial_number: string;
   workstation: {
     os_type: string;
     os_version: string;
   };
-  networkDevice: {
+  network_device: {
     device_type: NetworkDeviceType;
     management_ip: string;
   };
@@ -43,7 +52,7 @@ interface FormData {
     os_type: string;
     os_version: string;
   };
-  mobileDevice: {
+  mobile_device: {
     os_type: string;
     model: string;
     is_supervised: boolean;
@@ -56,9 +65,7 @@ interface FormData {
 export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [companies, setCompanies] = useState<ICompany[]>([]);
-  const [selectedType, setSelectedType] = useState<AssetType | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(companyId || null);
 
@@ -66,7 +73,7 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     asset_tag: '',
-    type_id: '',
+    asset_type: '',
     status: 'active',
     serial_number: '',
     // Type-specific fields will be added conditionally
@@ -74,7 +81,7 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
       os_type: '',
       os_version: ''
     },
-    networkDevice: {
+    network_device: {
       device_type: 'switch',
       management_ip: ''
     },
@@ -82,7 +89,7 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
       os_type: '',
       os_version: ''
     },
-    mobileDevice: {
+    mobile_device: {
       os_type: '',
       model: '',
       is_supervised: false
@@ -93,23 +100,19 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
   });
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchCompanies = async () => {
       try {
-        const [types, companiesData] = await Promise.all([
-          listAssetTypes(),
-          !companyId ? getAllCompanies(false) : Promise.resolve([])
-        ]);
-        setAssetTypes(types);
         if (!companyId) {
+          const companiesData = await getAllCompanies(false);
           setCompanies(companiesData);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
-        setError('Failed to fetch required data');
+        console.error('Error fetching companies:', error);
+        setError('Failed to fetch companies');
       }
     };
     if (open) {
-      fetchData();
+      fetchCompanies();
     }
   }, [open, companyId]);
 
@@ -124,12 +127,12 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
         throw new Error('Please select a company');
       }
 
-      if (!formData.type_id) {
+      if (!formData.asset_type) {
         throw new Error('Please select an asset type');
       }
 
       const assetData: CreateAssetRequest = {
-        type_id: formData.type_id,
+        asset_type: formData.asset_type,
         company_id: effectiveCompanyId,
         asset_tag: formData.asset_tag,
         name: formData.name,
@@ -137,66 +140,64 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
         serial_number: formData.serial_number || undefined
       };
 
-      // Add type-specific data based on the selected type's name
-      if (selectedType) {
-        switch (selectedType.type_name.toLowerCase()) {
-          case 'workstation':
-            assetData.workstation = {
-              os_type: formData.workstation.os_type,
-              os_version: formData.workstation.os_version,
-              cpu_model: '',
-              cpu_cores: 0,
-              ram_gb: 0,
-              storage_type: '',
-              storage_capacity_gb: 0,
-              installed_software: []
-            };
-            break;
-          case 'network_device':
-            assetData.networkDevice = {
-              device_type: formData.networkDevice.device_type,
-              management_ip: formData.networkDevice.management_ip,
-              port_count: 0,
-              firmware_version: '',
-              supports_poe: false,
-              power_draw_watts: 0,
-              vlan_config: {},
-              port_config: {}
-            };
-            break;
-          case 'server':
-            assetData.server = {
-              os_type: formData.server.os_type,
-              os_version: formData.server.os_version,
-              cpu_model: '',
-              cpu_cores: 0,
-              ram_gb: 0,
-              storage_config: [],
-              is_virtual: false,
-              network_interfaces: [],
-              installed_services: []
-            };
-            break;
-          case 'mobile_device':
-            assetData.mobileDevice = {
-              os_type: formData.mobileDevice.os_type,
-              os_version: '',
-              model: formData.mobileDevice.model,
-              is_supervised: formData.mobileDevice.is_supervised,
-              installed_apps: []
-            };
-            break;
-          case 'printer':
-            assetData.printer = {
-              model: formData.printer.model,
-              is_network_printer: false,
-              supports_color: false,
-              supports_duplex: false,
-              supported_paper_types: [],
-              supply_levels: {}
-            };
-            break;
-        }
+      // Add type-specific data based on the selected type
+      switch (formData.asset_type) {
+        case 'workstation':
+          assetData.workstation = {
+            os_type: formData.workstation.os_type,
+            os_version: formData.workstation.os_version,
+            cpu_model: '',
+            cpu_cores: 0,
+            ram_gb: 0,
+            storage_type: '',
+            storage_capacity_gb: 0,
+            installed_software: []
+          };
+          break;
+        case 'network_device':
+          assetData.network_device = {
+            device_type: formData.network_device.device_type,
+            management_ip: formData.network_device.management_ip,
+            port_count: 0,
+            firmware_version: '',
+            supports_poe: false,
+            power_draw_watts: 0,
+            vlan_config: {},
+            port_config: {}
+          };
+          break;
+        case 'server':
+          assetData.server = {
+            os_type: formData.server.os_type,
+            os_version: formData.server.os_version,
+            cpu_model: '',
+            cpu_cores: 0,
+            ram_gb: 0,
+            storage_config: [],
+            is_virtual: false,
+            network_interfaces: [],
+            installed_services: []
+          };
+          break;
+        case 'mobile_device':
+          assetData.mobile_device = {
+            os_type: formData.mobile_device.os_type,
+            os_version: '',
+            model: formData.mobile_device.model,
+            is_supervised: formData.mobile_device.is_supervised,
+            installed_apps: []
+          };
+          break;
+        case 'printer':
+          assetData.printer = {
+            model: formData.printer.model,
+            is_network_printer: false,
+            supports_color: false,
+            supports_duplex: false,
+            supported_paper_types: [],
+            supply_levels: {}
+          };
+          break;
       }
 
       await createAsset(assetData);
@@ -206,16 +207,15 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
       setFormData({
         name: '',
         asset_tag: '',
-        type_id: '',
+        asset_type: '',
         status: 'active',
         serial_number: '',
         workstation: { os_type: '', os_version: '' },
-        networkDevice: { device_type: 'switch', management_ip: '' },
+        network_device: { device_type: 'switch', management_ip: '' },
         server: { os_type: '', os_version: '' },
-        mobileDevice: { os_type: '', model: '', is_supervised: false },
+        mobile_device: { os_type: '', model: '', is_supervised: false },
         printer: { model: '' }
       });
-      setSelectedType(null);
       if (!companyId) {
         setSelectedCompanyId(null);
       }
@@ -228,9 +228,9 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
   };
 
   const renderTypeSpecificFields = () => {
-    if (!selectedType) return null;
+    if (!formData.asset_type) return null;
 
-    switch (selectedType.type_name.toLowerCase()) {
+    switch (formData.asset_type) {
       case 'workstation':
         return (
           <>
@@ -274,10 +274,10 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
                   { value: 'access_point', label: 'Access Point' },
                   { value: 'load_balancer', label: 'Load Balancer' }
                 ]}
-                value={formData.networkDevice.device_type}
+                value={formData.network_device.device_type}
                 onValueChange={(value) => setFormData(prev => ({
                   ...prev,
-                  networkDevice: { ...prev.networkDevice, device_type: value as NetworkDeviceType }
+                  network_device: { ...prev.network_device, device_type: value as NetworkDeviceType }
                 }))}
                 placeholder="Select device type"
               />
@@ -285,10 +285,10 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
             <div>
               <label className="block text-sm font-medium text-gray-700">Management IP</label>
               <Input
-                value={formData.networkDevice.management_ip}
+                value={formData.network_device.management_ip}
                 onChange={(e) => setFormData(prev => ({
                   ...prev,
-                  networkDevice: { ...prev.networkDevice, management_ip: e.target.value }
+                  network_device: { ...prev.network_device, management_ip: e.target.value }
                 }))}
                 placeholder="e.g., 192.168.1.1"
                 required
@@ -337,10 +337,10 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
                   { value: 'ios', label: 'iOS' },
                   { value: 'android', label: 'Android' }
                 ]}
-                value={formData.mobileDevice.os_type}
+                value={formData.mobile_device.os_type}
                 onValueChange={(value) => setFormData(prev => ({
                   ...prev,
-                  mobileDevice: { ...prev.mobileDevice, os_type: value }
+                  mobile_device: { ...prev.mobile_device, os_type: value }
                 }))}
                 placeholder="Select OS type"
               />
@@ -348,10 +348,10 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
             <div>
               <label className="block text-sm font-medium text-gray-700">Model</label>
               <Input
-                value={formData.mobileDevice.model}
+                value={formData.mobile_device.model}
                 onChange={(e) => setFormData(prev => ({
                   ...prev,
-                  mobileDevice: { ...prev.mobileDevice, model: e.target.value }
+                  mobile_device: { ...prev.mobile_device, model: e.target.value }
                 }))}
                 placeholder="e.g., iPhone 14 Pro, Galaxy S23"
                 required
@@ -430,15 +430,12 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
             <div>
               <label className="block text-sm font-medium text-gray-700">Type</label>
               <CustomSelect
-                options={assetTypes.map((type): SelectOption => ({
-                  value: type.type_id,
-                  label: type.type_name
+                options={ASSET_TYPE_OPTIONS}
+                value={formData.asset_type}
+                onValueChange={(value) => setFormData(prev => ({ 
+                  ...prev, 
+                  asset_type: value as AssetType 
                 }))}
-                value={formData.type_id}
-                onValueChange={(value) => {
-                  setFormData(prev => ({ ...prev, type_id: value }));
-                  setSelectedType(assetTypes.find(t => t.type_id === value) || null);
-                }}
                 placeholder="Select type"
               />
             </div>
@@ -462,7 +459,7 @@ export function QuickAddAsset({ companyId, onAssetAdded }: QuickAddAssetProps) {
               />
             </div>
 
-            {selectedType && (
+            {formData.asset_type && (
               <div className="border-t pt-4">
                 <h3 className="text-sm font-medium text-gray-700 mb-4">Type-specific Details</h3>
                 {renderTypeSpecificFields()}

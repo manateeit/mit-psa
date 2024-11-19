@@ -26,8 +26,6 @@ exports.seed = async function(knex) {
         const warrantyDate4 = new Date('2026-04-01').toISOString();
         const purchaseDate5 = new Date('2023-05-15').toISOString();
         const warrantyDate5 = new Date('2026-05-15').toISOString();
-        const purchaseDate6 = new Date('2023-06-01').toISOString();
-        const warrantyDate6 = new Date('2026-06-01').toISOString();
 
         // Insert base assets first
         const assets = [
@@ -35,7 +33,7 @@ exports.seed = async function(knex) {
             {
                 tenant: tenant.tenant,
                 asset_id: '11111111-1111-1111-1111-111111111111',
-                type_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+                asset_type: 'server',
                 company_id: emeraldCity.company_id,
                 asset_tag: 'EC-SRV-001',
                 serial_number: 'RS789012',
@@ -50,7 +48,7 @@ exports.seed = async function(knex) {
             {
                 tenant: tenant.tenant,
                 asset_id: '22222222-2222-2222-2222-222222222222',
-                type_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+                asset_type: 'workstation',
                 company_id: emeraldCity.company_id,
                 asset_tag: 'EC-WS-001',
                 serial_number: 'CB456789',
@@ -65,7 +63,7 @@ exports.seed = async function(knex) {
             {
                 tenant: tenant.tenant,
                 asset_id: '33333333-3333-3333-3333-333333333333',
-                type_id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+                asset_type: 'network_device',
                 company_id: emeraldCity.company_id,
                 asset_tag: 'EC-NSW-001',
                 serial_number: 'YB123456',
@@ -81,7 +79,7 @@ exports.seed = async function(knex) {
             {
                 tenant: tenant.tenant,
                 asset_id: '44444444-4444-4444-4444-444444444444',
-                type_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+                asset_type: 'server',
                 company_id: wonderland.company_id,
                 asset_tag: 'WL-SRV-001',
                 serial_number: 'TT987654',
@@ -96,7 +94,7 @@ exports.seed = async function(knex) {
             {
                 tenant: tenant.tenant,
                 asset_id: '55555555-5555-5555-5555-555555555555',
-                type_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+                asset_type: 'workstation',
                 company_id: wonderland.company_id,
                 asset_tag: 'WL-WS-001',
                 serial_number: 'LG789123',

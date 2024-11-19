@@ -21,7 +21,7 @@ export interface AssetRelationship {
 
 export interface Asset {
   asset_id: string;
-  type_id: string;
+  asset_type: 'workstation' | 'network_device' | 'server' | 'mobile_device' | 'printer' | 'unknown';
   company_id: string;
   asset_tag: string;
   serial_number?: string;
@@ -36,9 +36,9 @@ export interface Asset {
   company?: AssetCompanyInfo;
   relationships?: AssetRelationship[];
   workstation?: WorkstationAsset;
-  networkDevice?: NetworkDeviceAsset;
+  network_device?: NetworkDeviceAsset;
   server?: ServerAsset;
-  mobileDevice?: MobileDeviceAsset;
+  mobile_device?: MobileDeviceAsset;
   printer?: PrinterAsset;
 }
 
@@ -234,7 +234,7 @@ export function isPrinterAsset(asset: unknown): asset is PrinterAsset {
 
 // Request interfaces
 export interface CreateAssetRequest {
-  type_id: string;
+  asset_type: 'workstation' | 'network_device' | 'server' | 'mobile_device' | 'printer' | 'unknown';
   company_id: string;
   asset_tag: string;
   name: string;
@@ -244,19 +244,13 @@ export interface CreateAssetRequest {
   purchase_date?: string;
   warranty_end_date?: string;
   workstation?: Omit<WorkstationAsset, 'tenant' | 'asset_id'>;
-  networkDevice?: Omit<NetworkDeviceAsset, 'tenant' | 'asset_id'>;
+  network_device?: Omit<NetworkDeviceAsset, 'tenant' | 'asset_id'>;
   server?: Omit<ServerAsset, 'tenant' | 'asset_id'>;
-  mobileDevice?: Omit<MobileDeviceAsset, 'tenant' | 'asset_id'>;
+  mobile_device?: Omit<MobileDeviceAsset, 'tenant' | 'asset_id'>;
   printer?: Omit<PrinterAsset, 'tenant' | 'asset_id'>;
 }
 
 export type UpdateAssetRequest = Partial<CreateAssetRequest>;
-
-export interface CreateAssetTypeRequest {
-  type_name: string;
-  parent_type_id?: string;
-  attributes_schema?: Record<string, unknown>;
-}
 
 export interface CreateAssetAssociationRequest {
   asset_id: string;
@@ -297,7 +291,7 @@ export interface CreateMaintenanceHistoryRequest {
 export interface AssetQueryParams {
   company_id?: string;
   company_name?: string;
-  type_id?: string;
+  asset_type?: 'workstation' | 'network_device' | 'server' | 'mobile_device' | 'printer' | 'unknown';
   status?: string;
   search?: string;
   maintenance_status?: MaintenanceStatus;
@@ -319,16 +313,6 @@ export interface AssetListResponse {
   page: number;
   limit: number;
   company_summary?: CompanySummary;
-}
-
-export interface AssetType {
-  tenant: string;
-  type_id: string;
-  type_name: string;  // Keep as string since we transform nulls to empty string
-  parent_type_id?: string;
-  attributes_schema?: Record<string, unknown>;
-  created_at: string;  // Keep as string since we transform dates to ISO strings
-  updated_at: string;  // Keep as string since we transform dates to ISO strings
 }
 
 export interface AssetMaintenanceReport {

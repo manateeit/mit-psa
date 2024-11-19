@@ -46,26 +46,26 @@ export function AssetDetails({ asset }: AssetDetailsProps) {
       );
     }
 
-    if (asset.networkDevice) {
+    if (asset.network_device) {
       return (
         <div className="mt-4">
           <h3 className="text-sm font-medium text-gray-500">Network Device Details</h3>
           <div className="mt-2 grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-gray-500">Device Type</p>
-              <p className="mt-1">{asset.networkDevice.device_type}</p>
+              <p className="mt-1">{asset.network_device.device_type}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">IP Address</p>
-              <p className="mt-1">{asset.networkDevice.management_ip}</p>
+              <p className="mt-1">{asset.network_device.management_ip}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Ports</p>
-              <p className="mt-1">{asset.networkDevice.port_count}</p>
+              <p className="mt-1">{asset.network_device.port_count}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Firmware</p>
-              <p className="mt-1">{asset.networkDevice.firmware_version}</p>
+              <p className="mt-1">{asset.network_device.firmware_version}</p>
             </div>
           </div>
         </div>

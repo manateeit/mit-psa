@@ -10,7 +10,6 @@ import {
     UpdateMaintenanceScheduleRequest,
     CreateMaintenanceHistoryRequest,
     Asset,
-    AssetType,
     AssetListResponse,
     AssetAssociation,
     AssetMaintenanceSchedule,
@@ -27,11 +26,10 @@ import {
     isServerAsset,
     isMobileDeviceAsset,
     isPrinterAsset
-} from '@/interfaces/asset.interfaces';
-import { validateData } from '@/lib/utils/validation';
+} from '../../../interfaces/asset.interfaces';
+import { validateData } from '../../utils/validation';
 import {
     assetSchema,
-    assetTypeSchema,
     assetAssociationSchema,
     createAssetSchema,
     createAssetAssociationSchema,
@@ -44,15 +42,17 @@ import {
     createMaintenanceHistorySchema,
     assetMaintenanceReportSchema,
     clientMaintenanceSummarySchema
-} from '@/lib/schemas/asset.schema';
-import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
-import { createTenantKnex } from '@/lib/db';
+} from '../../schemas/asset.schema';
+import { getCurrentUser } from '../user-actions/userActions';
+import { createTenantKnex } from '../../db';
 import { Knex } from 'knex';
 
 type AssetExtensionType = WorkstationAsset | NetworkDeviceAsset | ServerAsset | MobileDeviceAsset | PrinterAsset;
 
 // Helper function to get extension table data
-async function getExtensionData(knex: Knex, tenant: string, asset_id: string, asset_type: string): Promise<AssetExtensionType | null> {
+async function getExtensionData(knex: Knex, tenant: string, asset_id: string, asset_type: string | undefined): Promise<AssetExtensionType | null> {
+    if (!asset_type) return null;
+    
     switch (asset_type.toLowerCase()) {
         case 'workstation':
             return knex('workstation_assets')
@@ -80,8 +80,8 @@ async function getExtensionData(knex: Knex, tenant: string, asset_id: string, as
 }
 
 // Helper function to validate extension data based on type
-function validateExtensionData(data: unknown, type: string): AssetExtensionType | null {
-    if (!data || typeof data !== 'object') return null;
+function validateExtensionData(data: unknown, type: string | undefined): AssetExtensionType | null {
+    if (!data || typeof data !== 'object' || !type) return null;
 
     switch (type.toLowerCase()) {
         case 'workstation':
@@ -108,9 +108,11 @@ async function upsertExtensionData(
     knex: Knex,
     tenant: string,
     asset_id: string,
-    asset_type: string,
+    asset_type: string | undefined,
     data: unknown
 ): Promise<void> {
+    if (!asset_type) return;
+    
     const validatedData = validateExtensionData(data, asset_type);
     if (!validatedData) return;
 
@@ -145,102 +147,102 @@ export async function getAsset(asset_id: string): Promise<Asset> {
 function formatAssetForOutput(asset: any): Asset {
     // Format base asset data
     const formattedAsset = {
-      ...asset,
-      // Format dates
-      created_at: typeof asset.created_at === 'string'
-        ? asset.created_at
-        : new Date(asset.created_at).toISOString(),
-      updated_at: typeof asset.updated_at === 'string'
-        ? asset.updated_at
-        : new Date(asset.updated_at).toISOString(),
-      purchase_date: asset.purchase_date
-        ? new Date(asset.purchase_date).toISOString()
-        : undefined,
-      warranty_end_date: asset.warranty_end_date
-        ? new Date(asset.warranty_end_date).toISOString()
-        : undefined,
-      // Handle optional fields
-      serial_number: asset.serial_number || undefined,
-      location: asset.location || undefined,
-      // Ensure company data is properly structured
-      company: asset.company ? {
-        company_id: asset.company.company_id,
-        company_name: asset.company.company_name || ''
-      } : undefined,
-      // Ensure relationships is always an array
-      relationships: Array.isArray(asset.relationships) ? asset.relationships : [],
-  
-      // Format extension data
-      ...(asset.workstation && {
-        workstation: {
-          ...asset.workstation,
-          gpu_model: asset.workstation.gpu_model || undefined,
-          last_login: asset.workstation.last_login
-            ? new Date(asset.workstation.last_login).toISOString()
+        ...asset,
+        // Format dates
+        created_at: typeof asset.created_at === 'string'
+            ? asset.created_at
+            : new Date(asset.created_at).toISOString(),
+        updated_at: typeof asset.updated_at === 'string'
+            ? asset.updated_at
+            : new Date(asset.updated_at).toISOString(),
+        purchase_date: asset.purchase_date
+            ? new Date(asset.purchase_date).toISOString()
             : undefined,
-          installed_software: Array.isArray(asset.workstation.installed_software)
-            ? asset.workstation.installed_software
-            : []
-        }
-      }),
-  
-      ...(asset.networkDevice && {
-        networkDevice: {
-          ...asset.networkDevice,
-          vlan_config: asset.networkDevice.vlan_config || {},
-          port_config: asset.networkDevice.port_config || {}
-        }
-      }),
-  
-      ...(asset.server && {
-        server: {
-          ...asset.server,
-          storage_config: Array.isArray(asset.server.storage_config)
-            ? asset.server.storage_config
-            : [],
-          network_interfaces: Array.isArray(asset.server.network_interfaces)
-            ? asset.server.network_interfaces
-            : [],
-          installed_services: Array.isArray(asset.server.installed_services)
-            ? asset.server.installed_services
-            : [],
-          raid_config: asset.server.raid_config || undefined,
-          hypervisor: asset.server.hypervisor || undefined,
-          primary_ip: asset.server.primary_ip || undefined
-        }
-      }),
-  
-      ...(asset.mobileDevice && {
-        mobileDevice: {
-          ...asset.mobileDevice,
-          imei: asset.mobileDevice.imei || undefined,
-          phone_number: asset.mobileDevice.phone_number || undefined,
-          carrier: asset.mobileDevice.carrier || undefined,
-          last_check_in: asset.mobileDevice.last_check_in
-            ? new Date(asset.mobileDevice.last_check_in).toISOString()
+        warranty_end_date: asset.warranty_end_date
+            ? new Date(asset.warranty_end_date).toISOString()
             : undefined,
-          installed_apps: Array.isArray(asset.mobileDevice.installed_apps)
-            ? asset.mobileDevice.installed_apps
-            : []
-        }
-      }),
-  
-      ...(asset.printer && {
-        printer: {
-          ...asset.printer,
-          ip_address: asset.printer.ip_address || undefined,
-          max_paper_size: asset.printer.max_paper_size || undefined,
-          monthly_duty_cycle: asset.printer.monthly_duty_cycle || undefined,
-          supported_paper_types: Array.isArray(asset.printer.supported_paper_types)
-            ? asset.printer.supported_paper_types
-            : [],
-          supply_levels: asset.printer.supply_levels || {}
-        }
-      })
+        // Handle optional fields
+        serial_number: asset.serial_number || undefined,
+        location: asset.location || undefined,
+        // Ensure company data is properly structured
+        company: asset.company ? {
+            company_id: asset.company.company_id,
+            company_name: asset.company.company_name || ''
+        } : undefined,
+        // Ensure relationships is always an array
+        relationships: Array.isArray(asset.relationships) ? asset.relationships : [],
+
+        // Format extension data based on asset type
+        ...(asset.workstation && {
+            workstation: {
+                ...asset.workstation,
+                gpu_model: asset.workstation.gpu_model || undefined,
+                last_login: asset.workstation.last_login
+                    ? new Date(asset.workstation.last_login).toISOString()
+                    : undefined,
+                installed_software: Array.isArray(asset.workstation.installed_software)
+                    ? asset.workstation.installed_software
+                    : []
+            }
+        }),
+
+        ...(asset.network_device && {
+            network_device: {
+                ...asset.network_device,
+                vlan_config: asset.network_device.vlan_config || {},
+                port_config: asset.network_device.port_config || {}
+            }
+        }),
+
+        ...(asset.server && {
+            server: {
+                ...asset.server,
+                storage_config: Array.isArray(asset.server.storage_config)
+                    ? asset.server.storage_config
+                    : [],
+                network_interfaces: Array.isArray(asset.server.network_interfaces)
+                    ? asset.server.network_interfaces
+                    : [],
+                installed_services: Array.isArray(asset.server.installed_services)
+                    ? asset.server.installed_services
+                    : [],
+                raid_config: asset.server.raid_config || undefined,
+                hypervisor: asset.server.hypervisor || undefined,
+                primary_ip: asset.server.primary_ip || undefined
+            }
+        }),
+
+        ...(asset.mobile_device && {
+            mobile_device: {
+                ...asset.mobile_device,
+                imei: asset.mobile_device.imei || undefined,
+                phone_number: asset.mobile_device.phone_number || undefined,
+                carrier: asset.mobile_device.carrier || undefined,
+                last_check_in: asset.mobile_device.last_check_in
+                    ? new Date(asset.mobile_device.last_check_in).toISOString()
+                    : undefined,
+                installed_apps: Array.isArray(asset.mobile_device.installed_apps)
+                    ? asset.mobile_device.installed_apps
+                    : []
+            }
+        }),
+
+        ...(asset.printer && {
+            printer: {
+                ...asset.printer,
+                ip_address: asset.printer.ip_address || undefined,
+                max_paper_size: asset.printer.max_paper_size || undefined,
+                monthly_duty_cycle: asset.printer.monthly_duty_cycle || undefined,
+                supported_paper_types: Array.isArray(asset.printer.supported_paper_types)
+                    ? asset.printer.supported_paper_types
+                    : [],
+                supply_levels: asset.printer.supply_levels || {}
+            }
+        })
     };
-  
+
     return formattedAsset;
-  }
+}
 
 export async function createAsset(data: CreateAssetRequest): Promise<Asset> {
     const { knex, tenant } = await createTenantKnex();
@@ -259,25 +261,15 @@ export async function createAsset(data: CreateAssetRequest): Promise<Asset> {
 
         // Start transaction
         const result = await knex.transaction(async (trx: Knex.Transaction) => {
-
             // Validate the input data
             const validatedData = validateData(createAssetSchema, data);
-
-            // Get asset type
-            const assetType = await trx('asset_types')
-                .where({ tenant, type_id: validatedData.type_id })
-                .first();
-
-            if (!assetType) {
-                throw new Error('Asset type not found');
-            }
 
             const now = new Date().toISOString();
 
             // Extract only the base asset fields and ensure dates are only included if they exist
             const baseAssetData = {
                 tenant,
-                type_id: validatedData.type_id,
+                asset_type: validatedData.asset_type,
                 company_id: validatedData.company_id,
                 asset_tag: validatedData.asset_tag,
                 name: validatedData.name,
@@ -301,12 +293,9 @@ export async function createAsset(data: CreateAssetRequest): Promise<Asset> {
                 .returning('*');
 
             // Handle extension table data based on asset type
-            if (assetType.type_name) {
-                const extensionKey = assetType.type_name.toLowerCase() as keyof CreateAssetRequest;
-                const extensionData = data[extensionKey];
-                if (extensionData) {
-                    await upsertExtensionData(trx, tenant, asset.asset_id, assetType.type_name, extensionData);
-                }
+            const extensionData = data[data.asset_type as keyof CreateAssetRequest];
+            if (extensionData) {
+                await upsertExtensionData(trx, tenant, asset.asset_id, data.asset_type, extensionData);
             }
 
             const currentUser = await getCurrentUser();
@@ -359,7 +348,7 @@ export async function updateAsset(asset_id: string, data: UpdateAssetRequest): P
             // Validate the update data
             const validatedData = validateData(updateAssetSchema, data);
 
-            // Get current asset type
+            // Get current asset
             const asset = await trx('assets')
                 .where({ tenant, asset_id })
                 .first();
@@ -367,10 +356,6 @@ export async function updateAsset(asset_id: string, data: UpdateAssetRequest): P
             if (!asset) {
                 throw new Error('Asset not found');
             }
-
-            const assetType = await trx('asset_types')
-                .where({ tenant, type_id: asset.type_id })
-                .first();
 
             // Update base asset
             const [updatedBaseAsset] = await trx('assets')
@@ -382,11 +367,10 @@ export async function updateAsset(asset_id: string, data: UpdateAssetRequest): P
                 .returning('*');
 
             // Handle extension table data
-            if (assetType?.type_name) {
-                const extensionKey = assetType.type_name.toLowerCase() as keyof UpdateAssetRequest;
-                const extensionData = data[extensionKey];
+            if (validatedData.asset_type) {
+                const extensionData = data[validatedData.asset_type as keyof UpdateAssetRequest];
                 if (extensionData) {
-                    await upsertExtensionData(trx, tenant, asset_id, assetType.type_name, extensionData);
+                    await upsertExtensionData(trx, tenant, asset_id, validatedData.asset_type, extensionData);
                 }
             }
 
@@ -452,16 +436,8 @@ async function getAssetWithExtensions(knex: Knex, tenant: string, asset_id: stri
         throw new Error('Asset not found');
     }
 
-    // Get asset type
-    const assetType = await knex('asset_types')
-        .where({ tenant, type_id: asset.type_id })
-        .first();
-
     // Get extension table data if applicable
-    let extensionData = null;
-    if (assetType?.type_name) {
-        extensionData = await getExtensionData(knex, tenant, asset_id, assetType.type_name);
-    }
+    const extensionData = await getExtensionData(knex, tenant, asset_id, asset.asset_type);
 
     // Get relationships
     const relationships = await knex('asset_relationships')
@@ -480,8 +456,8 @@ async function getAssetWithExtensions(knex: Knex, tenant: string, asset_id: stri
         },
         relationships: relationships || [],  // Ensure relationships is always an array
         // Add extension data under the appropriate key
-        ...(extensionData && assetType?.type_name ? {
-            [assetType.type_name.toLowerCase()]: extensionData
+        ...(extensionData ? {
+            [asset.asset_type]: extensionData
         } : {})
     };
 
@@ -504,18 +480,14 @@ export async function listAssets(params: AssetQueryParams): Promise<AssetListRes
             .leftJoin('companies', function(this: Knex.JoinClause) {
                 this.on('companies.company_id', '=', 'assets.company_id')
                     .andOn('companies.tenant', '=', 'assets.tenant');
-            })
-            .leftJoin('asset_types', function(this: Knex.JoinClause) {
-                this.on('asset_types.type_id', '=', 'assets.type_id')
-                    .andOn('asset_types.tenant', '=', 'assets.tenant');
             });
 
         // Apply filters
         if (validatedParams.company_id) {
             baseQuery.where('assets.company_id', validatedParams.company_id);
         }
-        if (validatedParams.type_id && /^[0-9a-f-]{36}$/i.test(validatedParams.type_id)) {
-            baseQuery.where('assets.type_id', validatedParams.type_id);
+        if (validatedParams.asset_type) {
+            baseQuery.where('assets.asset_type', validatedParams.asset_type);
         }
         if (validatedParams.status) {
             baseQuery.where('assets.status', validatedParams.status);
@@ -532,8 +504,7 @@ export async function listAssets(params: AssetQueryParams): Promise<AssetListRes
         const assets = await baseQuery
             .select(
                 'assets.*',
-                'companies.company_name',
-                'asset_types.type_name'
+                'companies.company_name'
             )
             .orderBy('assets.created_at', 'desc')
             .limit(limit)
@@ -542,8 +513,8 @@ export async function listAssets(params: AssetQueryParams): Promise<AssetListRes
         // Get extension data for each asset if requested
         const assetsWithExtensions = await Promise.all(
             assets.map(async (asset: any): Promise<Asset> => {
-                const extensionData = validatedParams.include_extension_data && asset.type_name
-                    ? await getExtensionData(knex, tenant, asset.asset_id, asset.type_name)
+                const extensionData = validatedParams.include_extension_data
+                    ? await getExtensionData(knex, tenant, asset.asset_id, asset.asset_type)
                     : null;
 
                 return {
@@ -553,8 +524,8 @@ export async function listAssets(params: AssetQueryParams): Promise<AssetListRes
                         company_name: asset.company_name || ''
                     },
                     relationships: [],  // Initialize empty array for relationships
-                    ...(extensionData && asset.type_name ? {
-                        [asset.type_name.toLowerCase()]: extensionData
+                    ...(extensionData ? {
+                        [asset.asset_type]: extensionData
                     } : {})
                 };
             })
@@ -1086,53 +1057,3 @@ export async function removeAssetAssociation(
     }
 }
 
-// Add listAssetTypes function to existing file
-export async function listAssetTypes(): Promise<AssetType[]> {
-    const { knex, tenant } = await createTenantKnex();
-    if (!tenant) {
-        throw new Error('No tenant found');
-    }
-
-    try {
-        const types = await knex('asset_types')
-            .where({ tenant })
-            .orderBy('type_name');
-
-        // Transform and validate each type
-        const transformedTypes = await Promise.all(types.map(async (type): Promise<AssetType> => {
-            // Ensure all fields have valid values before validation
-            const preparedType = {
-                tenant: type.tenant || tenant,
-                type_id: type.type_id || '',
-                type_name: String(type.type_name || ''),
-                parent_type_id: type.parent_type_id || undefined,
-                attributes_schema: type.attributes_schema || {},
-                created_at: typeof type.created_at === 'string'
-                    ? type.created_at
-                    : new Date(type.created_at || Date.now()).toISOString(),
-                updated_at: typeof type.updated_at === 'string'
-                    ? type.updated_at
-                    : new Date(type.updated_at || Date.now()).toISOString()
-            };
-
-            try {
-                return validateData(assetTypeSchema, preparedType);
-            } catch (validationError) {
-                console.error('Validation error for asset type:', type, validationError);
-                return {
-                    tenant: tenant,
-                    type_id: type.type_id || '',
-                    type_name: String(type.type_name || ''),
-                    attributes_schema: {},
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                };
-            }
-        }));
-
-        return transformedTypes;
-    } catch (error) {
-        console.error('Error listing asset types:', error);
-        throw new Error('Failed to list asset types');
-    }
-}

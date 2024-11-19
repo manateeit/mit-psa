@@ -9,6 +9,14 @@ import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { QuickAddAsset } from './QuickAddAsset';
+import {
+  Monitor,
+  Server,
+  Smartphone,
+  Printer,
+  Network,
+  Boxes
+} from 'lucide-react';
 
 interface AssetDashboardProps {
   initialAssets: AssetListResponse;
@@ -67,18 +75,36 @@ export default function AssetDashboard({ initialAssets }: AssetDashboardProps) {
     { totalSchedules: 0, overdueMaintenances: 0, upcomingMaintenances: 0 }
   );
 
+  const getAssetTypeIcon = (type: string) => {
+    const iconProps = { className: "h-5 w-5 inline-block mr-2" };
+    switch (type.toLowerCase()) {
+      case 'workstation':
+        return <Monitor {...iconProps} />;
+      case 'server':
+        return <Server {...iconProps} />;
+      case 'mobile_device':
+        return <Smartphone {...iconProps} />;
+      case 'printer':
+        return <Printer {...iconProps} />;
+      case 'network_device':
+        return <Network {...iconProps} />;
+      default:
+        return <Boxes {...iconProps} />;
+    }
+  };
+
   const renderAssetDetails = (asset: Asset): string => {
     if (asset.workstation) {
       return `${asset.workstation.os_type} - ${asset.workstation.cpu_model} - ${asset.workstation.ram_gb}GB RAM`;
     }
-    if (asset.networkDevice) {
-      return `${asset.networkDevice.device_type} - ${asset.networkDevice.management_ip || 'No IP'}`;
+    if (asset.network_device) {
+      return `${asset.network_device.device_type} - ${asset.network_device.management_ip || 'No IP'}`;
     }
     if (asset.server) {
       return `${asset.server.os_type} - ${asset.server.cpu_model} - ${asset.server.ram_gb}GB RAM`;
     }
-    if (asset.mobileDevice) {
-      return `${asset.mobileDevice.os_type} - ${asset.mobileDevice.model}`;
+    if (asset.mobile_device) {
+      return `${asset.mobile_device.os_type} - ${asset.mobile_device.model}`;
     }
     if (asset.printer) {
       return `${asset.printer.model} - ${asset.printer.is_network_printer ? 'Network' : 'Local'}`;
@@ -112,6 +138,16 @@ export default function AssetDashboard({ initialAssets }: AssetDashboardProps) {
     { 
       dataIndex: 'asset_tag',
       title: 'Tag'
+    },
+    {
+      dataIndex: 'asset_type',
+      title: 'Type',
+      render: (value: string) => (
+        <div className="flex items-center">
+          {getAssetTypeIcon(value)}
+          <span>{value.split('_').map((word):string => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}</span>
+        </div>
+      )
     },
     {
       dataIndex: 'details',

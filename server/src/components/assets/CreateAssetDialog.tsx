@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
-import { Asset, CreateAssetRequest, AssetType, WorkstationAsset, NetworkDeviceAsset } from '@/interfaces/asset.interfaces';
+import { Asset, CreateAssetRequest, WorkstationAsset, NetworkDeviceAsset } from '@/interfaces/asset.interfaces';
 import { ICompany } from '@/interfaces';
-import { createAsset, listAssetTypes } from '@/lib/actions/asset-actions/assetActions';
+import { createAsset } from '@/lib/actions/asset-actions/assetActions';
 import { getAllCompanies } from '@/lib/actions/companyActions';
 import { CompanyPicker } from '@/components/companies/CompanyPicker';
 
@@ -22,6 +22,14 @@ const STATUS_OPTIONS: SelectOption[] = [
   { value: 'inactive', label: 'Inactive' },
   { value: 'maintenance', label: 'Maintenance' },
   { value: 'retired', label: 'Retired' },
+];
+
+const ASSET_TYPE_OPTIONS: SelectOption[] = [
+  { value: 'workstation', label: 'Workstation' },
+  { value: 'network_device', label: 'Network Device' },
+  { value: 'server', label: 'Server' },
+  { value: 'mobile_device', label: 'Mobile Device' },
+  { value: 'printer', label: 'Printer' }
 ];
 
 type WorkstationFields = Required<Omit<WorkstationAsset, 'tenant' | 'asset_id'>>;
@@ -51,51 +59,51 @@ const INITIAL_NETWORK_DEVICE: NetworkDeviceFields = {
   port_config: {}
 };
 
-const INITIAL_FORM_DATA: CreateAssetRequest = {
-  type_id: '',
+const INITIAL_FORM_DATA: Omit<CreateAssetRequest, 'asset_type'> & { asset_type: string } = {
+  asset_type: '',
   company_id: '',
   asset_tag: '',
   name: '',
   status: 'active',
   workstation: INITIAL_WORKSTATION,
-  networkDevice: INITIAL_NETWORK_DEVICE
+  network_device: INITIAL_NETWORK_DEVICE
 };
 
 export default function CreateAssetDialog({ onClose, onAssetCreated }: CreateAssetDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [companies, setCompanies] = useState<ICompany[]>([]);
-  const [isLoadingTypes, setIsLoadingTypes] = useState(true);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
-  const [formData, setFormData] = useState<CreateAssetRequest>(INITIAL_FORM_DATA);
-  const [selectedType, setSelectedType] = useState<AssetType | null>(null);
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchCompanies = async () => {
       try {
-        const [types, companiesList] = await Promise.all([
-          listAssetTypes(),
-          getAllCompanies(false)
-        ]);
-        setAssetTypes(types);
+        const companiesList = await getAllCompanies(false);
         setCompanies(companiesList);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching companies:', error);
       } finally {
-        setIsLoadingTypes(false);
         setIsLoadingCompanies(false);
       }
     };
 
-    fetchData();
+    fetchCompanies();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.asset_type) {
+      return; // Prevent submission if no asset type is selected
+    }
+    
     setIsSubmitting(true);
 
     try {
-      const newAsset = await createAsset(formData);
+      const assetData: CreateAssetRequest = {
+        ...formData,
+        asset_type: formData.asset_type as CreateAssetRequest['asset_type']
+      };
+      const newAsset = await createAsset(assetData);
       onAssetCreated(newAsset);
       onClose();
     } catch (error) {
@@ -105,17 +113,11 @@ export default function CreateAssetDialog({ onClose, onAssetCreated }: CreateAss
     }
   };
 
-  const handleChange = (field: keyof CreateAssetRequest, value: string): void => {
+  const handleChange = (field: keyof typeof INITIAL_FORM_DATA, value: string): void => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
-
-    // Update selected type when type_id changes
-    if (field === 'type_id') {
-      const type = assetTypes.find(t => t.type_id === value);
-      setSelectedType(type || null);
-    }
   };
 
   const updateWorkstationField = <K extends keyof WorkstationFields>(
@@ -138,9 +140,9 @@ export default function CreateAssetDialog({ onClose, onAssetCreated }: CreateAss
   ): void => {
     setFormData(prev => ({
       ...prev,
-      networkDevice: {
+      network_device: {
         ...INITIAL_NETWORK_DEVICE,
-        ...prev.networkDevice,
+        ...prev.network_device,
         [field]: value
       }
     }));
@@ -148,9 +150,9 @@ export default function CreateAssetDialog({ onClose, onAssetCreated }: CreateAss
 
   // Render type-specific fields based on the selected asset type
   const renderTypeSpecificFields = () => {
-    if (!selectedType) return null;
+    if (!formData.asset_type) return null;
 
-    switch (selectedType.type_name.toLowerCase()) {
+    switch (formData.asset_type) {
       case 'workstation':
         return (
           <>
@@ -191,14 +193,14 @@ export default function CreateAssetDialog({ onClose, onAssetCreated }: CreateAss
                   { value: 'access_point', label: 'Access Point' },
                   { value: 'load_balancer', label: 'Load Balancer' }
                 ]}
-                value={formData.networkDevice?.device_type || 'switch'}
+                value={formData.network_device?.device_type || 'switch'}
                 onValueChange={(value) => updateNetworkDeviceField('device_type', value as NetworkDeviceFields['device_type'])}
               />
             </div>
             <div>
               <Label>Management IP</Label>
               <Input
-                value={formData.networkDevice?.management_ip || ''}
+                value={formData.network_device?.management_ip || ''}
                 onChange={(e) => updateNetworkDeviceField('management_ip', e.target.value)}
               />
             </div>
@@ -242,16 +244,13 @@ export default function CreateAssetDialog({ onClose, onAssetCreated }: CreateAss
         </div>
 
         <div>
-          <Label htmlFor="type_id">Asset Type</Label>
+          <Label htmlFor="asset_type">Asset Type</Label>
           <div className="mt-1">
             <CustomSelect
-              options={assetTypes.map((type): SelectOption => ({
-                value: type.type_id,
-                label: type.type_name
-              }))}
-              value={formData.type_id}
-              onValueChange={(value) => handleChange('type_id', value)}
-              placeholder={isLoadingTypes ? "Loading asset types..." : "Select Asset Type"}
+              options={ASSET_TYPE_OPTIONS}
+              value={formData.asset_type}
+              onValueChange={(value) => handleChange('asset_type', value)}
+              placeholder="Select Asset Type"
             />
           </div>
         </div>
@@ -320,7 +319,7 @@ export default function CreateAssetDialog({ onClose, onAssetCreated }: CreateAss
           </Button>
           <Button
             type="submit"
-            disabled={isSubmitting || isLoadingTypes || isLoadingCompanies}
+            disabled={isSubmitting || isLoadingCompanies || !formData.asset_type}
           >
             Create Asset
           </Button>

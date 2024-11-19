@@ -82,9 +82,9 @@ export default function AssetDetails({ asset }: AssetDetailsProps) {
     const iconClass = "h-16 w-16 text-primary-500";
 
     if (asset.workstation) return <Monitor className={iconClass} />;
-    if (asset.networkDevice) return <Network className={iconClass} />;
+    if (asset.network_device) return <Network className={iconClass} />;
     if (asset.server) return <Server className={iconClass} />;
-    if (asset.mobileDevice) return <Smartphone className={iconClass} />;
+    if (asset.mobile_device) return <Smartphone className={iconClass} />;
     if (asset.printer) return <PrinterIcon className={iconClass} />;
     return null;
   };
@@ -196,15 +196,15 @@ export default function AssetDetails({ asset }: AssetDetailsProps) {
       );
     }
 
-    if (asset.networkDevice) {
+    if (asset.network_device) {
       return (
         <div className="space-y-6">
           <Flex align="center" gap="4" className="mb-6">
-            {getNetworkDeviceIcon(asset.networkDevice.device_type)}
+            {getNetworkDeviceIcon(asset.network_device.device_type)}
             <div>
               <Text as="div" size="5" weight="medium">Network Device Details</Text>
               <Text as="div" size="2" color="gray">
-                {asset.networkDevice.device_type.charAt(0).toUpperCase() + asset.networkDevice.device_type.slice(1)}
+                {asset.network_device.device_type.charAt(0).toUpperCase() + asset.network_device.device_type.slice(1)}
               </Text>
             </div>
           </Flex>
@@ -214,7 +214,7 @@ export default function AssetDetails({ asset }: AssetDetailsProps) {
                 <Signal className="h-6 w-6 text-primary-400" />
                 <div>
                   <Text as="div" size="2" weight="medium">Management IP</Text>
-                  <Text as="div" size="2">{asset.networkDevice.management_ip}</Text>
+                  <Text as="div" size="2">{asset.network_device.management_ip}</Text>
                 </div>
               </Flex>
             </Card>
@@ -223,7 +223,7 @@ export default function AssetDetails({ asset }: AssetDetailsProps) {
                 <Layers className="h-6 w-6 text-primary-400" />
                 <div>
                   <Text as="div" size="2" weight="medium">Port Count</Text>
-                  <Text as="div" size="2">{asset.networkDevice.port_count}</Text>
+                  <Text as="div" size="2">{asset.network_device.port_count}</Text>
                 </div>
               </Flex>
             </Card>
@@ -232,7 +232,7 @@ export default function AssetDetails({ asset }: AssetDetailsProps) {
                 <Power className="h-6 w-6 text-primary-400" />
                 <div>
                   <Text as="div" size="2" weight="medium">Power Draw</Text>
-                  <Text as="div" size="2">{asset.networkDevice.power_draw_watts}W</Text>
+                  <Text as="div" size="2">{asset.network_device.power_draw_watts}W</Text>
                 </div>
               </Flex>
             </Card>
@@ -241,7 +241,7 @@ export default function AssetDetails({ asset }: AssetDetailsProps) {
                 <RotateCw className="h-6 w-6 text-primary-400" />
                 <div>
                   <Text as="div" size="2" weight="medium">Firmware Version</Text>
-                  <Text as="div" size="2">{asset.networkDevice.firmware_version}</Text>
+                  <Text as="div" size="2">{asset.network_device.firmware_version}</Text>
                 </div>
               </Flex>
             </Card>
@@ -250,7 +250,7 @@ export default function AssetDetails({ asset }: AssetDetailsProps) {
                 <Power className="h-6 w-6 text-primary-400" />
                 <div>
                   <Text as="div" size="2" weight="medium">PoE Support</Text>
-                  <Text as="div" size="2">{asset.networkDevice.supports_poe ? 'Yes' : 'No'}</Text>
+                  <Text as="div" size="2">{asset.network_device.supports_poe ? 'Yes' : 'No'}</Text>
                 </div>
               </Flex>
             </Card>
@@ -324,14 +324,14 @@ export default function AssetDetails({ asset }: AssetDetailsProps) {
       );
     }
 
-    if (asset.mobileDevice) {
+    if (asset.mobile_device) {
       return (
         <div className="space-y-6">
           <Flex align="center" gap="4" className="mb-6">
             <PhoneIcon className="h-16 w-16 text-primary-500" />
             <div>
               <Text as="div" size="5" weight="medium">Mobile Device Details</Text>
-              <Text as="div" size="2" color="gray">{asset.mobileDevice.model}</Text>
+              <Text as="div" size="2" color="gray">{asset.mobile_device.model}</Text>
             </div>
           </Flex>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -340,39 +340,39 @@ export default function AssetDetails({ asset }: AssetDetailsProps) {
                 <AppWindow className="h-6 w-6 text-primary-400" />
                 <div>
                   <Text as="div" size="2" weight="medium">Operating System</Text>
-                  <Text as="div" size="2">{asset.mobileDevice.os_type} {asset.mobileDevice.os_version}</Text>
+                  <Text as="div" size="2">{asset.mobile_device.os_type} {asset.mobile_device.os_version}</Text>
                 </div>
               </Flex>
             </Card>
-            {asset.mobileDevice.imei && (
+            {asset.mobile_device.imei && (
               <Card className="p-4">
                 <Flex gap="3" align="center">
                   <Fingerprint className="h-6 w-6 text-primary-400" />
                   <div>
                     <Text as="div" size="2" weight="medium">IMEI</Text>
-                    <Text as="div" size="2">{asset.mobileDevice.imei}</Text>
+                    <Text as="div" size="2">{asset.mobile_device.imei}</Text>
                   </div>
                 </Flex>
               </Card>
             )}
-            {asset.mobileDevice.phone_number && (
+            {asset.mobile_device.phone_number && (
               <Card className="p-4">
                 <Flex gap="3" align="center">
                   <PhoneIcon className="h-6 w-6 text-primary-400" />
                   <div>
                     <Text as="div" size="2" weight="medium">Phone Number</Text>
-                    <Text as="div" size="2">{asset.mobileDevice.phone_number}</Text>
+                    <Text as="div" size="2">{asset.mobile_device.phone_number}</Text>
                   </div>
                 </Flex>
               </Card>
             )}
-            {asset.mobileDevice.carrier && (
+            {asset.mobile_device.carrier && (
               <Card className="p-4">
                 <Flex gap="3" align="center">
                   <Signal className="h-6 w-6 text-primary-400" />
                   <div>
                     <Text as="div" size="2" weight="medium">Carrier</Text>
-                    <Text as="div" size="2">{asset.mobileDevice.carrier}</Text>
+                    <Text as="div" size="2">{asset.mobile_device.carrier}</Text>
                   </div>
                 </Flex>
               </Card>
@@ -382,7 +382,7 @@ export default function AssetDetails({ asset }: AssetDetailsProps) {
                 <Shield className="h-6 w-6 text-primary-400" />
                 <div>
                   <Text as="div" size="2" weight="medium">Supervision Status</Text>
-                  <Text as="div" size="2">{asset.mobileDevice.is_supervised ? 'Supervised' : 'Unsupervised'}</Text>
+                  <Text as="div" size="2">{asset.mobile_device.is_supervised ? 'Supervised' : 'Unsupervised'}</Text>
                 </div>
               </Flex>
             </Card>
