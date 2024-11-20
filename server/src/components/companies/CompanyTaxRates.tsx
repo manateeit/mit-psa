@@ -1,9 +1,10 @@
 import React from 'react';
-import { Button } from '@radix-ui/themes';
+import { Button } from '@/components/ui/Button';
 import { ITaxRate, ICompanyTaxRate } from '@/interfaces/billing.interfaces';
-import { DataTable } from '../ui/DataTable';
+import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import CustomSelect from '@/components/ui/CustomSelect';
+import { Card } from '@/components/ui/Card';
 
 interface CompanyTaxRatesProps {
     companyTaxRates: ICompanyTaxRate[];
@@ -30,9 +31,8 @@ const CompanyTaxRates: React.FC<CompanyTaxRatesProps> = ({
     onAdd,
     onRemove
 }) => {
-    // Transform data for the table, ensuring all required fields are present
     const tableData: TaxRateTableData[] = companyTaxRates
-        .filter(companyTaxRate => companyTaxRate.company_tax_rate_id) // Filter out any entries without an ID
+        .filter(companyTaxRate => companyTaxRate.company_tax_rate_id)
         .map((companyTaxRate): TaxRateTableData => {
             const taxRate = taxRates.find(tr => tr.tax_rate_id === companyTaxRate.tax_rate_id);
             return {
@@ -63,9 +63,8 @@ const CompanyTaxRates: React.FC<CompanyTaxRatesProps> = ({
             dataIndex: 'tax_rate_id',
             render: (_, record) => (
                 <Button 
-                    variant="soft" 
-                    size="1" 
-                    color="red" 
+                    variant="destructive"
+                    size="sm"
                     onClick={() => onRemove(record.tax_rate_id)}
                 >
                     Remove
@@ -80,8 +79,10 @@ const CompanyTaxRates: React.FC<CompanyTaxRatesProps> = ({
     }));
 
     return (
-        <div className="space-y-4">
-            <h3 className="font-semibold">Company Tax Rates</h3>
+        <Card className="p-4">
+            <h3 className="text-lg font-semibold text-[rgb(var(--color-text-900))] mb-4">
+                Company Tax Rates
+            </h3>
             
             <DataTable
                 data={tableData}
@@ -89,7 +90,7 @@ const CompanyTaxRates: React.FC<CompanyTaxRatesProps> = ({
                 pagination={false}
             />
 
-            <div className="flex items-center gap-2 mt-4">
+            <div className="flex items-center gap-4 mt-6">
                 <div className="flex-1">
                     <CustomSelect
                         value={selectedTaxRate}
@@ -100,12 +101,12 @@ const CompanyTaxRates: React.FC<CompanyTaxRatesProps> = ({
                 </div>
                 <Button 
                     onClick={onAdd}
-                    className="bg-blue-600 text-white hover:bg-blue-700 transition-colors whitespace-nowrap px-4"
+                    size="default"
                 >
                     Add Tax Rate
                 </Button>
             </div>
-        </div>
+        </Card>
     );
 };
 
