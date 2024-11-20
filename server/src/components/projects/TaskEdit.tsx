@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { ProjectStatus, updateTask, deleteTask, getTaskChecklistItems, moveTaskToPhase } from '@/lib/actions/projectActions';
+import { ProjectStatus, updateTaskWithChecklist, deleteTask, getTaskChecklistItems, moveTaskToPhase } from '@/lib/actions/projectActions';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
@@ -72,11 +72,13 @@ const TaskEdit: React.FC<TaskEditProps> = ({
       
       // Then update the task with proper number values
       if (movedTask) {
-        const updatedTask = await updateTask(movedTask.task_id, {
+        const taskData = {
           ...movedTask,
           estimated_hours: Number(movedTask.estimated_hours) || 0,
-          actual_hours: Number(movedTask.actual_hours) || 0
-        }, checklistItems);
+          actual_hours: Number(movedTask.actual_hours) || 0,
+          checklist_items: checklistItems
+        };
+        const updatedTask = await updateTaskWithChecklist(movedTask.task_id, taskData);
         onTaskUpdated(updatedTask);
       }
       
@@ -107,10 +109,11 @@ const TaskEdit: React.FC<TaskEditProps> = ({
         estimated_hours: Number(task.estimated_hours) || 0,
         actual_hours: Number(task.actual_hours) || 0,
         due_date: task.due_date,
-        phase_id: phase.phase_id
+        phase_id: phase.phase_id,
+        checklist_items: checklistItems
       };
 
-      const updatedTask = await updateTask(task.task_id, taskData, checklistItems);
+      const updatedTask = await updateTaskWithChecklist(task.task_id, taskData);
       onTaskUpdated(updatedTask);
       onClose();
     } catch (error) {

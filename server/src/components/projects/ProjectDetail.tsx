@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink } from '@/interfaces/project.interfaces';
-import { Clipboard, PlayCircle, PauseCircle, CheckCircle, XCircle, Circle, Pencil, Check, X, Trash2 } from 'lucide-react';
+import { Clipboard, PlayCircle, PauseCircle, CheckCircle, XCircle, Circle, Pencil, Check, X, Trash2, CheckSquare, Square } from 'lucide-react';
 import { useDrawer } from '@/context/DrawerContext';
 import TaskQuickAdd from './TaskQuickAdd';
 import TaskEdit from './TaskEdit';
 import PhaseQuickAdd from './PhaseQuickAdd';
 import { Button } from '@/components/ui/Button';
-import { updateTaskStatus, getProjectTaskStatuses, ProjectStatus, updatePhase, moveTaskToPhase, updateTask, deletePhase } from '@/lib/actions/projectActions';
+import { updateTaskStatus, getProjectTaskStatuses, ProjectStatus, updatePhase, moveTaskToPhase, updateTaskWithChecklist, deletePhase, getTaskChecklistItems } from '@/lib/actions/projectActions';
 import styles from './ProjectDetail.module.css';
 import { Toaster, toast } from 'react-hot-toast';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
@@ -25,10 +25,10 @@ interface ProjectDetailProps {
 }
 
 const statusIcons: { [key: string]: React.ReactNode } = {
-  'Planned': <Clipboard className="w-4 h-4" />,
+  'To Do': <Clipboard className="w-4 h-4" />,
   'In Progress': <PlayCircle className="w-4 h-4" />,
   'On Hold': <PauseCircle className="w-4 h-4" />,
-  'Completed': <CheckCircle className="w-4 h-4" />,
+  'Done': <CheckCircle className="w-4 h-4" />,
   'Cancelled': <XCircle className="w-4 h-4" />
 };
 
@@ -57,6 +57,24 @@ export default function ProjectDetail({
   const [defaultStatus, setDefaultStatus] = useState<ProjectStatus | null>(null);
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [editingPhaseName, setEditingPhaseName] = useState('');
+
+  useEffect(() => {
+    const loadChecklistItems = async () => {
+      try {
+        const tasksWithChecklists = await Promise.all(
+          tasks.map(async (task) => {
+            const checklistItems = await getTaskChecklistItems(task.task_id);
+            return { ...task, checklist_items: checklistItems };
+          })
+        );
+        setProjectTasks(tasksWithChecklists);
+      } catch (error) {
+        console.error('Error loading checklist items:', error);
+      }
+    };
+    loadChecklistItems();
+  }, [tasks]);
+
   const [deletePhaseConfirmation, setDeletePhaseConfirmation] = useState<{
     phaseId: string;
     phaseName: string;
@@ -100,6 +118,7 @@ export default function ProjectDetail({
     }
   };
 
+
   const handleDragEnd = (e: React.DragEvent) => {
     if (e.target instanceof HTMLElement) {
       e.target.classList.remove('opacity-50');
@@ -112,8 +131,14 @@ export default function ProjectDetail({
     const taskId = e.dataTransfer.getData('text');
     try {
       const updatedTask = await updateTaskStatus(taskId, projectStatusMappingId);
+      // Get latest checklist items
+      const checklistItems = await getTaskChecklistItems(taskId);
+      const taskWithChecklist = { ...updatedTask, checklist_items: checklistItems };
+      
       setProjectTasks(prevTasks =>
-        prevTasks.map((task): IProjectTask => task.task_id === taskId ? updatedTask : task)
+        prevTasks.map((task): IProjectTask => 
+          task.task_id === taskId ? taskWithChecklist : task
+        )
       );
     } catch (error) {
       console.error('Error updating task status:', error);
@@ -160,9 +185,13 @@ export default function ProjectDetail({
         moveConfirmation.targetPhase.phase_id
       );
       
+      // Get latest checklist items
+      const checklistItems = await getTaskChecklistItems(moveConfirmation.taskId);
+      const taskWithChecklist = { ...updatedTask, checklist_items: checklistItems };
+      
       setProjectTasks(prevTasks =>
         prevTasks.map((task): IProjectTask =>
-          task.task_id === updatedTask.task_id ? updatedTask : task
+          task.task_id === updatedTask.task_id ? taskWithChecklist : task
         )
       );
           
@@ -175,15 +204,19 @@ export default function ProjectDetail({
     }
   };
 
-  const handleAddTask = useCallback((newTask: IProjectTask | null) => {
+  const handleAddTask = useCallback(async (newTask: IProjectTask | null) => {
     if (!newTask) return;
 
     setIsAddingTask(true);
     try {
       if (selectedPhase && newTask.wbs_code.startsWith(selectedPhase.wbs_code)) {
+        // Get checklist items for the new task
+        const checklistItems = await getTaskChecklistItems(newTask.task_id);
+        const taskWithChecklist = { ...newTask, checklist_items: checklistItems };
+        
         setProjectTasks((prevTasks) => {
-          const updatedTasks = [...prevTasks, newTask];
-          console.log('New task added:', newTask);
+          const updatedTasks = [...prevTasks, taskWithChecklist];
+          console.log('New task added:', taskWithChecklist);
           console.log('Updated tasks:', updatedTasks);
           return updatedTasks;
         });
@@ -227,14 +260,23 @@ export default function ProjectDetail({
     setShowQuickAdd(true);
   }, [selectedPhase]);
 
-  const handleTaskUpdated = useCallback((updatedTask: IProjectTask | null) => {
+  const handleTaskUpdated = useCallback(async (updatedTask: IProjectTask | null) => {
     if (updatedTask) {
-      setProjectTasks((prevTasks) =>
-        prevTasks.map((task): IProjectTask => 
-          task.task_id === updatedTask.task_id ? updatedTask : task
-        )
-      );
-      toast.success('Task updated successfully!');
+      try {
+        // Get latest checklist items for the updated task
+        const checklistItems = await getTaskChecklistItems(updatedTask.task_id);
+        const taskWithChecklist = { ...updatedTask, checklist_items: checklistItems };
+        
+        setProjectTasks((prevTasks) =>
+          prevTasks.map((task): IProjectTask => 
+            task.task_id === updatedTask.task_id ? taskWithChecklist : task
+          )
+        );
+        toast.success('Task updated successfully!');
+      } catch (error) {
+        console.error('Error updating task:', error);
+        toast.error('Failed to update task');
+      }
     } else {
       setProjectTasks((prevTasks) =>
         prevTasks.filter((task) => task.task_id !== selectedTask?.task_id)
@@ -258,17 +300,22 @@ export default function ProjectDetail({
         throw new Error('Task not found');
       }
   
-      const updatedTask = await updateTask(taskId, {
+      const updatedTask = await updateTaskWithChecklist(taskId, {
         ...task,
         assigned_to: newAssigneeId,
         estimated_hours: Number(task.estimated_hours) || 0,
-        actual_hours: Number(task.actual_hours) || 0
-      }, task.checklist_items || []);
+        actual_hours: Number(task.actual_hours) || 0,
+        checklist_items: task.checklist_items // Preserve checklist items
+      });
   
       if (updatedTask) {
+        // Get latest checklist items
+        const checklistItems = await getTaskChecklistItems(taskId);
+        const taskWithChecklist = { ...updatedTask, checklist_items: checklistItems };
+        
         setProjectTasks(prevTasks =>
           prevTasks.map((task): IProjectTask =>
-            task.task_id === taskId ? updatedTask : task
+            task.task_id === taskId ? taskWithChecklist : task
           )
         );
         toast.success('Task assignee updated successfully!');
@@ -461,12 +508,69 @@ export default function ProjectDetail({
     return users.find(u => u.user_id === userId);
   };
 
+
+  const renderTaskCard = (task: IProjectTask) => {
+    const assignedUser = getAssignedUser(task.assigned_to);
+    const checklistItems = task.checklist_items || [];
+    const completedItems = checklistItems.filter(item => item.completed).length;
+    const hasChecklist = checklistItems.length > 0;
+    const allCompleted = hasChecklist && completedItems === checklistItems.length;
+
+    return (
+      <div
+        key={task.task_id}
+        draggable
+        onDragStart={(e) => handleDragStart(e, task.task_id)}
+        onDragEnd={handleDragEnd}
+        onClick={() => handleTaskSelected(task)}
+        className="bg-white p-3 mb-2 rounded shadow-sm cursor-pointer hover:shadow-md transition-shadow duration-200 border border-gray-200 flex flex-col gap-1"
+      >
+        <p className="font-semibold text-base mb-1">{task.task_name}</p>
+        {task.description && (
+          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+            {task.description}
+          </p>
+        )}
+        <div onClick={(e) => e.stopPropagation()}>
+          <UserPicker
+            value={task.assigned_to || ''}
+            onValueChange={(newAssigneeId: string) => handleAssigneeChange(task.task_id, newAssigneeId)}
+            size="sm"
+            users={users}
+          />
+        </div>
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <div className="flex items-center gap-2">
+            {task.due_date ? (
+              <>Due date: <span className='bg-primary-100 p-1 rounded-md'>{new Date(task.due_date).toLocaleDateString()}</span></>
+            ) : (
+              <>No due date</>
+            )}
+          </div>
+          {hasChecklist && (
+            <div className={`flex items-center gap-1 ${allCompleted ? 'bg-green-50 text-green-600' : 'text-gray-500'} px-2 py-1 rounded`}>
+              {allCompleted ? (
+                <CheckSquare className="w-3 h-3" />
+              ) : (
+                <Square className="w-3 h-3" />
+              )}
+              <span>{completedItems}/{checklistItems.length}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Update the task rendering in renderKanbanBoard
   const renderKanbanBoard = () => (
     <div className="flex space-x-4 overflow-x-auto pb-4 h-full">
       {projectStatuses.filter(status => status.is_visible).map((status, index): JSX.Element => {
         const backgroundColor = cycleColors[index % cycleColors.length];
         const darkBackgroundColor = darkCycleColors[index % cycleColors.length];
         const borderColor = borderColors[index % borderColors.length];
+        const statusTasks = filteredTasks.filter(task => task.project_status_mapping_id === status.project_status_mapping_id);
+        
         return (
           <div
             key={status.project_status_mapping_id}
@@ -482,45 +586,11 @@ export default function ProjectDetail({
                 </div>
               </div>
               <span className="bg-white text-gray-700 rounded-full w-6 h-6 flex items-center justify-center text-xs">
-                {filteredTasks.filter(task => task.project_status_mapping_id === status.project_status_mapping_id).length}
+                {statusTasks.length}
               </span>
             </div>
             <div className={`${styles.kanbanTasks} p-2`}>
-              {filteredTasks.filter(task => task.project_status_mapping_id === status.project_status_mapping_id).map((task): JSX.Element => {
-                const assignedUser = getAssignedUser(task.assigned_to);
-                return (
-                  <div
-                    key={task.task_id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, task.task_id)}
-                    onDragEnd={handleDragEnd}
-                    onClick={() => handleTaskSelected(task)}
-                    className="bg-white p-3 mb-2 rounded shadow-sm cursor-pointer hover:shadow-md transition-shadow duration-200 border border-gray-200 flex flex-col gap-1"
-                  >
-                    <p className="font-semibold text-base mb-1">{task.task_name}</p>
-                    {task.description && (
-                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                        {task.description}
-                      </p>
-                    )}
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <UserPicker
-                        value={task.assigned_to || ''}
-                        onValueChange={(newAssigneeId: string) => handleAssigneeChange(task.task_id, newAssigneeId)}
-                        size="sm"
-                        users={users}
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      {task.due_date ? (
-                        <>Due date: <span className='bg-primary-100 p-1 rounded-md'>{new Date(task.due_date).toLocaleDateString()}</span></>
-                      ) : (
-                        <>No due date</>
-                      )}
-                    </p>
-                  </div>
-                );
-              })}
+              {statusTasks.map(renderTaskCard)}
             </div>
             <div>
               <button

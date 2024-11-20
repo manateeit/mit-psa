@@ -456,21 +456,22 @@ const ProjectModel = {
       if (!phase) {
         throw new Error('Phase not found');
       }
-
+  
+      // Generate proper WBS code, ignoring any temporary code that was sent
       const newWbsCode = await ProjectModel.generateNextWbsCode(phase.wbs_code);
-
+  
       const [newTask] = await db<IProjectTask>('project_tasks')
         .insert({
           ...taskData,
           task_id: uuidv4(),
-          assigned_to: taskData.assigned_to || currentUser?.user_id, // Default to current user if not specified
+          assigned_to: taskData.assigned_to || currentUser?.user_id,
           phase_id: phaseId,
           project_status_mapping_id: taskData.project_status_mapping_id,
-          wbs_code: newWbsCode,
+          wbs_code: newWbsCode, // Always use the generated WBS code
           tenant: tenant!,
         })
         .returning('*');
-
+  
       return newTask;
     } catch (error) {
       console.error('Error adding task to phase:', error);
