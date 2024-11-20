@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { ProjectStatus, addTaskToPhase, updateTask } from '@/lib/actions/projectActions';
+import { ProjectStatus, addTaskToPhase, updateTaskWithChecklist } from '@/lib/actions/projectActions';
 import { getCurrentUser } from '@/lib/auth/session';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
@@ -79,10 +79,12 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
           project_status_mapping_id: selectedStatus,
           description: description,
           assigned_to: assignedUser || currentUserId,
+          checklist_items: checklistItems
         };
-        const updatedTask = await updateTask(task.task_id, taskData, checklistItems);
+        const updatedTask = await updateTaskWithChecklist(task.task_id, taskData);
         await onTaskUpdated(updatedTask);
       } else {
+        // Create mode
         const taskData = {
           task_name: taskName,
           project_status_mapping_id: selectedStatus,

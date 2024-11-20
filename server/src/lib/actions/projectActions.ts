@@ -250,10 +250,9 @@ export async function createProject(projectData: Omit<IProject, 'project_id' | '
     }
 }
 
-export async function updateTask(
+export async function updateTaskWithChecklist(
     taskId: string,
-    taskData: Partial<IProjectTask>,
-    checklistItems: Omit<ITaskChecklistItem, 'tenant'>[]
+    taskData: Partial<IProjectTask>
 ): Promise<IProjectTask | null> {
     try {
         const currentUser = await getCurrentUser();
@@ -263,21 +262,34 @@ export async function updateTask(
 
         await checkPermission(currentUser, 'project', 'update');
 
-        // Validate task data and checklist items
-        const validatedTaskData = validateData(updateTaskSchema, taskData);
-        const validatedChecklistItems = validateArray(createChecklistItemSchema, checklistItems);
-
-        const updatedTask = await ProjectModel.updateTask(taskId, validatedTaskData);
-
-        // Update checklist items
-        await ProjectModel.deleteChecklistItems(taskId);
-        for (const item of validatedChecklistItems) {
-            await ProjectModel.addChecklistItem(taskId, item);
+        // Get existing task to preserve checklist items
+        const existingTask = await ProjectModel.getTaskById(taskId);
+        if (!existingTask) {
+            throw new Error("Task not found");
         }
 
-        // Fetch the updated task with checklist items
-        const taskWithChecklist = await ProjectModel.getTaskById(taskId);
-        return taskWithChecklist;
+        // Extract checklist items from taskData and remove them from the task update
+        const { checklist_items, ...taskUpdateData } = taskData;
+
+        // Validate task data
+        const validatedTaskData = validateData(updateTaskSchema, taskUpdateData);
+
+        // Update task
+        const updatedTask = await ProjectModel.updateTask(taskId, validatedTaskData);
+
+        // If checklist items were provided, update them
+        if (checklist_items) {
+            // Delete existing checklist items
+            await ProjectModel.deleteChecklistItems(taskId);
+            
+            // Add new checklist items
+            for (const item of checklist_items) {
+                await ProjectModel.addChecklistItem(taskId, item);
+            }
+        }
+        
+        // Return task with current checklist items
+        return await ProjectModel.getTaskById(taskId);
     } catch (error) {
         console.error('Error updating task:', error);
         throw error;
