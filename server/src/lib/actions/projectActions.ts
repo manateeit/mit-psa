@@ -107,6 +107,12 @@ export async function moveTaskToPhase(taskId: string, newPhaseId: string): Promi
 
         await checkPermission(currentUser, 'project', 'update');
 
+        // Get the existing task to preserve its data
+        const existingTask = await ProjectModel.getTaskById(taskId);
+        if (!existingTask) {
+            throw new Error('Task not found');
+        }
+
         // Get the new phase to access its WBS code
         const newPhase = await ProjectModel.getPhaseById(newPhaseId);
         if (!newPhase) {
@@ -116,8 +122,9 @@ export async function moveTaskToPhase(taskId: string, newPhaseId: string): Promi
         // Generate new WBS code for the task
         const newWbsCode = `${newPhase.wbs_code}.${Date.now()}`;
 
-        // Update task with new phase and WBS code
+        // Update task with new phase and WBS code while preserving other fields
         const updatedTask = await ProjectModel.updateTask(taskId, {
+            ...existingTask,
             phase_id: newPhaseId,
             wbs_code: newWbsCode
         });

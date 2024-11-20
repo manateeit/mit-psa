@@ -166,7 +166,7 @@ export default function ProjectDetail({
         )
       );
           
-      toast.success('Task moved successfully');
+      toast.success(`Task moved to ${moveConfirmation.targetPhase.phase_name}`);
     } catch (error) {
       console.error('Error moving task:', error);
       toast.error('Failed to move task');

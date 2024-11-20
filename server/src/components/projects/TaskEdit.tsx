@@ -80,7 +80,7 @@ const TaskEdit: React.FC<TaskEditProps> = ({
         onTaskUpdated(updatedTask);
       }
       
-      toast.success('Task moved successfully');
+      toast.success(`Task moved to ${selectedPhase.phase_name}`);
       onClose();
     } catch (error) {
       console.error('Error moving task:', error);
