@@ -25,10 +25,10 @@ interface ProjectDetailProps {
 }
 
 const statusIcons: { [key: string]: React.ReactNode } = {
-  'Planned': <Clipboard className="w-4 h-4" />,
+  'To Do': <Clipboard className="w-4 h-4" />,
   'In Progress': <PlayCircle className="w-4 h-4" />,
   'On Hold': <PauseCircle className="w-4 h-4" />,
-  'Completed': <CheckCircle className="w-4 h-4" />,
+  'Done': <CheckCircle className="w-4 h-4" />,
   'Cancelled': <XCircle className="w-4 h-4" />
 };
 
