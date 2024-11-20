@@ -3,9 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { DataTable } from '@/components/ui/DataTable';
 import CustomSelect from '@/components/ui/CustomSelect';
-import { Button } from '@/components/ui/Button';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { RefreshCw, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { getAllBillingCycles, updateBillingCycle } from '@/lib/actions/billingCycleActions';
 import { getAllCompanies } from '@/lib/actions/companyActions';
 import { ICompany } from '@/interfaces';
@@ -98,10 +97,6 @@ const BillingCycles: React.FC = () => {
             <Info className="ml-2 h-4 w-4 text-gray-500" />
           </Tooltip>
         </div>
-        <Button onClick={fetchData} disabled={loading}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
       </CardHeader>
       <CardContent>
         {error && (
