@@ -1,256 +1,144 @@
-# MSP Professional Services Automation (PSA) Tool
+# Open Source MSP Professional Services Automation (PSA)
 
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+A comprehensive Professional Services Automation platform designed for Managed Service Providers (MSPs). This open-source solution helps MSPs streamline operations, manage client relationships, track time and billing, and improve service delivery.
 
-<!-- docker network connect sebastian_app-network server -->
+## Quick Start Video Guide
+
+[![Getting Started with MSP PSA](https://img.youtube.com/vi/e0Y57qy5HFA/0.jpg)](https://youtu.be/e0Y57qy5HFA)
+
+Watch our 10-minute getting started guide to quickly understand the system's core features and setup process.
+
+## Features
+
+### Core Functionality
+- **Asset Management**: Track and manage client assets, maintenance schedules, and relationships
+- **Billing & Invoicing**: Flexible billing cycles, international tax support, and automated invoicing
+- **Client Management**: Comprehensive client profiles and relationship tracking
+- **Document Management**: Centralized document repository with version control
+- **Project Management**: Project tracking, task management, and resource allocation
+- **Support Ticketing**: Incident tracking and resolution management
+- **Time Management**: Time tracking, timesheet approval, and utilization reporting
+- **Reporting & Analytics**: Customizable reports and business intelligence
+- **Security**: Role-based access control (RBAC) and attribute-based access control (ABAC)
+
+### Advanced Features
+- **International Tax Support**: Handle complex tax scenarios across jurisdictions
+  - Composite taxes
+  - Threshold-based tax rates
+  - Tax holidays
+  - Reverse charge mechanisms
+- **Flexible Billing Cycles**: Customizable per company
+  - Weekly, bi-weekly, monthly, quarterly options
+  - Proration support
+  - Approval-based time entry billing
+  - Unapproved time entry rollover
+
+## Technical Architecture
+
+- **Frontend**: Next.js application
+- **Backend**: Node.js server
+- **Database**: PostgreSQL with row-level security
+- **Real-time Collaboration**: Hocuspocus integration
+- **Authentication**: NextAuth.js
+- **UI Components**: Radix-based component library
 
 ## Getting Started
 
+### Prerequisites
+- Docker Compose v2
+- Node.js
+- PostgreSQL
+
+### Initial Setup
+
+1. Create and initialize the database:
+```bash
+node setup/create_database.js
+npx knex --knexfile knexfile.cjs migrate:latest --env development
+npx knex seed:run --knexfile knexfile.cjs --env development
+```
+
+2. Start the development server:
 ```bash
 npm run dev
 # or
 yarn dev
 # or
 pnpm dev
-# or
-bun dev
 ```
 
-## Prerequisits
+3. Access the application at [http://localhost:3000](http://localhost:3000)
 
-Docker compose v2
+### Docker Deployment
 
-Alternatively, you can use the Makefile to run all services or individual ones. This approach allows you to build and manage a production-like development infrastructure more easily:
+Use our Makefile for easy deployment:
 
-# Makefile
-
-### Run AlgaPSA in Production Mode
-This command runs the Docker Compose file for AlgaPSA in detached mode.
-
-```
+```bash
+# Production mode
 make sebastian-docker-run
-```
 
-### Run AlgaPSA in Development Mode
-This command runs the Docker Compose file for AlgaPSA in watch mode for development.
-```
+# Development mode
 make sebastian-docker-dev
-```
 
-## Hocuspocus Commands
-
-### Run Hocuspocus in Production Mode
-This command runs the Hocuspocus Docker Compose file in detached mode without network.
-```
+# Run Hocuspocus (real-time collaboration)
 make hocuspocus-docker-run
-```
 
-### Run Hocuspocus in Development Mode
-This command runs the development mode for Hocuspocus using its own Makefile.
-```
-make hocuspocus-dev
-```
-
-## Server Commands
-
-### Run Server in Production Mode
-This command runs the Server Docker Compose file in detached mode without network.
-```
+# Run server only
 make server-docker-run
 ```
 
-### Run Server in Development Mode
-This command runs the development mode for the server using its own Makefile.
-```
-make server-dev
-```
-
-## Setup Command
-
-### Run Setup
-This command runs the Setup Docker Compose file in detached mode without network.
-```
-make setup-docker-run
-```
-
-## USE AlgaPSA
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
-
 ## Project Structure
 
-This is our initial structure
-
-```sh
-sebastian/
-│
-├──docker-compose.ymal
-│
-├── helm/
-│
-├── hocuspocus/
-│
-├── servcer/
-    │
-    ├── public/
-    │   └── images/
-    │
-    ├── src/
-    │   ├── app/
-    │   │   ├── api/
-    │   │   │   └── route.ts
-    │   │   ├── layout.tsx
-    │   │   └── page.tsx
-    │   │
-    │   ├── components/
-    │   │   ├── ui/
-    │   │   ├── layout/
-    │   │   └── features/
-    │   │
-    │   ├── lib/
-    │   │
-    │   ├── hooks/
-    │   │
-    │   ├── context/
-    │   │
-    │   ├── utils/
-    │   │
-    │   ├── types/
-    │   │
-    │   └── interfaces/
-    │
-    ├── __tests__/
-    │   ├── components/
-    │   ├── hooks/
-    │   └── utils/
-    │
-    ├── .gitignore
-    ├── next.config.js
-    ├── tsconfig.json
-    └── package.json
 ```
-
-## New Features
-
-### Billing Cycles
-
-We've introduced a new billing cycle feature that allows for flexible billing periods for each company. This enhancement enables the system to generate invoices based on custom billing frequencies, such as weekly, bi-weekly, monthly, quarterly, semi-annually, or annually.
-
-Key features include:
-- Custom billing cycles per company
-- Proration based on billing cycles
-- Approval-based time entry billing
-- Rollover of unapproved time entries
-
-For detailed information on how to use and implement billing cycles, please refer to the [Billing Cycles Documentation](docs/billing_cycles.md).
-
-
-## Features
-
-- Client Management
-- Service Catalog
-- Time Entry
-- Billing and Invoicing
-- Reporting and Analytics
-- International Tax Support (New!)
-
-
-## International Tax Support
-
-Our MSP PSA tool now includes robust international tax support, allowing for handling complex tax scenarios across different jurisdictions. This feature allows for:
-
-- Composite taxes (taxes composed of multiple components)
-- Threshold-based tax rates
-- Tax holidays
-- Reverse charge mechanisms
-
-For detailed information on how to use and implement international tax support, please refer to the [International Tax Support Documentation](docs/international_tax_support.md).
+sebastian/
+├── docker-compose.yaml
+├── helm/                  # Kubernetes configurations
+├── hocuspocus/           # Real-time collaboration server
+└── server/
+    ├── public/           # Static assets
+    ├── src/
+    │   ├── app/         # Next.js pages
+    │   ├── components/  # React components
+    │   │   ├── ui/     # Shared UI components
+    │   │   └── features/# Feature-specific components
+    │   ├── lib/        # Core business logic
+    │   └── types/      # TypeScript definitions
+    └── migrations/     # Database migrations
+```
 
 ## Testing
 
-We use Vitest for unit testing and integration testing. To run the tests, use the following command:
+We use Vitest for testing. Run the test suite:
 
 ```bash
 npm run test
-```
 
-This will run all tests, including the new tests for the TaxService that cover the international tax support features.
-
-To run tests for a specific file or directory, you can use:
-
-```bash
+# Run specific tests
 npm run test -- path/to/test/file.test.ts
 ```
 
-For example, to run only the TaxService tests:
-
-```bash
-npm run test -- src/test/services/taxService.test.ts
-```
-
-Make sure to run the tests after making any changes to the tax calculation logic or related components to ensure everything is working as expected.
-
 ## Documentation
 
-For more information on specific features and implementations, please check the following documentation:
-
-- [Billing Cycles](docs/billing_cycles.md)
-- [Getting Started](docs/getting-started.md)
-- [Billing](docs/billing.md)
-- [Why Not Prorate Bucket Hours](docs/why_not_prorate_bucket_hours.md)
+- [Architecture Overview](docs/overview.md)
+- [Getting Started Guide](docs/getting-started.md)
+- [Billing System](docs/billing.md)
 - [International Tax Support](docs/international_tax_support.md)
+- [Asset Management](docs/asset_management.md)
+- [Time Entry Guide](docs/time_entry.md)
 
-  
-# Using Act to Test GitHub Actions Locally
+## License
 
-1. Install Act:
-   - On macOS with Homebrew: `brew install act`
-   - Chose the Midium alternative
-   - On other systems: Visit https://github.com/nektos/act for installation instructions
+This project uses multiple licenses:
 
-2. Ensure Docker is installed and running on your system.
+- Documentation (`docs/`): Creative Commons Attribution 4.0 International License (CC BY 4.0)
+- Enterprise Edition (`ee/`): See `ee/LICENSE`
+- All other content: GNU Affero General Public License Version 3 (AGPL-3.0)
 
-3. Navigate to your project root in the terminal.
+See [LICENSE.md](LICENSE.md) for details.
 
-4. Run the following command to simulate a pull request event:
-   ```
-   act pull_request
-   ```
+## Contributing
 
-5. To run a specific job:
-   ```
-   act -j build-and-test
-   ```
+We welcome contributions! Please see our [Contributing Guide](docs/contributing.md) for details on how to get started.
 
-6. To list all available actions without running them:
-   ```
-   act -l
-   ```
-
-7. If you need to provide secrets:
-   - Create a file named `.secrets` in your project root
-   - Add secrets in the format `MY_SECRET=value`
-   - Run Act with: `act --secret-file .secrets`
-
-Remember to add `.secrets` to your `.gitignore` file to avoid committing sensitive information.
-
-Note: Act might not perfectly replicate the GitHub Actions environment, especially for complex workflows or those using GitHub-specific features.
+---
+Copyright (c) 2024 Nine Minds LLC
