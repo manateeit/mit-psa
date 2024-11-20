@@ -1,9 +1,10 @@
 import React from 'react';
-import { Button } from '@radix-ui/themes';
+import { Button } from '@/components/ui/Button';
 import { ICompanyBillingPlan, IBillingPlan, IServiceCategory } from '@/interfaces/billing.interfaces';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import CustomSelect from '@/components/ui/CustomSelect';
+import { Pencil, Trash2, Plus } from 'lucide-react';
 
 interface BillingPlansProps {
     companyBillingPlans: ICompanyBillingPlan[];
@@ -74,27 +75,49 @@ const BillingPlans: React.FC<BillingPlansProps> = ({
             title: 'Actions',
             dataIndex: 'company_billing_plan_id',
             render: (value, record) => (
-                <>
-                    <Button variant="soft" size="1" onClick={() => onEdit(record)}>Edit</Button>
-                    <Button variant="soft" size="1" color="red" onClick={() => onDelete(value)}>Remove</Button>
-                </>
+                <div className="flex items-center space-x-2">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEdit(record)}
+                        className="hover:bg-[rgb(var(--color-border-100))]"
+                    >
+                        <Pencil className="h-4 w-4 text-[rgb(var(--color-text-600))]" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onDelete(value)}
+                        className="hover:bg-[rgb(var(--color-accent-50))]"
+                    >
+                        <Trash2 className="h-4 w-4 text-[rgb(var(--color-accent-600))]" />
+                    </Button>
+                </div>
             )
         }
     ];
 
     return (
-        <div>
-            <h3 className="font-semibold mb-4">Billing Plans</h3>
-            <DataTable
-                data={companyBillingPlans}
-                columns={columns}
-            />
-            <Button
-                onClick={onAdd}
-                className="mt-4"
-            >
-                Add New Billing Plan
-            </Button>
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-[rgb(var(--color-text-900))]">
+                    Billing Plans
+                </h3>
+                <Button
+                    onClick={onAdd}
+                    size="default"
+                    className="bg-[rgb(var(--color-primary-500))] hover:bg-[rgb(var(--color-primary-600))] flex items-center gap-2"
+                >
+                    <Plus className="h-4 w-4" />
+                    Add New Plan
+                </Button>
+            </div>
+            <div className="rounded-lg border border-[rgb(var(--color-border-200))]">
+                <DataTable
+                    data={companyBillingPlans}
+                    columns={columns}
+                />
+            </div>
         </div>
     );
 };

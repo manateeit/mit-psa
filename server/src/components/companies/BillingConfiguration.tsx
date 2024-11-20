@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { ICompany } from '../../interfaces/company.interfaces';
-import { Button, Dialog, AlertDialog } from '@radix-ui/themes';
+import { AlertDialog } from '@radix-ui/themes';
+import { Button } from '@/components/ui/Button';
 import { getCompanyBillingPlan, updateCompanyBillingPlan, addCompanyBillingPlan, removeCompanyBillingPlan, editCompanyBillingPlan } from '../../lib/actions/companyBillingPlanActions';
 import { getBillingPlans } from '../../lib/actions/billingPlanAction';
 import { getServiceCategories } from '../../lib/actions/serviceCategoryActions';
@@ -63,7 +64,6 @@ const BillingConfiguration: React.FC<BillingConfigurationProps> = ({ company, on
         default_rate: 0,
         category_id: '',
     });
-    const [editingService, setEditingService] = useState<IService | null>(null);
     const [taxRates, setTaxRates] = useState<ITaxRate[]>([]);
     const [companyTaxRates, setCompanyTaxRates] = useState<ICompanyTaxRate[]>([]);
     const [selectedTaxRate, setSelectedTaxRate] = useState<string>('');
@@ -224,11 +224,9 @@ const BillingConfiguration: React.FC<BillingConfigurationProps> = ({ company, on
         }
     };
 
-    const handleUpdateService = async () => {
-        if (!editingService) return;
+    const handleUpdateService = async (service: IService) => {
         try {
-            await updateService(editingService.service_id, editingService);
-            setEditingService(null);
+            await updateService(service.service_id, service);
             const updatedServices = await getServices();
             setServices(updatedServices);
         } catch (error) {
@@ -272,13 +270,6 @@ const BillingConfiguration: React.FC<BillingConfigurationProps> = ({ company, on
         }
     };
 
-    // Helper function to format date for input
-    const formatDateForInput = (date: string | Date | null): string => {
-        if (!date) return '';
-        return typeof date === 'string' ? date : date.toISOString().split('T')[0];
-    };
-
-    // Helper function to format date for display
     const formatDateForDisplay = (date: string | Date | null): string => {
         if (!date) return 'N/A';
         const d = typeof date === 'string' ? new Date(date) : date;
@@ -296,7 +287,10 @@ const BillingConfiguration: React.FC<BillingConfigurationProps> = ({ company, on
                     <AlertDialog.Content>
                         <AlertDialog.Title>Error</AlertDialog.Title>
                         <AlertDialog.Description>{errorMessage}</AlertDialog.Description>
-                        <Button onClick={() => setErrorMessage(null)} className="bg-blue-600 text-white hover:bg-blue-700">
+                        <Button 
+                            onClick={() => setErrorMessage(null)} 
+                            variant="secondary"
+                        >
                             Close
                         </Button>
                     </AlertDialog.Content>
@@ -313,7 +307,7 @@ const BillingConfiguration: React.FC<BillingConfigurationProps> = ({ company, on
             <ServiceCatalog
                 services={services}
                 serviceCategories={serviceCategories}
-                onEdit={setEditingService}
+                onEdit={handleUpdateService}
                 onDelete={handleDeleteService}
                 onAdd={() => setIsAddingNewPlan(true)}
             />
@@ -341,34 +335,11 @@ const BillingConfiguration: React.FC<BillingConfigurationProps> = ({ company, on
             <div className="flex justify-end">
                 <Button 
                     type="submit" 
-                    className="bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                    variant="default"
                 >
                     Save Billing Configuration
                 </Button>
             </div>
-
-            <Dialog.Root open={!!editingService} onOpenChange={(open) => !open && setEditingService(null)}>
-                <Dialog.Content>
-                    <Dialog.Title>Edit Service</Dialog.Title>
-                    {editingService && (
-                        <div className="space-y-4">
-                            <input
-                                type="text"
-                                value={editingService.service_name}
-                                onChange={(e) => setEditingService({ ...editingService, service_name: e.target.value })}
-                                className="w-full px-3 py-2 border rounded"
-                                placeholder="Service Name"
-                            />
-                            <Button 
-                                onClick={handleUpdateService}
-                                className="bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                            >
-                                Save Changes
-                            </Button>
-                        </div>
-                    )}
-                </Dialog.Content>
-            </Dialog.Root>
         </form>
     );
 };
