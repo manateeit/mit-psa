@@ -88,7 +88,7 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
         const taskData = {
           task_name: taskName,
           project_status_mapping_id: selectedStatus,
-          wbs_code: `${phase.wbs_code}.${Date.now()}`,
+          wbs_code: `${phase.wbs_code}.0`,
           description: description,
           assigned_to: assignedUser || currentUserId,
           estimated_hours: 0,
