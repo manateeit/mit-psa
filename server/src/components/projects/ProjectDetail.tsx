@@ -409,7 +409,7 @@ export default function ProjectDetail({
         </div>
       </div>
       <ul className="space-y-2">
-        {projectPhases.map((phase) => (
+      {projectPhases.map((phase: IProjectPhase): JSX.Element => (
           <li
             key={phase.phase_id}
             className={`flex items-center justify-between p-2 rounded cursor-pointer group transition-colors
