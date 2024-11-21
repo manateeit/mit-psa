@@ -8,6 +8,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      gridTemplateColumns: {
+        '24': 'repeat(24, minmax(0, 1fr))',
+        '96': 'repeat(96, minmax(0, 1fr))',
+      },
       textColor: {
         main: {
           base: 'rgb(var(--color-text-base))',
@@ -72,7 +76,6 @@ const config: Config = {
           border: 'var(--color-header-border)',
           icon: 'var(--color-sidebar-icon)',
         },
-        // NOTE: sub menu is a submenu in the avatar sidebar
         subMenu: {
           bg: 'var(--color-submenu-bg)',
           text: 'var(--color-submenu-text)',

@@ -7,6 +7,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Add grid-cols-24 utility class */
+@layer utilities {
+  .grid-cols-24 {
+    grid-template-columns: repeat(24, minmax(0, 1fr));
+  }
+}
+
 html,
 body,
 #__next {
@@ -385,4 +392,82 @@ body,
   user-select: none;
 }
 
-/* Add any additional custom styles here */
+/* Schedule grid styles */
+.schedule-grid {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.schedule-grid::-webkit-scrollbar {
+  height: 8px;
+}
+
+.schedule-grid::-webkit-scrollbar-track {
+  background: rgb(var(--color-border-100));
+  border-radius: 4px;
+}
+
+.schedule-grid::-webkit-scrollbar-thumb {
+  background: rgb(var(--color-border-300));
+  border-radius: 4px;
+}
+
+.schedule-grid::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--color-border-400));
+}
+
+/* Time slot styles */
+.time-slot {
+  min-width: 60px;
+  text-align: center;
+  padding: 4px;
+  font-size: 0.75rem;
+  border-right: 1px solid rgb(var(--color-border-200));
+}
+
+.time-slot:last-child {
+  border-right: none;
+}
+
+/* Working hours styles */
+.time-slot-working {
+  background-color: white;
+}
+
+.time-slot-non-working {
+  background-color: rgb(var(--color-border-100));
+}
+
+/* Time header styles */
+.time-header-working {
+  color: rgb(var(--color-text-900));
+  font-weight: 600;
+}
+
+.time-header-non-working {
+  color: rgb(var(--color-text-500));
+}
+
+/* Add drag and drop styles */
+[data-dragging="true"] {
+  opacity: 0.9 !important;
+  cursor: grabbing !important;
+}
+
+/* Hide the ghost image */
+[data-dragging="true"]::after {
+  content: none !important;
+}
+
+.draggable {
+  cursor: grab;
+  user-select: none;
+}
+
+.draggable:active {
+  cursor: grabbing;
+}
+
+.drag-over {
+  background-color: rgba(var(--color-primary-100), 0.2);
+}
