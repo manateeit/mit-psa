@@ -57,6 +57,18 @@ export default function ProjectDetail({
   const [defaultStatus, setDefaultStatus] = useState<ProjectStatus | null>(null);
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [editingPhaseName, setEditingPhaseName] = useState('');
+  const [dragOverPhaseId, setDragOverPhaseId] = useState<string | null>(null);
+  const [moveConfirmation, setMoveConfirmation] = useState<{
+    taskId: string;
+    taskName: string;
+    sourcePhase: IProjectPhase;
+    targetPhase: IProjectPhase;
+  } | null>(null);
+
+  const [deletePhaseConfirmation, setDeletePhaseConfirmation] = useState<{
+    phaseId: string;
+    phaseName: string;
+  } | null>(null);
 
   useEffect(() => {
     const loadChecklistItems = async () => {
@@ -74,19 +86,6 @@ export default function ProjectDetail({
     };
     loadChecklistItems();
   }, [tasks]);
-
-  const [deletePhaseConfirmation, setDeletePhaseConfirmation] = useState<{
-    phaseId: string;
-    phaseName: string;
-  } | null>(null);
-  
-  const [dragOverPhaseId, setDragOverPhaseId] = useState<string | null>(null);
-  const [moveConfirmation, setMoveConfirmation] = useState<{
-    taskId: string;
-    taskName: string;
-    sourcePhase: IProjectPhase;
-    targetPhase: IProjectPhase;
-  } | null>(null);
 
   useEffect(() => {
     const loadProjectStatuses = async () => {
@@ -173,7 +172,7 @@ export default function ProjectDetail({
       });
     }
   };
-  
+
   const handleMoveConfirm = async () => {
     if (!moveConfirmation) return;
     
@@ -383,7 +382,7 @@ export default function ProjectDetail({
   };
 
   const renderProjectPhases = () => (
-    <div className="bg-white shadow rounded-lg p-4 mb-4">
+    <div className="bg-white shadow rounded-lg p-4">
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-xl font-bold">Project Phases</h2>
         <div className="flex gap-2">
@@ -410,7 +409,7 @@ export default function ProjectDetail({
         </div>
       </div>
       <ul className="space-y-2">
-        {projectPhases.map((phase): JSX.Element => (
+        {projectPhases.map((phase) => (
           <li
             key={phase.phase_id}
             className={`flex items-center justify-between p-2 rounded cursor-pointer group transition-colors
@@ -656,7 +655,7 @@ export default function ProjectDetail({
 
     return (
       <div className="flex flex-col h-full">
-        <div className="flex justify-between items-center mb-4 flex-shrink-0">
+        <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Kanban Board: {selectedPhase.phase_name}</h2>
           <div className="flex items-center space-x-2">
             <DonutChart percentage={completionPercentage} />
@@ -672,18 +671,14 @@ export default function ProjectDetail({
     );
   };
 
-  useEffect(() => {
-    console.log('projectTasks updated:', projectTasks);
-  }, [projectTasks]);
-
   return (
-    <div className="p-6 h-full flex flex-col">
+    <div className="h-full">
       <Toaster position="top-right" />
-      <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
-        <div className="w-full md:w-1/4 pr-4 mb-4 md:mb-0 overflow-y-auto">
+      <div className={styles.mainContent}>
+        <div className={styles.phasesList}>
           {renderProjectPhases()}
         </div>
-        <div className="w-full md:w-3/4 flex flex-col overflow-hidden">
+        <div className={styles.kanbanContainer}>
           {renderContent()}
         </div>
       </div>
