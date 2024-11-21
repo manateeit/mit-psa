@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink } from '@/interfaces/project.interfaces';
-import { Clipboard, PlayCircle, PauseCircle, CheckCircle, XCircle, Circle, Pencil, Check, X, Trash2, CheckSquare, Square } from 'lucide-react';
+import { Clipboard, PlayCircle, PauseCircle, CheckCircle, XCircle, Circle, Pencil, Check, X, Trash2, CheckSquare, Square, Plus } from 'lucide-react';
 import { useDrawer } from '@/context/DrawerContext';
 import TaskQuickAdd from './TaskQuickAdd';
 import TaskEdit from './TaskEdit';
@@ -118,7 +118,6 @@ export default function ProjectDetail({
     }
   };
 
-
   const handleDragEnd = (e: React.DragEvent) => {
     if (e.target instanceof HTMLElement) {
       e.target.classList.remove('opacity-50');
@@ -131,7 +130,6 @@ export default function ProjectDetail({
     const taskId = e.dataTransfer.getData('text');
     try {
       const updatedTask = await updateTaskStatus(taskId, projectStatusMappingId);
-      // Get latest checklist items
       const checklistItems = await getTaskChecklistItems(taskId);
       const taskWithChecklist = { ...updatedTask, checklist_items: checklistItems };
       
@@ -185,7 +183,6 @@ export default function ProjectDetail({
         moveConfirmation.targetPhase.phase_id
       );
       
-      // Get latest checklist items
       const checklistItems = await getTaskChecklistItems(moveConfirmation.taskId);
       const taskWithChecklist = { ...updatedTask, checklist_items: checklistItems };
       
@@ -210,7 +207,6 @@ export default function ProjectDetail({
     setIsAddingTask(true);
     try {
       if (selectedPhase && newTask.wbs_code.startsWith(selectedPhase.wbs_code)) {
-        // Get checklist items for the new task
         const checklistItems = await getTaskChecklistItems(newTask.task_id);
         const taskWithChecklist = { ...newTask, checklist_items: checklistItems };
         
@@ -263,7 +259,6 @@ export default function ProjectDetail({
   const handleTaskUpdated = useCallback(async (updatedTask: IProjectTask | null) => {
     if (updatedTask) {
       try {
-        // Get latest checklist items for the updated task
         const checklistItems = await getTaskChecklistItems(updatedTask.task_id);
         const taskWithChecklist = { ...updatedTask, checklist_items: checklistItems };
         
@@ -305,11 +300,10 @@ export default function ProjectDetail({
         assigned_to: newAssigneeId,
         estimated_hours: Number(task.estimated_hours) || 0,
         actual_hours: Number(task.actual_hours) || 0,
-        checklist_items: task.checklist_items // Preserve checklist items
+        checklist_items: task.checklist_items
       });
   
       if (updatedTask) {
-        // Get latest checklist items
         const checklistItems = await getTaskChecklistItems(taskId);
         const taskWithChecklist = { ...updatedTask, checklist_items: checklistItems };
         
@@ -385,7 +379,6 @@ export default function ProjectDetail({
   };
 
   const handleEmptyTaskUpdate = async (_: IProjectTask | null) => {
-    // This is a no-op function for non-edit mode
     return Promise.resolve();
   };
 
@@ -508,7 +501,6 @@ export default function ProjectDetail({
     return users.find(u => u.user_id === userId);
   };
 
-
   const renderTaskCard = (task: IProjectTask) => {
     const assignedUser = getAssignedUser(task.assigned_to);
     const checklistItems = task.checklist_items || [];
@@ -562,9 +554,8 @@ export default function ProjectDetail({
     );
   };
 
-  // Update the task rendering in renderKanbanBoard
   const renderKanbanBoard = () => (
-    <div className="flex space-x-4 overflow-x-auto pb-4 h-full">
+    <div className={styles.kanbanBoard}>
       {projectStatuses.filter(status => status.is_visible).map((status, index): JSX.Element => {
         const backgroundColor = cycleColors[index % cycleColors.length];
         const darkBackgroundColor = darkCycleColors[index % cycleColors.length];
@@ -574,32 +565,34 @@ export default function ProjectDetail({
         return (
           <div
             key={status.project_status_mapping_id}
-            className={`${styles.kanbanColumn} ${backgroundColor} flex-1 min-w-[250px] rounded-lg border-gray-200 shadow-sm border-2 border-solid`}
+            className={`${styles.kanbanColumn} ${backgroundColor} rounded-lg border-gray-200 shadow-sm border-2 border-solid`}
             onDrop={(e) => handleDrop(e, status.project_status_mapping_id)}
             onDragOver={handleDragOver}
           >
-            <div className="font-bold text-sm p-3 rounded-t-lg flex justify-between items-center">
-              <div className={`flex ${darkBackgroundColor} rounded-[20px] border-2 ${borderColor} shadow-sm`}>
-                <div className='ps-3 py-3 pe-10 flex items-center gap-2'>
-                  {statusIcons[status.name] || <Circle className="w-4 h-4" />}
-                  <span>{status.custom_name || status.name}</span>
+            <div className="font-bold text-sm p-3 rounded-t-lg flex items-center justify-between relative z-10">
+              <div className={`flex ${darkBackgroundColor} rounded-[20px] border-2 ${borderColor} shadow-sm items-center ps-3 py-3 pe-4`}>
+                {statusIcons[status.name] || <Circle className="w-4 h-4" />}
+                <span className="ml-2">{status.custom_name || status.name}</span>
+              </div>
+              <div className={styles.statusHeader}>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => handleAddCard(status)}
+                  disabled={isAddingTask || !selectedPhase}
+                  tooltipText="Add Task"
+                  tooltip={true}
+                  className="!w-6 !h-6 !p-0 !min-w-0"
+                >
+                  <Plus className="w-4 h-4 text-white" />
+                </Button>
+                <div className={styles.taskCount}>
+                  {statusTasks.length}
                 </div>
               </div>
-              <span className="bg-white text-gray-700 rounded-full w-6 h-6 flex items-center justify-center text-xs">
-                {statusTasks.length}
-              </span>
             </div>
-            <div className={`${styles.kanbanTasks} p-2`}>
+            <div className={styles.kanbanTasks}>
               {statusTasks.map(renderTaskCard)}
-            </div>
-            <div>
-              <button
-                className={styles.addCardButton}
-                onClick={() => handleAddCard(status)}
-                disabled={isAddingTask}
-              >
-                {isAddingTask ? 'Adding...' : 'Add Task'}
-              </button>
             </div>
           </div>
         );
@@ -645,7 +638,6 @@ export default function ProjectDetail({
           fontWeight="bold"
           fill="#4B5563"
         >
-          {/* {Math.round(percentage)}% */}
         </text>
       </svg>
     );
@@ -663,8 +655,8 @@ export default function ProjectDetail({
     const completionPercentage = (completedTasksCount / filteredTasks.length) * 100 || 0;
 
     return (
-      <>
-        <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col h-full">
+        <div className="flex justify-between items-center mb-4 flex-shrink-0">
           <h2 className="text-xl font-bold">Kanban Board: {selectedPhase.phase_name}</h2>
           <div className="flex items-center space-x-2">
             <DonutChart percentage={completionPercentage} />
@@ -673,8 +665,10 @@ export default function ProjectDetail({
             </span>
           </div>
         </div>
-        {renderKanbanBoard()}
-      </>
+        <div className={styles.kanbanWrapper}>
+          {renderKanbanBoard()}
+        </div>
+      </div>
     );
   };
 
@@ -739,7 +733,6 @@ export default function ProjectDetail({
         />
       )}
 
-      {/* Move Task Confirmation Dialog */}
       {moveConfirmation && (
         <ConfirmationDialog
           isOpen={true}
@@ -752,7 +745,6 @@ export default function ProjectDetail({
         />
       )}
 
-      {/* Delete Phase Confirmation Dialog */}
       {deletePhaseConfirmation && (
         <ConfirmationDialog
           isOpen={true}
