@@ -672,7 +672,7 @@ export default function ProjectDetail({
   };
 
   return (
-    <div className="h-full">
+    <div className={styles.pageContainer}>
       <Toaster position="top-right" />
       <div className={styles.mainContent}>
         <div className={styles.phasesList}>

@@ -28,6 +28,7 @@
 .phasesList {
   flex: 1;
   min-width: 230px;
+  width: 230px;
 }
 
 .kanbanContainer {
@@ -86,7 +87,6 @@
   font-size: 12px;
 }
 
-/* Sticky horizontal scrollbar */
 .mainContent::after {
   content: '';
   position: fixed;
