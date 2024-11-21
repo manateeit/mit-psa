@@ -119,14 +119,21 @@ export async function moveTaskToPhase(taskId: string, newPhaseId: string): Promi
             throw new Error('Target phase not found');
         }
 
-        // Generate new WBS code for the task
-        const newWbsCode = `${newPhase.wbs_code}.${Date.now()}`;
+        // Generate new WBS code for the task using the proper method
+        const newWbsCode = await ProjectModel.generateNextWbsCode(newPhase.wbs_code);
 
-        // Update task with new phase and WBS code while preserving other fields
+        // Update task with new phase and WBS code, only passing necessary fields
         const updatedTask = await ProjectModel.updateTask(taskId, {
-            ...existingTask,
             phase_id: newPhaseId,
-            wbs_code: newWbsCode
+            wbs_code: newWbsCode,
+            // Preserve other important fields but NOT the old wbs_code
+            task_name: existingTask.task_name,
+            description: existingTask.description,
+            assigned_to: existingTask.assigned_to,
+            estimated_hours: existingTask.estimated_hours,
+            actual_hours: existingTask.actual_hours,
+            project_status_mapping_id: existingTask.project_status_mapping_id,
+            due_date: existingTask.due_date
         });
 
         return updatedTask;

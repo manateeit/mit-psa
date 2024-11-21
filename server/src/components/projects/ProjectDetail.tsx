@@ -62,7 +62,7 @@ export default function ProjectDetail({
     const loadChecklistItems = async () => {
       try {
         const tasksWithChecklists = await Promise.all(
-          tasks.map(async (task) => {
+          tasks.map(async (task): Promise<IProjectTask> => {
             const checklistItems = await getTaskChecklistItems(task.task_id);
             return { ...task, checklist_items: checklistItems };
           })

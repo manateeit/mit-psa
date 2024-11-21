@@ -423,10 +423,12 @@ const ProjectModel = {
           if (!phase.phase_id) {
             throw new Error('Phase ID is required for update');
           }
+          // Remove wbs_code from updates to prevent override
+          const { wbs_code, ...phaseUpdate } = phase;
           await trx('project_phases')
             .where({ project_id: projectId, phase_id: phase.phase_id })
             .update({
-              ...phase,
+              ...phaseUpdate,
               updated_at: trx.fn.now()
             });
         }
@@ -434,10 +436,12 @@ const ProjectModel = {
           if (!task.task_id) {
             throw new Error('Task ID is required for update');
           }
+          // Remove wbs_code from updates to prevent override
+          const { wbs_code, ...taskUpdate } = task;
           await trx('project_tasks')
             .where({ task_id: task.task_id })
             .update({
-              ...task,
+              ...taskUpdate,
               updated_at: trx.fn.now()
             });
         }
@@ -509,11 +513,23 @@ const ProjectModel = {
       const {knex: db} = await createTenantKnex();
       const currentUser = await getCurrentUser();
 
-      const finalTaskData = {
-        ...taskData,
-        assigned_to: taskData.assigned_to ?? currentUser?.user_id,
+      // Remove wbs_code from updates to prevent override unless it's a phase change
+      const { wbs_code, phase_id, ...otherUpdates } = taskData;
+      
+      let finalTaskData: any = {
+        ...otherUpdates,
+        assigned_to: otherUpdates.assigned_to ?? currentUser?.user_id,
         updated_at: db.fn.now()
       };
+
+      // Only include wbs_code if phase_id is changing
+      if (phase_id && wbs_code) {
+        finalTaskData = {
+          ...finalTaskData,
+          phase_id,
+          wbs_code
+        };
+      }
 
       const [updatedTask] = await db<IProjectTask>('project_tasks')
         .where('task_id', taskId)
