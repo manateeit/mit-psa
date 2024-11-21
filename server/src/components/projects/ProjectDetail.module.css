@@ -1,32 +1,99 @@
+.mainContent {
+  display: flex;
+  gap: 1rem;
+  height: calc(100vh - 100px);
+  padding: 1rem;
+  position: relative;
+}
+
+.mainContent::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.mainContent::-webkit-scrollbar-track {
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.mainContent::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 4px;
+}
+
+.mainContent::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+.phasesList {
+  flex: 1;
+  min-width: 230px;
+  width: 230px;
+}
+
+.kanbanContainer {
+  flex: 4;
+  min-width: 0;
+  overflow-x: auto;
+  margin-bottom: 8px;
+}
+
+.kanbanBoard {
+  display: flex;
+  gap: 1rem;
+  min-width: min-content;
+}
+
 .kanbanColumn {
-    display: flex;
-    padding: 15px;
-    flex-direction: column;
-    height: calc(100vh - 200px); /* Adjust this value based on your layout */
-  }
-  
-  .kanbanTasks {
-    overflow-y: auto;
-  }
-  
-  .addCardButton {
-    margin: 6px;
-    padding: 6px;
-    background-color: #9333ea;
-    color: white;
-    border-radius: 6px;
-    font-size: 14px;
-    transition: background-color 0.2s;
-  }
-  
-  .addCardButton:hover {
-    background-color: #7e22ce;
-  }
-  
-  .statusBadge {
-    padding: 4px 12px;
-    border-radius: 9999px;
-    font-size: 12px;
-    font-weight: 500;
-  }
-  
+  display: flex;
+  flex-direction: column;
+  min-width: 230px;
+  flex: 1;
+}
+
+.kanbanTasks {
+  padding: 8px;
+  flex: 1;
+}
+
+.kanbanWrapper {
+  flex: 1;
+  padding: 1px;
+  position: relative;
+}
+
+.statusBadge {
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.statusHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.taskCount {
+  background-color: white;
+  color: rgb(var(--color-text-700));
+  border-radius: 9999px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.mainContent::after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: transparent;
+  pointer-events: none;
+}
