@@ -1,4 +1,5 @@
-// server/src/components/ui/Button.tsx
+'use client'
+
 import * as React from 'react'
 import { Slot } from '@radix-ui/react-slot'
 import { cva, type VariantProps } from 'class-variance-authority'
@@ -64,22 +65,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       }
     }, [tooltipText])
 
-    return (
-      <Comp
-        className={cn(
-          buttonVariants({ variant, size, tooltip, className }),
-          'group'
-        )}
-        ref={(node) => {
-          if (typeof ref === 'function') {
-            ref(node)
-          } else if (ref) {
-            ref.current = node
-          }
-            buttonRef.current = node
-        }}
-        {...props}
-      >
+    const content = (
+      <>
         {props.children}
         {tooltipText && (
           <span 
@@ -97,6 +84,26 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             {tooltipText}
           </span>
         )}
+      </>
+    )
+
+    return (
+      <Comp
+        className={cn(
+          buttonVariants({ variant, size, tooltip, className }),
+          'group'
+        )}
+        ref={(node) => {
+          if (typeof ref === 'function') {
+            ref(node)
+          } else if (ref) {
+            ref.current = node
+          }
+          buttonRef.current = node
+        }}
+        {...props}
+      >
+        {content}
       </Comp>
     )
   }

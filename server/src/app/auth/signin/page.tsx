@@ -18,7 +18,7 @@ export default function SignIn() {
   const searchParams = useSearchParams();
 
   const callbackUrl = searchParams?.get('callbackUrl') || '';
-  const isCustomerPortal = callbackUrl.includes('/customer-portal');
+  const isCustomerPortal = callbackUrl.includes('/client-portal');
   const error = searchParams?.get('error');
   const registered = searchParams?.get('registered');
 

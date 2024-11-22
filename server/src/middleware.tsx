@@ -7,10 +7,10 @@ export const config = {
     matcher: [
         // Protected routes that require authentication
         '/msp/:path*',
-        '/customer-portal/:path*',
+        '/client-portal/:path*',
         
         // Exclude auth and static routes
-        '/((?!api/auth/(?!signin)|_next/static|_next/image|favicon.ico|auth|customer-portal/auth).*)',
+        '/((?!api/auth/(?!signin)|_next/static|_next/image|favicon.ico|auth|client-portal/auth).*)',
     ],
 };
 
@@ -19,13 +19,13 @@ export default withAuth(
         const pathname = req.nextUrl.pathname;
 
         // Skip middleware for auth-related routes
-        if (pathname.startsWith('/auth/') || pathname.startsWith('/customer-portal/auth/')) {
+        if (pathname.startsWith('/auth/') || pathname.startsWith('/client-portal/auth/')) {
             return NextResponse.next();
         }
 
         // Get user type from token
         const userType = req.nextauth.token?.user_type as string;
-        const isCustomerPortal = pathname.includes('/customer-portal');
+        const isCustomerPortal = pathname.includes('/client-portal');
 
         // Handle unauthenticated requests - always redirect to unified login
         if (!req.nextauth.token) {
@@ -72,7 +72,7 @@ export default withAuth(
             authorized: ({ token, req }) => {
                 // Allow access to auth pages without a token
                 if (req.nextUrl.pathname.startsWith('/auth/') || 
-                    req.nextUrl.pathname.startsWith('/customer-portal/auth/')) {
+                    req.nextUrl.pathname.startsWith('/client-portal/auth/')) {
                     return true;
                 }
 

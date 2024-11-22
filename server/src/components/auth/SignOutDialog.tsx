@@ -15,7 +15,7 @@ export default function SignOutDialog({ isOpen, onClose }: SignOutDialogProps) {
 
   const handleSignOut = async () => {
     setIsLoading(true);
-    await signOut({ callbackUrl: '/auth/signin?callbackUrl=/customer-portal/dashboard' });
+    await signOut({ callbackUrl: '/auth/signin?callbackUrl=/client-portal/dashboard' });
   };
 
   return (

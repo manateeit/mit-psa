@@ -31,7 +31,7 @@ export default async function Dashboard() {
               </div>
               <div className="mt-3">
                 <Button variant="link" className="p-0" asChild>
-                  <a href="/customer-portal/tickets">View all tickets →</a>
+                  <a href="/client-portal/tickets">View all tickets →</a>
                 </Button>
               </div>
             </CardContent>
@@ -47,7 +47,7 @@ export default async function Dashboard() {
               </div>
               <div className="mt-3">
                 <Button variant="link" className="p-0" asChild>
-                  <a href="/customer-portal/billing">View billing →</a>
+                  <a href="/client-portal/billing">View billing →</a>
                 </Button>
               </div>
             </CardContent>
@@ -63,7 +63,7 @@ export default async function Dashboard() {
               </div>
               <div className="mt-3">
                 <Button variant="link" className="p-0" asChild>
-                  <a href="/customer-portal/assets">View assets →</a>
+                  <a href="/client-portal/assets">View assets →</a>
                 </Button>
               </div>
             </CardContent>
@@ -125,10 +125,10 @@ export default async function Dashboard() {
           <CardContent>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Button asChild>
-                <a href="/customer-portal/tickets/new">Create Support Ticket</a>
+                <a href="/client-portal/tickets/new">Create Support Ticket</a>
               </Button>
               <Button variant="soft" asChild>
-                <a href="/customer-portal/billing/invoices">View Latest Invoice</a>
+                <a href="/client-portal/billing/invoices">View Latest Invoice</a>
               </Button>
             </div>
           </CardContent>

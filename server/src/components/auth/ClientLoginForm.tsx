@@ -93,7 +93,7 @@ export default function ClientLoginForm({ callbackUrl, onError, onTwoFactorRequi
 
       <div className="flex justify-between text-sm">
         <Link
-          href="/customer-portal/auth/forgot-password"
+          href="/client-portal/auth/forgot-password"
           className="text-blue-600 hover:text-blue-800 transition-colors"
         >
           Forgot your password?

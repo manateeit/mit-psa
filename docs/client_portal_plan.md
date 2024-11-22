@@ -1,5 +1,7 @@
 This portal will allow your MSP clients to log in and manage their accounts, interact with support, and access necessary information. Below is a detailed plan covering required features, authentication mechanisms, and integration with your existing codebase.
 
+> Note: This document has been updated to reflect the new "client-portal" naming convention.
+
 ---
 
 ## **System Design for Customer Portal**
@@ -77,9 +79,9 @@ This portal will allow your MSP clients to log in and manage their accounts, int
 
 Based on your codebase, integration points are:
 
-- **Frontend**: Under `app/`, create a new directory `customer-portal/` with its own `layout.tsx` and pages.
+- **Frontend**: Under `app/`, create a new directory `client-portal/` with its own `layout.tsx` and pages.
 - **Components**: Reuse UI components from `components/` and `components/ui/`.
-- **Backend**: Create new API routes under `app/api/customer-portal/` for client-specific data handling.
+- **Backend**: Create new API routes under `app/api/client-portal/` for client-specific data handling.
 
 ### **2. Authentication Mechanism**
 
@@ -122,7 +124,7 @@ Based on your codebase, integration points are:
   - Include client-specific session handling and JWT token processing.
 
 - **Authentication Pages**:
-  - Create client authentication pages under `app/customer-portal/auth/` (e.g., `login.tsx`, `register.tsx`).
+  - Create client authentication pages under `app/client-portal/auth/` (e.g., `login.tsx`, `register.tsx`).
   - Implement secure password reset functionality.
 
 - **Authorization Middleware**:
@@ -132,12 +134,12 @@ Based on your codebase, integration points are:
 ### **Step 2: Develop the Customer Portal UI**
 
 - **Layout and Structure**:
-  - Under `app/customer-portal/`, create the main layout (`layout.tsx`) and pages.
+  - Under `app/client-portal/`, create the main layout (`layout.tsx`) and pages.
   - Use `components/layout/` elements to maintain consistency.
 
 - **Dashboard Page**:
   - Create a dashboard (`dashboard/page.tsx`) that summarizes account information.
-  - Use existing components or create new ones under `components/customer-portal/dashboard/`.
+  - Use existing components or create new ones under `components/client-portal/dashboard/`.
 
 - **Account Management**:
   - Build pages for profile management (`account/page.tsx`), billing information (`billing/page.tsx`), and service subscriptions.
@@ -154,7 +156,7 @@ Based on your codebase, integration points are:
 ### **Step 3: Implement API Endpoints**
 
 - **Client Data Endpoints**:
-  - Under `app/api/customer-portal/`, create endpoints for tickets, invoices, account data, etc.
+  - Under `app/api/client-portal/`, create endpoints for tickets, invoices, account data, etc.
   - In each handler, enforce tenant isolation by checking the user's `tenant` ID.
 
 - **Data Models and Services**:

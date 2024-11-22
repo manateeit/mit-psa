@@ -36,7 +36,7 @@ export default function RegisterForm() {
         setError(result.error || 'Registration failed');
       } else {
         // Registration successful, redirect to login
-        router.push('/auth/signin?registered=true&callbackUrl=/customer-portal/dashboard');
+        router.push('/auth/signin?registered=true&callbackUrl=/client-portal/dashboard');
       }
     } catch (error) {
       setError('An unexpected error occurred during registration.');
