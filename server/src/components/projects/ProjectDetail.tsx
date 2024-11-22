@@ -2,18 +2,18 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink } from '@/interfaces/project.interfaces';
-import { Clipboard, PlayCircle, PauseCircle, CheckCircle, XCircle, Circle, Pencil, Check, X, Trash2, CheckSquare, Square, Plus } from 'lucide-react';
+import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { useDrawer } from '@/context/DrawerContext';
 import TaskQuickAdd from './TaskQuickAdd';
 import TaskEdit from './TaskEdit';
 import PhaseQuickAdd from './PhaseQuickAdd';
-import { Button } from '@/components/ui/Button';
-import { updateTaskStatus, getProjectTaskStatuses, ProjectStatus, updatePhase, moveTaskToPhase, updateTaskWithChecklist, deletePhase, getTaskChecklistItems } from '@/lib/actions/projectActions';
+import { updateTaskStatus, getProjectTaskStatuses, updatePhase, moveTaskToPhase, updateTaskWithChecklist, deletePhase, getTaskChecklistItems, ProjectStatus } from '@/lib/actions/projectActions';
 import styles from './ProjectDetail.module.css';
 import { Toaster, toast } from 'react-hot-toast';
-import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import UserPicker from '@/components/ui/UserPicker';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
+import ProjectPhases from './ProjectPhases';
+import KanbanBoard from './KanbanBoard';
+import DonutChart from './DonutChart';
 
 interface ProjectDetailProps {
   project: IProject;
@@ -23,18 +23,6 @@ interface ProjectDetailProps {
   statuses: ProjectStatus[];
   users: IUserWithRoles[];
 }
-
-const statusIcons: { [key: string]: React.ReactNode } = {
-  'To Do': <Clipboard className="w-4 h-4" />,
-  'In Progress': <PlayCircle className="w-4 h-4" />,
-  'On Hold': <PauseCircle className="w-4 h-4" />,
-  'Done': <CheckCircle className="w-4 h-4" />,
-  'Cancelled': <XCircle className="w-4 h-4" />
-};
-
-const borderColors = ['border-gray-300', 'border-indigo-300', 'border-green-300', 'border-yellow-300'];
-const cycleColors = ['bg-gray-100', 'bg-indigo-100', 'bg-green-100', 'bg-yellow-100'];
-const darkCycleColors = ['bg-gray-200', 'bg-indigo-200', 'bg-green-200', 'bg-yellow-200'];
 
 export default function ProjectDetail({ 
   project, 
@@ -209,12 +197,7 @@ export default function ProjectDetail({
         const checklistItems = await getTaskChecklistItems(newTask.task_id);
         const taskWithChecklist = { ...newTask, checklist_items: checklistItems };
         
-        setProjectTasks((prevTasks) => {
-          const updatedTasks = [...prevTasks, taskWithChecklist];
-          console.log('New task added:', taskWithChecklist);
-          console.log('Updated tasks:', updatedTasks);
-          return updatedTasks;
-        });
+        setProjectTasks((prevTasks) => [...prevTasks, taskWithChecklist]);
         setShowQuickAdd(false);
         toast.success('New task added successfully!');
       } else {
@@ -234,7 +217,6 @@ export default function ProjectDetail({
     setDefaultStatus(null);
     setIsAddingTask(false);
     setSelectedTask(null);
-    console.log('TaskQuickAdd closed');
   }, []);
 
   const handlePhaseAdded = useCallback((newPhase: IProjectPhase) => {
@@ -381,265 +363,16 @@ export default function ProjectDetail({
     return Promise.resolve();
   };
 
-  const renderProjectPhases = () => (
-    <div className="bg-white shadow rounded-lg p-4">
-      <div className="flex justify-between items-center mb-2">
-        <h2 className="text-xl font-bold">Project Phases</h2>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => {
-              if (!selectedPhase) {
-                toast.error('Please select a phase before adding a task.');
-                return;
-              }
-              setCurrentPhase(selectedPhase);
-              setShowQuickAdd(true);
-            }}
-            className="text-sm"
-            disabled={!selectedPhase || isAddingTask}
-          >
-            {isAddingTask ? 'Adding...' : '+ Add Task'}
-          </Button>
-          <Button
-            onClick={() => setShowPhaseQuickAdd(true)}
-            className="text-sm"
-          >
-            + Add Phase
-          </Button>
-        </div>
-      </div>
-      <ul className="space-y-2">
-      {projectPhases.map((phase: IProjectPhase): JSX.Element => (
-          <li
-            key={phase.phase_id}
-            className={`flex items-center justify-between p-2 rounded cursor-pointer group transition-colors
-              ${selectedPhase?.phase_id === phase.phase_id ? 'bg-blue-100' : 'hover:bg-gray-100'}
-              ${dragOverPhaseId === phase.phase_id ? 'bg-purple-100' : ''}
-            `}
-            onClick={() => {
-              if (editingPhaseId !== phase.phase_id) {
-                setSelectedPhase(phase);
-                setCurrentPhase(phase);
-              }
-            }}
-            onDragOver={(e) => handlePhaseDragOver(e, phase.phase_id)}
-            onDragLeave={handlePhaseDragLeave}
-            onDrop={(e) => handlePhaseDropZone(e, phase)}
-          >
-            {editingPhaseId === phase.phase_id ? (
-              <div className="flex items-center justify-between w-full">
-                <input
-                  type="text"
-                  value={editingPhaseName}
-                  onChange={(e) => setEditingPhaseName(e.target.value)}
-                  className="flex-1 px-2 py-1 border rounded mr-2"
-                  onClick={(e) => e.stopPropagation()}
-                  autoFocus
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSavePhase(phase);
-                    }}
-                    className="text-green-600 hover:text-green-800 p-1 rounded hover:bg-green-100"
-                    title="Save"
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCancelEdit();
-                    }}
-                    className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-100"
-                    title="Cancel"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <span>{phase.wbs_code} {phase.phase_name}</span>
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditPhase(phase);
-                    }}
-                    className="p-1 rounded hover:bg-gray-200"
-                    title="Edit phase name"
-                  >
-                    <Pencil className="w-4 h-4 text-gray-500 hover:text-gray-700" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeletePhaseConfirmation({
-                        phaseId: phase.phase_id,
-                        phaseName: phase.phase_name
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-red-100"
-                    title="Delete phase"
-                  >
-                    <Trash2 className="w-4 h-4 text-gray-500 hover:text-red-700" />
-                  </button>
-                </div>
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-
-  const getAssignedUser = (userId: string | null) => {
-    if (!userId) return null;
-    return users.find(u => u.user_id === userId);
+  const handlePhaseSelect = (phase: IProjectPhase) => {
+    setSelectedPhase(phase);
+    setCurrentPhase(phase);
   };
 
-  const renderTaskCard = (task: IProjectTask) => {
-    const assignedUser = getAssignedUser(task.assigned_to);
-    const checklistItems = task.checklist_items || [];
-    const completedItems = checklistItems.filter(item => item.completed).length;
-    const hasChecklist = checklistItems.length > 0;
-    const allCompleted = hasChecklist && completedItems === checklistItems.length;
-
-    return (
-      <div
-        key={task.task_id}
-        draggable
-        onDragStart={(e) => handleDragStart(e, task.task_id)}
-        onDragEnd={handleDragEnd}
-        onClick={() => handleTaskSelected(task)}
-        className="bg-white p-3 mb-2 rounded shadow-sm cursor-pointer hover:shadow-md transition-shadow duration-200 border border-gray-200 flex flex-col gap-1"
-      >
-        <p className="font-semibold text-base mb-1">{task.task_name}</p>
-        {task.description && (
-          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-            {task.description}
-          </p>
-        )}
-        <div onClick={(e) => e.stopPropagation()}>
-          <UserPicker
-            value={task.assigned_to || ''}
-            onValueChange={(newAssigneeId: string) => handleAssigneeChange(task.task_id, newAssigneeId)}
-            size="sm"
-            users={users}
-          />
-        </div>
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <div className="flex items-center gap-2">
-            {task.due_date ? (
-              <>Due date: <span className='bg-primary-100 p-1 rounded-md'>{new Date(task.due_date).toLocaleDateString()}</span></>
-            ) : (
-              <>No due date</>
-            )}
-          </div>
-          {hasChecklist && (
-            <div className={`flex items-center gap-1 ${allCompleted ? 'bg-green-50 text-green-600' : 'text-gray-500'} px-2 py-1 rounded`}>
-              {allCompleted ? (
-                <CheckSquare className="w-3 h-3" />
-              ) : (
-                <Square className="w-3 h-3" />
-              )}
-              <span>{completedItems}/{checklistItems.length}</span>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderKanbanBoard = () => (
-    <div className={styles.kanbanBoard}>
-      {projectStatuses.filter(status => status.is_visible).map((status, index): JSX.Element => {
-        const backgroundColor = cycleColors[index % cycleColors.length];
-        const darkBackgroundColor = darkCycleColors[index % cycleColors.length];
-        const borderColor = borderColors[index % borderColors.length];
-        const statusTasks = filteredTasks.filter(task => task.project_status_mapping_id === status.project_status_mapping_id);
-        
-        return (
-          <div
-            key={status.project_status_mapping_id}
-            className={`${styles.kanbanColumn} ${backgroundColor} rounded-lg border-gray-200 shadow-sm border-2 border-solid`}
-            onDrop={(e) => handleDrop(e, status.project_status_mapping_id)}
-            onDragOver={handleDragOver}
-          >
-            <div className="font-bold text-sm p-3 rounded-t-lg flex items-center justify-between relative z-10">
-              <div className={`flex ${darkBackgroundColor} rounded-[20px] border-2 ${borderColor} shadow-sm items-center ps-3 py-3 pe-4`}>
-                {statusIcons[status.name] || <Circle className="w-4 h-4" />}
-                <span className="ml-2">{status.custom_name || status.name}</span>
-              </div>
-              <div className={styles.statusHeader}>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => handleAddCard(status)}
-                  disabled={isAddingTask || !selectedPhase}
-                  tooltipText="Add Task"
-                  tooltip={true}
-                  className="!w-6 !h-6 !p-0 !min-w-0"
-                >
-                  <Plus className="w-4 h-4 text-white" />
-                </Button>
-                <div className={styles.taskCount}>
-                  {statusTasks.length}
-                </div>
-              </div>
-            </div>
-            <div className={styles.kanbanTasks}>
-              {statusTasks.map(renderTaskCard)}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-
-  const DonutChart: React.FC<{ percentage: number }> = ({ percentage }) => {
-    const strokeWidth = 10;
-    const size = 40;
-    const radius = (size - strokeWidth) / 2;
-    const circumference = radius * 2 * Math.PI;
-    const strokeDashoffset = circumference - (percentage / 100) * circumference;
-
-    return (
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="#E9D5FF"
-          strokeWidth={strokeWidth}
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="#9333EA"
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-        <text
-          x="50%"
-          y="50%"
-          textAnchor="middle"
-          dy=".3em"
-          fontSize="12"
-          fontWeight="bold"
-          fill="#4B5563"
-        >
-        </text>
-      </svg>
-    );
+  const handleDeletePhaseClick = (phase: IProjectPhase) => {
+    setDeletePhaseConfirmation({
+      phaseId: phase.phase_id,
+      phaseName: phase.phase_name
+    });
   };
 
   const renderContent = () => {
@@ -665,7 +398,20 @@ export default function ProjectDetail({
           </div>
         </div>
         <div className={styles.kanbanWrapper}>
-          {renderKanbanBoard()}
+          <KanbanBoard
+            tasks={filteredTasks}
+            users={users}
+            statuses={projectStatuses}
+            isAddingTask={isAddingTask}
+            selectedPhase={!!selectedPhase}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onAddCard={handleAddCard}
+            onTaskSelected={handleTaskSelected}
+            onAssigneeChange={handleAssigneeChange}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          />
         </div>
       </div>
     );
@@ -675,14 +421,42 @@ export default function ProjectDetail({
     <div className={styles.pageContainer}>
       <Toaster position="top-right" />
       <div className={styles.mainContent}>
-        <div className={styles.phasesList}>
-          {renderProjectPhases()}
-        </div>
-        <div className={styles.kanbanContainer}>
-          {renderContent()}
+        <div className={styles.contentWrapper}>
+          <div className={styles.phasesList}>
+            <ProjectPhases
+              phases={projectPhases}
+              selectedPhase={selectedPhase}
+              isAddingTask={isAddingTask}
+              editingPhaseId={editingPhaseId}
+              editingPhaseName={editingPhaseName}
+              dragOverPhaseId={dragOverPhaseId}
+              onPhaseSelect={handlePhaseSelect}
+              onAddTask={() => {
+                if (!selectedPhase) {
+                  toast.error('Please select a phase before adding a task.');
+                  return;
+                }
+                setCurrentPhase(selectedPhase);
+                setShowQuickAdd(true);
+              }}
+              onAddPhase={() => setShowPhaseQuickAdd(true)}
+              onEditPhase={handleEditPhase}
+              onSavePhase={handleSavePhase}
+              onCancelEdit={handleCancelEdit}
+              onDeletePhase={handleDeletePhaseClick}
+              onEditingPhaseNameChange={setEditingPhaseName}
+              onDragOver={handlePhaseDragOver}
+              onDragLeave={handlePhaseDragLeave}
+              onDrop={handlePhaseDropZone}
+            />
+          </div>
+          <div className={styles.kanbanContainer}>
+            {renderContent()}
+          </div>
         </div>
       </div>
 
+      {/* Modal components remain the same */}
       {(showQuickAdd && (currentPhase || selectedPhase)) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg relative">
