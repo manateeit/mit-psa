@@ -421,39 +421,42 @@ export default function ProjectDetail({
     <div className={styles.pageContainer}>
       <Toaster position="top-right" />
       <div className={styles.mainContent}>
-        <div className={styles.phasesList}>
-          <ProjectPhases
-            phases={projectPhases}
-            selectedPhase={selectedPhase}
-            isAddingTask={isAddingTask}
-            editingPhaseId={editingPhaseId}
-            editingPhaseName={editingPhaseName}
-            dragOverPhaseId={dragOverPhaseId}
-            onPhaseSelect={handlePhaseSelect}
-            onAddTask={() => {
-              if (!selectedPhase) {
-                toast.error('Please select a phase before adding a task.');
-                return;
-              }
-              setCurrentPhase(selectedPhase);
-              setShowQuickAdd(true);
-            }}
-            onAddPhase={() => setShowPhaseQuickAdd(true)}
-            onEditPhase={handleEditPhase}
-            onSavePhase={handleSavePhase}
-            onCancelEdit={handleCancelEdit}
-            onDeletePhase={handleDeletePhaseClick}
-            onEditingPhaseNameChange={setEditingPhaseName}
-            onDragOver={handlePhaseDragOver}
-            onDragLeave={handlePhaseDragLeave}
-            onDrop={handlePhaseDropZone}
-          />
-        </div>
-        <div className={styles.kanbanContainer}>
-          {renderContent()}
+        <div className={styles.contentWrapper}>
+          <div className={styles.phasesList}>
+            <ProjectPhases
+              phases={projectPhases}
+              selectedPhase={selectedPhase}
+              isAddingTask={isAddingTask}
+              editingPhaseId={editingPhaseId}
+              editingPhaseName={editingPhaseName}
+              dragOverPhaseId={dragOverPhaseId}
+              onPhaseSelect={handlePhaseSelect}
+              onAddTask={() => {
+                if (!selectedPhase) {
+                  toast.error('Please select a phase before adding a task.');
+                  return;
+                }
+                setCurrentPhase(selectedPhase);
+                setShowQuickAdd(true);
+              }}
+              onAddPhase={() => setShowPhaseQuickAdd(true)}
+              onEditPhase={handleEditPhase}
+              onSavePhase={handleSavePhase}
+              onCancelEdit={handleCancelEdit}
+              onDeletePhase={handleDeletePhaseClick}
+              onEditingPhaseNameChange={setEditingPhaseName}
+              onDragOver={handlePhaseDragOver}
+              onDragLeave={handlePhaseDragLeave}
+              onDrop={handlePhaseDropZone}
+            />
+          </div>
+          <div className={styles.kanbanContainer}>
+            {renderContent()}
+          </div>
         </div>
       </div>
 
+      {/* Modal components remain the same */}
       {(showQuickAdd && (currentPhase || selectedPhase)) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg relative">
