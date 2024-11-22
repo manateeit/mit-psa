@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardContent } from '@/components/ui/Card';
+import { Box, Card, Heading } from '@radix-ui/themes';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { QuickAddBillingPlan } from './QuickAddBillingPlan';
 import { UnitOfMeasureInput } from './UnitOfMeasureInput';
@@ -142,8 +143,9 @@ const BillingPlans: React.FC<BillingPlansProps> = ({ initialServices }) => {
       render: (value, record) => (
         <input
           type="number"
-          value={value || ''}
+          value={value?.toString() || ''}
           onChange={(e) => handleUpdatePlanService(record.service_id, Number(e.target.value), record.custom_rate)}
+          className="w-24 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
       ),
     },
@@ -168,11 +170,12 @@ const BillingPlans: React.FC<BillingPlansProps> = ({ initialServices }) => {
       render: (value, record) => (
         <input
           type="number"
-          value={value || ''}
+          value={value?.toString() || ''}
           onChange={(e) => {
             const newValue = e.target.value === '' ? undefined : Number(e.target.value);
             handleUpdatePlanService(record.service_id, record.quantity || 0, newValue);
           }}
+          className="w-24 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
       ),
     },
@@ -190,12 +193,10 @@ const BillingPlans: React.FC<BillingPlansProps> = ({ initialServices }) => {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <Card>
-        <CardHeader>
-          <h3 className="text-lg font-semibold">Billing Plans</h3>
-        </CardHeader>
-        <CardContent>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <Card size="2">
+        <Box p="4">
+          <Heading as="h3" size="4" mb="4">Billing Plans</Heading>
           <QuickAddBillingPlan onPlanAdded={fetchBillingPlans} />
           <DataTable
             data={billingPlans}
@@ -203,13 +204,11 @@ const BillingPlans: React.FC<BillingPlansProps> = ({ initialServices }) => {
             pagination={false}
             onRowClick={handleBillingPlanClick}
           />
-        </CardContent>
+        </Box>
       </Card>
-      <Card>
-        <CardHeader>
-          <h3 className="text-lg font-semibold">Plan Services</h3>
-        </CardHeader>
-        <CardContent>
+      <Card size="2">
+        <Box p="4">
+          <Heading as="h3" size="4" mb="4">Plan Services</Heading>
           {selectedPlan ? (
             <>
               <h4>Services for {billingPlans.find(p => p.plan_id === selectedPlan)?.plan_name}</h4>
@@ -243,7 +242,7 @@ const BillingPlans: React.FC<BillingPlansProps> = ({ initialServices }) => {
           ) : (
             <p>Select a plan to manage its services</p>
           )}
-        </CardContent>
+        </Box>
       </Card>
     </div>
   );
