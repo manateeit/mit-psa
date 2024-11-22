@@ -11,22 +11,9 @@ import { searchWorkItems } from '@/lib/actions/workItemActions';
 import { addScheduleEntry, updateScheduleEntry, getScheduleEntries, deleteScheduleEntry } from '@/lib/actions/scheduleActions';
 import CustomSelect from '@/components/ui/CustomSelect';
 
-// Discriminated union type for drop events
-interface WorkItemDrop {
-  type: 'workItem';
-  workItemId: string;
-  techId: string;
-  startTime: Date;
-}
-
-interface EventDrop {
-  type: 'scheduleEntry';
-  eventId: string;
-  techId: string;
-  startTime: Date;
-}
-
-type DropEvent = WorkItemDrop | EventDrop;
+import { DragState } from '@/interfaces/drag.interfaces';
+import { HighlightedSlot } from '@/interfaces/schedule.interfaces';
+import { DropEvent } from '@/interfaces/event.interfaces';
 
 const TechnicianDispatchDashboard: React.FC = () => {
   const [selectedPriority, setSelectedPriority] = useState('All');
@@ -36,6 +23,9 @@ const TechnicianDispatchDashboard: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const [highlightedSlots, setHighlightedSlots] = useState<Set<HighlightedSlot> | null>(null);
   const [selectedType, setSelectedType] = useState<WorkItemType | 'all'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<'name' | 'type'>('name');
@@ -56,6 +46,8 @@ const TechnicianDispatchDashboard: React.FC = () => {
   ];
 
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
+  const isDraggingRef = useRef(false);
+  const dragStateRef = useRef<DragState | null>(null);
   const searchParamsRef = useRef({
     selectedType,
     sortBy,
@@ -238,7 +230,7 @@ const TechnicianDispatchDashboard: React.FC = () => {
   } | null>(null);
 
   const handleDragStart = useCallback((e: React.DragEvent, workItemId: string, item: Omit<IWorkItem, "tenant">) => {
-    e.dataTransfer.setData('workItemId', workItemId);
+    e.dataTransfer.setData('text/plain', workItemId);
     e.dataTransfer.effectAllowed = 'move';
 
     // Create an invisible drag image
@@ -248,6 +240,21 @@ const TechnicianDispatchDashboard: React.FC = () => {
     document.body.appendChild(dragImage);
     e.dataTransfer.setDragImage(dragImage, 0, 0);
     setTimeout(() => document.body.removeChild(dragImage), 0);
+
+    // Set dragging state
+    isDraggingRef.current = true;
+    dragStateRef.current = {
+      sourceId: workItemId,
+      sourceType: 'workItem',
+      originalStart: new Date(),
+      originalEnd: new Date(),
+      currentStart: new Date(),
+      currentEnd: new Date(),
+      currentTechId: '',
+      clickOffset15MinIntervals: 0
+    };
+    setIsDragging(true);
+    setDragState(dragStateRef.current);
 
     // Show our custom overlay
     setDragOverlay({
@@ -271,6 +278,11 @@ const TechnicianDispatchDashboard: React.FC = () => {
 
   const handleDragEnd = useCallback(() => {
     setDragOverlay(null);
+    isDraggingRef.current = false;
+    dragStateRef.current = null;
+    setIsDragging(false);
+    setDragState(null);
+    setHighlightedSlots(null);
   }, []);
 
   // Add this useEffect to handle the drag overlay movement
@@ -425,9 +437,41 @@ const TechnicianDispatchDashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 p-4 bg-white overflow-x-auto">
-          <h2 className="text-xl font-bold mb-4">Technician Schedules</h2>
-          <div className="technician-schedule-grid">
+        <div className="flex-1 p-4 bg-white overflow-hidden">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Technician Schedules</h2>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => {
+                  const newDate = new Date(selectedDate);
+                  newDate.setDate(newDate.getDate() - 1);
+                  setSelectedDate(newDate);
+                }}
+                className="px-4 py-2 bg-[rgb(var(--color-primary-400))] text-white rounded hover:bg-[rgb(var(--color-primary-500))] transition-colors focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-primary-300))] focus:ring-offset-2"
+              >
+                Previous Day
+              </button>
+              <div className="text-[rgb(var(--color-text-900))] font-medium">
+                {selectedDate.toLocaleDateString('en-US', { 
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </div>
+              <button
+                onClick={() => {
+                  const newDate = new Date(selectedDate);
+                  newDate.setDate(newDate.getDate() + 1);
+                  setSelectedDate(newDate);
+                }}
+                className="px-4 py-2 bg-[rgb(var(--color-primary-400))] text-white rounded hover:bg-[rgb(var(--color-primary-500))] transition-colors focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-primary-300))] focus:ring-offset-2"
+              >
+                Next Day
+              </button>
+            </div>
+          </div>
+          <div className="technician-schedule-grid h-[calc(100vh-160px)]">
             <TechnicianScheduleGrid
               technicians={technicians}
               events={events}

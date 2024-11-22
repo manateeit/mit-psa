@@ -13,6 +13,7 @@ import { ListChecks } from 'lucide-react';
 import UserPicker from '@/components/ui/UserPicker';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import CustomSelect from '@/components/ui/CustomSelect';
+import { Input } from '@/components/ui/Input';
 import { toast } from 'react-hot-toast';
 
 interface TaskQuickAddProps {
@@ -231,12 +232,11 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
                             onChange={(e) => updateChecklistItem(index, 'completed', e.target.checked)}
                             className="mr-2"
                           />
-                          <input
-                            type="text"
+                          <Input
                             value={item.item_name}
                             onChange={(e) => updateChecklistItem(index, 'item_name', e.target.value)}
                             placeholder="Checklist item"
-                            className="flex-grow p-2 border border-gray-300 rounded-md"
+                            className="flex-grow"
                           />
                           <button
                             type="button"
@@ -294,8 +294,8 @@ const TaskQuickAdd: React.FC<TaskQuickAddProps> = ({
         onConfirm={handleCancelConfirm}
         title="Cancel Task Creation"
         message="Are you sure you want to cancel? Any unsaved changes will be lost."
-        confirmLabel="Yes, cancel"
-        cancelLabel="No, continue editing"
+        confirmLabel="Cancel"
+        cancelLabel="Continue editing"
       />
     </>
   );

@@ -14,6 +14,11 @@ export interface IRecurrencePattern {
   count?: number;
 }
 
+export interface HighlightedSlot {
+  techId: string;
+  timeSlot: string;
+}
+
 export interface IScheduleEntry extends TenantEntity {
   entry_id: string;
   work_item_id: string;
