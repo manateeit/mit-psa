@@ -1,4 +1,5 @@
 import React from 'react';
+import { Trash } from 'lucide-react';
 import { IScheduleEntry } from '@/interfaces/schedule.interfaces';
 import { getEventColors } from './utils';
 
@@ -7,6 +8,7 @@ interface ScheduleEventProps {
   position: { left: string; width: string };
   isDragging: boolean;
   isHovered: boolean;
+  isResizing: boolean;
   onMouseDown: (e: React.MouseEvent) => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
@@ -24,49 +26,39 @@ const ScheduleEvent: React.FC<ScheduleEventProps> = ({
   onMouseLeave,
   onDelete,
   onResizeStart,
+  isResizing,
 }) => {
   const colors = getEventColors(event.work_item_type);
 
   return (
     <div
-      className={`text-xs ${colors.bg} ${colors.text} p-1 shadow-md rounded cursor-move ${colors.hover} absolute 
-        ${isDragging ? 'opacity-70 shadow-lg' : ''}`}
+      className={`text-xs ${colors.bg} ${colors.text} p-1 shadow-md rounded absolute 
+        ${!isResizing ? colors.hover : ''}
+        ${isDragging ? 'opacity-70 shadow-lg' : ''}
+        ${isResizing ? 'cursor-ew-resize pointer-events-none' : 'cursor-move'}`}
       style={{
         left: position.left,
         width: position.width,
         top: '0px',
         height: '100%',
-        zIndex: isDragging ? 1000 : 10,
+        zIndex: isDragging ? 1000 : 50,
         pointerEvents: isDragging ? 'none' : 'auto'
       }}
       onMouseDown={onMouseDown}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      onMouseEnter={() => !isResizing && onMouseEnter()}
+      onMouseLeave={() => !isResizing && onMouseLeave()}
     >
       <div className="font-bold relative left-4">{event.title.split(':')[0]}</div>
       <div className="relative left-4">{event.title.split(':')[1]}</div>
       <button
-        className={`absolute top-1 right-2 w-4 h-4 text-[rgb(var(--color-text-400))] 
-          hover:text-[rgb(var(--color-text-600))] transition-colors delete-button z-20
-          ${isHovered ? 'block' : 'hidden'}`}
+        className="absolute top-1 right-2 w-4 h-4 text-[rgb(var(--color-text-300))] 
+          hover:text-[rgb(var(--color-text-600))] transition-colors delete-button"
         onClick={onDelete}
         title="Delete schedule entry"
         onMouseDown={(e) => e.stopPropagation()}
+        style={{ zIndex: 1000 }}
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="w-4 h-4 pointer-events-none"
-        >
-          <path d="M3 6h18"></path>
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
-          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-        </svg>
+        <Trash className="w-4 h-4 pointer-events-none" />
       </button>
       <div
         className="absolute top-0 bottom-0 left-0 w-2 bg-[rgb(var(--color-border-300))] cursor-ew-resize rounded-l resize-handle"

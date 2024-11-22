@@ -18,6 +18,7 @@ interface TechnicianRowProps {
   isDragging: boolean;
   dragState: any;
   hoveredEventId: string | null;
+  isResizing: boolean;
   getEventPosition: (event: Omit<IScheduleEntry, 'tenant'>) => { left: string; width: string };
   onTimeSlotMouseOver: (e: React.MouseEvent, timeSlot: string, techId: string) => void;
   onTimeSlotDragOver: (e: React.DragEvent, timeSlot: string, techId: string) => void;
@@ -43,13 +44,14 @@ const TechnicianRow: React.FC<TechnicianRowProps> = ({
   onEventMouseDown,
   onEventDelete,
   onEventResizeStart,
+  isResizing,
 }) => {
   return (
     <div
-      className="technician-row mb-4 relative h-16 border border-[rgb(var(--color-border-200))]"
+      className="technician-row mb-4 relative h-16 border border-[rgb(var(--color-border-200))] min-w-[2880px]"
       data-tech-id={tech.user_id}
     >
-      <div className="grid grid-cols-96 h-full">
+      <div className="grid grid-cols-96 h-full" style={{ width: '2880px' }}>
         {timeSlots.map((timeSlot, index): JSX.Element => {
           const isHourBoundary = index % 4 === 0;
           const isHighlighted = Array.from(highlightedSlots || []).some(
@@ -102,6 +104,7 @@ const TechnicianRow: React.FC<TechnicianRowProps> = ({
               onMouseLeave={() => {}}  // This will be handled by parent component
               onDelete={(e) => onEventDelete(e, event.entry_id)}
               onResizeStart={(e, direction) => onEventResizeStart(e, event, direction)}
+              isResizing={false}
             />
           );
         })}

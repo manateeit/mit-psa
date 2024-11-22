@@ -55,6 +55,7 @@ const TechnicianScheduleGrid: React.FC<TechnicianScheduleGridProps> = ({
   onDeleteEvent
 }) => {
   const scheduleGridRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   const [totalWidth, setTotalWidth] = useState<number>(0);
   const resizeTimeoutRef = useRef<NodeJS.Timeout>();
   const isDraggingRef = useRef(false);
@@ -100,6 +101,26 @@ const TechnicianScheduleGrid: React.FC<TechnicianScheduleGridProps> = ({
       window.removeEventListener('resize', handleResize);
     };
   }, []);
+
+  const [hasScrolled, setHasScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!hasScrolled && events.length > 0 && gridRef.current) {
+      const scrollToBusinessHours = () => {
+        const pixelsPerHour = 120; // 4 slots * 30px each
+        const scrollToHour = 8;
+        const scrollPosition = scrollToHour * pixelsPerHour;
+        
+        gridRef.current?.scrollTo({
+          left: scrollPosition,
+          behavior: 'smooth'
+        });
+        setHasScrolled(true);
+      };
+
+      scrollToBusinessHours();
+    }
+  }, [events, hasScrolled]); // Only run when events load and haven't scrolled yet
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -151,10 +172,12 @@ const TechnicianScheduleGrid: React.FC<TechnicianScheduleGridProps> = ({
     const { eventId, techId, startX, initialStart, initialEnd, resizeDirection } = resizingRef.current;
     const deltaX = e.clientX - startX;
 
-    const gridWidth = scheduleGridRef.current.offsetWidth;
-    const minutesPerPixel = (24 * 60) / gridWidth;
+    // Fixed width for 24 hours (2880px = 24 hours * 4 slots/hour * 30px per slot)
+    const totalWidth = 2880;
+    const minutesPerPixel = (24 * 60) / totalWidth;
     const deltaMinutes = deltaX * minutesPerPixel;
 
+    // Round to nearest 15 minutes
     const roundedMinutes = Math.round(deltaMinutes / 15) * 15;
 
     let newStart = new Date(initialStart);
@@ -162,38 +185,49 @@ const TechnicianScheduleGrid: React.FC<TechnicianScheduleGridProps> = ({
 
     if (resizeDirection === 'left') {
       newStart = new Date(initialStart.getTime() + roundedMinutes * 60000);
-
+      
+      // Prevent invalid resizing
       if (newStart >= newEnd || (newEnd.getTime() - newStart.getTime()) < 900000) {
         return;
       }
     } else {
       newEnd = new Date(initialEnd.getTime() + roundedMinutes * 60000);
-
+      
+      // Prevent invalid resizing
       if (newEnd <= newStart || (newEnd.getTime() - newStart.getTime()) < 900000) {
         return;
       }
     }
 
-    setLocalEvents(prevEvents =>
-      prevEvents.map((event): Omit<IScheduleEntry, 'tenant'> => {
-        if (event.entry_id === eventId) {
-          return {
-            ...event,
-            scheduled_start: resizeDirection === 'left' ? newStart : event.scheduled_start,
-            scheduled_end: resizeDirection === 'right' ? newEnd : event.scheduled_end
-          };
-        }
-        return event;
-      })
-    );
+    // Prevent resizing outside the 24-hour window
+    const dayStart = new Date(selectedDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(selectedDate);
+    dayEnd.setHours(24, 0, 0, 0);
 
-    latestResizeRef.current = { eventId, techId, newStart, newEnd };
-
-    if (resizeTimeoutRef.current) {
-      clearTimeout(resizeTimeoutRef.current);
+    if (newStart < dayStart || newEnd > dayEnd) {
+      return;
     }
 
-    resizeTimeoutRef.current = setTimeout(() => {
+    // Store the latest values for the resize operation
+    latestResizeRef.current = { eventId, techId, newStart, newEnd };
+
+    // Use requestAnimationFrame for visual updates only
+    requestAnimationFrame(() => {
+      setLocalEvents(prevEvents =>
+        prevEvents.map((event): Omit<IScheduleEntry, 'tenant'> => {
+          if (event.entry_id === eventId) {
+            return {
+              ...event,
+              scheduled_start: resizeDirection === 'left' ? newStart : event.scheduled_start,
+              scheduled_end: resizeDirection === 'right' ? newEnd : event.scheduled_end
+            };
+          }
+          return event;
+        })
+      );
+
+      // Immediately call onResize with the latest values
       if (latestResizeRef.current) {
         onResize(
           latestResizeRef.current.eventId,
@@ -202,8 +236,8 @@ const TechnicianScheduleGrid: React.FC<TechnicianScheduleGridProps> = ({
           latestResizeRef.current.newEnd
         );
       }
-    }, 100);
-  }, [totalWidth, onResize]);
+    });
+  }, [totalWidth, onResize, selectedDate]);
 
   const handleResizeEnd = useCallback(() => {
     if (latestResizeRef.current) {
@@ -403,8 +437,8 @@ const TechnicianScheduleGrid: React.FC<TechnicianScheduleGridProps> = ({
 
   return (
     <div
-      className="grid grid-cols-[auto,1fr] gap-4"
-      onClick={() => setIsGridFocused(true)} 
+      className="grid grid-cols-[auto,1fr] gap-4 h-full"
+      onClick={() => setIsGridFocused(true)}
       tabIndex={0}
       ref={scheduleGridRef}
     >
@@ -416,35 +450,72 @@ const TechnicianScheduleGrid: React.FC<TechnicianScheduleGridProps> = ({
           </div>
         ))}
       </div>
-      <div className="relative overflow-x-auto">
-        <TimeHeader timeSlots={timeSlots} />
-        {technicians.map((tech): JSX.Element => (
-          <TechnicianRow
-            key={tech.user_id}
-            tech={tech}
-            timeSlots={timeSlots}
-            events={localEvents}
-            selectedDate={selectedDate}
-            highlightedSlots={highlightedSlots}
-            isDragging={isDragging}
-            dragState={dragState}
-            hoveredEventId={hoveredEventId}
-            getEventPosition={getEventPosition}
-            onTimeSlotMouseOver={handleTimeSlotMouseOver}
-            onTimeSlotDragOver={(e, timeSlot, techId) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            onDrop={(e, timeSlot, techId) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleMouseUp(e);
-            }}
-            onEventMouseDown={handleMouseDown}
-            onEventDelete={handleDelete}
-            onEventResizeStart={handleResizeStart}
-          />
-        ))}
+      <div className="relative" style={{overflow: "hidden"}}>
+        <div className="overflow-auto" ref={gridRef} style={{ scrollBehavior: 'smooth' }}>
+          <div style={{ minWidth: '2880px' }}>
+            <TimeHeader timeSlots={timeSlots} />
+            <div>
+          {technicians.map((tech): JSX.Element => (
+            <TechnicianRow
+              key={tech.user_id}
+              tech={tech}
+              timeSlots={timeSlots}
+              events={localEvents}
+              selectedDate={selectedDate}
+              highlightedSlots={highlightedSlots}
+              isDragging={isDragging}
+              dragState={dragState}
+              hoveredEventId={!isDragging && !resizingRef.current?.eventId ? hoveredEventId : null}
+              isResizing={!!resizingRef.current}
+              getEventPosition={getEventPosition}
+              onTimeSlotMouseOver={handleTimeSlotMouseOver}
+              onTimeSlotDragOver={(e, timeSlot, techId) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const workItemId = e.dataTransfer.types.includes('text/plain');
+                if (workItemId) {
+                  isDraggingRef.current = true;
+                  dragStateRef.current = {
+                    sourceId: e.dataTransfer.getData('text/plain'),
+                    sourceType: 'workItem',
+                    originalStart: new Date(),
+                    originalEnd: new Date(),
+                    currentStart: new Date(),
+                    currentEnd: new Date(),
+                    currentTechId: techId,
+                    clickOffset15MinIntervals: 0
+                  };
+                  setIsDragging(true);
+                  setDragState(dragStateRef.current);
+                  handleTimeSlotMouseOver(e, timeSlot, techId);
+                }
+              }}
+              onDrop={(e, timeSlot, techId) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const workItemId = e.dataTransfer.getData('text/plain');
+                if (workItemId) {
+                  const [hours, minutes] = timeSlot.split(':').map(Number);
+                  const dropTime = new Date(selectedDate);
+                  dropTime.setHours(hours, minutes, 0, 0);
+                  onDrop({
+                    type: 'workItem',
+                    workItemId,
+                    techId,
+                    startTime: dropTime
+                  });
+                } else {
+                  handleMouseUp(e);
+                }
+              }}
+              onEventMouseDown={handleMouseDown}
+              onEventDelete={handleDelete}
+              onEventResizeStart={handleResizeStart}
+            />
+          ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
