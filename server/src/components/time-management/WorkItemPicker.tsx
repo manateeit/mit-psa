@@ -85,87 +85,93 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
   };
 
   return (
-    <div className="space-y-4">
-      <div className="relative">
-        <Input
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search work items..."
-          className="pl-8 bg-white dark:bg-[rgb(var(--color-border-50))] border-[rgb(var(--color-border-200))]"
-        />
-        <svg
-          className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[rgb(var(--color-text-400))]"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+    <div className="flex flex-col h-[calc(80vh-8rem)]">
+      <div className="flex-none bg-white dark:bg-[rgb(var(--color-border-50))] pb-4">
+        <div className="relative">
+          <Input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search work items..."
+            className="pl-8 bg-white dark:bg-[rgb(var(--color-border-50))] border-[rgb(var(--color-border-200))]"
           />
-        </svg>
-        {isSearching && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[rgb(var(--color-primary-500))]"></div>
-          </div>
-        )}
+          <svg
+            className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[rgb(var(--color-text-400))]"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          {isSearching && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[rgb(var(--color-primary-500))]"></div>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="bg-white dark:bg-[rgb(var(--color-border-50))] rounded-md border border-[rgb(var(--color-border-200))] overflow-hidden">
-        {workItems.length > 0 ? (
-          <div>
-            <ul className="divide-y divide-[rgb(var(--color-border-200))]">
-              {workItems.map((item): JSX.Element => (
-                <li
-                  key={item.work_item_id}
-                  className="hover:bg-[rgb(var(--color-border-100))] cursor-pointer transition-colors duration-150"
-                  onClick={() => onSelect(item)}
-                >
-                  <div className="px-4 py-3">
-                    <div className="font-medium text-[rgb(var(--color-text-900))]">{item.name}</div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-900))]">
-                        {item.type === 'ticket' ? 'Ticket' : 'Project Task'}
-                      </span>
-                      {item.is_billable && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-accent-100))] text-[rgb(var(--color-accent-900))]">
-                          Billable
-                        </span>
-                      )}
-                    </div>
-                    {item.description && (
-                      <div className="text-sm text-[rgb(var(--color-text-600))] mt-1 line-clamp-1">
-                        {item.description}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="h-full overflow-y-auto">
+          <div className="bg-white dark:bg-[rgb(var(--color-border-50))] rounded-md border border-[rgb(var(--color-border-200))]">
+            {workItems.length > 0 ? (
+              <div>
+                <ul className="divide-y divide-[rgb(var(--color-border-200))]">
+                  {workItems.map((item): JSX.Element => (
+                    <li
+                      key={item.work_item_id}
+                      className="hover:bg-[rgb(var(--color-border-100))] cursor-pointer transition-colors duration-150"
+                      onClick={() => onSelect(item)}
+                    >
+                      <div className="px-4 py-3">
+                        <div className="font-medium text-[rgb(var(--color-text-900))]">{item.name}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-900))]">
+                            {item.type === 'ticket' ? 'Ticket' : 'Project Task'}
+                          </span>
+                          {item.is_billable && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-accent-100))] text-[rgb(var(--color-accent-900))]">
+                              Billable
+                            </span>
+                          )}
+                        </div>
+                        {item.description && (
+                          <div className="text-sm text-[rgb(var(--color-text-600))] mt-1 line-clamp-1">
+                            {item.description}
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </li>
+                  ))}
+                </ul>
+                {hasMore && (
+                  <div className="p-2 border-t border-[rgb(var(--color-border-200))]">
+                    <button
+                      onClick={handleLoadMore}
+                      className="w-full px-4 py-2 text-sm font-medium text-[rgb(var(--color-text-600))] hover:text-[rgb(var(--color-text-900))] hover:bg-[rgb(var(--color-border-100))] rounded-md transition-colors duration-150"
+                      disabled={isSearching}
+                    >
+                      {isSearching ? 'Loading...' : `Load More (${workItems.length} of ${total})`}
+                    </button>
                   </div>
-                </li>
-              ))}
-            </ul>
-            {hasMore && (
-              <div className="p-2 border-t border-[rgb(var(--color-border-200))]">
-                <button
-                  onClick={handleLoadMore}
-                  className="w-full px-4 py-2 text-sm font-medium text-[rgb(var(--color-text-600))] hover:text-[rgb(var(--color-text-900))] hover:bg-[rgb(var(--color-border-100))] rounded-md transition-colors duration-150"
-                  disabled={isSearching}
-                >
-                  {isSearching ? 'Loading...' : `Load More (${workItems.length} of ${total})`}
-                </button>
+                )}
               </div>
-            )}
+            ) : searchTerm && !isSearching ? (
+              <div className="p-4 text-center text-[rgb(var(--color-text-500))]">
+                No work items found. Try adjusting your search terms.
+              </div>
+            ) : !isSearching ? (
+              <div className="p-4 text-center text-[rgb(var(--color-text-500))]">
+                No available work items.
+              </div>
+            ) : null}
           </div>
-        ) : searchTerm && !isSearching ? (
-          <div className="p-4 text-center text-[rgb(var(--color-text-500))]">
-            No work items found. Try adjusting your search terms.
-          </div>
-        ) : !isSearching ? (
-          <div className="p-4 text-center text-[rgb(var(--color-text-500))]">
-            No available work items.
-          </div>
-        ) : null}
+        </div>
       </div>
     </div>
   );

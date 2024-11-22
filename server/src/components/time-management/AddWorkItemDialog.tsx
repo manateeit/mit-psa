@@ -18,13 +18,17 @@ export function AddWorkItemDialog({ isOpen, onClose, onAdd, existingWorkItems }:
   return (
     <Dialog isOpen={isOpen} onClose={onClose}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Work Item</DialogTitle>
-        </DialogHeader>
-        <WorkItemPicker 
-          onSelect={handleSelect} 
-          existingWorkItems={existingWorkItems}
-        />
+        <div className="max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Add Work Item</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            <WorkItemPicker 
+              onSelect={handleSelect} 
+              existingWorkItems={existingWorkItems}
+            />
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
