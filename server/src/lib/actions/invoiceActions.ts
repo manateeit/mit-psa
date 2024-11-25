@@ -1,6 +1,7 @@
 'use server'
 
 import { BillingEngine } from '@/lib/billing/billingEngine';
+import CompanyBillingPlan from '@/lib/models/clientBilling';
 import { IInvoiceTemplate, ICustomField, IConditionalRule, IInvoiceAnnotation, InvoiceViewModel, IInvoiceItem } from '@/interfaces/invoice.interfaces';
 import { IBillingResult, IBillingCharge, IBucketCharge, IUsageBasedCharge, ITimeBasedCharge, IFixedPriceCharge } from '@/interfaces/billing.interfaces';
 import { IInvoice } from '@/interfaces/invoice.interfaces';
@@ -107,6 +108,12 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
   let totalTax = 0;
   const due_date = await getDueDate(companyId, endDate);
 
+  // Calculate initial total amount
+  const initialTotal = billingResult.charges.reduce((sum, charge) => sum + charge.total, 0);
+  
+  // Get available credit
+  const availableCredit = await CompanyBillingPlan.getCompanyCredit(companyId);
+
   const invoice: Omit<IInvoice, 'invoice_id' | 'tenant'> = {
     company_id: companyId,
     invoice_date: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'"),
@@ -117,10 +124,44 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
     status: 'draft',
     invoice_number: await generateInvoiceNumber(companyId),
     billing_period_start: startDate,
-    billing_period_end: endDate
+    billing_period_end: endDate,
+    credit_applied: Math.min(availableCredit, initialTotal) // Apply available credit up to the initial total amount
   };
 
-  const createdInvoice = await Invoice.create(invoice);
+  const createdInvoice = await knex.transaction(async (trx) => {
+    const [newInvoice] = await trx('invoices').insert(invoice).returning('*');
+    
+    // Record invoice generation transaction
+    await trx('transactions').insert({
+      transaction_id: uuidv4(),
+      company_id: companyId,
+      invoice_id: newInvoice.invoice_id,
+      amount: newInvoice.total_amount,
+      type: 'invoice_generated',
+      status: 'completed',
+      description: `Generated invoice ${newInvoice.invoice_number}`,
+      created_at: new Date().toISOString(),
+      tenant
+    });
+
+    // If discounts were applied, record those transactions
+    for (const discount of billingResult.discounts) {
+      await trx('transactions').insert({
+        transaction_id: uuidv4(),
+        company_id: companyId,
+        invoice_id: newInvoice.invoice_id,
+        amount: -discount.amount,
+        type: 'price_adjustment',
+        status: 'completed',
+        description: `Applied discount: ${discount.discount_name}`,
+        created_at: new Date().toISOString(),
+        tenant,
+        metadata: { discount_id: discount.discount_id }
+      });
+    }
+
+    return newInvoice;
+  });
 
   for (const charge of billingResult.charges) {
     const { netAmount, taxCalculationResult } = await calculateChargeDetails(charge, companyId, endDate, taxService);
@@ -166,15 +207,37 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
   }
 
   const totalAmount = subtotal + totalTax;
+  const finalTotalAmount = Math.max(0, Math.ceil(totalAmount) - invoice.credit_applied);
+
   await knex('invoices')
     .where({ invoice_id: createdInvoice.invoice_id })
     .update({
       subtotal: Math.ceil(subtotal),
       tax: Math.ceil(totalTax),
-      total_amount: Math.ceil(totalAmount)
+      total_amount: finalTotalAmount,
+      credit_applied: invoice.credit_applied
     });
 
-  return { ...createdInvoice, subtotal: Math.ceil(subtotal), tax: Math.ceil(totalTax), total_amount: Math.ceil(totalAmount) };
+  // If credit was applied, create a transaction and update company credit balance
+  if (invoice.credit_applied > 0) {
+    await CompanyBillingPlan.createTransaction({
+      company_id: companyId,
+      invoice_id: createdInvoice.invoice_id,
+      amount: -invoice.credit_applied,
+      type: 'invoice_application',
+      description: `Applied credit to invoice ${invoice.invoice_number}`
+    });
+
+    await CompanyBillingPlan.updateCompanyCredit(companyId, -invoice.credit_applied);
+  }
+
+  return { 
+    ...createdInvoice, 
+    subtotal: Math.ceil(subtotal), 
+    tax: Math.ceil(totalTax), 
+    total_amount: finalTotalAmount,
+    credit_applied: invoice.credit_applied 
+  };
 }
 
 async function calculateChargeDetails(
