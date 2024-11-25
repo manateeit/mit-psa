@@ -698,10 +698,24 @@ const ProjectModel = {
       throw error;
     }
   },
-
+  
   addTicketLink: async (projectId: string, taskId: string | null, ticketId: string): Promise<IProjectTicketLink> => {
     try {
       const {knex: db, tenant} = await createTenantKnex();
+
+      // Check if the link already exists
+      const existingLink = await db<IProjectTicketLink>('project_ticket_links')
+        .where({
+          project_id: projectId,
+          task_id: taskId,
+          ticket_id: ticketId
+        })
+        .first();
+
+      if (existingLink) {
+        throw new Error('This ticket is already linked to this task');
+      }
+
       const [newLink] = await db<IProjectTicketLink>('project_ticket_links')
         .insert({
           link_id: uuidv4(),
@@ -714,10 +728,10 @@ const ProjectModel = {
         .returning('*');
       return newLink;
     } catch (error) {
-    console.error('Error adding ticket link:', error);
-    throw error;
-  }
-},
+      console.error('Error adding ticket link:', error);
+      throw error;
+    }
+  },
 
   getTaskTicketLinks: async (taskId: string): Promise<IProjectTicketLinkWithDetails[]> => {
     try {

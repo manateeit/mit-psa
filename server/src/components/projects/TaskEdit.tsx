@@ -199,9 +199,13 @@ const TaskEdit: React.FC<TaskEditProps> = ({
       setTaskTicketLinks(links);
       toast.success('Ticket linked successfully');
       setShowTicketDialog(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error linking ticket:', error);
-      toast.error('Failed to link ticket');
+      if (error.message === 'This ticket is already linked to this task') {
+        toast.error('This ticket is already linked to this task');
+      } else {
+        toast.error('Failed to link ticket');
+      }
     }
   };
 
@@ -216,9 +220,13 @@ const TaskEdit: React.FC<TaskEditProps> = ({
       setTaskTicketLinks(links);
       toast.success('New ticket created and linked');
       setShowNewTicketForm(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error linking new ticket:', error);
-      toast.error('Failed to link new ticket');
+      if (error.message === 'This ticket is already linked to this task') {
+        toast.error('This ticket is already linked to this task');
+      } else {
+        toast.error('Failed to link ticket');
+      }
     }
   };
 
