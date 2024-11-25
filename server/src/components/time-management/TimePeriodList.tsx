@@ -26,15 +26,15 @@ const getStatusDisplay = (status: TimeSheetStatus): { text: string; color: strin
 export function TimePeriodList({ timePeriods, onSelectTimePeriod }: TimePeriodListProps) {
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full">
       <h2 className="text-2xl font-bold mb-4">Select a Time Period</h2>
-      <Table.Root variant="surface">
+      <Table.Root variant="surface" style={{ width: '100%', tableLayout: 'fixed' }}>
         <Table.Header>
           <Table.Row>
-            <Table.ColumnHeaderCell>Start Date</Table.ColumnHeaderCell>
-            <Table.ColumnHeaderCell>End Date</Table.ColumnHeaderCell>
-            <Table.ColumnHeaderCell>Status</Table.ColumnHeaderCell>
-            <Table.ColumnHeaderCell>Action</Table.ColumnHeaderCell>
+            <Table.ColumnHeaderCell style={{ width: '25%' }}>Start Date</Table.ColumnHeaderCell>
+            <Table.ColumnHeaderCell style={{ width: '25%' }}>End Date</Table.ColumnHeaderCell>
+            <Table.ColumnHeaderCell style={{ width: '25%' }}>Status</Table.ColumnHeaderCell>
+            <Table.ColumnHeaderCell style={{ width: '25%' }}>Action</Table.ColumnHeaderCell>
           </Table.Row>
         </Table.Header>
 
