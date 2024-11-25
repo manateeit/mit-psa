@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
-import { ITicket } from '@/interfaces/ticket.interfaces';
+import { ITicket, ITicketListItem, ITicketListFilters } from '@/interfaces/ticket.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { ProjectStatus, updateTaskWithChecklist, addTaskToPhase, getTaskChecklistItems, moveTaskToPhase, addTicketLinkAction, getTaskTicketLinksAction, deleteTaskTicketLinkAction } from '@/lib/actions/projectActions';
-import { getTickets, getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
+import { getTicketsForList, getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
@@ -54,7 +54,7 @@ export default function TaskForm({
     projectStatuses[0]?.project_status_mapping_id
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [checklistItems, setChecklistItems] = useState<Omit<ITaskChecklistItem, 'tenant'>[]>([]);
+  const [checklistItems, setChecklistItems] = useState<Omit<ITaskChecklistItem, 'tenant'>[]>(task?.checklist_items || []);
   const [isEditingChecklist, setIsEditingChecklist] = useState(false);
   const [assignedUser, setAssignedUser] = useState<string>(task?.assigned_to || '');
   const [selectedPhase, setSelectedPhase] = useState<IProjectPhase>(phase);
@@ -62,7 +62,7 @@ export default function TaskForm({
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showTicketDialog, setShowTicketDialog] = useState(false);
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
-  const [availableTickets, setAvailableTickets] = useState<ITicket[]>([]);
+  const [availableTickets, setAvailableTickets] = useState<ITicketListItem[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<string>('');
   const [taskTicketLinks, setTaskTicketLinks] = useState<IProjectTicketLinkWithDetails[]>([]);
   const [tempTaskId] = useState<string>(`temp-${Date.now()}`);
@@ -75,7 +75,10 @@ export default function TaskForm({
         const user = await getCurrentUser();
         if (user) {
           setCurrentUserId(user.user_id);
-          const tickets = await getTickets(user);
+          const filters: ITicketListFilters = {
+            channelFilterState: 'all'
+          };
+          const tickets = await getTicketsForList(user, filters);
           setAvailableTickets(tickets);
         }
 
@@ -265,7 +268,9 @@ export default function TaskForm({
             title: selectedTicketDetails.title,
             created_at: new Date(),
             project_id: phase.project_id,
-            phase_id: phase.phase_id
+            phase_id: phase.phase_id,
+            status_name: selectedTicketDetails.status_name,
+            is_closed: selectedTicketDetails.closed_at !== null
           };
           setTaskTicketLinks([...taskTicketLinks, tempLink]);
         }
@@ -294,6 +299,12 @@ export default function TaskForm({
         setTaskTicketLinks(links);
       } else {
         // For new tasks, store the link temporarily
+        const selectedTicketDetails = availableTickets.find(t => t.ticket_id === ticket.ticket_id);
+        if (!selectedTicketDetails) {
+          toast.error('Failed to load ticket details');
+          return;
+        }
+
         const tempLink: IProjectTicketLinkWithDetails = {
           link_id: `temp-${Date.now()}`,
           task_id: tempTaskId,
@@ -302,7 +313,9 @@ export default function TaskForm({
           title: ticket.title,
           created_at: new Date(),
           project_id: phase.project_id,
-          phase_id: phase.phase_id
+          phase_id: phase.phase_id,
+          status_name: selectedTicketDetails.status_name,
+          is_closed: selectedTicketDetails.closed_at !== null
         };
         setTaskTicketLinks([...taskTicketLinks, tempLink]);
       }
@@ -367,7 +380,7 @@ export default function TaskForm({
   }));
 
   const ticketOptions = availableTickets
-    .filter((ticket): ticket is ITicket & { ticket_id: string } => ticket.ticket_id !== undefined)
+    .filter((ticket): ticket is ITicketListItem & { ticket_id: string } => ticket.ticket_id !== undefined)
     .map((ticket): { value: string; label: string } => ({
       value: ticket.ticket_id,
       label: `${ticket.ticket_number} - ${ticket.title}`

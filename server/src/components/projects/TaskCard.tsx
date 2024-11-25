@@ -1,9 +1,11 @@
 'use client';
 
-import { IProjectTask } from '@/interfaces/project.interfaces';
+import { useEffect, useState } from 'react';
+import { IProjectTask, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { CheckSquare, Square } from 'lucide-react';
+import { CheckSquare, Square, Ticket } from 'lucide-react';
 import UserPicker from '@/components/ui/UserPicker';
+import { getTaskTicketLinksAction } from '@/lib/actions/projectActions';
 
 interface TaskCardProps {
   task: IProjectTask;
@@ -22,10 +24,29 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onDragStart,
   onDragEnd,
 }) => {
+  const [taskTickets, setTaskTickets] = useState<IProjectTicketLinkWithDetails[]>([]);
+
+  useEffect(() => {
+    const fetchTickets = async () => {
+      try {
+        const links = await getTaskTicketLinksAction(task.task_id);
+        setTaskTickets(links);
+      } catch (error) {
+        console.error('Error fetching task tickets:', error);
+      }
+    };
+
+    fetchTickets();
+  }, [task.task_id]);
+
   const checklistItems = task.checklist_items || [];
   const completedItems = checklistItems.filter(item => item.completed).length;
   const hasChecklist = checklistItems.length > 0;
   const allCompleted = hasChecklist && completedItems === checklistItems.length;
+
+  const completedTickets = taskTickets.filter(link => link.is_closed).length;
+  const hasTickets = taskTickets.length > 0;
+  const allTicketsCompleted = hasTickets && completedTickets === taskTickets.length;
 
   return (
     <div
@@ -57,16 +78,24 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             <>No due date</>
           )}
         </div>
-        {hasChecklist && (
-          <div className={`flex items-center gap-1 ${allCompleted ? 'bg-green-50 text-green-600' : 'text-gray-500'} px-2 py-1 rounded`}>
-            {allCompleted ? (
-              <CheckSquare className="w-3 h-3" />
-            ) : (
-              <Square className="w-3 h-3" />
-            )}
-            <span>{completedItems}/{checklistItems.length}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {hasChecklist && (
+            <div className={`flex items-center gap-1 ${allCompleted ? 'bg-green-50 text-green-600' : 'text-gray-500'} px-2 py-1 rounded`}>
+              {allCompleted ? (
+                <CheckSquare className="w-3 h-3" />
+              ) : (
+                <Square className="w-3 h-3" />
+              )}
+              <span>{completedItems}/{checklistItems.length}</span>
+            </div>
+          )}
+          {hasTickets && (
+            <div className={`flex items-center gap-1 ${allTicketsCompleted ? 'bg-green-50 text-green-600' : 'text-gray-500'} px-2 py-1 rounded`}>
+              <Ticket className="w-3 h-3" />
+              <span>{completedTickets}/{taskTickets.length}</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
