@@ -97,7 +97,7 @@ function getChargeUnitPrice(charge: IBillingCharge): number {
 }
 
 async function createInvoice(billingResult: IBillingResult, companyId: string, startDate: ISO8601String, endDate: ISO8601String): Promise<IInvoice> {
-  const { knex } = await createTenantKnex();
+  const { knex, tenant } = await createTenantKnex();
   const company = await knex('companies').where({ company_id: companyId }).first() as ICompany;
   if (!company) {
     throw new Error(`Company with ID ${companyId} not found`);
@@ -130,7 +130,7 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
 
   const createdInvoice = await knex.transaction(async (trx) => {
     const [newInvoice] = await trx('invoices').insert(invoice).returning('*');
-    
+
     // Record invoice generation transaction
     await trx('transactions').insert({
       transaction_id: uuidv4(),
@@ -150,7 +150,7 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
         transaction_id: uuidv4(),
         company_id: companyId,
         invoice_id: newInvoice.invoice_id,
-        amount: -discount.amount,
+        amount: -(discount.amount || 0),
         type: 'price_adjustment',
         status: 'completed',
         description: `Applied discount: ${discount.discount_name}`,
@@ -224,7 +224,7 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
       company_id: companyId,
       invoice_id: createdInvoice.invoice_id,
       amount: -invoice.credit_applied,
-      type: 'invoice_application',
+      type: 'credit_application',
       description: `Applied credit to invoice ${invoice.invoice_number}`
     });
 

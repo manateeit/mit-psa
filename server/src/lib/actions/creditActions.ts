@@ -99,7 +99,7 @@ export async function getCreditHistory(
     
     const query = knex('transactions')
         .where('company_id', companyId)
-        .whereIn('type', ['credit', 'prepayment', 'invoice_application', 'credit_refund'])
+        .whereIn('type', ['credit', 'prepayment', 'credit_application', 'credit_refund'])
         .orderBy('created_at', 'desc');
 
     if (startDate) {
