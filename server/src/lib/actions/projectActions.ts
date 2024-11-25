@@ -2,9 +2,9 @@
 'use server'
 
 import ProjectModel from '../models/project';
-import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink, IStatus, IProjectStatusMapping, IStandardStatus, ItemType, ITaskChecklistItem } from '../../interfaces/project.interfaces';
+import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink, IStatus, IProjectStatusMapping, IStandardStatus, ItemType, ITaskChecklistItem, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
-import { IUser, IUserWithRoles } from '../../interfaces/auth.interfaces';
+import { IUser, IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { hasPermission } from '@/lib/auth/rbac';
 import { getAllUsers } from './user-actions/userActions';
 import { validateData, validateArray } from '../utils/validation';
@@ -375,7 +375,7 @@ export async function getProjectDetails(projectId: string): Promise<{
     project: IProject;
     phases: IProjectPhase[];
     tasks: IProjectTask[];
-    ticketLinks: IProjectTicketLink[];
+    ticketLinks: IProjectTicketLinkWithDetails[];
     statuses: ProjectStatus[];
     users: IUserWithRoles[];
 }> {
@@ -392,7 +392,10 @@ export async function getProjectDetails(projectId: string): Promise<{
         }
         const phases = await ProjectModel.getPhases(projectId);
         const tasks = await ProjectModel.getTasks(projectId);
-        const ticketLinks = await ProjectModel.getTicketLinks(projectId);
+        // Get all ticket links for all tasks in the project
+        const ticketLinks = await Promise.all(
+            tasks.map(task => ProjectModel.getTaskTicketLinks(task.task_id))
+        ).then(links => links.flat());
         const statuses = await getProjectTaskStatuses(projectId);
         const users = await getAllUsers();
         return { project, phases, tasks, ticketLinks, statuses, users };
@@ -608,6 +611,36 @@ export async function deleteTask(taskId: string): Promise<void> {
         await ProjectModel.deleteTask(taskId);
     } catch (error) {
         console.error('Error deleting task:', error);
+        throw error;
+    }
+}
+
+export async function addTicketLinkAction(projectId: string, taskId: string | null, ticketId: string): Promise<IProjectTicketLink> {
+    try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+            throw new Error("user not found");
+        }
+
+        await checkPermission(currentUser, 'project', 'update');
+        return await ProjectModel.addTicketLink(projectId, taskId, ticketId);
+    } catch (error) {
+        console.error('Error adding ticket link:', error);
+        throw error;
+    }
+}
+
+export async function getTaskTicketLinksAction(taskId: string): Promise<IProjectTicketLinkWithDetails[]> {
+    try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+            throw new Error("user not found");
+        }
+
+        await checkPermission(currentUser, 'project', 'read');
+        return await ProjectModel.getTaskTicketLinks(taskId);
+    } catch (error) {
+        console.error('Error getting task ticket links:', error);
         throw error;
     }
 }

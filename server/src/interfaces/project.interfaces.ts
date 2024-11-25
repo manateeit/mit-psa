@@ -1,3 +1,4 @@
+// server/src/interfaces/project.interfaces.ts
 import { TenantEntity } from ".";
 
 export type ItemType = 'project' | 'project_task' | 'ticket';
@@ -86,6 +87,11 @@ export interface IProjectTicketLink extends TenantEntity {
   task_id: string | null;
   ticket_id: string;
   created_at: Date;
+}
+
+export interface IProjectTicketLinkWithDetails extends IProjectTicketLink {
+  ticket_number: string;
+  title: string;
 }
 
 export interface ITaskChecklistItem extends TenantEntity {

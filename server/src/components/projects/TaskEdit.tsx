@@ -1,18 +1,22 @@
 // server/src/components/projects/TaskEdit.tsx
 import React, { useState, useEffect } from 'react';
-import { IProjectPhase, IProjectTask, ITaskChecklistItem } from '@/interfaces/project.interfaces';
-import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { ProjectStatus, updateTaskWithChecklist, deleteTask, getTaskChecklistItems, moveTaskToPhase } from '@/lib/actions/projectActions';
+import { IProjectPhase, IProjectTask, ITaskChecklistItem, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
+import { ITicket } from '@/interfaces/ticket.interfaces';
+import { IUser, IUserWithRoles } from '@/interfaces/auth.interfaces';
+import { ProjectStatus, updateTaskWithChecklist, deleteTask, getTaskChecklistItems, moveTaskToPhase, addTicketLinkAction, getTaskTicketLinksAction } from '@/lib/actions/projectActions';
+import { getTickets } from '@/lib/actions/ticket-actions/ticketActions';
+import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
 import EditableText from '@/components/ui/EditableText';
-import { ListChecks } from 'lucide-react';
+import { ListChecks, Link, Plus, ExternalLink } from 'lucide-react';
 import UserPicker from '@/components/ui/UserPicker';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { Input } from '@/components/ui/Input';
 import { toast } from 'react-hot-toast';
+import { QuickAddTicket } from '@/components/tickets/QuickAddTicket';
 
 interface TaskEditProps {
   task: IProjectTask;
@@ -22,6 +26,7 @@ interface TaskEditProps {
   onTaskUpdated: (updatedTask: IProjectTask|null) => void;
   projectStatuses: ProjectStatus[];
   users: IUserWithRoles[];
+  ticketLinks?: IProjectTicketLinkWithDetails[];
 }
 
 const TaskEdit: React.FC<TaskEditProps> = ({ 
@@ -31,7 +36,8 @@ const TaskEdit: React.FC<TaskEditProps> = ({
   onClose,
   onTaskUpdated,
   projectStatuses,
-  users
+  users,
+  ticketLinks = []
 }) => {
   const [taskName, setTaskName] = useState(task.task_name);
   const [description, setDescription] = useState(task.description || '');
@@ -42,15 +48,29 @@ const TaskEdit: React.FC<TaskEditProps> = ({
   const [assignedUser, setAssignedUser] = useState<string | null>(task.assigned_to);
   const [selectedPhase, setSelectedPhase] = useState<IProjectPhase>(phase);
   const [showMoveConfirmation, setShowMoveConfirmation] = useState(false);
+  const [showTicketDialog, setShowTicketDialog] = useState(false);
+  const [availableTickets, setAvailableTickets] = useState<ITicket[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<string>('');
+  const [showNewTicketForm, setShowNewTicketForm] = useState(false);
+  const [taskTicketLinks, setTaskTicketLinks] = useState<IProjectTicketLinkWithDetails[]>(ticketLinks);
 
   useEffect(() => {
     const loadTaskData = async () => {
       try {
-        const existingChecklistItems = await getTaskChecklistItems(task.task_id);
+        const user = await getCurrentUser() as IUser;
+        const [existingChecklistItems, tickets, links] = await Promise.all([
+          getTaskChecklistItems(task.task_id),
+          getTickets(user),
+          getTaskTicketLinksAction(task.task_id)
+        ]);
         setChecklistItems(existingChecklistItems);
+        setAvailableTickets(tickets);
+        setTaskTicketLinks(links);
       } catch (error) {
-        console.error('Error loading checklist items:', error);
+        console.error('Error loading task data:', error);
         setChecklistItems([]);
+        setAvailableTickets([]);
+        setTaskTicketLinks([]);
       }
     };
 
@@ -68,10 +88,8 @@ const TaskEdit: React.FC<TaskEditProps> = ({
   const handleMoveConfirm = async () => {
     setIsSubmitting(true);
     try {
-      // First move the task to new phase
       const movedTask = await moveTaskToPhase(task.task_id, selectedPhase.phase_id);
       
-      // Then update the task with proper number values
       if (movedTask) {
         const taskData = {
           ...movedTask,
@@ -172,6 +190,38 @@ const TaskEdit: React.FC<TaskEditProps> = ({
     setChecklistItems(updatedItems);
   };
 
+  const handleLinkTicket = async () => {
+    if (!selectedTicket) return;
+    
+    try {
+      await addTicketLinkAction(phase.project_id, task.task_id, selectedTicket);
+      const links = await getTaskTicketLinksAction(task.task_id);
+      setTaskTicketLinks(links);
+      toast.success('Ticket linked successfully');
+      setShowTicketDialog(false);
+    } catch (error) {
+      console.error('Error linking ticket:', error);
+      toast.error('Failed to link ticket');
+    }
+  };
+
+  const handleNewTicketCreated = async (ticket: ITicket) => {
+    if (!ticket.ticket_id) {
+      toast.error('Invalid ticket ID');
+      return;
+    }
+    try {
+      await addTicketLinkAction(phase.project_id, task.task_id, ticket.ticket_id);
+      const links = await getTaskTicketLinksAction(task.task_id);
+      setTaskTicketLinks(links);
+      toast.success('New ticket created and linked');
+      setShowNewTicketForm(false);
+    } catch (error) {
+      console.error('Error linking new ticket:', error);
+      toast.error('Failed to link new ticket');
+    }
+  };
+
   const phaseOptions = phases.map((p): { value: string; label: string } => ({
     value: p.phase_id,
     label: p.phase_name
@@ -181,6 +231,13 @@ const TaskEdit: React.FC<TaskEditProps> = ({
     value: status.project_status_mapping_id,
     label: status.custom_name || status.name
   }));
+
+  const ticketOptions = availableTickets
+    .filter((ticket): ticket is ITicket & { ticket_id: string } => ticket.ticket_id !== undefined)
+    .map((ticket): { value: string; label: string } => ({
+      value: ticket.ticket_id,
+      label: `${ticket.ticket_number} - ${ticket.title}`
+    }));
 
   return (
     <Dialog.Root open={true} onOpenChange={onClose}>
@@ -236,6 +293,7 @@ const TaskEdit: React.FC<TaskEditProps> = ({
                 users={users}
               />
 
+              {/* Checklist Section */}
               <div className="flex items-center justify-between mb-2">
                 <h3 className='font-semibold'>Checklist</h3>
                 <button 
@@ -295,6 +353,50 @@ const TaskEdit: React.FC<TaskEditProps> = ({
                 </Button>
               )}
 
+              {/* Associated Tickets Section */}
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold">Associated Tickets</h3>
+                  <div className="flex space-x-2">
+                    <Button
+                      type="button"
+                      variant="soft"
+                      onClick={() => setShowTicketDialog(true)}
+                      className="flex items-center"
+                    >
+                      <Link className="h-4 w-4 mr-1" />
+                      Link Ticket
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="soft"
+                      onClick={() => setShowNewTicketForm(true)}
+                      className="flex items-center"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Create Ticket
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {taskTicketLinks.map((link) => (
+                    <div key={link.link_id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <span>{link.ticket_number} - {link.title}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => window.open(`/tickets/${link.ticket_id}`, '_blank')}
+                        className="flex items-center text-sm"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex justify-between mt-6">
                 <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
                   Cancel
@@ -316,7 +418,7 @@ const TaskEdit: React.FC<TaskEditProps> = ({
         isOpen={showMoveConfirmation}
         onClose={() => {
           setShowMoveConfirmation(false);
-          setSelectedPhase(phase); // Reset to original phase if cancelled
+          setSelectedPhase(phase);
         }}
         onConfirm={handleMoveConfirm}
         title="Move Task"
@@ -324,6 +426,48 @@ const TaskEdit: React.FC<TaskEditProps> = ({
         confirmLabel="Move"
         cancelLabel="Cancel"
       />
+
+      {/* Link Existing Ticket Dialog */}
+      <Dialog.Root open={showTicketDialog} onOpenChange={setShowTicketDialog}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
+          <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 rounded-lg shadow-lg w-[400px]">
+            <Dialog.Title className="text-lg font-semibold mb-4">Link Existing Ticket</Dialog.Title>
+            <div className="space-y-4">
+              <CustomSelect
+                value={selectedTicket}
+                onValueChange={setSelectedTicket}
+                options={ticketOptions}
+                placeholder="Select a ticket"
+                className="w-full"
+              />
+              <div className="flex justify-end space-x-2">
+                <Button variant="ghost" onClick={() => setShowTicketDialog(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleLinkTicket} disabled={!selectedTicket}>
+                  Link Ticket
+                </Button>
+              </div>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Create New Ticket Dialog */}
+      <Dialog.Root open={showNewTicketForm} onOpenChange={setShowNewTicketForm}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
+          <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 rounded-lg shadow-lg w-[600px]">
+            <Dialog.Title className="text-lg font-semibold mb-4">Create New Ticket</Dialog.Title>
+            <QuickAddTicket 
+              open={showNewTicketForm}
+              onOpenChange={setShowNewTicketForm}
+              onTicketAdded={handleNewTicketCreated}
+            />
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </Dialog.Root>
   );
 };
