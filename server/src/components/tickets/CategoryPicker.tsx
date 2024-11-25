@@ -113,7 +113,7 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
     <div className={`relative ${containerClassName}`} ref={containerRef}>
       <button 
         type="button"
-        className={`flex items-center justify-between border border-gray-300 rounded-md shadow-sm bg-white cursor-pointer min-h-[38px] hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 px-3 py-2 ${className}`}
+        className={`flex items-center justify-between border border-gray-200 rounded-md shadow-sm bg-white cursor-pointer min-h-[38px] hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent px-3 py-2 ${className}`}
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="flex-1 flex flex-wrap gap-2 min-h-[20px]">
@@ -140,10 +140,10 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
       {isOpen && (
         <div className="absolute z-50 mt-1 bg-white rounded-md shadow-lg border border-gray-200 w-fit" style={{ minWidth: '100%', maxWidth: 'max-content' }}>
           <div className="p-1">
-            <div className="flex items-center border border-gray-300 rounded mb-2 mx-1">
+            <div className="flex items-center border border-gray-200 rounded mb-2 mx-1">
               <input
                 type="text"
-                className="w-full px-3 py-2 text-gray-700 outline-none"
+                className="w-full px-3 py-2 text-gray-700 outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent rounded-md"
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
