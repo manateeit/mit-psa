@@ -252,6 +252,22 @@ body,
 .radix-themes {
     --table-header-bg: transparent;
     --table-row-hover: rgba(0, 0, 0, 0.05);
+    width: 100%;
+}
+
+/* Force tables to take full width */
+.rt-TableRoot {
+    width: 100% !important;
+    table-layout: fixed !important;
+}
+
+.rt-ScrollAreaViewport > * {
+    width: 100% !important;
+}
+
+.rt-TableCell,
+.rt-TableColumnHeaderCell {
+    width: auto !important;
 }
 
 .rt-TableHeader {
