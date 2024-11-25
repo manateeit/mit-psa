@@ -256,8 +256,8 @@ The billing system includes a comprehensive credit management system that allows
 
 1. **Prepayment Handling**
    - Companies can make prepayments that are converted to credit
-   - Prepayment invoices are generated with a special "PRE-" prefix
-   - Prepayments are tracked separately from regular invoices
+   - Prepayment invoices are tracked through their status field
+   - Prepayments are tracked separately from regular invoices through the invoice status
 
 2. **Credit Application**
    - Credits can be applied to any outstanding invoice

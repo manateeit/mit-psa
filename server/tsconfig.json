@@ -33,7 +33,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
-, "../ee/server/src/interfaces/chat.interface.tsx", "../ee/server/src/interfaces/message.interface.ts", "../ee/server/src/models/chat.ts", "../ee/server/src/models/message.ts"  ],
+, "../ee/server/src/interfaces/chat.interface.tsx", "../ee/server/src/interfaces/message.interface.ts", "../ee/server/src/models/chat.ts", "../ee/server/src/models/message.ts", "migrations/20241125124900_add_credit_system.cjs"  ],
   "exclude": [
     "node_modules"
   ]

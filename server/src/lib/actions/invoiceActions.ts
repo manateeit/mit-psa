@@ -268,7 +268,7 @@ async function createInvoiceItem(invoiceId: string, item: Omit<IInvoiceItem, 'in
   });
 }
 
-async function generateInvoiceNumber(companyId: string): Promise<string> {
+export async function generateInvoiceNumber(companyId: string): Promise<string> {
   const { knex } = await createTenantKnex();
   const result = await knex('invoices')
     .where({ company_id: companyId })

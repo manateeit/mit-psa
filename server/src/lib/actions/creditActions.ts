@@ -5,6 +5,7 @@ import CompanyBillingPlan from '@/lib/models/clientBilling';
 import { IInvoice } from '@/interfaces/invoice.interfaces';
 import { ITransaction } from '@/interfaces/billing.interfaces';
 import { v4 as uuidv4 } from 'uuid';
+import { generateInvoiceNumber } from './invoiceActions';
 
 export async function createPrepaymentInvoice(
     companyId: string,
@@ -21,7 +22,7 @@ export async function createPrepaymentInvoice(
         tax: 0, // Prepayments typically don't have tax
         total_amount: amount,
         status: 'prepayment',
-        invoice_number: await generatePrepaymentInvoiceNumber(companyId),
+        invoice_number: await generateInvoiceNumber(companyId),
         billing_period_start: new Date().toISOString(),
         billing_period_end: new Date().toISOString(),
         credit_applied: 0
@@ -112,17 +113,3 @@ export async function getCreditHistory(
     return query;
 }
 
-async function generatePrepaymentInvoiceNumber(companyId: string): Promise<string> {
-    const { knex } = await createTenantKnex();
-    const result = await knex('invoices')
-        .where({ company_id: companyId })
-        .whereRaw("invoice_number LIKE 'PRE-%'")
-        .max('invoice_number as lastInvoiceNumber')
-        .first();
-
-    const lastNumber = result?.lastInvoiceNumber 
-        ? parseInt(result.lastInvoiceNumber.split('-')[1]) 
-        : 0;
-    const newNumber = lastNumber + 1;
-    return `PRE-${newNumber.toString().padStart(6, '0')}`;
-}
