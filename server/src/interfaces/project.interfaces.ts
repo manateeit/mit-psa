@@ -92,6 +92,8 @@ export interface IProjectTicketLink extends TenantEntity {
 export interface IProjectTicketLinkWithDetails extends IProjectTicketLink {
   ticket_number: string;
   title: string;
+  status_name: string;
+  is_closed: boolean;
 }
 
 export interface ITaskChecklistItem extends TenantEntity {

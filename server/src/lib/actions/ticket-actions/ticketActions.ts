@@ -434,7 +434,7 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
   }
 }
 
-export async function getTicketById(id: string, user: IUser): Promise<ITicket & { tenant: string }> {
+export async function getTicketById(id: string, user: IUser): Promise<ITicket & { tenant: string; status_name: string; is_closed: boolean }> {
   if (!await hasPermission(user, 'ticket', 'read')) {
     throw new Error('Permission denied: Cannot view ticket');
   }
@@ -445,15 +445,27 @@ export async function getTicketById(id: string, user: IUser): Promise<ITicket & 
       throw new Error('Tenant not found');
     }
 
-    const ticket = await Ticket.get(id);
+    const ticket = await db('tickets as t')
+      .select(
+        't.*',
+        's.name as status_name',
+        's.is_closed'
+      )
+      .leftJoin('statuses as s', 't.status_id', 's.status_id')
+      .where('t.ticket_id', id)
+      .where('t.tenant', tenant)
+      .first();
+
     if (!ticket) {
       throw new Error('Ticket not found');
     }
 
-    // Add tenant to the ticket
+    // Add tenant and status info to the ticket
     const ticketWithTenant = {
       ...ticket,
-      tenant: tenant
+      tenant: tenant,
+      status_name: ticket.status_name || 'Unknown',
+      is_closed: ticket.is_closed || false
     };
 
     return convertDates(ticketWithTenant);

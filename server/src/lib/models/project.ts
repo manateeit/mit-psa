@@ -739,10 +739,13 @@ const ProjectModel = {
       const links = await db<IProjectTicketLink>('project_ticket_links')
         .where('task_id', taskId)
         .leftJoin('tickets', 'project_ticket_links.ticket_id', 'tickets.ticket_id')
+        .leftJoin('statuses', 'tickets.status_id', 'statuses.status_id')
         .select(
           'project_ticket_links.*',
           'tickets.ticket_number',
-          'tickets.title'
+          'tickets.title',
+          'statuses.name as status_name',
+          'statuses.is_closed'
         );
       return links;
     } catch (error) {
