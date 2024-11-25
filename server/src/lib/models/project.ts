@@ -699,7 +699,7 @@ const ProjectModel = {
     }
   },
   
-  addTicketLink: async (projectId: string, taskId: string | null, ticketId: string): Promise<IProjectTicketLink> => {
+  addTaskTicketLink: async (projectId: string, taskId: string | null, ticketId: string): Promise<IProjectTicketLink> => {
     try {
       const {knex: db, tenant} = await createTenantKnex();
 
@@ -747,6 +747,18 @@ const ProjectModel = {
       return links;
     } catch (error) {
       console.error('Error getting task ticket links:', error);
+      throw error;
+    }
+  },
+
+  deleteTaskTicketLink: async (linkId: string): Promise<void> => {
+    try {
+      const {knex: db} = await createTenantKnex();
+      await db<IProjectTicketLink>('project_ticket_links')
+        .where('link_id', linkId)
+        .del();
+    } catch (error) {
+      console.error('Error deleting ticket link:', error);
       throw error;
     }
   },

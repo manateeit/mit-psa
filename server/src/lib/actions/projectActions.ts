@@ -623,7 +623,7 @@ export async function addTicketLinkAction(projectId: string, taskId: string | nu
         }
 
         await checkPermission(currentUser, 'project', 'update');
-        return await ProjectModel.addTicketLink(projectId, taskId, ticketId);
+        return await ProjectModel.addTaskTicketLink(projectId, taskId, ticketId);
     } catch (error) {
         console.error('Error adding ticket link:', error);
         throw error;
@@ -641,6 +641,21 @@ export async function getTaskTicketLinksAction(taskId: string): Promise<IProject
         return await ProjectModel.getTaskTicketLinks(taskId);
     } catch (error) {
         console.error('Error getting task ticket links:', error);
+        throw error;
+    }
+}
+
+export async function deleteTaskTicketLinkAction(linkId: string): Promise<void> {
+    try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+            throw new Error("user not found");
+        }
+
+        await checkPermission(currentUser, 'project', 'update');
+        await ProjectModel.deleteTaskTicketLink(linkId);
+    } catch (error) {
+        console.error('Error deleting ticket link:', error);
         throw error;
     }
 }

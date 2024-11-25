@@ -3,14 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { ITicket } from '@/interfaces/ticket.interfaces';
 import { IUser, IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { ProjectStatus, updateTaskWithChecklist, deleteTask, getTaskChecklistItems, moveTaskToPhase, addTicketLinkAction, getTaskTicketLinksAction } from '@/lib/actions/projectActions';
+import { ProjectStatus, updateTaskWithChecklist, deleteTask, getTaskChecklistItems, moveTaskToPhase, addTicketLinkAction, getTaskTicketLinksAction, deleteTaskTicketLinkAction } from '@/lib/actions/projectActions';
 import { getTickets, getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
 import EditableText from '@/components/ui/EditableText';
-import { ListChecks, Link, Plus, ExternalLink } from 'lucide-react';
+import { ListChecks, Link, Plus, ExternalLink, Trash2 } from 'lucide-react';
 import UserPicker from '@/components/ui/UserPicker';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import CustomSelect from '@/components/ui/CustomSelect';
@@ -254,6 +254,18 @@ const TaskEdit: React.FC<TaskEditProps> = ({
     }
   };
 
+  const handleDeleteTicketLink = async (linkId: string) => {
+    try {
+      await deleteTaskTicketLinkAction(linkId);
+      const links = await getTaskTicketLinksAction(task.task_id);
+      setTaskTicketLinks(links);
+      toast.success('Ticket link removed');
+    } catch (error) {
+      console.error('Error deleting ticket link:', error);
+      toast.error('Failed to remove ticket link');
+    }
+  };
+
   const phaseOptions = phases.map((p): { value: string; label: string } => ({
     value: p.phase_id,
     label: p.phase_name
@@ -415,15 +427,24 @@ const TaskEdit: React.FC<TaskEditProps> = ({
                   {taskTicketLinks.map((link): JSX.Element => (
                     <div key={link.link_id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                       <span>{link.ticket_number} - {link.title}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => handleViewTicket(link.ticket_id)}
-                        className="flex items-center text-sm"
-                      >
-                        <ExternalLink className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => handleViewTicket(link.ticket_id)}
+                          className="flex items-center text-sm"
+                        >
+                          <ExternalLink className="h-4 w-4 mr-1" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => handleDeleteTicketLink(link.link_id)}
+                          className="flex items-center text-sm text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
