@@ -1,6 +1,7 @@
+// server/src/lib/models/project.ts
 import { v4 as uuidv4 } from 'uuid';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
-import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink, IStatus, IProjectStatusMapping, IStandardStatus, ITaskChecklistItem, ItemType, IProjectTaskCardInfo } from '@/interfaces/project.interfaces';
+import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink, IStatus, IProjectStatusMapping, IStandardStatus, ITaskChecklistItem, ItemType, IProjectTaskCardInfo, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { Knex } from 'knex';
 import { createTenantKnex } from '@/lib/db';
 
@@ -633,18 +634,6 @@ const ProjectModel = {
     }
   },
 
-  getTicketLinks: async (projectId: string): Promise<IProjectTicketLink[]> => {
-    try {
-      const {knex: db} = await createTenantKnex();
-      const links = await db<IProjectTicketLink>('project_ticket_links')
-        .where('project_id', projectId);
-      return links;
-    } catch (error) {
-      console.error('Error getting project ticket links:', error);
-      throw error;
-    }
-  },
-
   deleteTask: async (taskId: string): Promise<void> => {
     try {
       const {knex: db} = await createTenantKnex();
@@ -706,6 +695,70 @@ const ProjectModel = {
       });
     } catch (error) {
       console.error('Error deleting phase:', error);
+      throw error;
+    }
+  },
+  
+  addTaskTicketLink: async (projectId: string, taskId: string | null, ticketId: string): Promise<IProjectTicketLink> => {
+    try {
+      const {knex: db, tenant} = await createTenantKnex();
+
+      // Check if the link already exists
+      const existingLink = await db<IProjectTicketLink>('project_ticket_links')
+        .where({
+          project_id: projectId,
+          task_id: taskId,
+          ticket_id: ticketId
+        })
+        .first();
+
+      if (existingLink) {
+        throw new Error('This ticket is already linked to this task');
+      }
+
+      const [newLink] = await db<IProjectTicketLink>('project_ticket_links')
+        .insert({
+          link_id: uuidv4(),
+          project_id: projectId,
+          task_id: taskId,
+          ticket_id: ticketId,
+          tenant: tenant!,
+          created_at: db.fn.now()
+        })
+        .returning('*');
+      return newLink;
+    } catch (error) {
+      console.error('Error adding ticket link:', error);
+      throw error;
+    }
+  },
+
+  getTaskTicketLinks: async (taskId: string): Promise<IProjectTicketLinkWithDetails[]> => {
+    try {
+      const {knex: db} = await createTenantKnex();
+      const links = await db<IProjectTicketLink>('project_ticket_links')
+        .where('task_id', taskId)
+        .leftJoin('tickets', 'project_ticket_links.ticket_id', 'tickets.ticket_id')
+        .select(
+          'project_ticket_links.*',
+          'tickets.ticket_number',
+          'tickets.title'
+        );
+      return links;
+    } catch (error) {
+      console.error('Error getting task ticket links:', error);
+      throw error;
+    }
+  },
+
+  deleteTaskTicketLink: async (linkId: string): Promise<void> => {
+    try {
+      const {knex: db} = await createTenantKnex();
+      await db<IProjectTicketLink>('project_ticket_links')
+        .where('link_id', linkId)
+        .del();
+    } catch (error) {
+      console.error('Error deleting ticket link:', error);
       throw error;
     }
   },

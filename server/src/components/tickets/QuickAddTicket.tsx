@@ -18,6 +18,8 @@ import { CompanyPicker } from '../companies/CompanyPicker';
 import { CategoryPicker } from './CategoryPicker';
 import { useSession } from 'next-auth/react';
 import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
+import { Input } from '@/components/ui/Input';
+import { TextArea } from '@/components/ui/TextArea';
 
 interface QuickAddTicketProps {
     open: boolean;
@@ -270,19 +272,16 @@ export function QuickAddTicket({ open, onOpenChange, onTicketAdded, prefilledCom
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <input
-                            type="text"
+                        <Input
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             placeholder="Ticket Title"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             required
                         />
-                        <textarea
+                        <TextArea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder="Description"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             required
                         />
 

@@ -163,7 +163,7 @@ export async function addTicket(data: FormData, user: IUser): Promise<ITicket|un
       category_id: category_id === '' ? null : category_id,
       subcategory_id: subcategory_id === '' ? null : subcategory_id,
     };
-    
+
     const validatedData = validateData(ticketFormSchema, formData);
 
     // Start a transaction to ensure both ticket and comment are created
@@ -272,7 +272,7 @@ export async function updateTicket(id: string, data: Partial<ITicket>, user: IUs
 
     // Clean up the data before update
     const updateData = { ...validatedData };
-    
+
     // Handle null values for category and subcategory
     if ('category_id' in updateData && !updateData.category_id) {
       updateData.category_id = null;
@@ -370,7 +370,7 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
         .select('channel_id')
         .where('tenant', tenant)
         .where('is_inactive', validatedFilters.channelFilterState === 'inactive');
-      
+
       query = query.whereIn('t.channel_id', channelSubquery);
     }
 
@@ -431,5 +431,34 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
   } catch (error) {
     console.error('Failed to fetch tickets:', error);
     throw new Error('Failed to fetch tickets');
+  }
+}
+
+export async function getTicketById(id: string, user: IUser): Promise<ITicket & { tenant: string }> {
+  if (!await hasPermission(user, 'ticket', 'read')) {
+    throw new Error('Permission denied: Cannot view ticket');
+  }
+
+  try {
+    const {knex: db, tenant} = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    const ticket = await Ticket.get(id);
+    if (!ticket) {
+      throw new Error('Ticket not found');
+    }
+
+    // Add tenant to the ticket
+    const ticketWithTenant = {
+      ...ticket,
+      tenant: tenant
+    };
+
+    return convertDates(ticketWithTenant);
+  } catch (error) {
+    console.error('Failed to fetch ticket:', error);
+    throw new Error('Failed to fetch ticket');
   }
 }
