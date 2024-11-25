@@ -4,7 +4,7 @@ import { IProjectPhase, IProjectTask, ITaskChecklistItem, IProjectTicketLinkWith
 import { ITicket } from '@/interfaces/ticket.interfaces';
 import { IUser, IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { ProjectStatus, updateTaskWithChecklist, deleteTask, getTaskChecklistItems, moveTaskToPhase, addTicketLinkAction, getTaskTicketLinksAction } from '@/lib/actions/projectActions';
-import { getTickets } from '@/lib/actions/ticket-actions/ticketActions';
+import { getTickets, getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
@@ -17,6 +17,8 @@ import CustomSelect from '@/components/ui/CustomSelect';
 import { Input } from '@/components/ui/Input';
 import { toast } from 'react-hot-toast';
 import { QuickAddTicket } from '@/components/tickets/QuickAddTicket';
+import { useDrawer } from '@/context/DrawerContext';
+import TicketDetails from '@/components/tickets/TicketDetails';
 
 interface TaskEditProps {
   task: IProjectTask;
@@ -39,6 +41,7 @@ const TaskEdit: React.FC<TaskEditProps> = ({
   users,
   ticketLinks = []
 }) => {
+  const { openDrawer } = useDrawer();
   const [taskName, setTaskName] = useState(task.task_name);
   const [description, setDescription] = useState(task.description || '');
   const [selectedStatus, setSelectedStatus] = useState<string>(task.project_status_mapping_id);
@@ -230,6 +233,27 @@ const TaskEdit: React.FC<TaskEditProps> = ({
     }
   };
 
+  const handleViewTicket = async (ticketId: string) => {
+    try {
+      const user = await getCurrentUser();
+      if (!user) {
+        toast.error('No user session found');
+        return;
+      }
+      
+      const ticket = await getTicketById(ticketId, user);
+      if (!ticket) {
+        toast.error('Failed to load ticket');
+        return;
+      }
+
+      openDrawer(<TicketDetails initialTicket={ticket} />);
+    } catch (error) {
+      console.error('Error loading ticket:', error);
+      toast.error('Failed to load ticket');
+    }
+  };
+
   const phaseOptions = phases.map((p): { value: string; label: string } => ({
     value: p.phase_id,
     label: p.phase_name
@@ -394,7 +418,7 @@ const TaskEdit: React.FC<TaskEditProps> = ({
                       <Button
                         type="button"
                         variant="ghost"
-                        onClick={() => window.open(`/tickets/${link.ticket_id}`, '_blank')}
+                        onClick={() => handleViewTicket(link.ticket_id)}
                         className="flex items-center text-sm"
                       >
                         <ExternalLink className="h-4 w-4 mr-1" />
