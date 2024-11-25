@@ -412,7 +412,7 @@ const TaskEdit: React.FC<TaskEditProps> = ({
                 </div>
 
                 <div className="space-y-2">
-                  {taskTicketLinks.map((link) => (
+                  {taskTicketLinks.map((link): JSX.Element => (
                     <div key={link.link_id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                       <span>{link.ticket_number} - {link.title}</span>
                       <Button

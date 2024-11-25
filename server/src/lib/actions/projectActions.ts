@@ -394,7 +394,7 @@ export async function getProjectDetails(projectId: string): Promise<{
         const tasks = await ProjectModel.getTasks(projectId);
         // Get all ticket links for all tasks in the project
         const ticketLinks = await Promise.all(
-            tasks.map(task => ProjectModel.getTaskTicketLinks(task.task_id))
+            tasks.map((task: IProjectTask): Promise<IProjectTicketLinkWithDetails[]> => ProjectModel.getTaskTicketLinks(task.task_id))
         ).then(links => links.flat());
         const statuses = await getProjectTaskStatuses(projectId);
         const users = await getAllUsers();
