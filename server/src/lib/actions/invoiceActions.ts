@@ -131,6 +131,13 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
   const createdInvoice = await knex.transaction(async (trx) => {
     const [newInvoice] = await trx('invoices').insert(invoice).returning('*');
 
+    // Get current balance
+    const currentBalance = await trx('transactions')
+      .where({ company_id: companyId })
+      .orderBy('created_at', 'desc')
+      .first()
+      .then(lastTx => lastTx?.balance_after || 0);
+
     // Record invoice generation transaction
     await trx('transactions').insert({
       transaction_id: uuidv4(),
@@ -141,11 +148,18 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
       status: 'completed',
       description: `Generated invoice ${newInvoice.invoice_number}`,
       created_at: new Date().toISOString(),
-      tenant
+      tenant,
+      balance_after: currentBalance + newInvoice.total_amount
     });
 
     // If discounts were applied, record those transactions
     for (const discount of billingResult.discounts) {
+      const currentBalance = await trx('transactions')
+        .where({ company_id: companyId })
+        .orderBy('created_at', 'desc')
+        .first()
+        .then(lastTx => lastTx?.balance_after || 0);
+
       await trx('transactions').insert({
         transaction_id: uuidv4(),
         company_id: companyId,
@@ -156,7 +170,8 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
         description: `Applied discount: ${discount.discount_name}`,
         created_at: new Date().toISOString(),
         tenant,
-        metadata: { discount_id: discount.discount_id }
+        metadata: { discount_id: discount.discount_id },
+        balance_after: currentBalance - (discount.amount || 0)
       });
     }
 
@@ -220,12 +235,19 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
 
   // If credit was applied, create a transaction and update company credit balance
   if (invoice.credit_applied > 0) {
+    const currentBalance = await knex('transactions')
+      .where({ company_id: companyId })
+      .orderBy('created_at', 'desc')
+      .first()
+      .then(lastTx => lastTx?.balance_after || 0);
+
     await CompanyBillingPlan.createTransaction({
       company_id: companyId,
       invoice_id: createdInvoice.invoice_id,
       amount: -invoice.credit_applied,
       type: 'credit_application',
-      description: `Applied credit to invoice ${invoice.invoice_number}`
+      description: `Applied credit to invoice ${invoice.invoice_number}`,
+      balance_after: currentBalance - invoice.credit_applied
     });
 
     await CompanyBillingPlan.updateCompanyCredit(companyId, -invoice.credit_applied);

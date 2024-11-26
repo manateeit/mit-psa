@@ -53,9 +53,17 @@ export async function validateCreditBalance(
             .where({ company_id: companyId, tenant })
             .select('credit_balance');
 
-        const isValid = calculatedBalance === company.credit_balance;
+        const isValid = Number(calculatedBalance) === Number(company.credit_balance);
         
-        if (!isValid && expectedBalance === undefined) {
+        if (!isValid) {
+            console.error('Credit balance mismatch:', {
+                companyId,
+                expectedBalance: company.credit_balance,
+                actualBalance: calculatedBalance,
+                difference: calculatedBalance - company.credit_balance
+            });
+            
+            if (expectedBalance === undefined) {
             await trx('companies')
                 .where({ company_id: companyId, tenant })
                 .update({ 
@@ -75,6 +83,7 @@ export async function validateCreditBalance(
                 }),
                 timestamp: new Date().toISOString()
             });
+            }
         }
 
         return {
@@ -90,13 +99,19 @@ export async function validateTransactionBalance(
     amount: number,
     trx: Knex.Transaction
 ): Promise<void> {
-    const newBalance = await calculateNewBalance(companyId, amount, trx);
+    const currentBalance = await trx('transactions')
+        .where({ company_id: companyId })
+        .orderBy('created_at', 'desc')
+        .first()
+        .then(lastTx => lastTx?.balance_after || 0);
+
+    const newBalance = currentBalance + amount;
     
     if (newBalance < 0) {
         throw new Error('Insufficient credit balance');
     }
     
-    const validation = await validateCreditBalance(companyId, newBalance);
+    const validation = await validateCreditBalance(companyId);
     if (!validation.isValid) {
         throw new Error('Credit balance validation failed');
     }
@@ -164,9 +179,15 @@ export async function createPrepaymentInvoice(
             .returning('*');
 
         // Create credit issuance transaction
-        const newBalance = await calculateNewBalance(companyId, amount, trx);
+        const currentBalance = await trx('transactions')
+            .where({ company_id: companyId })
+            .orderBy('created_at', 'desc')
+            .first()
+            .then(lastTx => lastTx?.balance_after || 0);
+
+        const newBalance = currentBalance + amount;
         await validateTransactionBalance(companyId, amount, trx);
-        
+
         await trx('transactions').insert({
             transaction_id: uuidv4(),
             company_id: companyId,
