@@ -122,10 +122,10 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
     tax: 0,
     total_amount: 0,
     status: 'draft',
-    invoice_number: await generateInvoiceNumber(companyId),
+    invoice_number: await generateInvoiceNumber(),
     billing_period_start: startDate,
     billing_period_end: endDate,
-    credit_applied: Math.min(availableCredit, initialTotal) // Apply available credit up to the initial total amount
+    credit_applied: Math.min(availableCredit, initialTotal)
   };
 
   const createdInvoice = await knex.transaction(async (trx) => {
@@ -236,7 +236,7 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
     subtotal: Math.ceil(subtotal), 
     tax: Math.ceil(totalTax), 
     total_amount: finalTotalAmount,
-    credit_applied: invoice.credit_applied 
+    credit_applied: invoice.credit_applied
   };
 }
 
@@ -268,10 +268,9 @@ async function createInvoiceItem(invoiceId: string, item: Omit<IInvoiceItem, 'in
   });
 }
 
-export async function generateInvoiceNumber(companyId: string): Promise<string> {
+export async function generateInvoiceNumber(): Promise<string> {
   const { knex } = await createTenantKnex();
   const result = await knex('invoices')
-    .where({ company_id: companyId })
     .max('invoice_number as lastInvoiceNumber')
     .first();
 

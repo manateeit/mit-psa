@@ -12,27 +12,56 @@ export async function createPrepaymentInvoice(
     amount: number
 ): Promise<IInvoice> {
     const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+        throw new Error('No tenant found');
+    }
+
+    if (!companyId) {
+        throw new Error('Company ID is required');
+    }
+
     
     // Create prepayment invoice
-    const invoice: Partial<IInvoice> = {
-        company_id: companyId,
-        invoice_date: new Date().toISOString(),
-        due_date: new Date().toISOString(), // Due immediately
-        subtotal: amount,
-        tax: 0, // Prepayments typically don't have tax
-        total_amount: amount,
-        status: 'prepayment',
-        invoice_number: await generateInvoiceNumber(companyId),
-        billing_period_start: new Date().toISOString(),
-        billing_period_end: new Date().toISOString(),
-        credit_applied: 0
-    };
+    return await knex.transaction(async (trx) => {
+        // Create the prepayment invoice
+        const [createdInvoice] = await trx('invoices')
+            .insert({
+                company_id: companyId,
+                tenant,
+                invoice_date: new Date().toISOString(),
+                due_date: new Date().toISOString(), // Due immediately
+                subtotal: amount,
+                tax: 0, // Prepayments typically don't have tax
+                total_amount: amount,
+                status: 'draft',
+                invoice_number: await generateInvoiceNumber(),
+                billing_period_start: new Date().toISOString(),
+                billing_period_end: new Date().toISOString(),
+                credit_applied: 0
+            })
+            .returning('*');
 
-    const [createdInvoice] = await knex('invoices')
-        .insert({ ...invoice, tenant })
-        .returning('*');
+        // Create credit issuance transaction
+        await trx('transactions').insert({
+            transaction_id: uuidv4(),
+            company_id: companyId,
+            invoice_id: createdInvoice.invoice_id,
+            amount: amount,
+            type: 'credit_issuance',
+            status: 'completed',
+            description: 'Credit issued from prepayment',
+            created_at: new Date().toISOString(),
+            tenant
+        });
 
-    return createdInvoice;
+        // Update company credit balance
+        await trx('companies')
+            .where({ company_id: companyId, tenant })
+            .increment('credit_balance', amount)
+            .update('updated_at', new Date().toISOString());
+
+        return createdInvoice;
+    });
 }
 
 export async function applyCreditToInvoice(

@@ -17,7 +17,32 @@ exports.up = async function(knex) {
         table.uuid('company_id').notNullable();
         table.uuid('invoice_id').nullable();
         table.decimal('amount', 10, 2).notNullable();
-        table.enum('type', ['payment', 'credit', 'invoice_application']).notNullable();
+        table.enum('type', [
+            'credit_application',
+            'credit_issuance',
+            'credit_adjustment',
+            'credit_expiration',
+            'credit_transfer',
+            'payment',
+            'partial_payment',
+            'prepayment',
+            'payment_reversal',
+            'payment_failed',
+            'invoice_generated',
+            'invoice_adjustment',
+            'invoice_cancelled',
+            'late_fee',
+            'early_payment_discount',
+            'refund_full',
+            'refund_partial',
+            'refund_reversal',
+            'service_credit',
+            'price_adjustment',
+            'service_adjustment',
+            'billing_cycle_adjustment',
+            'currency_adjustment',
+            'tax_adjustment'
+        ]).notNullable();
         table.string('description').nullable();
         table.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
         table.string('reference_number').nullable();
