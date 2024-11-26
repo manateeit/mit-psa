@@ -56,6 +56,7 @@ export interface IPriority extends TenantEntity {
 export interface ITicketStatus {
   status_id: string;
   name: string;
+  is_closed: boolean;
 }
 
 export interface ITicketCategory extends TenantEntity {
