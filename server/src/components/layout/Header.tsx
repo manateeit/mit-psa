@@ -21,12 +21,19 @@ interface HeaderProps {
   handleThemeMode: (mode: string) => void;
 }
 
-const getMenuItemNameByPath = (path: string): string => {
+const getMenuItemNameByPath = (path: string | null | undefined): string => {
+  if (!path) return 'Dashboard';
+  
   const allMenuItems = [...menuItems, ...bottomMenuItems];
+  
+  // Get the first segment of the path (e.g., /tickets/123 -> /tickets)
+  const segments = path.split('/');
+  const topLevelPath = segments.length > 1 ? '/' + segments[1] : '/';
   
   const findMenuItem = (items: MenuItem[]): string | null => {
     for (const item of items) {
-      if (item.href === path) {
+      // Match based on the top-level path
+      if (item.href === topLevelPath || (item.href && path.startsWith(item.href))) {
         return item.name;
       }
       if (item.subItems) {
@@ -62,24 +69,20 @@ const Header: React.FC<HeaderProps> = ({
     console.log('Signing out...');
   };
 
-  const getBreadcrumbItems = (path: string): { name: string; href: string }[] => {
-    const pathSegments = path.split('/').filter(Boolean);
-    const breadcrumbs = [];
-    let currentPath = '';
+  const getBreadcrumbItems = (path: string | null | undefined): { name: string; href: string }[] => {
+    const breadcrumbs = [
+      {
+        name: 'Home',
+        href: '/'
+      }
+    ];
   
-    // Always add home
-    breadcrumbs.push({
-      name: 'Home',
-      href: '/'
-    });
-  
-    // Build breadcrumbs from path segments
-    for (const segment of pathSegments) {
-      currentPath += `/${segment}`;
-      const name = getMenuItemNameByPath(currentPath) || segment.charAt(0).toUpperCase() + segment.slice(1);
+    // Add only the menu item name if path exists and is not home
+    if (path && path !== '/') {
+      const menuName = getMenuItemNameByPath(path);
       breadcrumbs.push({
-        name,
-        href: currentPath
+        name: menuName,
+        href: '#' // We don't need the actual path since it contains UUID
       });
     }
   
@@ -87,7 +90,7 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const pathname = usePathname();
-  const breadcrumbItems = getBreadcrumbItems(pathname!);  
+  const breadcrumbItems = getBreadcrumbItems(pathname);  
 
   const handleThemeToggle = () => {
     if (themeStatus === "light") {

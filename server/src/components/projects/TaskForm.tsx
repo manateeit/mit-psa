@@ -137,12 +137,19 @@ export default function TaskForm({
         
         // Link any tickets that were added during creation
         if (resultTask && taskTicketLinks.length > 0) {
+          const linkErrors: string[] = [];
+          
           for (const link of taskTicketLinks) {
             try {
               await addTicketLinkAction(phase.project_id, resultTask.task_id, link.ticket_id);
-            } catch (error) {
+            } catch (error: any) {
               console.error('Error linking ticket:', error);
+              linkErrors.push(`${link.ticket_number}: ${error.message || 'Unknown error'}`);
             }
+          }
+          
+          if (linkErrors.length > 0) {
+            toast.error(`Failed to link some tickets:\n${linkErrors.join('\n')}`);
           }
         }
       }
@@ -294,17 +301,32 @@ export default function TaskForm({
     }
     try {
       if (task?.task_id) {
+        // For existing tasks, create permanent link
         await addTicketLinkAction(phase.project_id, task.task_id, ticket.ticket_id);
         const links = await getTaskTicketLinksAction(task.task_id);
         setTaskTicketLinks(links);
       } else {
-        // For new tasks, store the link temporarily
-        const selectedTicketDetails = availableTickets.find(t => t.ticket_id === ticket.ticket_id);
-        if (!selectedTicketDetails) {
+        // For new tasks:
+        // 1. Fetch updated tickets list to get full ticket details
+        const user = await getCurrentUser();
+        if (!user) {
+          toast.error('No user session found');
+          return;
+        }
+        const filters: ITicketListFilters = {
+          channelFilterState: 'all'
+        };
+        const updatedTickets = await getTicketsForList(user, filters);
+        setAvailableTickets(updatedTickets);
+
+        // 2. Find the newly created ticket in the updated list
+        const newTicketDetails = updatedTickets.find(t => t.ticket_id === ticket.ticket_id);
+        if (!newTicketDetails) {
           toast.error('Failed to load ticket details');
           return;
         }
 
+        // 3. Create temporary link with the full ticket details
         const tempLink: IProjectTicketLinkWithDetails = {
           link_id: `temp-${Date.now()}`,
           task_id: tempTaskId,
@@ -314,8 +336,8 @@ export default function TaskForm({
           created_at: new Date(),
           project_id: phase.project_id,
           phase_id: phase.phase_id,
-          status_name: selectedTicketDetails.status_name,
-          is_closed: selectedTicketDetails.closed_at !== null
+          status_name: newTicketDetails.status_name,
+          is_closed: false
         };
         setTaskTicketLinks([...taskTicketLinks, tempLink]);
       }
