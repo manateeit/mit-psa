@@ -535,6 +535,25 @@ const TicketingSettings = (): JSX.Element => {
       title: 'Name',
       dataIndex: 'name',
     },
+    {
+      title: 'Status',
+      dataIndex: 'is_closed',
+      render: (value, record) => (
+        <div className="flex items-center space-x-2 text-gray-500">
+          <span className="text-sm mr-2">
+            {record.is_closed ? 'Closed' : 'Open'}
+          </span>
+          <Switch
+            checked={record.is_closed}
+            onCheckedChange={() => updateStatusItem({ ...record, is_closed: !record.is_closed })}
+            className="data-[state=checked]:bg-primary-500"
+          />
+          <span className="text-xs text-gray-400 ml-2">
+            {record.is_closed ? 'Tickets with this status will be marked as closed' : 'Tickets with this status will remain open'}
+          </span>
+        </div>
+      ),
+    },
   ];
 
   const priorityColumns: ColumnDefinition<IPriority>[] = [
