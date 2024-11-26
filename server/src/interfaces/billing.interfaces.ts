@@ -203,6 +203,7 @@ export interface ITransaction extends TenantEntity {
   created_at: ISO8601String;
   reference_number?: string;
   metadata?: Record<string, any>;
+  balance_after: number;
 }
 
 export interface ITaxRate extends TenantEntity {

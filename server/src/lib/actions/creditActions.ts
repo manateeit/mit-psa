@@ -6,6 +6,128 @@ import { IInvoice } from '@/interfaces/invoice.interfaces';
 import { ITransaction } from '@/interfaces/billing.interfaces';
 import { v4 as uuidv4 } from 'uuid';
 import { generateInvoiceNumber } from './invoiceActions';
+import { Knex } from 'knex';
+
+async function calculateNewBalance(
+    companyId: string, 
+    changeAmount: number,
+    trx?: Knex.Transaction
+): Promise<number> {
+    const { knex, tenant } = await createTenantKnex();
+    const queryBuilder = (trx || knex);
+
+    const [company] = await queryBuilder('companies')
+        .where({ company_id: companyId, tenant })
+        .select('credit_balance');
+
+    return company.credit_balance + changeAmount;
+}
+
+export async function validateCreditBalance(
+    companyId: string,
+    expectedBalance?: number
+): Promise<{isValid: boolean, actualBalance: number, lastTransaction: ITransaction}> {
+    const { knex, tenant } = await createTenantKnex();
+    
+    return await knex.transaction(async (trx) => {
+        const transactions = await trx('transactions')
+            .where({ 
+                company_id: companyId,
+                tenant 
+            })
+            .whereIn('type', [
+                'credit_issuance',
+                'credit_application',
+                'credit_adjustment',
+                'credit_expiration',
+                'credit_transfer'
+            ])
+            .orderBy('created_at', 'asc');
+
+        let calculatedBalance = 0;
+        for (const tx of transactions) {
+            calculatedBalance += tx.amount;
+        }
+
+        const [company] = await trx('companies')
+            .where({ company_id: companyId, tenant })
+            .select('credit_balance');
+
+        const isValid = calculatedBalance === company.credit_balance;
+        
+        if (!isValid && expectedBalance === undefined) {
+            await trx('companies')
+                .where({ company_id: companyId, tenant })
+                .update({ 
+                    credit_balance: calculatedBalance,
+                    updated_at: new Date().toISOString()
+                });
+            
+            await trx('audit_logs').insert({
+                audit_id: uuidv4(),
+                tenant,
+                operation: 'credit_balance_correction',
+                table_name: 'companies',
+                record_id: companyId,
+                changed_data: JSON.stringify({
+                    previous_balance: company.credit_balance,
+                    corrected_balance: calculatedBalance
+                }),
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        return {
+            isValid,
+            actualBalance: calculatedBalance,
+            lastTransaction: transactions[transactions.length - 1]
+        };
+    });
+}
+
+export async function validateTransactionBalance(
+    companyId: string,
+    amount: number,
+    trx: Knex.Transaction
+): Promise<void> {
+    const newBalance = await calculateNewBalance(companyId, amount, trx);
+    
+    if (newBalance < 0) {
+        throw new Error('Insufficient credit balance');
+    }
+    
+    const validation = await validateCreditBalance(companyId, newBalance);
+    if (!validation.isValid) {
+        throw new Error('Credit balance validation failed');
+    }
+}
+
+export async function scheduledCreditBalanceValidation(): Promise<void> {
+    const { knex, tenant } = await createTenantKnex();
+    
+    const companies = await knex('companies')
+        .where({ tenant })
+        .select('company_id');
+
+    for (const company of companies) {
+        try {
+            const result = await validateCreditBalance(company.company_id);
+            if (!result.isValid) {
+                await knex('audit_logs').insert({
+                    audit_id: uuidv4(),
+                    tenant,
+                    operation: 'credit_balance_validation_failed',
+                    table_name: 'companies',
+                    record_id: company.company_id,
+                    changed_data: JSON.stringify(result),
+                    timestamp: new Date().toISOString()
+                });
+            }
+        } catch (error) {
+            console.error(`Balance validation failed for company ${company.company_id}:`, error);
+        }
+    }
+}
 
 export async function createPrepaymentInvoice(
     companyId: string,
@@ -42,6 +164,9 @@ export async function createPrepaymentInvoice(
             .returning('*');
 
         // Create credit issuance transaction
+        const newBalance = await calculateNewBalance(companyId, amount, trx);
+        await validateTransactionBalance(companyId, amount, trx);
+        
         await trx('transactions').insert({
             transaction_id: uuidv4(),
             company_id: companyId,
@@ -51,6 +176,7 @@ export async function createPrepaymentInvoice(
             status: 'completed',
             description: 'Credit issued from prepayment',
             created_at: new Date().toISOString(),
+            balance_after: newBalance,
             tenant
         });
 
@@ -74,6 +200,9 @@ export async function applyCreditToInvoice(
     
     await knex.transaction(async (trx) => {
         // Create the main credit application transaction
+        const newBalance = await calculateNewBalance(companyId, -amount, trx);
+        await validateTransactionBalance(companyId, -amount, trx);
+        
         const [creditTransaction] = await trx('transactions').insert({
             transaction_id: uuidv4(),
             company_id: companyId,
@@ -83,6 +212,7 @@ export async function applyCreditToInvoice(
             status: 'completed',
             description: `Applied credit to invoice ${invoiceId}`,
             created_at: new Date().toISOString(),
+            balance_after: newBalance,
             tenant
         }).returning('*');
 
