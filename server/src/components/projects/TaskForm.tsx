@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { ITicket, ITicketListItem, ITicketListFilters } from '@/interfaces/ticket.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { ProjectStatus, updateTaskWithChecklist, addTaskToPhase, getTaskChecklistItems, moveTaskToPhase, addTicketLinkAction, getTaskTicketLinksAction, deleteTaskTicketLinkAction } from '@/lib/actions/projectActions';
+import { ProjectStatus, updateTaskWithChecklist, addTaskToPhase, getTaskChecklistItems, moveTaskToPhase, deleteTask, addTicketLinkAction, getTaskTicketLinksAction, deleteTaskTicketLinkAction } from '@/lib/actions/projectActions';
 import { getTicketsForList, getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -66,6 +66,7 @@ export default function TaskForm({
   const [selectedTicket, setSelectedTicket] = useState<string>('');
   const [taskTicketLinks, setTaskTicketLinks] = useState<IProjectTicketLinkWithDetails[]>([]);
   const [tempTaskId] = useState<string>(`temp-${Date.now()}`);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [estimatedHours, setEstimatedHours] = useState<number>(Number(task?.estimated_hours) || 0);
   const [actualHours, setActualHours] = useState<number>(Number(task?.actual_hours) || 0);
 
@@ -391,6 +392,28 @@ export default function TaskForm({
     }
   };
 
+  const handleDeleteConfirm = async () => {
+    if (!task?.task_id) return;
+    
+    setIsSubmitting(true);
+    try {
+      await deleteTask(task.task_id);
+      toast.success('Task deleted successfully');
+      onSubmit(null);
+      onClose();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete task');
+    } finally {
+      setIsSubmitting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+  
+  const handleDeleteDismiss = () => {
+    setShowDeleteConfirm(false);
+  };
+
   const phaseOptions = phases?.map((p): { value: string; label: string } => ({
     value: p.phase_id,
     label: p.phase_name
@@ -611,6 +634,16 @@ export default function TaskForm({
                   >
                     Cancel
                   </Button>
+                  {mode === 'edit' && (
+                    <Button
+                      type="button"
+                      variant="destructive"  // or use custom styling for orange color
+                      onClick={() => setShowDeleteConfirm(true)}
+                      disabled={isSubmitting}
+                    >
+                      Delete
+                    </Button>
+                  )}
                   <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting ? (mode === 'edit' ? 'Updating...' : 'Adding...') : (mode === 'edit' ? 'Update' : 'Save')}
                   </Button>
@@ -629,6 +662,16 @@ export default function TaskForm({
         message="Are you sure you want to cancel? Any unsaved changes will be lost."
         confirmLabel="Cancel"
         cancelLabel="Continue editing"
+      />
+
+      <ConfirmationDialog
+        isOpen={showDeleteConfirm}
+        onClose={handleDeleteDismiss}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Task"
+        message={`Are you sure you want to delete task "${taskName}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
       />
 
       {mode === 'edit' && (

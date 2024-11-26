@@ -608,6 +608,15 @@ export async function deleteTask(taskId: string): Promise<void> {
         }
 
         await checkPermission(currentUser, 'project', 'delete');
+
+        const ticketLinks = await ProjectModel.getTaskTicketLinks(taskId);
+        
+        for (const link of ticketLinks) {
+            await ProjectModel.deleteTaskTicketLink(link.link_id);
+        }
+
+        await ProjectModel.deleteChecklistItems(taskId);
+
         await ProjectModel.deleteTask(taskId);
     } catch (error) {
         console.error('Error deleting task:', error);
