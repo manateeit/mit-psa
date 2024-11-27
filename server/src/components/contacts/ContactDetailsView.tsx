@@ -11,27 +11,36 @@ import ContactDetailsEdit from './ContactDetailsEdit';
 import { findTagsByEntityIds, findAllTagsByType } from '@/lib/actions/tagActions';
 import { ITag } from '@/interfaces/tag.interfaces';
 import { ICompany } from '@/interfaces/company.interfaces';
-import CompanyDetails from '../companies/CompanyDetails';
-import InteractionsFeed from '../interactions/InteractionsFeed';
+import CompanyDetails from '@/components/companies/CompanyDetails';
+import InteractionsFeed from '@/components/interactions/InteractionsFeed';
 import { IInteraction } from '@/interfaces/interaction.interfaces';
 import { TagManager } from '@/components/tags';
 import { getCompanyById } from '@/lib/actions/companyActions';
+import Documents from '@/components/documents/Documents';
+import { IDocument } from '@/interfaces/document.interface';
 
 interface ContactDetailsViewProps {
   initialContact: IContact;
   companies: ICompany[];
   isInDrawer?: boolean;
+  userId: string;
+  documents: IDocument[];
+  onDocumentCreated: () => Promise<void>;
 }
 
 const ContactDetailsView: React.FC<ContactDetailsViewProps> = ({ 
   initialContact, 
   companies,
-  isInDrawer = false
+  isInDrawer = false,
+  userId,
+  documents: initialDocuments,
+  onDocumentCreated
 }) => {
   const [contact, setContact] = useState<IContact>(initialContact);
   const [tags, setTags] = useState<ITag[]>([]);
   const [allTagTexts, setAllTagTexts] = useState<string[]>([]);
   const [interactions, setInteractions] = useState<IInteraction[]>([]);
+  const [documents, setDocuments] = useState<IDocument[]>(initialDocuments);
   const { openDrawer, goBack } = useDrawer();
 
   useEffect(() => {
@@ -46,6 +55,11 @@ const ContactDetailsView: React.FC<ContactDetailsViewProps> = ({
     };
     fetchData();
   }, [contact.contact_name_id]);
+
+  // Update documents when initialDocuments changes
+  useEffect(() => {
+    setDocuments(initialDocuments);
+  }, [initialDocuments]);
 
   const formatDateForDisplay = (dateString: string | null | undefined): string => {
     if (!dateString) return 'Not set';
@@ -66,6 +80,9 @@ const ContactDetailsView: React.FC<ContactDetailsViewProps> = ({
               initialContact={updatedContact} 
               companies={companies}
               isInDrawer={true}
+              userId={userId}
+              documents={documents}
+              onDocumentCreated={onDocumentCreated}
             />
           );
         }}
@@ -74,6 +91,9 @@ const ContactDetailsView: React.FC<ContactDetailsViewProps> = ({
             initialContact={contact} 
             companies={companies}
             isInDrawer={true}
+            userId={userId}
+            documents={documents}
+            onDocumentCreated={onDocumentCreated}
           />
         )}
       />
@@ -182,6 +202,18 @@ const ContactDetailsView: React.FC<ContactDetailsViewProps> = ({
           </tr>
         </tbody>
       </table>
+
+      <div className="mt-6">
+        <Heading size="4" className="mb-4">Documents</Heading>
+        <Documents
+          documents={documents}
+          userId={userId}
+          entityId={contact.contact_name_id}
+          entityType="contact"
+          onDocumentCreated={onDocumentCreated}
+        />
+      </div>
+
       <div className="mt-6">
         <InteractionsFeed 
           entityId={contact.contact_name_id} 

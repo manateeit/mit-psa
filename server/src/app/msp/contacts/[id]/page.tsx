@@ -1,10 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react';
-import ContactDetailsView from '../../../../components/contacts/ContactDetailsView';
-import Documents from '../../../../components/documents/Documents';
-import { IContact } from '../../../../interfaces/contact.interfaces';
-import { ICompany } from '../../../../interfaces/company.interfaces';
+import ContactDetailsView from '@/components/contacts/ContactDetailsView';
+import { IContact } from '@/interfaces/contact.interfaces';
+import { ICompany } from '@/interfaces/company.interfaces';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { getDocumentsByEntity } from '@/lib/actions/document-actions/documentActions';
@@ -57,17 +56,13 @@ const ContactDetailPage = ({ params }: { params: { id: string } }) => {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">{contact.full_name}</h1>
-      <ContactDetailsView initialContact={contact} companies={companies} />
-      <div className="max-w-3xl mx-auto mt-10">
-        <h2 className="text-xl font-semibold mb-4">Documents</h2>
-        <Documents 
-          documents={documents} 
-          userId={currentUser.user_id}
-          entityId={params.id}
-          entityType="contact"
-          onDocumentCreated={handleDocumentCreated}
-        />
-      </div>
+      <ContactDetailsView 
+        initialContact={contact} 
+        companies={companies} 
+        documents={documents}
+        userId={currentUser.user_id}
+        onDocumentCreated={handleDocumentCreated}
+      />
     </div>
   );
 };
