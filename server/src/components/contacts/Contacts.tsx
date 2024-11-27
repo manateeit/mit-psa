@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { IContact } from '@/interfaces/contact.interfaces';
 import { ICompany } from '@/interfaces/company.interfaces';
 import { ITag } from '@/interfaces/tag.interfaces';
+import { IDocument } from '@/interfaces/document.interface';
 import { getAllContacts, getContactsByCompany, getAllCompanies, exportContactsToCSV, deleteContact } from '@/lib/actions/contact-actions/contactActions';
 import { findTagsByEntityIds, createTag, deleteTag, findAllTagsByType } from '@/lib/actions/tagActions';
 import { Button } from '@/components/ui/Button';
@@ -21,6 +22,8 @@ import { TagManager, TagFilter } from '@/components/tags';
 import { getUniqueTagTexts, getAvatarUrl } from '@/utils/colorUtils';
 import GenericDialog from '@/components/ui/GenericDialog';
 import CustomSelect from '@/components/ui/CustomSelect';
+import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
+import { getDocumentsByEntity } from '@/lib/actions/document-actions/documentActions';
 
 interface ContactsProps {
   initialContacts: IContact[];
@@ -31,6 +34,8 @@ interface ContactsProps {
 const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSelectedCompanyId }) => {
   const [contacts, setContacts] = useState<IContact[]>(initialContacts);
   const [companies, setCompanies] = useState<ICompany[]>([]);
+  const [documents, setDocuments] = useState<Record<string, IDocument[]>>({});
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('active');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
@@ -53,34 +58,42 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
 
   useEffect(() => {
     const fetchData = async () => {
-      const [fetchedContacts, allCompanies] = await Promise.all([
-        companyId 
-          ? getContactsByCompany(companyId, filterStatus !== 'active')
-          : getAllContacts(filterStatus !== 'active'),
-        getAllCompanies()
-      ]);
+      try {
+        const [fetchedContacts, allCompanies, userData] = await Promise.all([
+          companyId 
+            ? getContactsByCompany(companyId, filterStatus !== 'active')
+            : getAllContacts(filterStatus !== 'active'),
+          getAllCompanies(),
+          getCurrentUser()
+        ]);
 
-      setContacts(fetchedContacts);
-      setCompanies(allCompanies);
-
-      const [contactTags, allTags] = await Promise.all([
-        findTagsByEntityIds(
-          fetchedContacts.map((contact: IContact): string => contact.contact_name_id),
-          'contact'
-        ),
-        findAllTagsByType('contact')
-      ]);
-
-      const newContactTags: Record<string, ITag[]> = {};
-      contactTags.forEach(tag => {
-        if (!newContactTags[tag.tagged_id]) {
-          newContactTags[tag.tagged_id] = [];
+        setContacts(fetchedContacts);
+        setCompanies(allCompanies);
+        if (userData?.user_id) {
+          setCurrentUser(userData.user_id);
         }
-        newContactTags[tag.tagged_id].push(tag);
-      });
-      
-      contactTagsRef.current = newContactTags;
-      setAllUniqueTags(allTags);
+
+        const [contactTags, allTags] = await Promise.all([
+          findTagsByEntityIds(
+            fetchedContacts.map((contact: IContact): string => contact.contact_name_id),
+            'contact'
+          ),
+          findAllTagsByType('contact')
+        ]);
+  
+        const newContactTags: Record<string, ITag[]> = {};
+        contactTags.forEach(tag => {
+          if (!newContactTags[tag.tagged_id]) {
+            newContactTags[tag.tagged_id] = [];
+          }
+          newContactTags[tag.tagged_id].push(tag);
+        });
+        
+        contactTagsRef.current = newContactTags;
+        setAllUniqueTags(allTags);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
     };
     fetchData();
   }, [companyId, filterStatus]);
@@ -114,16 +127,41 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
     setContacts(prevContacts => [...prevContacts, newContact]);
   };
 
-  const handleViewDetails = (contact: IContact) => {
-    openDrawer(
-      <ContactDetailsView
-        initialContact={contact}
-        companies={companies}
-      />
-    );
+  const handleViewDetails = async (contact: IContact) => {
+    if (!currentUser) return; // Don't proceed if we don't have a user ID
+
+    try {
+      // Fetch documents for this contact
+      const contactDocuments = await getDocumentsByEntity(contact.contact_name_id, 'contact');
+      setDocuments(prev => ({
+        ...prev,
+        [contact.contact_name_id]: contactDocuments
+      }));
+
+      openDrawer(
+        <ContactDetailsView
+          initialContact={contact}
+          companies={companies}
+          documents={documents[contact.contact_name_id] || []}
+          userId={currentUser}
+          onDocumentCreated={async () => {
+            // Refresh documents after a new one is created
+            const updatedDocuments = await getDocumentsByEntity(contact.contact_name_id, 'contact');
+            setDocuments(prev => ({
+              ...prev,
+              [contact.contact_name_id]: updatedDocuments
+            }));
+          }}
+        />
+      );
+    } catch (error) {
+      console.error('Error fetching contact documents:', error);
+    }
   };
 
   const handleEditContact = (contact: IContact) => {
+    if (!currentUser) return; // Don't proceed if we don't have a user ID
+
     openDrawer(
       <ContactDetailsEdit
         initialContact={contact}
@@ -134,14 +172,9 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
               c.contact_name_id === updatedContact.contact_name_id ? updatedContact : c
             )
           );
-          openDrawer(
-            <ContactDetailsView
-              initialContact={updatedContact}
-              companies={companies}
-            />
-          );
+          handleViewDetails(updatedContact);
         }}
-        onCancel={() => openDrawer(<ContactDetailsView initialContact={contact} companies={companies} />)}
+        onCancel={() => handleViewDetails(contact)}
       />
     );
   };
@@ -314,20 +347,20 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
   const columns: ColumnDefinition<IContact>[] = [
     {
       title: 'Name',
-      dataIndex: 'full_name',
+      dataIndex: 'contact_name_id',
       render: (value, record) => (
         <div className="flex items-center">
           <img 
             className="h-8 w-8 rounded-full mr-2" 
-            src={getAvatarUrl(value, record.contact_name_id, 32)}
-            alt={`${value} avatar`}
+            src={getAvatarUrl(record.full_name, record.contact_name_id, 32)}
+            alt={`${record.full_name} avatar`}
             loading="lazy"
           />
           <button
             onClick={() => handleViewDetails(record)}
             className="text-blue-600 hover:underline"
           >
-            {value}
+            {record.full_name}
           </button>
         </div>
       ),
@@ -483,8 +516,10 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
           </DropdownMenu.Root>
         </div>
       <DataTable
-        data={filteredContacts.map((contact): IContact => ({
-          ...contact
+        data={filteredContacts.map((contact) => ({
+          ...contact,
+          // Create a truly unique identifier using contact_name_id and timestamp
+          id: `${contact.contact_name_id}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
         }))}
         columns={columns}
         pagination={true}

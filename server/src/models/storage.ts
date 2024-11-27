@@ -6,7 +6,12 @@ export class FileStoreModel {
         const { knex, tenant } = await createTenantKnex();
         const [file] = await knex('file_stores')
             .insert({
-                ...data,
+                file_name: data.file_name,
+                original_name: data.original_name,
+                mime_type: data.mime_type,
+                file_size: data.file_size,
+                storage_path: data.storage_path,
+                uploaded_by: data.uploaded_by,
                 tenant,
             })
             .returning('*');
