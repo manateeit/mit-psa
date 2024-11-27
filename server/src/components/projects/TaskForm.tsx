@@ -108,15 +108,16 @@ export default function TaskForm({
       let resultTask: IProjectTask | null = null;
 
       if (mode === 'edit' && task) {
-        // Edit mode
-        const taskData = {
-          ...task,
+        // Edit mode - only include fields that are part of IProjectTask
+        const taskData: Partial<IProjectTask> = {
           task_name: taskName,
           project_status_mapping_id: selectedStatus,
           description: description,
           assigned_to: assignedUser || currentUserId,
           estimated_hours: estimatedHours,
           actual_hours: actualHours,
+          phase_id: task.phase_id,
+          due_date: task.due_date,
           checklist_items: checklistItems
         };
         resultTask = await updateTaskWithChecklist(task.task_id, taskData);
@@ -183,8 +184,7 @@ export default function TaskForm({
       const movedTask = await moveTaskToPhase(task.task_id, selectedPhase.phase_id);
       
       if (movedTask) {
-        const taskData = {
-          ...movedTask,
+        const taskData: Partial<IProjectTask> = {
           estimated_hours: estimatedHours,
           actual_hours: actualHours,
           checklist_items: checklistItems
