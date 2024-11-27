@@ -98,7 +98,7 @@ export async function deletePhase(phaseId: string): Promise<void> {
     }
 }
 
-export async function moveTaskToPhase(taskId: string, newPhaseId: string): Promise<IProjectTask> {
+export async function moveTaskToPhase(taskId: string, newPhaseId: string, newStatusMappingId?: string): Promise<IProjectTask> {
     try {
         const currentUser = await getCurrentUser();
         if (!currentUser) {
@@ -113,28 +113,67 @@ export async function moveTaskToPhase(taskId: string, newPhaseId: string): Promi
             throw new Error('Task not found');
         }
 
-        // Get the new phase to access its WBS code
+        // Get the new phase to access its project and WBS code
         const newPhase = await ProjectModel.getPhaseById(newPhaseId);
         if (!newPhase) {
             throw new Error('Target phase not found');
         }
 
-        // Generate new WBS code for the task using the proper method
+        // Get the current phase to check if this is a cross-project move
+        const currentPhase = await ProjectModel.getPhaseById(existingTask.phase_id);
+        if (!currentPhase) {
+            throw new Error('Current phase not found');
+        }
+
+        // If moving to a different project, handle status mapping conversion
+        if (currentPhase.project_id !== newPhase.project_id) {
+            // If no new status mapping provided, get the equivalent status in the new project
+            if (!newStatusMappingId) {
+                const currentStatus = await ProjectModel.getProjectStatusMapping(existingTask.project_status_mapping_id);
+                if (!currentStatus) {
+                    throw new Error('Current status mapping not found');
+                }
+
+                // Get equivalent status in new project based on standard status or name
+                const newProjectStatuses = await getProjectTaskStatuses(newPhase.project_id);
+                const equivalentStatus = currentStatus.is_standard && currentStatus.standard_status_id
+                    ? newProjectStatuses.find(s => s.is_standard && s.standard_status_id === currentStatus.standard_status_id)
+                    : newProjectStatuses.find(s => s.name === currentStatus.custom_name || currentStatus.name);
+
+                if (!equivalentStatus) {
+                    throw new Error('Equivalent status not found in target project');
+                }
+                newStatusMappingId = equivalentStatus.project_status_mapping_id;
+            }
+        }
+
+        // Generate new WBS code for the task
         const newWbsCode = await ProjectModel.generateNextWbsCode(newPhase.wbs_code);
 
-        // Update task with new phase and WBS code, only passing necessary fields
+        // Update task with new phase, project, and WBS code
         const updatedTask = await ProjectModel.updateTask(taskId, {
             phase_id: newPhaseId,
             wbs_code: newWbsCode,
-            // Preserve other important fields but NOT the old wbs_code
+            project_status_mapping_id: newStatusMappingId || existingTask.project_status_mapping_id,
+            // Preserve other important fields
             task_name: existingTask.task_name,
             description: existingTask.description,
             assigned_to: existingTask.assigned_to,
             estimated_hours: existingTask.estimated_hours,
             actual_hours: existingTask.actual_hours,
-            project_status_mapping_id: existingTask.project_status_mapping_id,
             due_date: existingTask.due_date
         });
+
+        // If this is a cross-project move, update ticket links
+        if (currentPhase.project_id !== newPhase.project_id) {
+            const ticketLinks = await ProjectModel.getTaskTicketLinks(taskId);
+            for (const link of ticketLinks) {
+                await ProjectModel.updateTaskTicketLink(link.link_id, {
+                    project_id: newPhase.project_id,
+                    phase_id: newPhaseId
+                });
+            }
+        }
 
         return updatedTask;
     } catch (error) {

@@ -765,6 +765,31 @@ const ProjectModel = {
       throw error;
     }
   },
+
+  getProjectStatusMapping: async (mappingId: string): Promise<IProjectStatusMapping | null> => {
+    try {
+      const {knex: db} = await createTenantKnex();
+      const mapping = await db<IProjectStatusMapping>('project_status_mappings')
+        .where('project_status_mapping_id', mappingId)
+        .first();
+      return mapping || null;
+    } catch (error) {
+      console.error('Error getting project status mapping:', error);
+      throw error;
+    }
+  },
+
+  updateTaskTicketLink: async (linkId: string, updateData: { project_id: string; phase_id: string }): Promise<void> => {
+    try {
+      const {knex: db} = await createTenantKnex();
+      await db('project_ticket_links')
+        .where('link_id', linkId)
+        .update(updateData);
+    } catch (error) {
+      console.error('Error updating task ticket link:', error);
+      throw error;
+    }
+  },
 };
 
 export default ProjectModel;

@@ -108,3 +108,17 @@ export interface ITaskChecklistItem extends TenantEntity {
   updated_at: Date;
   order_number: number;
 }
+
+export type ProjectStatus = {
+  project_status_mapping_id: string;
+  status_id: string;
+  name: string;
+  custom_name: string | null;
+  is_visible: boolean;
+  display_order: number;
+  is_standard: boolean;
+  is_closed: boolean;
+  standard_status_id?: string;
+  item_type?: ItemType;
+  status_type?: ItemType;
+};

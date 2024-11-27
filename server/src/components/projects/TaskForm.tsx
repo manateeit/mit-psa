@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { IProjectPhase, IProjectTask, ITaskChecklistItem, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
+import { IProjectPhase, IProjectTask, ITaskChecklistItem, IProjectTicketLinkWithDetails, IProject } from '@/interfaces/project.interfaces';
 import { ITicket, ITicketListItem, ITicketListFilters } from '@/interfaces/ticket.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { ProjectStatus, updateTaskWithChecklist, addTaskToPhase, getTaskChecklistItems, moveTaskToPhase, deleteTask, addTicketLinkAction, getTaskTicketLinksAction, deleteTaskTicketLinkAction } from '@/lib/actions/projectActions';
+import { ProjectStatus, updateTaskWithChecklist, addTaskToPhase, getTaskChecklistItems, moveTaskToPhase, deleteTask, addTicketLinkAction, getTaskTicketLinksAction, deleteTaskTicketLinkAction, getProjects, getProjectTaskStatuses } from '@/lib/actions/projectActions';
 import { getTicketsForList, getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -20,6 +20,8 @@ import { toast } from 'react-hot-toast';
 import { QuickAddTicket } from '@/components/tickets/QuickAddTicket';
 import { useDrawer } from '@/context/DrawerContext';
 import TicketDetails from '@/components/tickets/TicketDetails';
+import TreeSelect, { TreeSelectOption } from '@/components/ui/TreeSelect';
+import ProjectModel from '@/lib/models/project';
 
 interface TaskFormProps {
   task?: IProjectTask;
@@ -48,7 +50,9 @@ export default function TaskForm({
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [taskName, setTaskName] = useState(task?.task_name || '');
   const [description, setDescription] = useState(task?.description || '');
-  const [selectedStatus, setSelectedStatus] = useState<string>(
+  const [projectTreeOptions, setProjectTreeOptions] = useState<TreeSelectOption[]>([]);
+  const [selectedPhaseId, setSelectedPhaseId] = useState<string>(phase.phase_id);
+  const [selectedStatusId, setSelectedStatusId] = useState<string>(
     task?.project_status_mapping_id || 
     defaultStatus?.project_status_mapping_id || 
     projectStatuses[0]?.project_status_mapping_id
@@ -69,6 +73,7 @@ export default function TaskForm({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [estimatedHours, setEstimatedHours] = useState<number>(Number(task?.estimated_hours) || 0);
   const [actualHours, setActualHours] = useState<number>(Number(task?.actual_hours) || 0);
+  const [projects, setProjects] = useState<IProject[]>([]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -98,6 +103,45 @@ export default function TaskForm({
     fetchInitialData();
   }, [task]);
 
+  useEffect(() => {
+    const fetchProjectsData = async () => {
+      if (mode === 'edit') {
+        try {
+          const allProjects = await getProjects();
+          
+          // Transform projects into tree options
+          const options = await Promise.all(allProjects.map(async (project): Promise<TreeSelectOption> => {
+            const projectPhases = await ProjectModel.getPhases(project.project_id);
+            const projectStatuses = await getProjectTaskStatuses(project.project_id);
+            
+            return {
+              label: project.project_name,
+              value: project.project_id,
+              type: 'project',
+              children: projectPhases.map((phase): TreeSelectOption => ({
+                label: phase.phase_name,
+                value: phase.phase_id,
+                type: 'phase',
+                children: projectStatuses.map((status): TreeSelectOption => ({
+                  label: status.custom_name || status.name,
+                  value: status.project_status_mapping_id,
+                  type: 'status'
+                }))
+              }))
+            };
+          }));
+          
+          setProjectTreeOptions(options);
+        } catch (error) {
+          console.error('Error fetching projects:', error);
+          toast.error('Failed to fetch projects');
+        }
+      }
+    };
+
+    fetchProjectsData();
+  }, [mode]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (taskName.trim() === '') return;
@@ -111,7 +155,7 @@ export default function TaskForm({
         // Edit mode - only include fields that are part of IProjectTask
         const taskData: Partial<IProjectTask> = {
           task_name: taskName,
-          project_status_mapping_id: selectedStatus,
+          project_status_mapping_id: selectedStatusId,
           description: description,
           assigned_to: assignedUser || currentUserId,
           estimated_hours: estimatedHours,
@@ -125,7 +169,7 @@ export default function TaskForm({
         // Create mode
         const taskData = {
           task_name: taskName,
-          project_status_mapping_id: selectedStatus,
+          project_status_mapping_id: selectedStatusId,
           wbs_code: `${phase.wbs_code}.0`,
           description: description,
           assigned_to: assignedUser || currentUserId,
@@ -175,13 +219,23 @@ export default function TaskForm({
       setShowMoveConfirmation(true);
     }
   };
+  
+  const handleTreeSelectChange = async (value: string, type: 'project' | 'phase' | 'status') => {
+    if (type === 'phase') {
+      setSelectedPhaseId(value);
+      setShowMoveConfirmation(true);
+    } else if (type === 'status') {
+      setSelectedStatusId(value);
+    }
+  };
 
+  // Update handleMoveConfirm to handle cross-project moves
   const handleMoveConfirm = async () => {
     if (!task) return;
     
     setIsSubmitting(true);
     try {
-      const movedTask = await moveTaskToPhase(task.task_id, selectedPhase.phase_id);
+      const movedTask = await moveTaskToPhase(task.task_id, selectedPhaseId, selectedStatusId);
       
       if (movedTask) {
         const taskData: Partial<IProjectTask> = {
@@ -193,7 +247,7 @@ export default function TaskForm({
         onSubmit(updatedTask);
       }
       
-      toast.success(`Task moved to ${selectedPhase.phase_name}`);
+      toast.success('Task moved successfully');
       onClose();
     } catch (error) {
       console.error('Error moving task:', error);
@@ -431,6 +485,7 @@ export default function TaskForm({
       label: `${ticket.ticket_number} - ${ticket.title}`
     }));
 
+
   return (
     <>
       <Dialog.Root open={true} onOpenChange={handleDialogClose}>
@@ -449,18 +504,18 @@ export default function TaskForm({
                   className="w-full text-lg font-semibold"
                 />
 
-                {mode === 'edit' && phases && (
+                {mode === 'edit' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Phase</label>
-                    <CustomSelect
-                      value={selectedPhase.phase_id}
-                      onValueChange={handlePhaseChange}
-                      options={phaseOptions}
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Move to</label>
+                    <TreeSelect
+                      value={selectedPhaseId}
+                      onValueChange={handleTreeSelectChange}
+                      options={projectTreeOptions}
+                      placeholder="Select destination..."
                       className="w-full"
                     />
                   </div>
                 )}
-
                 <TextArea
                   value={description}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
@@ -497,15 +552,6 @@ export default function TaskForm({
                     />
                   </div>
                 </div>
-
-                <CustomSelect
-                  value={selectedStatus}
-                  onValueChange={setSelectedStatus}
-                  options={statusOptions}
-                  placeholder="Select status"
-                  className="w-full"
-                />
-
                 <UserPicker
                   label="Assigned To"
                   value={assignedUser}
