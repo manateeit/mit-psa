@@ -57,7 +57,6 @@ export async function createDocumentAssociations(
   }
 }
 
-
 // Get documents by entity using the new association table
 export async function getDocumentsByEntity(entity_id: string, entity_type: string) {
   try {
@@ -68,7 +67,7 @@ export async function getDocumentsByEntity(entity_id: string, entity_type: strin
 
     console.log('Getting documents for entity:', { entity_id, entity_type }); // Debug log
 
-    const documents = await knex('documents')
+    let query = knex('documents')
       .select(
         'documents.*',
         'users.first_name',
@@ -92,14 +91,41 @@ export async function getDocumentsByEntity(entity_id: string, entity_type: strin
             .andOn('dt.tenant', '=', knex.raw('?', [tenant]));
       })
       .leftJoin('shared_document_types as sdt', 'documents.shared_type_id', 'sdt.type_id')
-      .where('document_associations.entity_id', entity_id)
-      .andWhere('document_associations.entity_type', entity_type)
-      .andWhere('documents.tenant', tenant)
-      .orderBy('documents.entered_at', 'desc');
+      .where('documents.tenant', tenant);
+
+    // If fetching company documents, also include documents from associated contacts
+    if (entity_type === 'company') {
+      query = query.where(function() {
+        // Get documents directly associated with the company
+        this.where(function() {
+          this.where('document_associations.entity_id', entity_id)
+              .andWhere('document_associations.entity_type', 'company');
+        })
+        // OR get documents from contacts associated with this company
+        .orWhere(function() {
+          this.whereIn('document_associations.entity_id', function() {
+            this.select('contact_name_id')
+                .from('contact_names')
+                .where('company_id', entity_id)
+                .andWhere('tenant', tenant);
+          })
+          .andWhere('document_associations.entity_type', 'contact');
+        });
+      });
+    } else {
+      // For other entity types, just get directly associated documents
+      query = query
+        .where('document_associations.entity_id', entity_id)
+        .andWhere('document_associations.entity_type', entity_type);
+    }
+
+    const documents = await query
+      .orderBy('documents.entered_at', 'desc')
+      .distinct('documents.*');
 
     console.log('Raw documents from database:', documents); // Debug log
 
-    // Use the same document processing logic as getAllDocuments
+    // Process the documents
     const processedDocuments = documents.map((doc): IDocument => {
       const processedDoc = {
         document_id: doc.document_id,
@@ -291,7 +317,6 @@ export async function getAllDocuments(filters?: DocumentFilters): Promise<IDocum
   }
 }
 
-
 // Upload new document
 export async function uploadDocument(
   file: FormData,
@@ -419,8 +444,6 @@ export async function uploadDocument(
     };
   }
 }
-
-// ... (keep other existing functions)
 
 // Update the type in the function signature
 export async function removeDocumentAssociations(

@@ -314,25 +314,29 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
     },
     {
       label: "Contacts",
-      content: (
+      content: currentUser ? ( // Only render if we have the current user
         <Contacts
           initialContacts={contacts}
           companyId={company.company_id}
           preSelectedCompanyId={company.company_id}
         />
+      ) : (
+        <div>Loading...</div>
       )
     },
     {
       label: "Documents",
-      content: (
+      content: currentUser ? (
         <Documents
           documents={documents}
           gridColumns={3}
-          userId={currentUser?.user_id || ''}
+          userId={currentUser.user_id}
           entityId={company.company_id}
           entityType="company"
           onDocumentCreated={handleDocumentCreated}
         />
+      ) : (
+        <div>Loading...</div>
       )
     },
     {

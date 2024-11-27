@@ -90,7 +90,7 @@ export const DataTable = <T extends object>({
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header):JSX.Element => (
                   <th 
-                    key={header.id} 
+                    key={`${headerGroup.id}_${header.id}`}
                     onClick={header.column.getToggleSortingHandler()}
                     className="px-6 py-3 text-left text-xs font-medium text-[rgb(var(--color-text-700))] tracking-wider cursor-pointer hover:bg-gray-50 transition-colors"
                   >

@@ -93,10 +93,10 @@ print_color "36" "
                     *                                                  *
                     *               ALGA PSA NEXT.JS                   *
                     *                                                  *
-                    *               Version .: $version                  *
+                    *               Version .: $version                   *
                     *               Commit  .: $commit                  *
                     *               Date    .: $date              *
-                    *               Author  .: $author                *
+                    *               Author  .: $author               *
                     *                                                  *
                     ****************************************************
 "
