@@ -160,15 +160,19 @@ export async function addProjectPhase(phaseData: Omit<IProjectPhase, 'phase_id' 
             tenant: true
         }), phaseData);
 
-        // Get the project's phases to determine the next order number and WBS code
+        // Get the project's phases to determine the next order number
         const phases = await ProjectModel.getPhases(phaseData.project_id);
         const nextOrderNumber = phases.length + 1;
-        const wbsCode = `${nextOrderNumber}`;
+
+        // Find the highest existing WBS code number
+        const existingWbsCodes = phases.map(phase => parseInt(phase.wbs_code));
+        const maxWbsCode = existingWbsCodes.length > 0 ? Math.max(...existingWbsCodes) : 0;
+        const newWbsCode = (maxWbsCode + 1).toString();
 
         const phaseWithDefaults = {
             ...validatedData,
             order_number: nextOrderNumber,
-            wbs_code: wbsCode,
+            wbs_code: newWbsCode,
         };
 
         return await ProjectModel.addPhase(phaseWithDefaults);
@@ -316,8 +320,36 @@ export async function addTaskToPhase(
 
         await checkPermission(currentUser, 'project', 'update');
 
+        // Get the phase to find its project
+        const phase = await ProjectModel.getPhaseById(phaseId);
+        if (!phase) {
+            throw new Error("Phase not found");
+        }
+
+        // Get project status mappings
+        const statusMappings = await ProjectModel.getProjectStatusMappings(phase.project_id);
+        if (!statusMappings || statusMappings.length === 0) {
+            throw new Error("No status mappings found for project");
+        }
+
+        // Prepare task data with status mapping
+        let finalTaskData = { ...taskData };
+
+        // If project_status_mapping_id is provided, validate it
+        if (taskData.project_status_mapping_id) {
+            const isValidStatus = statusMappings.some(
+                mapping => mapping.project_status_mapping_id === taskData.project_status_mapping_id
+            );
+            if (!isValidStatus) {
+                throw new Error("Invalid project_status_mapping_id provided");
+            }
+        } else {
+            // If no status is provided, use the first one as default
+            finalTaskData.project_status_mapping_id = statusMappings[0].project_status_mapping_id;
+        }
+
         // Validate task data and checklist items
-        const validatedTaskData = validateData(createTaskSchema, taskData);
+        const validatedTaskData = validateData(createTaskSchema, finalTaskData);
         const validatedChecklistItems = validateArray(createChecklistItemSchema, checklistItems);
 
         const newTask = await ProjectModel.addTask(phaseId, validatedTaskData);
