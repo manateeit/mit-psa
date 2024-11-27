@@ -23,9 +23,9 @@ interface ContactDetailsViewProps {
   initialContact: IContact;
   companies: ICompany[];
   isInDrawer?: boolean;
-  userId: string;
-  documents: IDocument[];
-  onDocumentCreated: () => Promise<void>;
+  userId?: string;
+  documents?: IDocument[];
+  onDocumentCreated?: () => Promise<void>;
 }
 
 const ContactDetailsView: React.FC<ContactDetailsViewProps> = ({ 
@@ -33,7 +33,7 @@ const ContactDetailsView: React.FC<ContactDetailsViewProps> = ({
   companies,
   isInDrawer = false,
   userId,
-  documents: initialDocuments,
+  documents: initialDocuments = [],
   onDocumentCreated
 }) => {
   const [contact, setContact] = useState<IContact>(initialContact);
@@ -203,16 +203,18 @@ const ContactDetailsView: React.FC<ContactDetailsViewProps> = ({
         </tbody>
       </table>
 
-      <div className="mt-6">
-        <Heading size="4" className="mb-4">Documents</Heading>
-        <Documents
-          documents={documents}
-          userId={userId}
-          entityId={contact.contact_name_id}
-          entityType="contact"
-          onDocumentCreated={onDocumentCreated}
-        />
-      </div>
+      {userId && (
+        <div className="mt-6">
+          <Heading size="4" className="mb-4">Documents</Heading>
+          <Documents
+            documents={documents}
+            userId={userId}
+            entityId={contact.contact_name_id}
+            entityType="contact"
+            onDocumentCreated={onDocumentCreated}
+          />
+        </div>
+      )}
 
       <div className="mt-6">
         <InteractionsFeed 

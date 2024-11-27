@@ -516,7 +516,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
           </DropdownMenu.Root>
         </div>
       <DataTable
-        data={filteredContacts.map((contact) => ({
+        data={filteredContacts.map((contact): IContact & { id: string } => ({
           ...contact,
           // Create a truly unique identifier using contact_name_id and timestamp
           id: `${contact.contact_name_id}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
