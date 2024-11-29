@@ -157,6 +157,17 @@ export async function createPrepaymentInvoice(
         throw new Error('Company ID is required');
     }
 
+    // Verify company exists
+    const company = await knex('companies')
+        .where({ 
+            company_id: companyId,
+            tenant 
+        })
+        .first();
+
+    if (!company) {
+        throw new Error('Company not found');
+    }
     
     // Create prepayment invoice
     return await knex.transaction(async (trx) => {

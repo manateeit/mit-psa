@@ -230,4 +230,5 @@ export interface InvoiceViewModel {
   invoice_items: IInvoiceItem[];
   custom_fields?: Record<string, any>;
   finalized_at?: Date;
+  credit_applied: number;
 }

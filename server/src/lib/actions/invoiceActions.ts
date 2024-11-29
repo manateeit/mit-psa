@@ -103,6 +103,10 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
     throw new Error(`Company with ID ${companyId} not found`);
   }
 
+  if (!tenant) {
+    throw new Error('No tenant found');
+  }
+
   const taxService = new TaxService();
   let subtotal = 0;
   let totalTax = 0;
@@ -114,7 +118,8 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
   // Get available credit
   const availableCredit = await CompanyBillingPlan.getCompanyCredit(companyId);
 
-  const invoice: Omit<IInvoice, 'invoice_id' | 'tenant'> = {
+  const invoice: Omit<IInvoice, 'invoice_id'> = {
+    tenant,
     company_id: companyId,
     invoice_date: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'"),
     due_date,
@@ -229,8 +234,8 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
     .update({
       subtotal: Math.ceil(subtotal),
       tax: Math.ceil(totalTax),
-      total_amount: finalTotalAmount,
-      credit_applied: invoice.credit_applied
+      total_amount: Math.ceil(finalTotalAmount),
+      credit_applied: Math.ceil(invoice.credit_applied)
     });
 
   // If credit was applied, create a transaction and update company credit balance
@@ -286,7 +291,11 @@ async function createInvoiceItem(invoiceId: string, item: Omit<IInvoiceItem, 'in
   await knex('invoice_items').insert({
     ...item,
     invoice_id: invoiceId,
-    tenant
+    tenant,
+    net_amount: Math.ceil(item.net_amount),
+    tax_amount: Math.ceil(item.tax_amount),
+    total_price: Math.ceil(item.total_price),
+    unit_price: Math.ceil(item.unit_price)
   });
 }
 
@@ -296,7 +305,7 @@ export async function generateInvoiceNumber(): Promise<string> {
     .max('invoice_number as lastInvoiceNumber')
     .first();
 
-  const lastNumber = result?.lastInvoiceNumber ? parseInt(result.lastInvoiceNumber.split('-')[1]) : 0;
+  const lastNumber = result?.lastInvoiceNumber ? parseInt(result.lastInvoiceNumber.toString().split('-')[1]) : 0;
   const newNumber = lastNumber + 1;
   return `INV-${newNumber.toString().padStart(6, '0')}`;
 }

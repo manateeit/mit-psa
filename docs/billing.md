@@ -28,7 +28,7 @@ The billing system uses a strongly-typed service type system to determine how ea
 
 The service type is enforced through a TypeScript union type:
 ```typescript
-export type ServiceType = 'Fixed' | 'Time' | 'Usage';
+export type ServiceType = 'Fixed' | 'Hourly' | 'Usage';
 ```
 
 This typing ensures that only valid service types can be assigned, maintaining data consistency throughout the billing system.
