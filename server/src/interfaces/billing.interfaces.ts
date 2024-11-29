@@ -165,6 +165,47 @@ export interface IBucketCharge extends IBillingCharge, TenantEntity {
   service_catalog_id: string;
 }
 
+export type TransactionType = 
+  | 'credit_application'
+  | 'credit_issuance'
+  | 'credit_adjustment'
+  | 'credit_expiration'
+  | 'credit_transfer'
+  | 'payment'
+  | 'partial_payment'
+  | 'prepayment'
+  | 'payment_reversal'
+  | 'payment_failed'
+  | 'invoice_generated'
+  | 'invoice_adjustment'
+  | 'invoice_cancelled'
+  | 'late_fee'
+  | 'early_payment_discount'
+  | 'refund_full'
+  | 'refund_partial'
+  | 'refund_reversal'
+  | 'service_credit'
+  | 'price_adjustment'
+  | 'service_adjustment'
+  | 'billing_cycle_adjustment'
+  | 'currency_adjustment'
+  | 'tax_adjustment';
+
+export interface ITransaction extends TenantEntity {
+  transaction_id: string;
+  company_id: string;
+  invoice_id?: string;
+  amount: number;
+  type: TransactionType;
+  status?: 'pending' | 'completed' | 'failed';
+  parent_transaction_id?: string;
+  description?: string;
+  created_at: ISO8601String;
+  reference_number?: string;
+  metadata?: Record<string, any>;
+  balance_after: number;
+}
+
 export interface ITaxRate extends TenantEntity {
   tax_rate_id?: string;
   region?: string;

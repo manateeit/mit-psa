@@ -16,12 +16,14 @@ import {
   ICompanyBillingCycle
 } from '@/interfaces/billing.interfaces';
 import {
-  differenceInDays,
+  differenceInCalendarDays,
   differenceInHours,
   differenceInMilliseconds,
   max,
   getDaysInMonth,
   addMilliseconds,
+  getYear,
+  getMonth,
   parseISO,
   toDate,
   startOfDay,
@@ -170,7 +172,8 @@ export class BillingEngine {
       .where({
         'company_billing_plans.company_id': companyId,
         'company_billing_plans.company_billing_plan_id': companyBillingPlan.company_billing_plan_id,
-        'service_catalog.service_type': 'Fixed'
+        'service_catalog.service_type': 'Fixed',
+        'billing_plans.plan_type': 'Fixed' 
         // 'service_catalog.category_id': companyBillingPlan.service_category // TODO - add this back in when we have categories
       })
       .select('service_catalog.*', 'plan_services.quantity', 'plan_services.custom_rate');
@@ -352,6 +355,7 @@ export class BillingEngine {
     const effectiveStart = [planStartDate, billingPeriod.startDate].reduce((a, b) => a > b ? a : b);
     console.log('Effective start:', effectiveStart);
 
+
     let cycleLength: number;
     switch (billingCycle) {
       case 'weekly':
@@ -360,8 +364,10 @@ export class BillingEngine {
       case 'bi-weekly':
         cycleLength = 14;
         break;
-      case 'monthly':
-        cycleLength = getDaysInMonth(parseISO(billingPeriod.startDate));
+      case 'monthly': {
+          const cd = parseISO(billingPeriod.startDate);
+          cycleLength = getDaysInMonth(new Date(cd.getUTCFullYear(), cd.getUTCMonth(), 1));
+        }
         break;
       case 'quarterly':
         cycleLength = 91; // Approximation
@@ -372,12 +378,17 @@ export class BillingEngine {
       case 'annually':
         cycleLength = 365; // Approximation
         break;
-      default:
-        cycleLength = getDaysInMonth(parseISO(billingPeriod.startDate)); // Default to monthly
+      default:{
+        const cd = parseISO(billingPeriod.startDate);
+        cycleLength = getDaysInMonth(new Date(cd.getUTCFullYear(), cd.getUTCMonth(), 1));
+      }
     }
 
     // Calculate the number of days in the billing period for this plan
-    const actualDays = differenceInDays(billingPeriod.endDate, effectiveStart);
+    console.log('Getting days between dates:');
+    console.log('End date:', billingPeriod.endDate);
+    console.log('Start date:', effectiveStart);
+    const actualDays = differenceInCalendarDays(billingPeriod.endDate, effectiveStart); // DAYLIGHT SAVINGS TIME WARNING
     console.log(`Actual days in plan period: ${actualDays}`);
     console.log(`Cycle length: ${cycleLength}`);
 
@@ -476,7 +487,7 @@ export class BillingEngine {
 
     // Update the start and end times of unapproved entries to the next billing period
     for (const entry of unapprovedEntries) {
-      const duration = differenceInMilliseconds(parseISO(entry.end_time), parseISO(entry.start_time));
+      const duration = differenceInMilliseconds(entry.end_time, entry.start_time);
       const newStartTime = parseISO(nextPeriodStart);
       const newEndTime = addMilliseconds(newStartTime, duration);
       await this.knex('time_entries')

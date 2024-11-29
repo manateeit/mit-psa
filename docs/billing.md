@@ -28,7 +28,7 @@ The billing system uses a strongly-typed service type system to determine how ea
 
 The service type is enforced through a TypeScript union type:
 ```typescript
-export type ServiceType = 'Fixed' | 'Time' | 'Usage';
+export type ServiceType = 'Fixed' | 'Hourly' | 'Usage';
 ```
 
 This typing ensures that only valid service types can be assigned, maintaining data consistency throughout the billing system.
@@ -249,6 +249,31 @@ Understanding these data structures is essential for developers working on the b
    - Use the `billing_frequency` from **`billing_plans`** to determine when to generate invoices.
    - Implement a job scheduler to automate recurring invoice generation.
    - Handle different billing frequencies for multiple active plans.
+
+## Credit System
+
+The billing system includes a comprehensive credit management system that allows companies to maintain credit balances and apply them to invoices. Key features include:
+
+1. **Prepayment Handling**
+   - Companies can make prepayments that are converted to credit
+   - Prepayment invoices are tracked through their status field
+   - Prepayments are tracked separately from regular invoices through the invoice status
+
+2. **Credit Application**
+   - Credits can be applied to any outstanding invoice
+   - Multiple credit allocations can be tracked per invoice
+   - Credit applications are recorded as transactions
+   - Real-time credit balance updates
+
+3. **Credit History**
+   - Detailed tracking of all credit-related transactions
+   - Support for filtering by date ranges
+   - Transaction types include: credit, prepayment, invoice_application, credit_refund
+
+4. **Integration**
+   - Seamless integration with existing invoice system
+   - Automatic credit balance management
+   - Transaction-based approach ensures data consistency
 
 ## Service Catalog Management
 
@@ -693,7 +718,7 @@ erDiagram
         UUID transaction_id PK
         UUID company_id FK
         UUID invoice_id FK 
-        string transaction_type
+        string transaction_type "Enum: credit_application, credit_issuance, credit_adjustment, credit_expiration, credit_transfer, payment, partial_payment, prepayment, payment_reversal, payment_failed, invoice_generated, invoice_adjustment, invoice_cancelled, late_fee, early_payment_discount, refund_full, refund_partial, refund_reversal, service_credit, price_adjustment, service_adjustment, billing_cycle_adjustment, currency_adjustment, tax_adjustment"
         decimal amount
         string currency_code FK
         date transaction_date

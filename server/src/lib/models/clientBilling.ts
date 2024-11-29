@@ -1,4 +1,4 @@
-import { ICompanyBillingPlan } from '../../interfaces/billing.interfaces';
+import { ICompanyBillingPlan, ITransaction } from '../../interfaces/billing.interfaces';
 import { createTenantKnex } from '@/lib/db';
 import { Knex } from 'knex';
 
@@ -57,6 +57,32 @@ class CompanyBillingPlan {
         const {knex: db} = await createTenantKnex();
         const [billingPlan] = await db('company_billing_plans').where('company_billing_plan_id', billingPlanId);
         return billingPlan || null;
+    }
+
+    static async updateCompanyCredit(companyId: string, amount: number): Promise<void> {
+        const {knex: db} = await createTenantKnex();
+        await db('companies')
+            .where('company_id', companyId)
+            .increment('credit_balance', amount);
+    }
+
+    static async getCompanyCredit(companyId: string): Promise<number> {
+        const {knex: db} = await createTenantKnex();
+        const company = await db('companies')
+            .where('company_id', companyId)
+            .select('credit_balance')
+            .first();
+        return company?.credit_balance || 0;
+    }
+
+    static async createTransaction(transaction: Omit<ITransaction, 'transaction_id' | 'created_at'>): Promise<ITransaction> {
+        const {knex: db, tenant} = await createTenantKnex();
+        const [createdTransaction] = await db('transactions').insert({
+            ...transaction,
+            tenant,
+            created_at: new Date().toISOString()
+        }).returning('*');
+        return createdTransaction;
     }
 }
 

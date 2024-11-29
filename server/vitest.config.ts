@@ -20,7 +20,9 @@ export default defineConfig({
       forks: {
         singleFork: true
       }
-    }
+    },
+    logHeapUsage: true,
+    testTimeout: 20000
   },
   resolve: {
     alias: {

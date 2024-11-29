@@ -1,6 +1,7 @@
 'use server'
 
 import { BillingEngine } from '@/lib/billing/billingEngine';
+import CompanyBillingPlan from '@/lib/models/clientBilling';
 import { IInvoiceTemplate, ICustomField, IConditionalRule, IInvoiceAnnotation, InvoiceViewModel, IInvoiceItem } from '@/interfaces/invoice.interfaces';
 import { IBillingResult, IBillingCharge, IBucketCharge, IUsageBasedCharge, ITimeBasedCharge, IFixedPriceCharge } from '@/interfaces/billing.interfaces';
 import { IInvoice } from '@/interfaces/invoice.interfaces';
@@ -96,10 +97,14 @@ function getChargeUnitPrice(charge: IBillingCharge): number {
 }
 
 async function createInvoice(billingResult: IBillingResult, companyId: string, startDate: ISO8601String, endDate: ISO8601String): Promise<IInvoice> {
-  const { knex } = await createTenantKnex();
+  const { knex, tenant } = await createTenantKnex();
   const company = await knex('companies').where({ company_id: companyId }).first() as ICompany;
   if (!company) {
     throw new Error(`Company with ID ${companyId} not found`);
+  }
+
+  if (!tenant) {
+    throw new Error('No tenant found');
   }
 
   const taxService = new TaxService();
@@ -107,7 +112,14 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
   let totalTax = 0;
   const due_date = await getDueDate(companyId, endDate);
 
-  const invoice: Omit<IInvoice, 'invoice_id' | 'tenant'> = {
+  // Calculate initial total amount
+  const initialTotal = billingResult.charges.reduce((sum, charge) => sum + charge.total, 0);
+  
+  // Get available credit
+  const availableCredit = await CompanyBillingPlan.getCompanyCredit(companyId);
+
+  const invoice: Omit<IInvoice, 'invoice_id'> = {
+    tenant,
     company_id: companyId,
     invoice_date: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'"),
     due_date,
@@ -115,12 +127,61 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
     tax: 0,
     total_amount: 0,
     status: 'draft',
-    invoice_number: await generateInvoiceNumber(companyId),
+    invoice_number: await generateInvoiceNumber(),
     billing_period_start: startDate,
-    billing_period_end: endDate
+    billing_period_end: endDate,
+    credit_applied: Math.min(availableCredit, initialTotal)
   };
 
-  const createdInvoice = await Invoice.create(invoice);
+  const createdInvoice = await knex.transaction(async (trx) => {
+    const [newInvoice] = await trx('invoices').insert(invoice).returning('*');
+
+    // Get current balance
+    const currentBalance = await trx('transactions')
+      .where({ company_id: companyId })
+      .orderBy('created_at', 'desc')
+      .first()
+      .then(lastTx => lastTx?.balance_after || 0);
+
+    // Record invoice generation transaction
+    await trx('transactions').insert({
+      transaction_id: uuidv4(),
+      company_id: companyId,
+      invoice_id: newInvoice.invoice_id,
+      amount: newInvoice.total_amount,
+      type: 'invoice_generated',
+      status: 'completed',
+      description: `Generated invoice ${newInvoice.invoice_number}`,
+      created_at: new Date().toISOString(),
+      tenant,
+      balance_after: currentBalance + newInvoice.total_amount
+    });
+
+    // If discounts were applied, record those transactions
+    for (const discount of billingResult.discounts) {
+      const currentBalance = await trx('transactions')
+        .where({ company_id: companyId })
+        .orderBy('created_at', 'desc')
+        .first()
+        .then(lastTx => lastTx?.balance_after || 0);
+
+      await trx('transactions').insert({
+        transaction_id: uuidv4(),
+        company_id: companyId,
+        invoice_id: newInvoice.invoice_id,
+        amount: -(discount.amount || 0),
+        type: 'price_adjustment',
+        status: 'completed',
+        description: `Applied discount: ${discount.discount_name}`,
+        created_at: new Date().toISOString(),
+        tenant,
+        metadata: { discount_id: discount.discount_id },
+        balance_after: currentBalance - (discount.amount || 0)
+      });
+    }
+
+    return newInvoice;
+  });
 
   for (const charge of billingResult.charges) {
     const { netAmount, taxCalculationResult } = await calculateChargeDetails(charge, companyId, endDate, taxService);
@@ -166,15 +227,44 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
   }
 
   const totalAmount = subtotal + totalTax;
+  const finalTotalAmount = Math.max(0, Math.ceil(totalAmount) - invoice.credit_applied);
+
   await knex('invoices')
     .where({ invoice_id: createdInvoice.invoice_id })
     .update({
       subtotal: Math.ceil(subtotal),
       tax: Math.ceil(totalTax),
-      total_amount: Math.ceil(totalAmount)
+      total_amount: Math.ceil(finalTotalAmount),
+      credit_applied: Math.ceil(invoice.credit_applied)
     });
 
-  return { ...createdInvoice, subtotal: Math.ceil(subtotal), tax: Math.ceil(totalTax), total_amount: Math.ceil(totalAmount) };
+  // If credit was applied, create a transaction and update company credit balance
+  if (invoice.credit_applied > 0) {
+    const currentBalance = await knex('transactions')
+      .where({ company_id: companyId })
+      .orderBy('created_at', 'desc')
+      .first()
+      .then(lastTx => lastTx?.balance_after || 0);
+
+    await CompanyBillingPlan.createTransaction({
+      company_id: companyId,
+      invoice_id: createdInvoice.invoice_id,
+      amount: -invoice.credit_applied,
+      type: 'credit_application',
+      description: `Applied credit to invoice ${invoice.invoice_number}`,
+      balance_after: currentBalance - invoice.credit_applied
+    });
+
+    await CompanyBillingPlan.updateCompanyCredit(companyId, -invoice.credit_applied);
+  }
+
+  return { 
+    ...createdInvoice, 
+    subtotal: Math.ceil(subtotal), 
+    tax: Math.ceil(totalTax), 
+    total_amount: finalTotalAmount,
+    credit_applied: invoice.credit_applied
+  };
 }
 
 async function calculateChargeDetails(
@@ -201,18 +291,21 @@ async function createInvoiceItem(invoiceId: string, item: Omit<IInvoiceItem, 'in
   await knex('invoice_items').insert({
     ...item,
     invoice_id: invoiceId,
-    tenant
+    tenant,
+    net_amount: Math.ceil(item.net_amount),
+    tax_amount: Math.ceil(item.tax_amount),
+    total_price: Math.ceil(item.total_price),
+    unit_price: Math.ceil(item.unit_price)
   });
 }
 
-async function generateInvoiceNumber(companyId: string): Promise<string> {
+export async function generateInvoiceNumber(): Promise<string> {
   const { knex } = await createTenantKnex();
   const result = await knex('invoices')
-    .where({ company_id: companyId })
     .max('invoice_number as lastInvoiceNumber')
     .first();
 
-  const lastNumber = result?.lastInvoiceNumber ? parseInt(result.lastInvoiceNumber.split('-')[1]) : 0;
+  const lastNumber = result?.lastInvoiceNumber ? parseInt(result.lastInvoiceNumber.toString().split('-')[1]) : 0;
   const newNumber = lastNumber + 1;
   return `INV-${newNumber.toString().padStart(6, '0')}`;
 }

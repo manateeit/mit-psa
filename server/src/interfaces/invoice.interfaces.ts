@@ -14,6 +14,7 @@ export interface IInvoice extends TenantEntity {
   billing_period_start: ISO8601String;
   billing_period_end: ISO8601String;
   finalized_at?: Date | ISO8601String;
+  credit_applied: number;
 }
 
 export interface IInvoiceItem extends TenantEntity {
@@ -198,7 +199,15 @@ export interface IInvoiceAnnotation {
   created_at: Date;
 }
 
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled' | 'pending';
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled' | 'pending' | 'prepayment' | 'partially_applied';
+
+export interface ICreditAllocation extends TenantEntity {
+    allocation_id: string;
+    transaction_id: string;
+    invoice_id: string;
+    amount: number;
+    created_at: ISO8601String;
+}
 
 export interface InvoiceViewModel {
   invoice_number: string;
@@ -221,4 +230,5 @@ export interface InvoiceViewModel {
   invoice_items: IInvoiceItem[];
   custom_fields?: Record<string, any>;
   finalized_at?: Date;
+  credit_applied: number;
 }

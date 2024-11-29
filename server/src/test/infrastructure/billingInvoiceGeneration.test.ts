@@ -2,6 +2,7 @@ dotenv.config();
 
 import { describe, it, expect, vi, beforeEach, beforeAll, afterEach, afterAll } from 'vitest';
 import { finalizeInvoice, generateInvoice } from '@/lib/actions/invoiceActions';
+import { createPrepaymentInvoice } from '@/lib/actions/creditActions';
 import { v4 as uuidv4 } from 'uuid';
 import knex from 'knex';
 import { parse, addDays, parseISO } from 'date-fns';
@@ -9,6 +10,7 @@ import { TextEncoder } from 'util';
 import dotenv from 'dotenv';
 import { ICompanyTaxSettings } from '@/interfaces/tax.interfaces';
 import exp from 'constants';
+import CompanyBillingPlan from '@/lib/models/clientBilling';
 
 global.TextEncoder = TextEncoder;
 
@@ -68,7 +70,7 @@ beforeAll(async () => {
     connection: {
       host: process.env.DB_HOST,
       port: Number(process.env.DB_PORT),
-      user: process.env.DB_USER_SERVER,
+      user: process.env.DB_USER_ADMIN,
       password: process.env.DB_PASSWORD_SERVER,
       database: process.env.DB_NAME_SERVER
     },
@@ -103,20 +105,25 @@ afterEach(async () => {
 });
 
 
-describe('Billing Invoice Generation', () => {
-  let tenantId: string;
-  let companyId: string;
-  let planId: string;
-  let categoryId: string;
-  let service1Id: string;
-  let service2Id: string;
-  let taxRateId: string;
+let tenantId: string;
+// let companyId: string;
+let planId: string;
+let categoryId: string;
+let service1Id: string;
+let service2Id: string;
+let taxRateId: string;
 
-  beforeEach(async () => {
-    // Create test data for each test
+beforeEach(async () => {
+    console.log('Setting up test data...');
+    // Get tenant ID
     ({ tenant: tenantId } = await db('tenants').select("tenant").first());
+    if (!tenantId) {
+      throw new Error('No tenant found');
+    }
 
-    companyId = uuidv4(); // Create a new company for each test
+    // Create a new company for each test
+    companyId = uuidv4();
+    console.log('Created company with ID:', companyId);
     await db('companies').insert({
       company_id: companyId,
       company_name: 'Test Company',
@@ -216,8 +223,9 @@ describe('Billing Invoice Generation', () => {
       tenant: tenantId
     };
     await db('company_tax_settings').insert(companyTaxSettings);
-  });
+});
 
+describe('Billing Invoice Generation', () => {
   describe('generateInvoice', () => {
     it('should calculate taxes correctly', async () => {
       const startDate = '2023-01-01T00:00:00Z';
@@ -1056,12 +1064,13 @@ describe('Billing Invoice Generation', () => {
   });
 });
 
+
 it('identify and throw an error for services with undefined rates', async () => {
   // Arrange
   const startDate = '2023-01-01T00:00:00Z';
   const endDate = '2023-02-01T00:00:00Z';
 
-  companyId = uuidv4(); // Create a new company for each test
+  companyId = uuidv4(); 
   await db('companies').insert({
     company_id: companyId,
     company_name: 'Test Company',
