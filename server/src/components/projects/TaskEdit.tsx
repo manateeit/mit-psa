@@ -1,24 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { IProjectPhase, IProjectTask } from '@/interfaces/project.interfaces';
+import { IProjectPhase, IProjectTask, ProjectStatus } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { getProjectTaskStatuses, ProjectStatus } from '@/lib/actions/projectActions';
+import { getProjectTaskStatuses } from '@/lib/actions/projectActions';
 import TaskForm from './TaskForm';
 
 interface TaskEditProps {
   task: IProjectTask;
-  phase: IProjectPhase;  // Added this prop
+  phase: IProjectPhase;
   phases?: IProjectPhase[];
   onClose: () => void;
   onTaskUpdated: (updatedTask: IProjectTask | null) => void;
-  projectStatuses?: ProjectStatus[];  // Made optional since we fetch it
+  projectStatuses?: ProjectStatus[];
   users: IUserWithRoles[];
 }
 
 export default function TaskEdit({ 
   task, 
-  phase,  // Added this prop
+  phase,
   onClose, 
   onTaskUpdated,
   phases,
@@ -26,6 +26,7 @@ export default function TaskEdit({
   users 
 }: TaskEditProps): JSX.Element {
   const [statuses, setStatuses] = useState<ProjectStatus[]>(initialStatuses || []);
+  const [selectedPhaseStatuses, setSelectedPhaseStatuses] = useState<ProjectStatus[]>(initialStatuses || []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -33,6 +34,7 @@ export default function TaskEdit({
         if (!initialStatuses) {
           const projectStatuses = await getProjectTaskStatuses(phase.project_id);
           setStatuses(projectStatuses);
+          setSelectedPhaseStatuses(projectStatuses);
         }
       } catch (error) {
         console.error('Error fetching task details:', error);
@@ -41,6 +43,24 @@ export default function TaskEdit({
     fetchData();
   }, [phase.project_id, initialStatuses]);
 
+  const handlePhaseChange = async (newPhaseId: string) => {
+    if (!phases) return;
+    
+    const newPhase = phases.find(p => p.phase_id === newPhaseId);
+    if (newPhase && newPhase.project_id !== phase.project_id) {
+      // If moving to a different project, fetch its statuses
+      try {
+        const newProjectStatuses = await getProjectTaskStatuses(newPhase.project_id);
+        setSelectedPhaseStatuses(newProjectStatuses);
+      } catch (error) {
+        console.error('Error fetching new project statuses:', error);
+      }
+    } else {
+      // If moving within the same project, use current statuses
+      setSelectedPhaseStatuses(statuses);
+    }
+  };
+
   return (
     <TaskForm
       task={task}
@@ -48,10 +68,11 @@ export default function TaskEdit({
       phases={phases}
       onClose={onClose}
       onSubmit={onTaskUpdated}
-      projectStatuses={statuses}
-      defaultStatus={statuses.find(s => s.project_status_mapping_id === task.project_status_mapping_id)}
+      projectStatuses={selectedPhaseStatuses}
+      defaultStatus={selectedPhaseStatuses.find(s => s.project_status_mapping_id === task.project_status_mapping_id)}
       users={users}
       mode="edit"
+      onPhaseChange={handlePhaseChange}
     />
   );
 }

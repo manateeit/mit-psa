@@ -1,10 +1,22 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { IProjectPhase, IProjectTask, ITaskChecklistItem, IProjectTicketLinkWithDetails, IProject } from '@/interfaces/project.interfaces';
+import { IProjectPhase, IProjectTask, ITaskChecklistItem, IProjectTicketLinkWithDetails, IProject, ProjectStatus } from '@/interfaces/project.interfaces';
 import { ITicket, ITicketListItem, ITicketListFilters } from '@/interfaces/ticket.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { ProjectStatus, updateTaskWithChecklist, addTaskToPhase, getTaskChecklistItems, moveTaskToPhase, deleteTask, addTicketLinkAction, getTaskTicketLinksAction, deleteTaskTicketLinkAction, getProjects, getProjectTaskStatuses } from '@/lib/actions/projectActions';
+import { 
+  updateTaskWithChecklist, 
+  addTaskToPhase, 
+  getTaskChecklistItems, 
+  moveTaskToPhase, 
+  deleteTask, 
+  addTicketLinkAction, 
+  getTaskTicketLinksAction, 
+  deleteTaskTicketLinkAction, 
+  getProjects,
+  getProjectTreeData,
+  getProjectTaskStatuses 
+} from '@/lib/actions/projectActions';
 import { getTicketsForList, getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -21,7 +33,6 @@ import { QuickAddTicket } from '@/components/tickets/QuickAddTicket';
 import { useDrawer } from '@/context/DrawerContext';
 import TicketDetails from '@/components/tickets/TicketDetails';
 import TreeSelect, { TreeSelectOption } from '@/components/ui/TreeSelect';
-import ProjectModel from '@/lib/models/project';
 
 interface TaskFormProps {
   task?: IProjectTask;
@@ -33,6 +44,7 @@ interface TaskFormProps {
   defaultStatus?: ProjectStatus;
   users: IUserWithRoles[];
   mode: 'create' | 'edit';
+  onPhaseChange: (phaseId: string) => void;
 }
 
 export default function TaskForm({
@@ -44,7 +56,8 @@ export default function TaskForm({
   projectStatuses,
   defaultStatus,
   users,
-  mode
+  mode,
+  onPhaseChange
 }: TaskFormProps): JSX.Element {
   const { openDrawer } = useDrawer();
   const [currentUserId, setCurrentUserId] = useState<string>('');
@@ -73,7 +86,6 @@ export default function TaskForm({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [estimatedHours, setEstimatedHours] = useState<number>(Number(task?.estimated_hours) || 0);
   const [actualHours, setActualHours] = useState<number>(Number(task?.actual_hours) || 0);
-  const [projects, setProjects] = useState<IProject[]>([]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -107,34 +119,15 @@ export default function TaskForm({
     const fetchProjectsData = async () => {
       if (mode === 'edit') {
         try {
-          const allProjects = await getProjects();
-          
-          // Transform projects into tree options
-          const options = await Promise.all(allProjects.map(async (project): Promise<TreeSelectOption> => {
-            const projectPhases = await ProjectModel.getPhases(project.project_id);
-            const projectStatuses = await getProjectTaskStatuses(project.project_id);
-            
-            return {
-              label: project.project_name,
-              value: project.project_id,
-              type: 'project',
-              children: projectPhases.map((phase): TreeSelectOption => ({
-                label: phase.phase_name,
-                value: phase.phase_id,
-                type: 'phase',
-                children: projectStatuses.map((status): TreeSelectOption => ({
-                  label: status.custom_name || status.name,
-                  value: status.project_status_mapping_id,
-                  type: 'status'
-                }))
-              }))
-            };
-          }));
-          
-          setProjectTreeOptions(options);
+          const treeData = await getProjectTreeData();
+          if (treeData && treeData.length > 0) {
+            setProjectTreeOptions(treeData);
+          } else {
+            toast.error('No projects available with valid phases and statuses');
+          }
         } catch (error) {
           console.error('Error fetching projects:', error);
-          toast.error('Failed to fetch projects');
+          toast.error('Error loading project data. Please try again.');
         }
       }
     };
@@ -219,17 +212,17 @@ export default function TaskForm({
       setShowMoveConfirmation(true);
     }
   };
-  
+
   const handleTreeSelectChange = async (value: string, type: 'project' | 'phase' | 'status') => {
     if (type === 'phase') {
       setSelectedPhaseId(value);
-      setShowMoveConfirmation(true);
+      handlePhaseChange(value);  // For same-project moves
+      onPhaseChange(value);      // For cross-project moves
     } else if (type === 'status') {
       setSelectedStatusId(value);
     }
   };
 
-  // Update handleMoveConfirm to handle cross-project moves
   const handleMoveConfirm = async () => {
     if (!task) return;
     
@@ -468,23 +461,12 @@ export default function TaskForm({
     setShowDeleteConfirm(false);
   };
 
-  const phaseOptions = phases?.map((p): { value: string; label: string } => ({
-    value: p.phase_id,
-    label: p.phase_name
-  })) || [];
-
-  const statusOptions = projectStatuses.map((status): { value: string; label: string } => ({
-    value: status.project_status_mapping_id,
-    label: status.custom_name || status.name
-  }));
-
   const ticketOptions = availableTickets
     .filter((ticket): ticket is ITicketListItem & { ticket_id: string } => ticket.ticket_id !== undefined)
     .map((ticket): { value: string; label: string } => ({
       value: ticket.ticket_id,
       label: `${ticket.ticket_number} - ${ticket.title}`
     }));
-
 
   return (
     <>
@@ -683,7 +665,7 @@ export default function TaskForm({
                   {mode === 'edit' && (
                     <Button
                       type="button"
-                      variant="destructive"  // or use custom styling for orange color
+                      variant="destructive"
                       onClick={() => setShowDeleteConfirm(true)}
                       disabled={isSubmitting}
                     >
