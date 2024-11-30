@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import * as RadixSelect from '@radix-ui/react-select';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
@@ -28,6 +28,9 @@ const TreeSelect: React.FC<TreeSelectProps> = ({
   disabled = false,
   label,
 }): JSX.Element => {
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [isOpen, setIsOpen] = useState(false);
+
   // Find the selected option across all levels
   const findSelectedOption = (opts: TreeSelectOption[]): TreeSelectOption | undefined => {
     for (const opt of opts) {
@@ -40,28 +43,98 @@ const TreeSelect: React.FC<TreeSelectProps> = ({
     return undefined;
   };
 
+  // Find path to selected value
+  const findPathToValue = (
+    opts: TreeSelectOption[],
+    targetValue: string,
+    path: string[] = []
+  ): string[] | null => {
+    for (const opt of opts) {
+      if (opt.value === targetValue) {
+        return [...path, opt.value];
+      }
+      if (opt.children) {
+        const found = findPathToValue(opt.children, targetValue, [...path, opt.value]);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // Update expanded items when value changes
+  useEffect(() => {
+    if (value) {
+      const path = findPathToValue(options, value);
+      if (path) {
+        setExpandedItems(prev => {
+          const next = new Set(prev);
+          path.forEach(p => next.add(p));
+          return next;
+        });
+      }
+    }
+  }, [value, options]);
+
   const selectedOption = findSelectedOption(options);
 
+  const toggleExpand = (optionValue: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setExpandedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(optionValue)) {
+        next.delete(optionValue);
+      } else {
+        next.add(optionValue);
+      }
+      return next;
+    });
+  };
+
+  const handleSelect = (option: TreeSelectOption, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (option.type === 'status') {
+      // For status items, trigger selection and close dropdown
+      onValueChange(option.value, option.type);
+      setIsOpen(false);
+    } else {
+      // For non-leaf nodes, toggle expansion and keep dropdown open
+      toggleExpand(option.value, e);
+    }
+  };
+
   const renderOption = (option: TreeSelectOption, level: number = 0): JSX.Element => {
-    const paddingLeft = level * 16; // Increase padding for each level
+    const paddingLeft = level * 16;
+    const isExpanded = expandedItems.has(option.value);
+    const hasChildren = option.children && option.children.length > 0;
 
     return (
       <React.Fragment key={option.value}>
-        <RadixSelect.Item
-          value={option.value}
+        <div
           className={`
             relative flex items-center px-3 py-2 text-sm rounded text-gray-900
-            cursor-pointer bg-white hover:bg-gray-100 focus:bg-gray-100
-            focus:outline-none select-none whitespace-nowrap
+            cursor-pointer bg-white hover:bg-gray-100
+            select-none whitespace-nowrap
+            ${option.type === 'status' ? 'hover:bg-purple-50' : ''}
           `}
           style={{ paddingLeft: `${paddingLeft + 12}px` }}
+          onClick={(e) => handleSelect(option, e)}
+          onMouseDown={(e) => e.preventDefault()} // Prevent dropdown from closing
         >
-          {option.children && option.children.length > 0 && (
-            <ChevronRight className="w-4 h-4 text-gray-400 absolute left-1" />
+          {hasChildren && (
+            <div className="absolute left-1 cursor-pointer">
+              {isExpanded ? (
+                <ChevronDown className="w-4 h-4 text-gray-400" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              )}
+            </div>
           )}
-          <RadixSelect.ItemText>{option.label}</RadixSelect.ItemText>
-        </RadixSelect.Item>
-        {option.children?.map(child => renderOption(child, level + 1))}
+          <span>{option.label}</span>
+        </div>
+        {isExpanded && option.children?.map(child => renderOption(child, level + 1))}
       </React.Fragment>
     );
   };
@@ -74,7 +147,9 @@ const TreeSelect: React.FC<TreeSelectProps> = ({
         </label>
       )}
       <RadixSelect.Root 
-        value={value} 
+        value={value}
+        open={isOpen}
+        onOpenChange={setIsOpen}
         onValueChange={(val) => {
           const findOptionType = (opts: TreeSelectOption[], searchValue: string): 'project' | 'phase' | 'status' | undefined => {
             for (const opt of opts) {
@@ -122,7 +197,7 @@ const TreeSelect: React.FC<TreeSelectProps> = ({
             sideOffset={4}
             align="start"
           >
-            <RadixSelect.Viewport className="p-1">
+            <RadixSelect.Viewport className="p-1 max-h-[300px] overflow-y-auto">
               {options.map(option => renderOption(option))}
             </RadixSelect.Viewport>
           </RadixSelect.Content>
