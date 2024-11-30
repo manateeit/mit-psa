@@ -32,7 +32,7 @@ import { toast } from 'react-hot-toast';
 import { QuickAddTicket } from '@/components/tickets/QuickAddTicket';
 import { useDrawer } from '@/context/DrawerContext';
 import TicketDetails from '@/components/tickets/TicketDetails';
-import TreeSelect, { TreeSelectOption } from '@/components/ui/TreeSelect';
+import TreeSelect, { TreeSelectOption, TreeSelectPath } from '@/components/ui/TreeSelect';
 
 interface TaskFormProps {
   task?: IProjectTask;
@@ -134,6 +134,69 @@ export default function TaskForm({
 
     fetchProjectsData();
   }, [mode]);
+  
+  const handleTreeSelectChange = async (
+    value: string, 
+    type: 'project' | 'phase' | 'status',
+    path?: TreeSelectPath
+  ) => {
+    if (type === 'phase') {
+      setSelectedPhaseId(value);
+      handlePhaseChange(value);
+      onPhaseChange(value);
+    } else if (type === 'status' && path) {
+      // Always update both status and phase when selecting a status
+      setSelectedStatusId(path.statusId);
+      setSelectedPhaseId(path.phaseId);
+      
+      // Find the new phase object to update selectedPhase
+      const newPhase = phases?.find(p => p.phase_id === path.phaseId);
+      if (newPhase) {
+        setSelectedPhase(newPhase);
+        // Show move confirmation if it's a different phase or project
+        if (newPhase.phase_id !== phase.phase_id || newPhase.project_id !== phase.project_id) {
+          setShowMoveConfirmation(true);
+        }
+      }
+    }
+  };
+
+  const handleMoveConfirm = async () => {
+    if (!task) return;
+    
+    setIsSubmitting(true);
+    try {
+      // Move the task to the new phase with both phase and status
+      const movedTask = await moveTaskToPhase(task.task_id, selectedPhaseId, selectedStatusId);
+      
+      if (movedTask) {
+        // Update task with all fields preserved
+        const taskData: Partial<IProjectTask> = {
+          task_name: taskName,
+          description: description,
+          assigned_to: assignedUser || currentUserId,
+          estimated_hours: estimatedHours,
+          actual_hours: actualHours,
+          due_date: task.due_date,
+          checklist_items: checklistItems,
+          // Always include these IDs to ensure they're properly updated
+          phase_id: selectedPhaseId,
+          project_status_mapping_id: selectedStatusId
+        };
+        const updatedTask = await updateTaskWithChecklist(movedTask.task_id, taskData);
+        onSubmit(updatedTask);
+      }
+      
+      toast.success('Task moved successfully');
+      onClose();
+    } catch (error) {
+      console.error('Error moving task:', error);
+      toast.error('Failed to move task');
+    } finally {
+      setIsSubmitting(false);
+      setShowMoveConfirmation(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,19 +208,22 @@ export default function TaskForm({
       let resultTask: IProjectTask | null = null;
 
       if (mode === 'edit' && task) {
-        // Edit mode - only include fields that are part of IProjectTask
-        const taskData: Partial<IProjectTask> = {
-          task_name: taskName,
-          project_status_mapping_id: selectedStatusId,
-          description: description,
-          assigned_to: assignedUser || currentUserId,
-          estimated_hours: estimatedHours,
-          actual_hours: actualHours,
-          phase_id: task.phase_id,
-          due_date: task.due_date,
-          checklist_items: checklistItems
-        };
-        resultTask = await updateTaskWithChecklist(task.task_id, taskData);
+        // Always use moveTaskToPhase to ensure both phase and status are updated together
+        const movedTask = await moveTaskToPhase(task.task_id, selectedPhaseId, selectedStatusId);
+        
+        if (movedTask) {
+          // Update other fields
+          const taskData: Partial<IProjectTask> = {
+            task_name: taskName,
+            description: description,
+            assigned_to: assignedUser || currentUserId,
+            estimated_hours: estimatedHours,
+            actual_hours: actualHours,
+            due_date: task.due_date,
+            checklist_items: checklistItems
+          };
+          resultTask = await updateTaskWithChecklist(movedTask.task_id, taskData);
+        }
       } else {
         // Create mode
         const taskData = {
@@ -210,44 +276,6 @@ export default function TaskForm({
     if (newPhase && newPhase.phase_id !== phase.phase_id) {
       setSelectedPhase(newPhase);
       setShowMoveConfirmation(true);
-    }
-  };
-
-  const handleTreeSelectChange = async (value: string, type: 'project' | 'phase' | 'status') => {
-    if (type === 'phase') {
-      setSelectedPhaseId(value);
-      handlePhaseChange(value);  // For same-project moves
-      onPhaseChange(value);      // For cross-project moves
-    } else if (type === 'status') {
-      setSelectedStatusId(value);
-    }
-  };
-
-  const handleMoveConfirm = async () => {
-    if (!task) return;
-    
-    setIsSubmitting(true);
-    try {
-      const movedTask = await moveTaskToPhase(task.task_id, selectedPhaseId, selectedStatusId);
-      
-      if (movedTask) {
-        const taskData: Partial<IProjectTask> = {
-          estimated_hours: estimatedHours,
-          actual_hours: actualHours,
-          checklist_items: checklistItems
-        };
-        const updatedTask = await updateTaskWithChecklist(movedTask.task_id, taskData);
-        onSubmit(updatedTask);
-      }
-      
-      toast.success('Task moved successfully');
-      onClose();
-    } catch (error) {
-      console.error('Error moving task:', error);
-      toast.error('Failed to move task');
-    } finally {
-      setIsSubmitting(false);
-      setShowMoveConfirmation(false);
     }
   };
 

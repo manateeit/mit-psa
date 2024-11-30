@@ -1,4 +1,3 @@
-// server/src/lib/actions/projectActions.ts
 'use server';
 
 import ProjectModel from '../models/project';
@@ -200,7 +199,8 @@ export async function moveTaskToPhase(taskId: string, newPhaseId: string, newSta
             throw new Error('Current phase not found');
         }
 
-        let finalStatusMappingId = newStatusMappingId;
+        // Always use the provided status mapping ID if it exists
+        let finalStatusMappingId = newStatusMappingId || existingTask.project_status_mapping_id;
 
         // If moving to a different project and no specific status mapping is provided
         if (currentPhase.project_id !== newPhase.project_id && !newStatusMappingId) {
@@ -269,7 +269,7 @@ export async function moveTaskToPhase(taskId: string, newPhaseId: string, newSta
         const updatedTask = await ProjectModel.updateTask(taskId, {
             phase_id: newPhaseId,
             wbs_code: newWbsCode,
-            project_status_mapping_id: finalStatusMappingId || existingTask.project_status_mapping_id,
+            project_status_mapping_id: finalStatusMappingId,
             // Preserve other important fields
             task_name: existingTask.task_name,
             description: existingTask.description,

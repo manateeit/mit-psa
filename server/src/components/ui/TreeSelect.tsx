@@ -9,10 +9,16 @@ export interface TreeSelectOption {
   children?: TreeSelectOption[];
 }
 
+export interface TreeSelectPath {
+  projectId: string;
+  phaseId: string;
+  statusId: string;
+}
+
 interface TreeSelectProps {
   options: TreeSelectOption[];
   value: string;
-  onValueChange: (value: string, type: 'project' | 'phase' | 'status') => void;
+  onValueChange: (value: string, type: 'project' | 'phase' | 'status', path?: TreeSelectPath) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
@@ -30,11 +36,13 @@ const TreeSelect: React.FC<TreeSelectProps> = ({
 }): JSX.Element => {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedValue, setSelectedValue] = useState(value);
+  const [displayLabel, setDisplayLabel] = useState<string>('');
 
   // Find the selected option across all levels
   const findSelectedOption = (opts: TreeSelectOption[]): TreeSelectOption | undefined => {
     for (const opt of opts) {
-      if (opt.value === value) return opt;
+      if (opt.value === selectedValue) return opt;
       if (opt.children) {
         const found = findSelectedOption(opt.children);
         if (found) return found;
@@ -47,14 +55,14 @@ const TreeSelect: React.FC<TreeSelectProps> = ({
   const findPathToValue = (
     opts: TreeSelectOption[],
     targetValue: string,
-    path: string[] = []
-  ): string[] | null => {
+    path: TreeSelectOption[] = []
+  ): TreeSelectOption[] | null => {
     for (const opt of opts) {
       if (opt.value === targetValue) {
-        return [...path, opt.value];
+        return [...path, opt];
       }
       if (opt.children) {
-        const found = findPathToValue(opt.children, targetValue, [...path, opt.value]);
+        const found = findPathToValue(opt.children, targetValue, [...path, opt]);
         if (found) return found;
       }
     }
@@ -64,18 +72,23 @@ const TreeSelect: React.FC<TreeSelectProps> = ({
   // Update expanded items when value changes
   useEffect(() => {
     if (value) {
+      setSelectedValue(value);
       const path = findPathToValue(options, value);
       if (path) {
         setExpandedItems(prev => {
           const next = new Set(prev);
-          path.forEach(p => next.add(p));
+          path.forEach(p => next.add(p.value));
           return next;
         });
       }
     }
   }, [value, options]);
 
-  const selectedOption = findSelectedOption(options);
+  // Update display label when selected value changes
+  useEffect(() => {
+    const selectedOption = findSelectedOption(options);
+    setDisplayLabel(selectedOption?.label || '');
+  }, [selectedValue, options]);
 
   const toggleExpand = (optionValue: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -91,17 +104,41 @@ const TreeSelect: React.FC<TreeSelectProps> = ({
     });
   };
 
+  const findFullPath = (opts: TreeSelectOption[], targetValue: string): TreeSelectPath | undefined => {
+    for (const project of opts) {
+      if (project.type === 'project' && project.children) {
+        for (const phase of project.children) {
+          if (phase.type === 'phase' && phase.children) {
+            for (const status of phase.children) {
+              if (status.value === targetValue) {
+                return {
+                  projectId: project.value,
+                  phaseId: phase.value,
+                  statusId: status.value
+                };
+              }
+            }
+          }
+        }
+      }
+    }
+    return undefined;
+  };
+
   const handleSelect = (option: TreeSelectOption, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
     if (option.type === 'status') {
-      // For status items, trigger selection and close dropdown
-      onValueChange(option.value, option.type);
+      const path = findFullPath(options, option.value);
+      setSelectedValue(option.value);
+      onValueChange(option.value, option.type, path);
       setIsOpen(false);
     } else {
-      // For non-leaf nodes, toggle expansion and keep dropdown open
       toggleExpand(option.value, e);
+      if (option.type === 'phase') {
+        onValueChange(option.value, option.type);
+      }
     }
   };
 
@@ -109,6 +146,7 @@ const TreeSelect: React.FC<TreeSelectProps> = ({
     const paddingLeft = level * 16;
     const isExpanded = expandedItems.has(option.value);
     const hasChildren = option.children && option.children.length > 0;
+    const isSelected = option.value === selectedValue;
 
     return (
       <React.Fragment key={option.value}>
@@ -118,10 +156,11 @@ const TreeSelect: React.FC<TreeSelectProps> = ({
             cursor-pointer bg-white hover:bg-gray-100
             select-none whitespace-nowrap
             ${option.type === 'status' ? 'hover:bg-purple-50' : ''}
+            ${isSelected ? 'bg-purple-50' : ''}
           `}
           style={{ paddingLeft: `${paddingLeft + 12}px` }}
           onClick={(e) => handleSelect(option, e)}
-          onMouseDown={(e) => e.preventDefault()} // Prevent dropdown from closing
+          onMouseDown={(e) => e.preventDefault()}
         >
           {hasChildren && (
             <div className="absolute left-1 cursor-pointer">
@@ -147,25 +186,9 @@ const TreeSelect: React.FC<TreeSelectProps> = ({
         </label>
       )}
       <RadixSelect.Root 
-        value={value}
+        value={selectedValue}
         open={isOpen}
         onOpenChange={setIsOpen}
-        onValueChange={(val) => {
-          const findOptionType = (opts: TreeSelectOption[], searchValue: string): 'project' | 'phase' | 'status' | undefined => {
-            for (const opt of opts) {
-              if (opt.value === searchValue) return opt.type;
-              if (opt.children) {
-                const found = findOptionType(opt.children, searchValue);
-                if (found) return found;
-              }
-            }
-            return undefined;
-          };
-          const type = findOptionType(options, val);
-          if (type) {
-            onValueChange(val, type);
-          }
-        }}
         disabled={disabled}
       >
         <RadixSelect.Trigger
@@ -183,7 +206,7 @@ const TreeSelect: React.FC<TreeSelectProps> = ({
             placeholder={placeholder}
             className="flex-1 text-left"
           >
-            {selectedOption?.label}
+            {displayLabel || placeholder}
           </RadixSelect.Value>
           <RadixSelect.Icon>
             <ChevronDown className="w-4 h-4 text-gray-500" />

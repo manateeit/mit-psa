@@ -514,23 +514,12 @@ const ProjectModel = {
       const {knex: db} = await createTenantKnex();
       const currentUser = await getCurrentUser();
 
-      // Remove wbs_code from updates to prevent override unless it's a phase change
-      const { wbs_code, phase_id, ...otherUpdates } = taskData;
-      
-      let finalTaskData: any = {
-        ...otherUpdates,
-        assigned_to: otherUpdates.assigned_to ?? currentUser?.user_id,
+      // Always include phase_id in the update if it's provided
+      const finalTaskData = {
+        ...taskData,
+        assigned_to: taskData.assigned_to ?? currentUser?.user_id,
         updated_at: db.fn.now()
       };
-
-      // Only include wbs_code if phase_id is changing
-      if (phase_id && wbs_code) {
-        finalTaskData = {
-          ...finalTaskData,
-          phase_id,
-          wbs_code
-        };
-      }
 
       const [updatedTask] = await db<IProjectTask>('project_tasks')
         .where('task_id', taskId)
