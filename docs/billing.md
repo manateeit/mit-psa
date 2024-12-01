@@ -250,6 +250,31 @@ Understanding these data structures is essential for developers working on the b
    - Implement a job scheduler to automate recurring invoice generation.
    - Handle different billing frequencies for multiple active plans.
 
+## Invoice Source Tracking
+
+The system tracks the source of each invoice item through linking tables:
+
+- `invoice_time_entries`: Links time entries to specific invoice items
+- `invoice_usage_records`: Links usage records to specific invoice items
+
+This provides:
+- Clear audit trail of what was billed
+- Prevention of double-billing
+- Ability to track invoiced vs non-invoiced entries
+
+Example schema:
+```sql
+CREATE TABLE invoice_time_entries (
+  invoice_time_entry_id UUID PRIMARY KEY,
+  invoice_id UUID NOT NULL,
+  entry_id UUID NOT NULL,
+  tenant UUID NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id),
+  FOREIGN KEY (entry_id) REFERENCES time_entries(entry_id)
+);
+```
+
 ## Credit System
 
 The billing system includes a comprehensive credit management system that allows companies to maintain credit balances and apply them to invoices. Key features include:

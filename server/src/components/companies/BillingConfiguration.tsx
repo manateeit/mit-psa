@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { getCompanyBillingPlan, updateCompanyBillingPlan, addCompanyBillingPlan, removeCompanyBillingPlan, editCompanyBillingPlan } from '../../lib/actions/companyBillingPlanActions';
 import { getBillingPlans } from '../../lib/actions/billingPlanAction';
 import { getServiceCategories } from '../../lib/actions/serviceCategoryActions';
-import { ICompanyBillingPlan, IBillingPlan, IServiceCategory, ServiceType } from '../../interfaces/billing.interfaces';
+import { ICompanyBillingPlan, IBillingPlan, IServiceCategory, ServiceType, BillingCycleType } from '../../interfaces/billing.interfaces';
 import { getServices, createService, updateService, deleteService } from '../../lib/actions/serviceActions';
 import { IService } from '../../interfaces/billing.interfaces';
 import { getTaxRates } from '../../lib/actions/taxRateActions';
@@ -18,6 +18,7 @@ import BillingConfigForm from './BillingConfigForm';
 import ServiceCatalog from './ServiceCatalog';
 import CompanyTaxRates from './CompanyTaxRates';
 import BillingPlans from './BillingPlans';
+import { BillingCycle } from '@/lib/actions/account';
 
 interface BillingConfigurationProps {
     company: ICompany;
@@ -112,7 +113,7 @@ const BillingConfiguration: React.FC<BillingConfigurationProps> = ({ company, on
 
     const handleSelectChange = (name: string) => async (value: string) => {
         if (name === 'billing_cycle') {
-            await updateBillingCycle(company.company_id, value);
+            await updateBillingCycle(company.company_id, value as BillingCycleType);
         }
         setBillingConfig(prev => ({ ...prev, [name]: value }));
     };

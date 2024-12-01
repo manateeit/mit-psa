@@ -219,6 +219,7 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
 
       const discountInvoiceItem = {
         item_id: uuidv4(),
+        invoice_id: newInvoice.invoice_id,
         description: discount.discount_name,
         quantity: 1,
         unit_price: netAmount,
@@ -226,8 +227,9 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
         tax_amount: taxCalculationResult.taxAmount,
         tax_rate: taxCalculationResult.taxRate,
         total_price: netAmount + taxCalculationResult.taxAmount,
+        tenant
       };
-      await createInvoiceItem(newInvoice.invoice_id, discountInvoiceItem);
+      await trx('invoice_items').insert(discountInvoiceItem);
 
       subtotal += netAmount;
       totalTax += taxCalculationResult.taxAmount;

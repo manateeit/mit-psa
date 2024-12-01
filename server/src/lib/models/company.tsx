@@ -1,6 +1,7 @@
 import { Knex } from 'knex';
 import { createTenantKnex } from '@/lib/db';
 import { ICompany } from '../../interfaces/company.interfaces';
+import { BillingCycleType } from '@/interfaces';
 
 const Company = {
   async getById(companyId: string): Promise<ICompany | null> {
@@ -90,7 +91,7 @@ const Company = {
     await db<ICompany>('companies')
       .where({ company_id: companyId })
       .update({
-        billing_cycle: billingCycle,
+        billing_cycle: billingCycle as BillingCycleType,
         updated_at: new Date().toISOString()
       });
   }

@@ -44,7 +44,10 @@ export const sampleInvoices: InvoiceViewModel[] = [
     contact: {
       name: 'Alice Liddell',
       address: 'The Mushroom Patch, Tulgey Wood, Wonderland'
-    }
+    },
+    company_id: '',
+    total_amount: 0,
+    credit_applied: 0
   },
   {
     invoice_id: 'RED-002',
@@ -89,6 +92,9 @@ export const sampleInvoices: InvoiceViewModel[] = [
     contact: {
       name: 'Knave of Hearts',
       address: 'Tart Avenue, Card Castle, Wonderland'
-    }
+    },
+    company_id: '',
+    total_amount: 0,
+    credit_applied: 0
   }
 ];

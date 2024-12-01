@@ -22,6 +22,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSubmit }) => {
     notes: '',
     is_inactive: false,
     is_tax_exempt: false,
+    billing_cycle: 'monthly' as const,
     properties: {
       industry: '',
       company_size: '',
@@ -139,6 +140,22 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSubmit }) => {
               id="annual_revenue"
               value={formData.properties.annual_revenue}
               onChange={(e) => handleChange('properties.annual_revenue', e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="billing_cycle">Billing Cycle</Label>
+            <CustomSelect
+              options={[
+                { value: 'weekly', label: 'Weekly' },
+                { value: 'bi-weekly', label: 'Bi-Weekly' },
+                { value: 'monthly', label: 'Monthly' },
+                { value: 'quarterly', label: 'Quarterly' },
+                { value: 'semi-annually', label: 'Semi-Annually' },
+                { value: 'annually', label: 'Annually' }
+              ]}
+              value={formData.billing_cycle}
+              onValueChange={(value) => handleChange('billing_cycle', value)}
             />
           </div>
 

@@ -122,17 +122,39 @@ The following API endpoints are available for managing billing cycles:
 
 ## Database Schema
 
-The `company_billing_cycles` table has been added to store billing cycle information:
+The `company_billing_cycles` table has been enhanced to support historical tracking and tenant isolation:
 
 ```sql
 CREATE TABLE company_billing_cycles (
-  company_id VARCHAR(255) PRIMARY KEY,
-  billing_cycle VARCHAR(20) NOT NULL DEFAULT 'monthly',
+  billing_cycle_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL,
+  tenant UUID NOT NULL REFERENCES tenants(tenant),
+  billing_cycle VARCHAR(20) NOT NULL,
+  effective_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  period_start_date TIMESTAMP NOT NULL,
+  period_end_date TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (company_id) REFERENCES companies(company_id) ON DELETE CASCADE
+  FOREIGN KEY (company_id) REFERENCES companies(company_id),
+  UNIQUE(company_id, effective_date)
 );
+
+-- Prevent overlapping periods
+CREATE UNIQUE INDEX company_billing_cycles_no_overlap 
+ON company_billing_cycles (company_id, period_start_date, billing_cycle_id)
+WHERE period_end_date IS NULL;
+
+CREATE UNIQUE INDEX company_billing_cycles_no_overlap_finite 
+ON company_billing_cycles (company_id, period_start_date, period_end_date, billing_cycle_id) 
+WHERE period_end_date IS NOT NULL AND period_end_date > period_start_date;
 ```
+
+This enhanced schema provides:
+- Historical tracking of billing cycle changes
+- Prevention of overlapping billing periods
+- Proper tenant isolation
+- Explicit period start and end dates
+- Automatic UUID generation for stable references
 
 ## Implementation Details
 
