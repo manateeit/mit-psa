@@ -70,7 +70,21 @@ export async function getProjectTreeData(projectId?: string) {
     }
     
     // Transform projects into tree structure
-    const treeData = await Promise.all(validProjects.map(async (project) => {
+    const treeData = await Promise.all(validProjects.map(async (project): Promise<{
+      label: string;
+      value: string;
+      type: 'project';
+      children: {
+        label: string;
+        value: string;
+        type: 'phase';
+        children: {
+          label: string;
+          value: string;
+          type: 'status';
+        }[];
+      }[];
+    } | null> => {
       try {
         // Get phases and status mappings concurrently
         const [phases, statusMappings] = await Promise.all([
@@ -81,7 +95,7 @@ export async function getProjectTreeData(projectId?: string) {
         // If no status mappings exist, create default ones
         if (!statusMappings || statusMappings.length === 0) {
           const standardStatuses = await ProjectModel.getStandardStatusesByType('project_task');
-          await Promise.all(standardStatuses.map(status => 
+          await Promise.all(standardStatuses.map((status): Promise<IProjectStatusMapping> => 
             ProjectModel.addProjectStatusMapping(project.project_id, {
               standard_status_id: status.standard_status_id,
               is_standard: true,
@@ -100,11 +114,24 @@ export async function getProjectTreeData(projectId?: string) {
           label: project.project_name,
           value: project.project_id,
           type: 'project' as const,
-          children: phases.map((phase) => ({
+          children: phases.map((phase): {
+            label: string;
+            value: string;
+            type: 'phase';
+            children: {
+              label: string;
+              value: string;
+              type: 'status';
+            }[];
+          } => ({
             label: phase.phase_name,
             value: phase.phase_id,
             type: 'phase' as const,
-            children: statuses.map((status) => ({
+            children: statuses.map((status): {
+                label: string;
+                value: string;
+                type: 'status';
+              } => ({
               label: status.custom_name || status.name,
               value: status.project_status_mapping_id,
               type: 'status' as const
@@ -119,7 +146,7 @@ export async function getProjectTreeData(projectId?: string) {
 
     // Filter out any failed project data and ensure projects have phases
     const validTreeData = treeData
-      .filter((data): data is NonNullable<typeof data> => 
+      .filter((data): data is NonNullable<typeof data> =>
         data !== null && 
         data.children && 
         data.children.length > 0
@@ -319,7 +346,7 @@ export async function addProjectPhase(phaseData: Omit<IProjectPhase, 'phase_id' 
         const nextOrderNumber = phases.length + 1;
 
         // Find the highest existing WBS code number
-        const existingWbsCodes = phases.map(phase => parseInt(phase.wbs_code));
+        const existingWbsCodes = phases.map((phase): number => parseInt(phase.wbs_code));
         const maxWbsCode = existingWbsCodes.length > 0 ? Math.max(...existingWbsCodes) : 0;
         const newWbsCode = (maxWbsCode + 1).toString();
 
@@ -487,7 +514,7 @@ export async function addTaskToPhase(
         }
 
         // Prepare task data with status mapping
-        let finalTaskData = { ...taskData };
+        const finalTaskData = { ...taskData };
 
         // If project_status_mapping_id is provided, validate it
         if (taskData.project_status_mapping_id) {

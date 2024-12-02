@@ -190,7 +190,7 @@ const TreeSelect: React.FC<TreeSelectProps> = ({
           )}
           <span>{option.label}</span>
         </div>
-        {isExpanded && option.children?.map(child => renderOption(child, level + 1))}
+        {isExpanded && option.children?.map((child): JSX.Element => renderOption(child, level + 1))}
       </React.Fragment>
     );
   };
@@ -238,7 +238,7 @@ const TreeSelect: React.FC<TreeSelectProps> = ({
             align="start"
           >
             <RadixSelect.Viewport className="p-1 max-h-[300px] overflow-y-auto">
-              {options.map(option => renderOption(option))}
+              {options.map((option): JSX.Element => renderOption(option))}
             </RadixSelect.Viewport>
           </RadixSelect.Content>
         </RadixSelect.Portal>
