@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink } from '@/interfaces/project.interfaces';
+import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink, ProjectStatus } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { useDrawer } from '@/context/DrawerContext';
 import TaskQuickAdd from './TaskQuickAdd';
 import TaskEdit from './TaskEdit';
 import PhaseQuickAdd from './PhaseQuickAdd';
-import { updateTaskStatus, getProjectTaskStatuses, updatePhase, moveTaskToPhase, updateTaskWithChecklist, deletePhase, getTaskChecklistItems, ProjectStatus } from '@/lib/actions/projectActions';
+import { updateTaskStatus, getProjectTaskStatuses, updatePhase, moveTaskToPhase, updateTaskWithChecklist, deletePhase, getTaskChecklistItems } from '@/lib/actions/projectActions';
 import styles from './ProjectDetail.module.css';
 import { Toaster, toast } from 'react-hot-toast';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
@@ -151,6 +151,13 @@ export default function ProjectDetail({
     const task = projectTasks.find(t => t.task_id === taskId);
     const sourcePhase = projectPhases.find(p => p.phase_id === task?.phase_id);
     
+    console.log('Drop zone data:', {
+      taskId,
+      task,
+      sourcePhase,
+      targetPhase
+    });
+    
     if (task && sourcePhase && targetPhase.phase_id !== sourcePhase.phase_id) {
       setMoveConfirmation({
         taskId,
@@ -165,9 +172,22 @@ export default function ProjectDetail({
     if (!moveConfirmation) return;
     
     try {
+      // Get the current task to preserve its status
+      const task = projectTasks.find(t => t.task_id === moveConfirmation.taskId);
+      if (!task) {
+        throw new Error('Task not found');
+      }
+
+      console.log('Moving task:', {
+        taskId: moveConfirmation.taskId,
+        targetPhaseId: moveConfirmation.targetPhase.phase_id,
+        currentStatusMappingId: task.project_status_mapping_id
+      });
+
       const updatedTask = await moveTaskToPhase(
         moveConfirmation.taskId,
-        moveConfirmation.targetPhase.phase_id
+        moveConfirmation.targetPhase.phase_id,
+        task.project_status_mapping_id  // Pass the current status mapping ID
       );
       
       const checklistItems = await getTaskChecklistItems(moveConfirmation.taskId);

@@ -140,25 +140,27 @@ export default function TaskForm({
     type: 'project' | 'phase' | 'status',
     path?: TreeSelectPath
   ) => {
-    if (type === 'phase') {
-      setSelectedPhaseId(value);
-      handlePhaseChange(value);
-      onPhaseChange(value);
-    } else if (type === 'status' && path) {
-      // Always update both status and phase when selecting a status
+    if (!path) return;
+
+    // Always use the path object to ensure we have the correct context
+    setSelectedPhaseId(path.phaseId);
+    
+    if (type === 'status') {
       setSelectedStatusId(path.statusId);
-      setSelectedPhaseId(path.phaseId);
-      
-      // Find the new phase object to update selectedPhase
-      const newPhase = phases?.find(p => p.phase_id === path.phaseId);
-      if (newPhase) {
-        setSelectedPhase(newPhase);
-        // Show move confirmation if it's a different phase or project
-        if (newPhase.phase_id !== phase.phase_id || newPhase.project_id !== phase.project_id) {
-          setShowMoveConfirmation(true);
-        }
+    }
+    
+    // Find the new phase object to update selectedPhase
+    const newPhase = phases?.find(p => p.phase_id === path.phaseId);
+    if (newPhase) {
+      setSelectedPhase(newPhase);
+      // Show move confirmation if it's a different phase or project
+      if (newPhase.phase_id !== phase.phase_id || newPhase.project_id !== phase.project_id) {
+        setShowMoveConfirmation(true);
       }
     }
+    
+    handlePhaseChange(path.phaseId);
+    onPhaseChange(path.phaseId);
   };
 
   const handleMoveConfirm = async () => {

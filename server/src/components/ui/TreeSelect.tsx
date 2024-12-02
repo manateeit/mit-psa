@@ -105,40 +105,57 @@ const TreeSelect: React.FC<TreeSelectProps> = ({
   };
 
   const findFullPath = (opts: TreeSelectOption[], targetValue: string): TreeSelectPath | undefined => {
+    let result: TreeSelectPath | undefined;
+    
     for (const project of opts) {
       if (project.type === 'project' && project.children) {
         for (const phase of project.children) {
-          if (phase.type === 'phase' && phase.children) {
-            for (const status of phase.children) {
-              if (status.value === targetValue) {
-                return {
-                  projectId: project.value,
-                  phaseId: phase.value,
-                  statusId: status.value
-                };
+          if (phase.type === 'phase') {
+            // If this is the target phase, create path with empty status
+            if (phase.value === targetValue) {
+              result = {
+                projectId: project.value,
+                phaseId: phase.value,
+                statusId: phase.children?.[0]?.value || '' // Default to first status if available
+              };
+              break;
+            }
+            
+            // Check status children
+            if (phase.children) {
+              for (const status of phase.children) {
+                if (status.value === targetValue) {
+                  result = {
+                    projectId: project.value,
+                    phaseId: phase.value,
+                    statusId: status.value
+                  };
+                  break;
+                }
               }
             }
           }
         }
       }
+      if (result) break;
     }
-    return undefined;
+    return result;
   };
 
   const handleSelect = (option: TreeSelectOption, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (option.type === 'status') {
-      const path = findFullPath(options, option.value);
+    const path = findFullPath(options, option.value);
+    
+    if (option.type === 'status' || option.type === 'phase') {
       setSelectedValue(option.value);
       onValueChange(option.value, option.type, path);
-      setIsOpen(false);
+      if (option.type === 'status') {
+        setIsOpen(false);
+      }
     } else {
       toggleExpand(option.value, e);
-      if (option.type === 'phase') {
-        onValueChange(option.value, option.type);
-      }
     }
   };
 
