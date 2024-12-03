@@ -8,7 +8,7 @@
   "scripts": {
     "migrate": "knex migrate:latest",
     "seed": "knex seed:run",
-    "test:local": "DATABASE_URL=postgresql://test_user:test_password@localhost:5432/sebastian_test vitest",
+    "test:local": "cd server && dotenv -e ../.env.localtest -- vitest \"$@\"",
     "predev": "cd server && node --loader ts-node/esm src/scripts/validateEnvStartup.js",
     "dev": "cd server && NEXT_PUBLIC_EDITION=enterprise next dev",
     "build": "cd server && next build",

@@ -20,6 +20,7 @@ dist/
 .env.production.local
 ee/server/.env
 server/.env
+server/.env.localtest
 
 # Logs
 logs
