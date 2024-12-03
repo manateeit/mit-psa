@@ -1,11 +1,10 @@
 'use client';
 
-import { IProjectTask } from '@/interfaces/project.interfaces';
+import { IProjectTask, ProjectStatus } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import StatusColumn from './StatusColumn';
 import styles from './ProjectDetail.module.css';
 import { Circle, Clipboard, PlayCircle, PauseCircle, CheckCircle, XCircle } from 'lucide-react';
-import { ProjectStatus } from '@/lib/actions/projectActions';
 
 interface KanbanBoardProps {
   tasks: IProjectTask[];

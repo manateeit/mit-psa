@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } 
 import { v4 as uuidv4 } from 'uuid';
 import knex from 'knex';
 import dotenv from 'dotenv';
+import path from 'path';
 import { ITimePeriodSettings, ITimePeriod } from '../../interfaces/timeEntry.interfaces';
 import { createTimePeriod, generateAndSaveTimePeriods, generateTimePeriods } from '../../lib/actions/timePeriodsActions';
 import { TimePeriodSettings } from '../../lib/models/timePeriodSettings';
@@ -9,28 +10,57 @@ import { ISO8601String } from '../../types/types.d';
 
 import * as tenantModule from '../../lib/tenant';
 import { parseISO } from 'date-fns';
-import { parse } from 'path';
 
-dotenv.config();
+
+vi.mock('next/navigation', () => ({
+  useRouter: vi.fn()
+}));
+
+// Mock auth-related modules
+vi.mock('@/app/api/auth/[...nextauth]/options', () => ({
+  default: {
+    authOptions: {
+      callbacks: {
+        session: vi.fn()
+      }
+    }
+  }
+}));
+
+vi.mock('@/lib/actions/auth', () => ({
+  default: {
+    verify: vi.fn().mockResolvedValue(true)
+  }
+}));
+
+// Load environment from .env.localtest
+dotenv.config({ path: path.resolve(process.cwd(), '.env.localtest') });
 
 let db: knex.Knex;
 
 beforeAll(async () => {
   db = knex({
     client: 'pg',
-    connection: {
-      host: process.env.DB_HOST,
-      port: Number(process.env.DB_PORT),
-      user: process.env.DB_USER_SERVER,
-      password: process.env.DB_PASSWORD_SERVER,
-      database: process.env.DB_NAME_SERVER
+    connection: process.env.DATABASE_URL || {
+      host: process.env.DB_HOST || 'localhost',
+      port: Number(process.env.DB_PORT) || 5432,
+      user: process.env.DB_USER_SERVER || 'app_user',
+      password: process.env.DB_PASSWORD_SERVER || 'postgres',
+      database: process.env.DB_NAME_SERVER || 'test_database'
     },
     migrations: {
-      directory: "./migrations"
+      directory: path.resolve(process.cwd(), "./migrations")
     },
     seeds: {
-      directory: "./seeds/dev"
+      directory: path.resolve(process.cwd(), "./seeds/dev")
     }
+  });
+
+  console.log('Database connection config:', {
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    user: process.env.DB_USER_SERVER,
+    database: process.env.DB_NAME_SERVER
   });
 
   // Drop all tables

@@ -1,10 +1,22 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { IProjectPhase, IProjectTask, ITaskChecklistItem, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
+import { IProjectPhase, IProjectTask, ITaskChecklistItem, IProjectTicketLinkWithDetails, IProject, ProjectStatus } from '@/interfaces/project.interfaces';
 import { ITicket, ITicketListItem, ITicketListFilters } from '@/interfaces/ticket.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { ProjectStatus, updateTaskWithChecklist, addTaskToPhase, getTaskChecklistItems, moveTaskToPhase, deleteTask, addTicketLinkAction, getTaskTicketLinksAction, deleteTaskTicketLinkAction } from '@/lib/actions/projectActions';
+import { 
+  updateTaskWithChecklist, 
+  addTaskToPhase, 
+  getTaskChecklistItems, 
+  moveTaskToPhase, 
+  deleteTask, 
+  addTicketLinkAction, 
+  getTaskTicketLinksAction, 
+  deleteTaskTicketLinkAction, 
+  getProjects,
+  getProjectTreeData,
+  getProjectTaskStatuses 
+} from '@/lib/actions/projectActions';
 import { getTicketsForList, getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -20,6 +32,7 @@ import { toast } from 'react-hot-toast';
 import { QuickAddTicket } from '@/components/tickets/QuickAddTicket';
 import { useDrawer } from '@/context/DrawerContext';
 import TicketDetails from '@/components/tickets/TicketDetails';
+import TreeSelect, { TreeSelectOption, TreeSelectPath } from '@/components/ui/TreeSelect';
 
 interface TaskFormProps {
   task?: IProjectTask;
@@ -31,6 +44,7 @@ interface TaskFormProps {
   defaultStatus?: ProjectStatus;
   users: IUserWithRoles[];
   mode: 'create' | 'edit';
+  onPhaseChange: (phaseId: string) => void;
 }
 
 export default function TaskForm({
@@ -42,13 +56,16 @@ export default function TaskForm({
   projectStatuses,
   defaultStatus,
   users,
-  mode
+  mode,
+  onPhaseChange
 }: TaskFormProps): JSX.Element {
   const { openDrawer } = useDrawer();
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [taskName, setTaskName] = useState(task?.task_name || '');
   const [description, setDescription] = useState(task?.description || '');
-  const [selectedStatus, setSelectedStatus] = useState<string>(
+  const [projectTreeOptions, setProjectTreeOptions] = useState<TreeSelectOption[]>([]);
+  const [selectedPhaseId, setSelectedPhaseId] = useState<string>(phase.phase_id);
+  const [selectedStatusId, setSelectedStatusId] = useState<string>(
     task?.project_status_mapping_id || 
     defaultStatus?.project_status_mapping_id || 
     projectStatuses[0]?.project_status_mapping_id
@@ -98,6 +115,91 @@ export default function TaskForm({
     fetchInitialData();
   }, [task]);
 
+  useEffect(() => {
+    const fetchProjectsData = async () => {
+      if (mode === 'edit') {
+        try {
+          const treeData = await getProjectTreeData();
+          if (treeData && treeData.length > 0) {
+            setProjectTreeOptions(treeData);
+          } else {
+            toast.error('No projects available with valid phases and statuses');
+          }
+        } catch (error) {
+          console.error('Error fetching projects:', error);
+          toast.error('Error loading project data. Please try again.');
+        }
+      }
+    };
+
+    fetchProjectsData();
+  }, [mode]);
+  
+  const handleTreeSelectChange = async (
+    value: string, 
+    type: 'project' | 'phase' | 'status',
+    path?: TreeSelectPath
+  ) => {
+    if (!path) return;
+
+    // Always use the path object to ensure we have the correct context
+    setSelectedPhaseId(path.phaseId);
+    
+    if (type === 'status') {
+      setSelectedStatusId(path.statusId);
+    }
+    
+    // Find the new phase object to update selectedPhase
+    const newPhase = phases?.find(p => p.phase_id === path.phaseId);
+    if (newPhase) {
+      setSelectedPhase(newPhase);
+      // Show move confirmation if it's a different phase or project
+      if (newPhase.phase_id !== phase.phase_id || newPhase.project_id !== phase.project_id) {
+        setShowMoveConfirmation(true);
+      }
+    }
+    
+    handlePhaseChange(path.phaseId);
+    onPhaseChange(path.phaseId);
+  };
+
+  const handleMoveConfirm = async () => {
+    if (!task) return;
+    
+    setIsSubmitting(true);
+    try {
+      // Move the task to the new phase with both phase and status
+      const movedTask = await moveTaskToPhase(task.task_id, selectedPhaseId, selectedStatusId);
+      
+      if (movedTask) {
+        // Update task with all fields preserved
+        const taskData: Partial<IProjectTask> = {
+          task_name: taskName,
+          description: description,
+          assigned_to: assignedUser || currentUserId,
+          estimated_hours: estimatedHours,
+          actual_hours: actualHours,
+          due_date: task.due_date,
+          checklist_items: checklistItems,
+          // Always include these IDs to ensure they're properly updated
+          phase_id: selectedPhaseId,
+          project_status_mapping_id: selectedStatusId
+        };
+        const updatedTask = await updateTaskWithChecklist(movedTask.task_id, taskData);
+        onSubmit(updatedTask);
+      }
+      
+      toast.success('Task moved successfully');
+      onClose();
+    } catch (error) {
+      console.error('Error moving task:', error);
+      toast.error('Failed to move task');
+    } finally {
+      setIsSubmitting(false);
+      setShowMoveConfirmation(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (taskName.trim() === '') return;
@@ -108,24 +210,27 @@ export default function TaskForm({
       let resultTask: IProjectTask | null = null;
 
       if (mode === 'edit' && task) {
-        // Edit mode - only include fields that are part of IProjectTask
-        const taskData: Partial<IProjectTask> = {
-          task_name: taskName,
-          project_status_mapping_id: selectedStatus,
-          description: description,
-          assigned_to: assignedUser || currentUserId,
-          estimated_hours: estimatedHours,
-          actual_hours: actualHours,
-          phase_id: task.phase_id,
-          due_date: task.due_date,
-          checklist_items: checklistItems
-        };
-        resultTask = await updateTaskWithChecklist(task.task_id, taskData);
+        // Always use moveTaskToPhase to ensure both phase and status are updated together
+        const movedTask = await moveTaskToPhase(task.task_id, selectedPhaseId, selectedStatusId);
+        
+        if (movedTask) {
+          // Update other fields
+          const taskData: Partial<IProjectTask> = {
+            task_name: taskName,
+            description: description,
+            assigned_to: assignedUser || currentUserId,
+            estimated_hours: estimatedHours,
+            actual_hours: actualHours,
+            due_date: task.due_date,
+            checklist_items: checklistItems
+          };
+          resultTask = await updateTaskWithChecklist(movedTask.task_id, taskData);
+        }
       } else {
         // Create mode
         const taskData = {
           task_name: taskName,
-          project_status_mapping_id: selectedStatus,
+          project_status_mapping_id: selectedStatusId,
           wbs_code: `${phase.wbs_code}.0`,
           description: description,
           assigned_to: assignedUser || currentUserId,
@@ -173,34 +278,6 @@ export default function TaskForm({
     if (newPhase && newPhase.phase_id !== phase.phase_id) {
       setSelectedPhase(newPhase);
       setShowMoveConfirmation(true);
-    }
-  };
-
-  const handleMoveConfirm = async () => {
-    if (!task) return;
-    
-    setIsSubmitting(true);
-    try {
-      const movedTask = await moveTaskToPhase(task.task_id, selectedPhase.phase_id);
-      
-      if (movedTask) {
-        const taskData: Partial<IProjectTask> = {
-          estimated_hours: estimatedHours,
-          actual_hours: actualHours,
-          checklist_items: checklistItems
-        };
-        const updatedTask = await updateTaskWithChecklist(movedTask.task_id, taskData);
-        onSubmit(updatedTask);
-      }
-      
-      toast.success(`Task moved to ${selectedPhase.phase_name}`);
-      onClose();
-    } catch (error) {
-      console.error('Error moving task:', error);
-      toast.error('Failed to move task');
-    } finally {
-      setIsSubmitting(false);
-      setShowMoveConfirmation(false);
     }
   };
 
@@ -414,16 +491,6 @@ export default function TaskForm({
     setShowDeleteConfirm(false);
   };
 
-  const phaseOptions = phases?.map((p): { value: string; label: string } => ({
-    value: p.phase_id,
-    label: p.phase_name
-  })) || [];
-
-  const statusOptions = projectStatuses.map((status): { value: string; label: string } => ({
-    value: status.project_status_mapping_id,
-    label: status.custom_name || status.name
-  }));
-
   const ticketOptions = availableTickets
     .filter((ticket): ticket is ITicketListItem & { ticket_id: string } => ticket.ticket_id !== undefined)
     .map((ticket): { value: string; label: string } => ({
@@ -449,18 +516,18 @@ export default function TaskForm({
                   className="w-full text-lg font-semibold"
                 />
 
-                {mode === 'edit' && phases && (
+                {mode === 'edit' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Phase</label>
-                    <CustomSelect
-                      value={selectedPhase.phase_id}
-                      onValueChange={handlePhaseChange}
-                      options={phaseOptions}
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Move to</label>
+                    <TreeSelect
+                      value={selectedPhaseId}
+                      onValueChange={handleTreeSelectChange}
+                      options={projectTreeOptions}
+                      placeholder="Select destination..."
                       className="w-full"
                     />
                   </div>
                 )}
-
                 <TextArea
                   value={description}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
@@ -497,15 +564,6 @@ export default function TaskForm({
                     />
                   </div>
                 </div>
-
-                <CustomSelect
-                  value={selectedStatus}
-                  onValueChange={setSelectedStatus}
-                  options={statusOptions}
-                  placeholder="Select status"
-                  className="w-full"
-                />
-
                 <UserPicker
                   label="Assigned To"
                   value={assignedUser}
@@ -637,7 +695,7 @@ export default function TaskForm({
                   {mode === 'edit' && (
                     <Button
                       type="button"
-                      variant="destructive"  // or use custom styling for orange color
+                      variant="destructive"
                       onClick={() => setShowDeleteConfirm(true)}
                       disabled={isSubmitting}
                     >

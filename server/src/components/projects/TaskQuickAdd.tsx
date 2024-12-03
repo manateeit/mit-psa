@@ -1,8 +1,7 @@
 'use client';
 
-import { IProjectPhase, IProjectTask } from '@/interfaces/project.interfaces';
+import { IProjectPhase, IProjectTask, ProjectStatus } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { ProjectStatus } from '@/lib/actions/projectActions';
 import TaskForm from './TaskForm';
 
 interface TaskQuickAddProps {
@@ -15,6 +14,7 @@ interface TaskQuickAddProps {
   onCancel: () => void;
   users: IUserWithRoles[];
   task?: IProjectTask;
+  onPhaseChange?: (phaseId: string) => void;
 }
 
 export default function TaskQuickAdd({ 
@@ -26,7 +26,8 @@ export default function TaskQuickAdd({
   defaultStatus,
   onCancel,
   users,
-  task
+  task,
+  onPhaseChange
 }: TaskQuickAddProps): JSX.Element {
   const handleSubmit = async (resultTask: IProjectTask | null) => {
     if (task) {
@@ -36,6 +37,11 @@ export default function TaskQuickAdd({
       // Create mode
       onTaskAdded(resultTask);
     }
+  };
+
+  const handlePhaseChange = (phaseId: string) => {
+    // If parent component provided onPhaseChange handler, call it
+    onPhaseChange?.(phaseId);
   };
 
   return (
@@ -51,6 +57,7 @@ export default function TaskQuickAdd({
       defaultStatus={defaultStatus}
       users={users}
       mode={task ? 'edit' : 'create'}
+      onPhaseChange={handlePhaseChange}
     />
   );
 }

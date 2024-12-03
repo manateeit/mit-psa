@@ -1,8 +1,7 @@
-// server/src/lib/actions/projectActions.ts
-'use server'
+'use server';
 
 import ProjectModel from '../models/project';
-import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink, IStatus, IProjectStatusMapping, IStandardStatus, ItemType, ITaskChecklistItem, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
+import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink, IStatus, IProjectStatusMapping, IStandardStatus, ItemType, ITaskChecklistItem, IProjectTicketLinkWithDetails, ProjectStatus } from '@/interfaces/project.interfaces';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { IUser, IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { hasPermission } from '@/lib/auth/rbac';
@@ -17,20 +16,6 @@ import {
     updateChecklistItemSchema,
     projectPhaseSchema 
 } from '../schemas/project.schemas';
-
-// Define a new type that combines IStatus or IStandardStatus with additional properties
-export type ProjectStatus = {
-    project_status_mapping_id: string;
-    status_id: string;
-    name: string;
-    custom_name: string | null;
-    is_visible: boolean;
-    display_order: number;
-    is_standard: boolean;
-    is_closed: boolean;
-    item_type?: ItemType;
-    status_type?: ItemType;
-};
 
 async function checkPermission(user: IUser, resource: string, action: string): Promise<void> {
     const hasPermissionResult = await hasPermission(user, resource, action);
@@ -61,6 +46,122 @@ export async function getProjectPhase(phaseId: string): Promise<IProjectPhase | 
         console.error('Error fetching project phase:', error);
         throw new Error('Failed to fetch project phase');
     }
+}
+
+export async function getProjectTreeData(projectId?: string) {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      throw new Error("user not found");
+    }
+
+    await checkPermission(currentUser, 'project', 'read');
+    
+    // Get all projects if no specific projectId is provided
+    const projects = projectId ? 
+      [await ProjectModel.getById(projectId)] : 
+      await ProjectModel.getAll(true);
+    
+    // Filter out null projects and ensure we have valid projects
+    const validProjects = projects.filter((p): p is IProject => p !== null);
+    
+    if (validProjects.length === 0) {
+      throw new Error('No projects found');
+    }
+    
+    // Transform projects into tree structure
+    const treeData = await Promise.all(validProjects.map(async (project): Promise<{
+      label: string;
+      value: string;
+      type: 'project';
+      children: {
+        label: string;
+        value: string;
+        type: 'phase';
+        children: {
+          label: string;
+          value: string;
+          type: 'status';
+        }[];
+      }[];
+    } | null> => {
+      try {
+        // Get phases and status mappings concurrently
+        const [phases, statusMappings] = await Promise.all([
+          ProjectModel.getPhases(project.project_id),
+          ProjectModel.getProjectStatusMappings(project.project_id)
+        ]);
+
+        // If no status mappings exist, create default ones
+        if (!statusMappings || statusMappings.length === 0) {
+          const standardStatuses = await ProjectModel.getStandardStatusesByType('project_task');
+          await Promise.all(standardStatuses.map((status): Promise<IProjectStatusMapping> => 
+            ProjectModel.addProjectStatusMapping(project.project_id, {
+              standard_status_id: status.standard_status_id,
+              is_standard: true,
+              custom_name: null,
+              display_order: status.display_order,
+              is_visible: true,
+            })
+          ));
+        }
+
+        // Get the statuses (including any newly created ones)
+        const statuses = await getProjectTaskStatuses(project.project_id);
+
+        // Create a serializable tree structure
+        return {
+          label: project.project_name,
+          value: project.project_id,
+          type: 'project' as const,
+          children: phases.map((phase): {
+            label: string;
+            value: string;
+            type: 'phase';
+            children: {
+              label: string;
+              value: string;
+              type: 'status';
+            }[];
+          } => ({
+            label: phase.phase_name,
+            value: phase.phase_id,
+            type: 'phase' as const,
+            children: statuses.map((status): {
+                label: string;
+                value: string;
+                type: 'status';
+              } => ({
+              label: status.custom_name || status.name,
+              value: status.project_status_mapping_id,
+              type: 'status' as const
+            }))
+          }))
+        };
+      } catch (error) {
+        console.error(`Error processing project ${project.project_id}:`, error);
+        return null;
+      }
+    }));
+
+    // Filter out any failed project data and ensure projects have phases
+    const validTreeData = treeData
+      .filter((data): data is NonNullable<typeof data> =>
+        data !== null && 
+        data.children && 
+        data.children.length > 0
+      );
+    
+    if (validTreeData.length === 0) {
+      throw new Error('No projects available with valid phases');
+    }
+    
+    // Return a clean copy of the data
+    return validTreeData;
+  } catch (error) {
+    console.error('Error fetching project tree data:', error);
+    throw new Error('Failed to fetch project tree data');
+  }
 }
 
 export async function updatePhase(phaseId: string, phaseData: Partial<IProjectPhase>): Promise<IProjectPhase> {
@@ -98,7 +199,7 @@ export async function deletePhase(phaseId: string): Promise<void> {
     }
 }
 
-export async function moveTaskToPhase(taskId: string, newPhaseId: string): Promise<IProjectTask> {
+export async function moveTaskToPhase(taskId: string, newPhaseId: string, newStatusMappingId?: string): Promise<IProjectTask> {
     try {
         const currentUser = await getCurrentUser();
         if (!currentUser) {
@@ -113,28 +214,108 @@ export async function moveTaskToPhase(taskId: string, newPhaseId: string): Promi
             throw new Error('Task not found');
         }
 
-        // Get the new phase to access its WBS code
+        // Get the new phase to access its project and WBS code
         const newPhase = await ProjectModel.getPhaseById(newPhaseId);
         if (!newPhase) {
             throw new Error('Target phase not found');
         }
 
-        // Generate new WBS code for the task using the proper method
+        // Get the current phase to check if this is a cross-project move
+        const currentPhase = await ProjectModel.getPhaseById(existingTask.phase_id);
+        if (!currentPhase) {
+            throw new Error('Current phase not found');
+        }
+
+        // Always use the provided status mapping ID if it exists
+        let finalStatusMappingId = newStatusMappingId || existingTask.project_status_mapping_id;
+
+        // If moving to a different project and no specific status mapping is provided
+        if (currentPhase.project_id !== newPhase.project_id && !newStatusMappingId) {
+            // Get current status mapping
+            const currentMapping = await ProjectModel.getProjectStatusMapping(existingTask.project_status_mapping_id);
+            if (!currentMapping) {
+                throw new Error('Current status mapping not found');
+            }
+
+            // Get all status mappings for the new project
+            const newProjectMappings = await ProjectModel.getProjectStatusMappings(newPhase.project_id);
+            
+            // If no mappings exist in the target project, create default ones
+            if (!newProjectMappings || newProjectMappings.length === 0) {
+                const standardStatuses = await ProjectModel.getStandardStatusesByType('project_task');
+                for (const status of standardStatuses) {
+                    await ProjectModel.addProjectStatusMapping(newPhase.project_id, {
+                        standard_status_id: status.standard_status_id,
+                        is_standard: true,
+                        custom_name: null,
+                        display_order: status.display_order,
+                        is_visible: true,
+                    });
+                }
+                // Fetch the newly created mappings
+                const updatedMappings = await ProjectModel.getProjectStatusMappings(newPhase.project_id);
+                if (!updatedMappings || updatedMappings.length === 0) {
+                    throw new Error('Failed to create status mappings for target project');
+                }
+                finalStatusMappingId = updatedMappings[0].project_status_mapping_id;
+            } else {
+                let equivalentMapping: IProjectStatusMapping | undefined;
+
+                if (currentMapping.is_standard && currentMapping.standard_status_id) {
+                    // If it's a standard status, find mapping with same standard_status_id
+                    equivalentMapping = newProjectMappings.find(m => 
+                        m.is_standard && m.standard_status_id === currentMapping.standard_status_id
+                    );
+                } else if (currentMapping.status_id) {
+                    // For custom status, try to match by custom name
+                    const currentStatus = await ProjectModel.getCustomStatus(currentMapping.status_id);
+                    if (currentStatus) {
+                        equivalentMapping = newProjectMappings.find(m => 
+                            !m.is_standard && m.custom_name === currentMapping.custom_name
+                        );
+                    }
+                }
+
+                if (!equivalentMapping) {
+                    // If no equivalent found, use first available status
+                    equivalentMapping = newProjectMappings[0];
+                }
+
+                if (!equivalentMapping) {
+                    throw new Error('No valid status mapping found in target project');
+                }
+
+                finalStatusMappingId = equivalentMapping.project_status_mapping_id;
+            }
+        }
+
+        // Generate new WBS code for the task
         const newWbsCode = await ProjectModel.generateNextWbsCode(newPhase.wbs_code);
 
-        // Update task with new phase and WBS code, only passing necessary fields
+        // Update task with new phase, project, and WBS code
         const updatedTask = await ProjectModel.updateTask(taskId, {
             phase_id: newPhaseId,
             wbs_code: newWbsCode,
-            // Preserve other important fields but NOT the old wbs_code
+            project_status_mapping_id: finalStatusMappingId,
+            // Preserve other important fields
             task_name: existingTask.task_name,
             description: existingTask.description,
             assigned_to: existingTask.assigned_to,
             estimated_hours: existingTask.estimated_hours,
             actual_hours: existingTask.actual_hours,
-            project_status_mapping_id: existingTask.project_status_mapping_id,
             due_date: existingTask.due_date
         });
+
+        // If this is a cross-project move, update ticket links
+        if (currentPhase.project_id !== newPhase.project_id) {
+            const ticketLinks = await ProjectModel.getTaskTicketLinks(taskId);
+            for (const link of ticketLinks) {
+                await ProjectModel.updateTaskTicketLink(link.link_id, {
+                    project_id: newPhase.project_id,
+                    phase_id: newPhaseId
+                });
+            }
+        }
 
         return updatedTask;
     } catch (error) {
@@ -160,15 +341,19 @@ export async function addProjectPhase(phaseData: Omit<IProjectPhase, 'phase_id' 
             tenant: true
         }), phaseData);
 
-        // Get the project's phases to determine the next order number and WBS code
+        // Get the project's phases to determine the next order number
         const phases = await ProjectModel.getPhases(phaseData.project_id);
         const nextOrderNumber = phases.length + 1;
-        const wbsCode = `${nextOrderNumber}`;
+
+        // Find the highest existing WBS code number
+        const existingWbsCodes = phases.map((phase): number => parseInt(phase.wbs_code));
+        const maxWbsCode = existingWbsCodes.length > 0 ? Math.max(...existingWbsCodes) : 0;
+        const newWbsCode = (maxWbsCode + 1).toString();
 
         const phaseWithDefaults = {
             ...validatedData,
             order_number: nextOrderNumber,
-            wbs_code: wbsCode,
+            wbs_code: newWbsCode,
         };
 
         return await ProjectModel.addPhase(phaseWithDefaults);
@@ -316,8 +501,36 @@ export async function addTaskToPhase(
 
         await checkPermission(currentUser, 'project', 'update');
 
+        // Get the phase to find its project
+        const phase = await ProjectModel.getPhaseById(phaseId);
+        if (!phase) {
+            throw new Error("Phase not found");
+        }
+
+        // Get project status mappings
+        const statusMappings = await ProjectModel.getProjectStatusMappings(phase.project_id);
+        if (!statusMappings || statusMappings.length === 0) {
+            throw new Error("No status mappings found for project");
+        }
+
+        // Prepare task data with status mapping
+        const finalTaskData = { ...taskData };
+
+        // If project_status_mapping_id is provided, validate it
+        if (taskData.project_status_mapping_id) {
+            const isValidStatus = statusMappings.some(
+                mapping => mapping.project_status_mapping_id === taskData.project_status_mapping_id
+            );
+            if (!isValidStatus) {
+                throw new Error("Invalid project_status_mapping_id provided");
+            }
+        } else {
+            // If no status is provided, use the first one as default
+            finalTaskData.project_status_mapping_id = statusMappings[0].project_status_mapping_id;
+        }
+
         // Validate task data and checklist items
-        const validatedTaskData = validateData(createTaskSchema, taskData);
+        const validatedTaskData = validateData(createTaskSchema, finalTaskData);
         const validatedChecklistItems = validateArray(createChecklistItemSchema, checklistItems);
 
         const newTask = await ProjectModel.addTask(phaseId, validatedTaskData);
@@ -438,39 +651,67 @@ export async function updateTaskStatus(taskId: string, projectStatusMappingId: s
 export async function getProjectTaskStatuses(projectId: string): Promise<ProjectStatus[]> {
     try {
         const statusMappings = await ProjectModel.getProjectStatusMappings(projectId);
-        const statuses = await Promise.all(statusMappings.map(async (mapping: IProjectStatusMapping): Promise<ProjectStatus> => {
-            if (mapping.is_standard && mapping.standard_status_id) {
-                const standardStatus = await ProjectModel.getStandardStatus(mapping.standard_status_id);
-                return {
-                    ...standardStatus,
-                    project_status_mapping_id: mapping.project_status_mapping_id,
-                    status_id: standardStatus!.standard_status_id,
-                    custom_name: mapping.custom_name,
-                    display_order: mapping.display_order,
-                    is_visible: mapping.is_visible,
-                    is_standard: true,
-                    is_closed: standardStatus?.is_closed
-                } as ProjectStatus;
-            } else if (mapping.status_id) {
-                const customStatus = await ProjectModel.getCustomStatus(mapping.status_id);
-                return {
-                    ...customStatus,
-                    project_status_mapping_id: mapping.project_status_mapping_id,
-                    status_id: customStatus!.status_id,
-                    custom_name: mapping.custom_name,
-                    display_order: mapping.display_order,
-                    is_visible: mapping.is_visible,
-                    is_standard: false,
-                    is_closed: customStatus!.is_closed
-                } as ProjectStatus;
-            } else {
-                throw new Error('Invalid status mapping');
+        if (!statusMappings || statusMappings.length === 0) {
+            console.warn(`No status mappings found for project ${projectId}`);
+            return [];
+        }
+
+        const statuses = await Promise.all(statusMappings.map(async (mapping: IProjectStatusMapping): Promise<ProjectStatus | null> => {
+            try {
+                if (mapping.is_standard && mapping.standard_status_id) {
+                    const standardStatus = await ProjectModel.getStandardStatus(mapping.standard_status_id);
+                    if (!standardStatus) {
+                        console.warn(`Standard status not found for mapping ${mapping.project_status_mapping_id}`);
+                        return null;
+                    }
+                    return {
+                        ...standardStatus,
+                        project_status_mapping_id: mapping.project_status_mapping_id,
+                        status_id: standardStatus.standard_status_id,
+                        custom_name: mapping.custom_name,
+                        display_order: mapping.display_order,
+                        is_visible: mapping.is_visible,
+                        is_standard: true,
+                        is_closed: standardStatus.is_closed
+                    } as ProjectStatus;
+                } else if (mapping.status_id) {
+                    const customStatus = await ProjectModel.getCustomStatus(mapping.status_id);
+                    if (!customStatus) {
+                        console.warn(`Custom status not found for mapping ${mapping.project_status_mapping_id}`);
+                        return null;
+                    }
+                    return {
+                        ...customStatus,
+                        project_status_mapping_id: mapping.project_status_mapping_id,
+                        status_id: customStatus.status_id,
+                        custom_name: mapping.custom_name,
+                        display_order: mapping.display_order,
+                        is_visible: mapping.is_visible,
+                        is_standard: false,
+                        is_closed: customStatus.is_closed
+                    } as ProjectStatus;
+                }
+                console.warn(`Invalid status mapping ${mapping.project_status_mapping_id}: missing both standard_status_id and status_id`);
+                return null;
+            } catch (error) {
+                console.error(`Error processing status mapping ${mapping.project_status_mapping_id}:`, error);
+                return null;
             }
         }));
-        return statuses;
+
+        // Filter out any null values from failed status fetches
+        const validStatuses = statuses.filter((status): status is ProjectStatus => status !== null);
+        
+        if (validStatuses.length === 0) {
+            console.warn(`No valid statuses found for project ${projectId}`);
+            return [];
+        }
+
+        return validStatuses;
     } catch (error) {
         console.error('Error fetching project statuses:', error);
-        throw new Error('Failed to fetch project statuses');
+        // Return empty array instead of throwing to prevent cascade failures
+        return [];
     }
 }
 
