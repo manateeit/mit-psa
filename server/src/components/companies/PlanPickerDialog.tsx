@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { IBillingPlan, IServiceCategory } from '@/interfaces/billing.interfaces';
-import { DataTable } from '@/components/ui/DataTable';
 import CustomSelect from '@/components/ui/CustomSelect';
 
 interface PlanPickerDialogProps {
@@ -36,6 +35,7 @@ const PlanPickerDialog: React.FC<PlanPickerDialogProps> = ({
             onClose();
         }
     };
+
     return (
         <Dialog isOpen={isOpen} onClose={onClose} className="sm:max-w-4xl">
             <DialogHeader>
@@ -53,9 +53,9 @@ const PlanPickerDialog: React.FC<PlanPickerDialogProps> = ({
                                 const plan = availablePlans.find(p => p.plan_id === planId);
                                 setSelectedPlan(plan || null);
                             }}
-                            options={availablePlans.map(plan => ({
+                            options={availablePlans.map((plan): { value: string; label: string } => ({
                                 value: plan.plan_id || '',
-                                label: `${plan.plan_name}${plan.description ? ` - ${plan.description}` : ''}`
+                                label: plan.plan_name
                             }))}
                             placeholder="Select billing plan..."
                         />
@@ -71,7 +71,7 @@ const PlanPickerDialog: React.FC<PlanPickerDialogProps> = ({
                                 onValueChange={setSelectedCategory}
                                 options={[
                                     { value: 'none', label: 'None' },
-                                    ...serviceCategories.map(category => ({
+                                    ...serviceCategories.map((category): { value: string; label: string } => ({
                                         value: category.category_id,
                                         label: category.category_name
                                     }))

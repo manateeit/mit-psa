@@ -41,7 +41,7 @@ export const DataTable = <T extends object>({
       columns.map((col): ColumnDef<T> => ({
         id: Array.isArray(col.dataIndex) ? col.dataIndex.join('.') : col.dataIndex,
         accessorFn: (row) => getNestedValue(row, col.dataIndex),
-        header: col.title,
+        header: () => col.title,
         cell: (info) => col.render ? col.render(info.getValue(), info.row.original, info.row.index) : info.getValue(),
       })),
     [columns.map((col):unknown => ({ 

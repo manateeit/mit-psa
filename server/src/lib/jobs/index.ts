@@ -2,10 +2,17 @@ import { JobScheduler, JobFilter } from './jobScheduler';
 import { generateInvoiceHandler, GenerateInvoiceData } from './handlers/generateInvoiceHandler';
 
 // Initialize the job scheduler singleton
-const jobScheduler = JobScheduler.getInstance();
+let jobScheduler: JobScheduler;
 
-// Register job handlers
-jobScheduler.registerJobHandler<GenerateInvoiceData>('generate-invoice', generateInvoiceHandler);
+// Initialize function to ensure scheduler is ready
+const initializeScheduler = async () => {
+  if (!jobScheduler) {
+    jobScheduler = await JobScheduler.getInstance();
+    // Register job handlers
+    jobScheduler.registerJobHandler<GenerateInvoiceData>('generate-invoice', generateInvoiceHandler);
+  }
+  return jobScheduler;
+};
 
 // Export types
 export type { JobFilter, GenerateInvoiceData };
@@ -17,7 +24,8 @@ export const scheduleInvoiceGeneration = async (
   runAt: Date,
   tenantId: string
 ): Promise<string | null> => {
-  return await jobScheduler.scheduleScheduledJob<GenerateInvoiceData>(
+  const scheduler = await initializeScheduler();
+  return await scheduler.scheduleScheduledJob<GenerateInvoiceData>(
     'generate-invoice',
     runAt,
     { companyId, billingCycleId, tenantId }
@@ -38,7 +46,8 @@ export const getJobHistory = async (
   tenantId: string,
   filters: JobHistoryFilter
 ): Promise<unknown[]> => {
-  return await jobScheduler.getJobHistory({
+  const scheduler = await initializeScheduler();
+  return await scheduler.getJobHistory({
     tenantId,
     jobName: filters.jobName,
     startAfter: filters.startDate,
@@ -55,7 +64,8 @@ export const getQueueStatus = async (): Promise<{
   failed: number;
   queued: number;
 }> => {
-  return await jobScheduler.getQueueMetrics();
+  const scheduler = await initializeScheduler();
+  return await scheduler.getQueueMetrics();
 };
 
 export interface JobDetails {
@@ -69,9 +79,11 @@ export interface JobDetails {
 }
 
 export const getJobDetails = async (jobId: string): Promise<JobDetails | null> => {
-  return await jobScheduler.getJobById(jobId);
+  const scheduler = await initializeScheduler();
+  return await scheduler.getJobById(jobId);
 };
 
 export const cancelScheduledJob = async (jobId: string): Promise<boolean> => {
-  return await jobScheduler.cancelJob(jobId);
+  const scheduler = await initializeScheduler();
+  return await scheduler.cancelJob(jobId);
 };
