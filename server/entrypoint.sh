@@ -13,7 +13,7 @@ NODE_ENV=${NODE_ENV:-production}
 # done
 
 
-version="0.0.3"
+version="0.0.4"
 commit="abc123"
 date="19-11-2024"
 author="NineMinds"
