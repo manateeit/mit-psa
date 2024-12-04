@@ -630,7 +630,10 @@ export default function TaskForm({
                     value={assignedUser}
                     onValueChange={setAssignedUser}
                     size="sm"
-                    users={users}
+                    users={users.filter(u => 
+                      !(task?.task_id ? taskResources : tempTaskResources)
+                        .some(r => r.additional_user_id === u.user_id)
+                    )}
                   />
 
                   <div>
