@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { IProjectPhase, IProjectTask, ITaskChecklistItem, IProjectTicketLinkWithDetails, IProject, ProjectStatus } from '@/interfaces/project.interfaces';
-import { ITicket, ITicketListItem, ITicketListFilters } from '@/interfaces/ticket.interfaces';
+import { IProjectPhase, IProjectTask, ITaskChecklistItem, ProjectStatus, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import AvatarIcon from '@/components/ui/AvatarIcon';
 import { 
@@ -10,32 +9,25 @@ import {
   addTaskToPhase, 
   getTaskChecklistItems, 
   moveTaskToPhase, 
-  deleteTask, 
-  addTicketLinkAction, 
-  getTaskTicketLinksAction, 
-  deleteTaskTicketLinkAction, 
-  getProjects,
+  deleteTask,
   getProjectTreeData,
   getProjectTaskStatuses,
   addTaskResourceAction,
   removeTaskResourceAction,
   getTaskResourcesAction
 } from '@/lib/actions/projectActions';
-import { getTicketsForList, getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
 import EditableText from '@/components/ui/EditableText';
-import { ListChecks, Link, Plus, ExternalLink, Trash2, UserPlus } from 'lucide-react';
+import { ListChecks, UserPlus, Trash2 } from 'lucide-react';
 import UserPicker from '@/components/ui/UserPicker';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { Input } from '@/components/ui/Input';
 import { toast } from 'react-hot-toast';
-import { QuickAddTicket } from '@/components/tickets/QuickAddTicket';
-import { useDrawer } from '@/context/DrawerContext';
-import TicketDetails from '@/components/tickets/TicketDetails';
+import TaskTicketLinks from './TaskTicketLinks';
 import TreeSelect, { TreeSelectOption, TreeSelectPath } from '@/components/ui/TreeSelect';
 
 type ProjectTreeTypes = 'project' | 'phase' | 'status';
@@ -65,7 +57,6 @@ export default function TaskForm({
   mode,
   onPhaseChange
 }: TaskFormProps): JSX.Element {
-  const { openDrawer } = useDrawer();
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [taskName, setTaskName] = useState(task?.task_name || '');
   const [description, setDescription] = useState(task?.description || '');
@@ -83,11 +74,6 @@ export default function TaskForm({
   const [selectedPhase, setSelectedPhase] = useState<IProjectPhase>(phase);
   const [showMoveConfirmation, setShowMoveConfirmation] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [showTicketDialog, setShowTicketDialog] = useState(false);
-  const [showNewTicketForm, setShowNewTicketForm] = useState(false);
-  const [availableTickets, setAvailableTickets] = useState<ITicketListItem[]>([]);
-  const [selectedTicket, setSelectedTicket] = useState<string>('');
-  const [taskTicketLinks, setTaskTicketLinks] = useState<IProjectTicketLinkWithDetails[]>([]);
   const [tempTaskId] = useState<string>(`temp-${Date.now()}`);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [estimatedHours, setEstimatedHours] = useState<number>(Number(task?.estimated_hours) || 0);
@@ -102,21 +88,14 @@ export default function TaskForm({
         const user = await getCurrentUser();
         if (user) {
           setCurrentUserId(user.user_id);
-          const filters: ITicketListFilters = {
-            channelFilterState: 'all'
-          };
-          const tickets = await getTicketsForList(user, filters);
-          setAvailableTickets(tickets);
         }
 
         if (task?.task_id) {
-          const [existingChecklistItems, links, resources] = await Promise.all([
+          const [existingChecklistItems, resources] = await Promise.all([
             getTaskChecklistItems(task.task_id),
-            getTaskTicketLinksAction(task.task_id),
             getTaskResourcesAction(task.task_id)
           ]);
           setChecklistItems(existingChecklistItems);
-          setTaskTicketLinks(links);
           setTaskResources(resources);
         }
       } catch (error) {
@@ -262,23 +241,6 @@ export default function TaskForm({
           }
         }
         
-        // Link any tickets that were added during creation
-        if (resultTask && taskTicketLinks.length > 0) {
-          const linkErrors: string[] = [];
-          
-          for (const link of taskTicketLinks) {
-            try {
-              await addTicketLinkAction(phase.project_id, resultTask.task_id, link.ticket_id);
-            } catch (error: any) {
-              console.error('Error linking ticket:', error);
-              linkErrors.push(`${link.ticket_number}: ${error.message || 'Unknown error'}`);
-            }
-          }
-          
-          if (linkErrors.length > 0) {
-            toast.error(`Failed to link some tickets:\n${linkErrors.join('\n')}`);
-          }
-        }
       }
       
       onSubmit(resultTask);
@@ -353,141 +315,6 @@ export default function TaskForm({
     setChecklistItems(updatedItems);
   };
 
-  const handleLinkTicket = async () => {
-    if (!selectedTicket) return;
-    
-    try {
-      if (task?.task_id) {
-        await addTicketLinkAction(phase.project_id, task.task_id, selectedTicket);
-        const links = await getTaskTicketLinksAction(task.task_id);
-        setTaskTicketLinks(links);
-      } else {
-        // For new tasks, store the link temporarily
-        const selectedTicketDetails = availableTickets.find(t => t.ticket_id === selectedTicket);
-        if (selectedTicketDetails) {
-          const tempLink: IProjectTicketLinkWithDetails = {
-            link_id: `temp-${Date.now()}`,
-            task_id: tempTaskId,
-            ticket_id: selectedTicket,
-            ticket_number: selectedTicketDetails.ticket_number,
-            title: selectedTicketDetails.title,
-            created_at: new Date(),
-            project_id: phase.project_id,
-            phase_id: phase.phase_id,
-            status_name: selectedTicketDetails.status_name,
-            is_closed: selectedTicketDetails.closed_at !== null
-          };
-          setTaskTicketLinks([...taskTicketLinks, tempLink]);
-        }
-      }
-      toast.success('Ticket linked successfully');
-      setShowTicketDialog(false);
-    } catch (error: any) {
-      console.error('Error linking ticket:', error);
-      if (error.message === 'This ticket is already linked to this task') {
-        toast.error('This ticket is already linked to this task');
-      } else {
-        toast.error('Failed to link ticket');
-      }
-    }
-  };
-
-  const handleNewTicketCreated = async (ticket: ITicket) => {
-    if (!ticket.ticket_id) {
-      toast.error('Invalid ticket ID');
-      return;
-    }
-    try {
-      if (task?.task_id) {
-        // For existing tasks, create permanent link
-        await addTicketLinkAction(phase.project_id, task.task_id, ticket.ticket_id);
-        const links = await getTaskTicketLinksAction(task.task_id);
-        setTaskTicketLinks(links);
-      } else {
-        // For new tasks:
-        // 1. Fetch updated tickets list to get full ticket details
-        const user = await getCurrentUser();
-        if (!user) {
-          toast.error('No user session found');
-          return;
-        }
-        const filters: ITicketListFilters = {
-          channelFilterState: 'all'
-        };
-        const updatedTickets = await getTicketsForList(user, filters);
-        setAvailableTickets(updatedTickets);
-
-        // 2. Find the newly created ticket in the updated list
-        const newTicketDetails = updatedTickets.find(t => t.ticket_id === ticket.ticket_id);
-        if (!newTicketDetails) {
-          toast.error('Failed to load ticket details');
-          return;
-        }
-
-        // 3. Create temporary link with the full ticket details
-        const tempLink: IProjectTicketLinkWithDetails = {
-          link_id: `temp-${Date.now()}`,
-          task_id: tempTaskId,
-          ticket_id: ticket.ticket_id,
-          ticket_number: ticket.ticket_number,
-          title: ticket.title,
-          created_at: new Date(),
-          project_id: phase.project_id,
-          phase_id: phase.phase_id,
-          status_name: newTicketDetails.status_name,
-          is_closed: false
-        };
-        setTaskTicketLinks([...taskTicketLinks, tempLink]);
-      }
-      toast.success('New ticket created and linked');
-      setShowNewTicketForm(false);
-    } catch (error: any) {
-      console.error('Error linking new ticket:', error);
-      if (error.message === 'This ticket is already linked to this task') {
-        toast.error('This ticket is already linked to this task');
-      } else {
-        toast.error('Failed to link ticket');
-      }
-    }
-  };
-
-  const handleViewTicket = async (ticketId: string) => {
-    try {
-      const user = await getCurrentUser();
-      if (!user) {
-        toast.error('No user session found');
-        return;
-      }
-      
-      const ticket = await getTicketById(ticketId, user);
-      if (!ticket) {
-        toast.error('Failed to load ticket');
-        return;
-      }
-
-      openDrawer(<TicketDetails initialTicket={ticket} />);
-    } catch (error) {
-      console.error('Error loading ticket:', error);
-      toast.error('Failed to load ticket');
-    }
-  };
-
-  const handleDeleteTicketLink = async (linkId: string) => {
-    try {
-      if (task?.task_id) {
-        await deleteTaskTicketLinkAction(linkId);
-        const links = await getTaskTicketLinksAction(task.task_id);
-        setTaskTicketLinks(links);
-      } else {
-        // For new tasks, just remove from state
-        setTaskTicketLinks(taskTicketLinks.filter(link => link.link_id !== linkId));
-      }
-      toast.success('Ticket link removed');
-    } catch (error) {
-      console.error('Error deleting ticket link:', error);
-      toast.error('Failed to remove ticket link');
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!task?.task_id) return;
@@ -551,12 +378,6 @@ export default function TaskForm({
     }
   };
 
-  const ticketOptions = availableTickets
-    .filter((ticket): ticket is ITicketListItem & { ticket_id: string } => ticket.ticket_id !== undefined)
-    .map((ticket): { value: string; label: string } => ({
-      value: ticket.ticket_id,
-      label: `${ticket.ticket_number} - ${ticket.title}`
-    }));
 
   return (
     <>
@@ -734,57 +555,12 @@ export default function TaskForm({
                   </Button>
                 )}
 
-                <div className="mt-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold">Associated Tickets</h3>
-                    <div className="flex space-x-2">
-                      <Button
-                        type="button"
-                        variant="soft"
-                        onClick={() => setShowTicketDialog(true)}
-                        className="flex items-center"
-                      >
-                        <Link className="h-4 w-4 mr-1" />
-                        Link Ticket
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="soft"
-                        onClick={() => setShowNewTicketForm(true)}
-                        className="flex items-center"
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Create Ticket
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    {taskTicketLinks.map((link): JSX.Element => (
-                      <div key={link.link_id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                        <span>{link.ticket_number} - {link.title}</span>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => handleViewTicket(link.ticket_id)}
-                            className="flex items-center text-sm"
-                          >
-                            <ExternalLink className="h-4 w-4 mr-1" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => handleDeleteTicketLink(link.link_id)}
-                            className="flex items-center text-sm text-red-500 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <TaskTicketLinks
+                  taskId={task?.task_id || null}
+                  phaseId={phase.phase_id}
+                  projectId={phase.project_id}
+                  initialLinks={task?.ticket_links}
+                />
 
                 <div className="flex justify-between mt-6">
                   <Button 
@@ -850,45 +626,6 @@ export default function TaskForm({
         />
       )}
 
-      <Dialog.Root open={showTicketDialog} onOpenChange={setShowTicketDialog}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 rounded-lg shadow-lg w-[400px]">
-            <Dialog.Title className="text-lg font-semibold mb-4">Link Existing Ticket</Dialog.Title>
-            <div className="space-y-4">
-              <CustomSelect
-                value={selectedTicket}
-                onValueChange={setSelectedTicket}
-                options={ticketOptions}
-                placeholder="Select a ticket"
-                className="w-full"
-              />
-              <div className="flex justify-end space-x-2">
-                <Button variant="ghost" onClick={() => setShowTicketDialog(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleLinkTicket} disabled={!selectedTicket}>
-                  Link Ticket
-                </Button>
-              </div>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
-
-      <Dialog.Root open={showNewTicketForm} onOpenChange={setShowNewTicketForm}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 rounded-lg shadow-lg w-[600px]">
-            <Dialog.Title className="text-lg font-semibold mb-4">Create New Ticket</Dialog.Title>
-            <QuickAddTicket 
-              open={showNewTicketForm}
-              onOpenChange={setShowNewTicketForm}
-              onTicketAdded={handleNewTicketCreated}
-            />
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
 
       <Dialog.Root open={showAgentPicker} onOpenChange={setShowAgentPicker}>
         <Dialog.Portal>
