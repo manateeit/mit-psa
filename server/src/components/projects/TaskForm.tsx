@@ -92,7 +92,8 @@ export default function TaskForm({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [estimatedHours, setEstimatedHours] = useState<number>(Number(task?.estimated_hours) || 0);
   const [actualHours, setActualHours] = useState<number>(Number(task?.actual_hours) || 0);
-  const [taskResources, setTaskResources] = useState<any[]>([]);
+  const [taskResources, setTaskResources] = useState<any[]>(task?.task_id ? [] : []);
+  const [tempTaskResources, setTempTaskResources] = useState<any[]>([]);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
 
   useEffect(() => {
@@ -253,6 +254,13 @@ export default function TaskForm({
         };
 
         resultTask = await addTaskToPhase(phase.phase_id, taskData, checklistItems);
+
+        // Add task resources for new task
+        if (resultTask) {
+          for (const resource of tempTaskResources) {
+            await addTaskResourceAction(resultTask.task_id, resource.additional_user_id);
+          }
+        }
         
         // Link any tickets that were added during creation
         if (resultTask && taskTicketLinks.length > 0) {
@@ -509,6 +517,18 @@ export default function TaskForm({
         await addTaskResourceAction(task.task_id, userId);
         const updatedResources = await getTaskResourcesAction(task.task_id);
         setTaskResources(updatedResources);
+      } else {
+        // For new tasks, store resources temporarily
+        const selectedUser = users.find(u => u.user_id === userId);
+        if (selectedUser) {
+          const tempResource = {
+            additional_user_id: userId,
+            first_name: selectedUser.first_name,
+            last_name: selectedUser.last_name,
+            assignment_id: `temp-${Date.now()}`
+          };
+          setTempTaskResources(prev => [...prev, tempResource]);
+        }
       }
       setShowAgentPicker(false);
     } catch (error) {
@@ -519,8 +539,12 @@ export default function TaskForm({
 
   const handleRemoveAgent = async (assignmentId: string) => {
     try {
-      await removeTaskResourceAction(assignmentId);
-      setTaskResources(taskResources.filter(r => r.assignment_id !== assignmentId));
+      if (task?.task_id) {
+        await removeTaskResourceAction(assignmentId);
+        setTaskResources(taskResources.filter(r => r.assignment_id !== assignmentId));
+      } else {
+        setTempTaskResources(prev => prev.filter(r => r.assignment_id !== assignmentId));
+      }
     } catch (error) {
       console.error('Error removing agent:', error);
       toast.error('Failed to remove agent');
@@ -610,9 +634,20 @@ export default function TaskForm({
                   />
 
                   <div>
-                    <h3 className="font-semibold mb-2">Additional Agents</h3>
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-semibold">Additional Agents</h3>
+                      <Button
+                        type="button"
+                        variant="soft"
+                        onClick={() => setShowAgentPicker(true)}
+                        className="w-fit"
+                      >
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Add Agent
+                      </Button>
+                    </div>
                     <div className="space-y-2">
-                      {taskResources.map((resource) => (
+                      {(task?.task_id ? taskResources : tempTaskResources).map((resource) => (
                         <div key={resource.assignment_id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
                           <div className="flex items-center gap-2">
                             <AvatarIcon
@@ -633,17 +668,6 @@ export default function TaskForm({
                           </Button>
                         </div>
                       ))}
-                      <div className="flex justify-end">
-                        <Button
-                          type="button"
-                          variant="soft"
-                          onClick={() => setShowAgentPicker(true)}
-                          className="w-fit"
-                        >
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Add Agent
-                        </Button>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -874,7 +898,7 @@ export default function TaskForm({
                 onValueChange={handleAddAgent}
                 users={users.filter(u => 
                   u.user_id !== assignedUser && 
-                  !taskResources.some(r => r.additional_user_id === u.user_id)
+                  !(task?.task_id ? taskResources : tempTaskResources).some(r => r.additional_user_id === u.user_id)
                 )}
                 size="sm"
               />
