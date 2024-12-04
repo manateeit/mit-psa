@@ -37,7 +37,7 @@ function TreeSelect<T extends string>({
   label,
   selectedClassName = 'bg-gray-100',
   hoverClassName = 'hover:bg-gray-100',
-  triggerClassName = 'hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent',
+  triggerClassName = 'hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent',
   contentClassName = 'bg-white rounded-md shadow-lg border border-gray-200',
 }: TreeSelectProps<T>): JSX.Element {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
