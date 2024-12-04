@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { IProjectTask, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { CheckSquare, Square, Ticket } from 'lucide-react';
+import { CheckSquare, Square, Ticket, Users } from 'lucide-react';
 import UserPicker from '@/components/ui/UserPicker';
 import { getTaskTicketLinksAction, getTaskResourcesAction } from '@/lib/actions/projectActions';
 
@@ -72,15 +72,23 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           {task.description}
         </p>
       )}
-      <div onClick={(e) => e.stopPropagation()}>
-        <UserPicker
-          value={task.assigned_to || ''}
-          onValueChange={(newAssigneeId: string) => onAssigneeChange(task.task_id, newAssigneeId)}
-          size="sm"
-          users={users.filter(u => 
-            !taskResources.some(r => r.additional_user_id === u.user_id)
-          )}
-        />
+      <div className="flex items-center gap-2">
+        <div onClick={(e) => e.stopPropagation()}>
+          <UserPicker
+            value={task.assigned_to || ''}
+            onValueChange={(newAssigneeId: string) => onAssigneeChange(task.task_id, newAssigneeId)}
+            size="sm"
+            users={users.filter(u => 
+              !taskResources.some(r => r.additional_user_id === u.user_id)
+            )}
+          />
+        </div>
+        {taskResources.length > 0 && (
+          <div className="flex items-center gap-1 text-gray-500 bg-primary-100 p-1 rounded-md">
+            <Users className="w-3 h-3" />
+            <span className="text-xs">+{taskResources.length}</span>
+          </div>
+        )}
       </div>
       <div className="flex items-center justify-between text-xs text-gray-500">
         <div className="flex items-center gap-2">

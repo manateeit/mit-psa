@@ -900,8 +900,11 @@ export default function TaskForm({
                 value=""
                 onValueChange={handleAddAgent}
                 users={users.filter(u => 
+                  // Only filter out current user if no one is assigned, always filter out assined user and additional resources
+                  (!assignedUser ? u.user_id !== currentUserId : true) && 
                   u.user_id !== assignedUser && 
-                  !(task?.task_id ? taskResources : tempTaskResources).some(r => r.additional_user_id === u.user_id)
+                  !(task?.task_id ? taskResources : tempTaskResources)
+                    .some(r => r.additional_user_id === u.user_id)
                 )}
                 size="sm"
               />
