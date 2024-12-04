@@ -289,7 +289,7 @@ export default function ProjectDetail({
     setShowQuickAdd(true);
   }, [phases]);
 
-  const handleAssigneeChange = async (taskId: string, newAssigneeId: string) => {
+  const handleAssigneeChange = async (taskId: string, newAssigneeId: string, newTaskName?: string) => {
     try {
       const task = projectTasks.find(t => t.task_id === taskId);
       if (!task) {
@@ -299,6 +299,7 @@ export default function ProjectDetail({
       const updatedTask = await updateTaskWithChecklist(taskId, {
         ...task,
         assigned_to: newAssigneeId,
+        task_name: newTaskName || task.task_name,
         estimated_hours: Number(task.estimated_hours) || 0,
         actual_hours: Number(task.actual_hours) || 0,
         checklist_items: task.checklist_items

@@ -627,6 +627,9 @@ const ProjectModel = {
     try {
       const {knex: db} = await createTenantKnex();
       await db.transaction(async (trx: Knex.Transaction) => {
+        // Delete task resources
+        await trx('task_resources').where('task_id', taskId).del();
+        
         // Delete checklist items associated with the task
         await trx('task_checklist_items').where('task_id', taskId).del();
         
@@ -779,6 +782,61 @@ const ProjectModel = {
       throw error;
     }
   },
+  addTaskResource: async (taskId: string, userId: string, role?: string): Promise<void> => {
+    try {
+      const {knex: db, tenant} = await createTenantKnex();
+      
+      // Get the task to find the assigned_to user
+      const task = await db('project_tasks')
+        .where('task_id', taskId)
+        .first();
+      
+      if (!task) {
+        throw new Error('Task not found');
+      }
+
+      await db('task_resources').insert({
+        tenant,
+        task_id: taskId,
+        assigned_to: task.assigned_to,
+        additional_user_id: userId,
+        role: role || null
+      });
+    } catch (error) {
+      console.error('Error adding task resource:', error);
+      throw error;
+    }
+  },
+
+  removeTaskResource: async (assignmentId: string): Promise<void> => {
+    try {
+      const {knex: db} = await createTenantKnex();
+      await db('task_resources')
+        .where('assignment_id', assignmentId)
+        .del();
+    } catch (error) {
+      console.error('Error removing task resource:', error);
+      throw error;
+    }
+  },
+
+  getTaskResources: async (taskId: string): Promise<any[]> => {
+    try {
+      const {knex: db} = await createTenantKnex();
+      const resources = await db('task_resources')
+        .select(
+          'task_resources.*',
+          'users.first_name',
+          'users.last_name'
+        )
+        .leftJoin('users', 'task_resources.additional_user_id', 'users.user_id')
+        .where('task_id', taskId);
+      return resources;
+    } catch (error) {
+      console.error('Error getting task resources:', error);
+      throw error;
+    }
+  }
 };
 
 export default ProjectModel;

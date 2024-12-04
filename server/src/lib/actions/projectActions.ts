@@ -895,6 +895,51 @@ export async function getTaskTicketLinksAction(taskId: string): Promise<IProject
     }
 }
 
+export async function addTaskResourceAction(taskId: string, userId: string, role?: string): Promise<void> {
+    try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+            throw new Error("user not found");
+        }
+
+        await checkPermission(currentUser, 'project', 'update');
+        await ProjectModel.addTaskResource(taskId, userId, role);
+    } catch (error) {
+        console.error('Error adding task resource:', error);
+        throw error;
+    }
+}
+
+export async function removeTaskResourceAction(assignmentId: string): Promise<void> {
+    try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+            throw new Error("user not found");
+        }
+
+        await checkPermission(currentUser, 'project', 'update');
+        await ProjectModel.removeTaskResource(assignmentId);
+    } catch (error) {
+        console.error('Error removing task resource:', error);
+        throw error;
+    }
+}
+
+export async function getTaskResourcesAction(taskId: string): Promise<any[]> {
+    try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+            throw new Error("user not found");
+        }
+
+        await checkPermission(currentUser, 'project', 'read');
+        return await ProjectModel.getTaskResources(taskId);
+    } catch (error) {
+        console.error('Error getting task resources:', error);
+        throw error;
+    }
+}
+
 export async function deleteTaskTicketLinkAction(linkId: string): Promise<void> {
     try {
         const currentUser = await getCurrentUser();

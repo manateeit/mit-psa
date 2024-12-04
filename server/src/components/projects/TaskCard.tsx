@@ -3,15 +3,15 @@
 import { useEffect, useState } from 'react';
 import { IProjectTask, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { CheckSquare, Square, Ticket } from 'lucide-react';
+import { CheckSquare, Square, Ticket, Users } from 'lucide-react';
 import UserPicker from '@/components/ui/UserPicker';
-import { getTaskTicketLinksAction } from '@/lib/actions/projectActions';
+import { getTaskTicketLinksAction, getTaskResourcesAction } from '@/lib/actions/projectActions';
 
 interface TaskCardProps {
   task: IProjectTask;
   users: IUserWithRoles[];
   onTaskSelected: (task: IProjectTask) => void;
-  onAssigneeChange: (taskId: string, newAssigneeId: string) => void;
+  onAssigneeChange: (taskId: string, newAssigneeId: string, newTaskName?: string) => void;
   onDragStart: (e: React.DragEvent, taskId: string) => void;
   onDragEnd: (e: React.DragEvent) => void;
 }
@@ -25,18 +25,23 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onDragEnd,
 }) => {
   const [taskTickets, setTaskTickets] = useState<IProjectTicketLinkWithDetails[]>([]);
+  const [taskResources, setTaskResources] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchTickets = async () => {
+    const fetchData = async () => {
       try {
-        const links = await getTaskTicketLinksAction(task.task_id);
+        const [links, resources] = await Promise.all([
+          getTaskTicketLinksAction(task.task_id),
+          getTaskResourcesAction(task.task_id)
+        ]);
         setTaskTickets(links);
+        setTaskResources(resources);
       } catch (error) {
-        console.error('Error fetching task tickets:', error);
+        console.error('Error fetching task data:', error);
       }
     };
 
-    fetchTickets();
+    fetchData();
   }, [task.task_id]);
 
   const checklistItems = task.checklist_items || [];
@@ -56,19 +61,34 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       onClick={() => onTaskSelected(task)}
       className="bg-white p-3 mb-2 rounded shadow-sm cursor-pointer hover:shadow-md transition-shadow duration-200 border border-gray-200 flex flex-col gap-1"
     >
-      <p className="font-semibold text-base mb-1">{task.task_name}</p>
+      <input
+        className="font-semibold text-base mb-1 w-full bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-purple-500 rounded px-1"
+        value={task.task_name}
+        onChange={(e) => onAssigneeChange(task.task_id, task.assigned_to || '', e.target.value)}
+        onClick={(e) => e.stopPropagation()}
+      />
       {task.description && (
         <p className="text-sm text-gray-600 mb-2 line-clamp-2">
           {task.description}
         </p>
       )}
-      <div onClick={(e) => e.stopPropagation()}>
-        <UserPicker
-          value={task.assigned_to || ''}
-          onValueChange={(newAssigneeId: string) => onAssigneeChange(task.task_id, newAssigneeId)}
-          size="sm"
-          users={users}
-        />
+      <div className="flex items-center gap-2">
+        <div onClick={(e) => e.stopPropagation()}>
+          <UserPicker
+            value={task.assigned_to || ''}
+            onValueChange={(newAssigneeId: string) => onAssigneeChange(task.task_id, newAssigneeId)}
+            size="sm"
+            users={users.filter(u => 
+              !taskResources.some(r => r.additional_user_id === u.user_id)
+            )}
+          />
+        </div>
+        {taskResources.length > 0 && (
+          <div className="flex items-center gap-1 text-gray-500 bg-primary-100 p-1 rounded-md">
+            <Users className="w-3 h-3" />
+            <span className="text-xs">+{taskResources.length}</span>
+          </div>
+        )}
       </div>
       <div className="flex items-center justify-between text-xs text-gray-500">
         <div className="flex items-center gap-2">

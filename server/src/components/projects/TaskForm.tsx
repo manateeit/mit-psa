@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem, IProjectTicketLinkWithDetails, IProject, ProjectStatus } from '@/interfaces/project.interfaces';
 import { ITicket, ITicketListItem, ITicketListFilters } from '@/interfaces/ticket.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
+import AvatarIcon from '@/components/ui/AvatarIcon';
 import { 
   updateTaskWithChecklist, 
   addTaskToPhase, 
@@ -15,7 +16,10 @@ import {
   deleteTaskTicketLinkAction, 
   getProjects,
   getProjectTreeData,
-  getProjectTaskStatuses 
+  getProjectTaskStatuses,
+  addTaskResourceAction,
+  removeTaskResourceAction,
+  getTaskResourcesAction
 } from '@/lib/actions/projectActions';
 import { getTicketsForList, getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
@@ -23,7 +27,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
 import EditableText from '@/components/ui/EditableText';
-import { ListChecks, Link, Plus, ExternalLink, Trash2 } from 'lucide-react';
+import { ListChecks, Link, Plus, ExternalLink, Trash2, UserPlus } from 'lucide-react';
 import UserPicker from '@/components/ui/UserPicker';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import CustomSelect from '@/components/ui/CustomSelect';
@@ -88,6 +92,9 @@ export default function TaskForm({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [estimatedHours, setEstimatedHours] = useState<number>(Number(task?.estimated_hours) || 0);
   const [actualHours, setActualHours] = useState<number>(Number(task?.actual_hours) || 0);
+  const [taskResources, setTaskResources] = useState<any[]>(task?.task_id ? [] : []);
+  const [tempTaskResources, setTempTaskResources] = useState<any[]>([]);
+  const [showAgentPicker, setShowAgentPicker] = useState(false);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -103,12 +110,14 @@ export default function TaskForm({
         }
 
         if (task?.task_id) {
-          const [existingChecklistItems, links] = await Promise.all([
+          const [existingChecklistItems, links, resources] = await Promise.all([
             getTaskChecklistItems(task.task_id),
-            getTaskTicketLinksAction(task.task_id)
+            getTaskTicketLinksAction(task.task_id),
+            getTaskResourcesAction(task.task_id)
           ]);
           setChecklistItems(existingChecklistItems);
           setTaskTicketLinks(links);
+          setTaskResources(resources);
         }
       } catch (error) {
         console.error('Error fetching initial data:', error);
@@ -245,6 +254,13 @@ export default function TaskForm({
         };
 
         resultTask = await addTaskToPhase(phase.phase_id, taskData, checklistItems);
+
+        // Add task resources for new task
+        if (resultTask) {
+          for (const resource of tempTaskResources) {
+            await addTaskResourceAction(resultTask.task_id, resource.additional_user_id);
+          }
+        }
         
         // Link any tickets that were added during creation
         if (resultTask && taskTicketLinks.length > 0) {
@@ -495,6 +511,46 @@ export default function TaskForm({
     setShowDeleteConfirm(false);
   };
 
+  const handleAddAgent = async (userId: string) => {
+    try {
+      if (task?.task_id) {
+        await addTaskResourceAction(task.task_id, userId);
+        const updatedResources = await getTaskResourcesAction(task.task_id);
+        setTaskResources(updatedResources);
+      } else {
+        // For new tasks, store resources temporarily
+        const selectedUser = users.find(u => u.user_id === userId);
+        if (selectedUser) {
+          const tempResource = {
+            additional_user_id: userId,
+            first_name: selectedUser.first_name,
+            last_name: selectedUser.last_name,
+            assignment_id: `temp-${Date.now()}`
+          };
+          setTempTaskResources(prev => [...prev, tempResource]);
+        }
+      }
+      setShowAgentPicker(false);
+    } catch (error) {
+      console.error('Error adding agent:', error);
+      toast.error('Failed to add agent');
+    }
+  };
+
+  const handleRemoveAgent = async (assignmentId: string) => {
+    try {
+      if (task?.task_id) {
+        await removeTaskResourceAction(assignmentId);
+        setTaskResources(taskResources.filter(r => r.assignment_id !== assignmentId));
+      } else {
+        setTempTaskResources(prev => prev.filter(r => r.assignment_id !== assignmentId));
+      }
+    } catch (error) {
+      console.error('Error removing agent:', error);
+      toast.error('Failed to remove agent');
+    }
+  };
+
   const ticketOptions = availableTickets
     .filter((ticket): ticket is ITicketListItem & { ticket_id: string } => ticket.ticket_id !== undefined)
     .map((ticket): { value: string; label: string } => ({
@@ -568,13 +624,56 @@ export default function TaskForm({
                     />
                   </div>
                 </div>
-                <UserPicker
-                  label="Assigned To"
-                  value={assignedUser}
-                  onValueChange={setAssignedUser}
-                  size="sm"
-                  users={users}
-                />
+                <div className="space-y-4">
+                  <UserPicker
+                    label="Assigned To"
+                    value={assignedUser}
+                    onValueChange={setAssignedUser}
+                    size="sm"
+                    users={users.filter(u => 
+                      !(task?.task_id ? taskResources : tempTaskResources)
+                        .some(r => r.additional_user_id === u.user_id)
+                    )}
+                  />
+
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-semibold">Additional Agents</h3>
+                      <Button
+                        type="button"
+                        variant="soft"
+                        onClick={() => setShowAgentPicker(true)}
+                        className="w-fit"
+                      >
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Add Agent
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      {(task?.task_id ? taskResources : tempTaskResources).map((resource): JSX.Element => (
+                        <div key={resource.assignment_id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                          <div className="flex items-center gap-2">
+                            <AvatarIcon
+                              userId={resource.additional_user_id}
+                              firstName={resource.first_name}
+                              lastName={resource.last_name}
+                              size="sm"
+                            />
+                            <span>{resource.first_name} {resource.last_name}</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveAgent(resource.assignment_id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
 
                 <div className="flex items-center justify-between mb-2">
                   <h3 className='font-semibold'>Checklist</h3>
@@ -787,6 +886,34 @@ export default function TaskForm({
               onOpenChange={setShowNewTicketForm}
               onTicketAdded={handleNewTicketCreated}
             />
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      <Dialog.Root open={showAgentPicker} onOpenChange={setShowAgentPicker}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
+          <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 rounded-lg shadow-lg w-[400px]">
+            <Dialog.Title className="text-lg font-semibold mb-4">Add Additional Agent</Dialog.Title>
+            <div className="space-y-4">
+              <UserPicker
+                value=""
+                onValueChange={handleAddAgent}
+                users={users.filter(u => 
+                  // Only filter out current user if no one is assigned, always filter out assined user and additional resources
+                  (!assignedUser ? u.user_id !== currentUserId : true) && 
+                  u.user_id !== assignedUser && 
+                  !(task?.task_id ? taskResources : tempTaskResources)
+                    .some(r => r.additional_user_id === u.user_id)
+                )}
+                size="sm"
+              />
+              <div className="flex justify-end space-x-2">
+                <Button variant="ghost" onClick={() => setShowAgentPicker(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
