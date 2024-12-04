@@ -650,7 +650,7 @@ export default function TaskForm({
                       </Button>
                     </div>
                     <div className="space-y-2">
-                      {(task?.task_id ? taskResources : tempTaskResources).map((resource) => (
+                      {(task?.task_id ? taskResources : tempTaskResources).map((resource): JSX.Element => (
                         <div key={resource.assignment_id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
                           <div className="flex items-center gap-2">
                             <AvatarIcon
