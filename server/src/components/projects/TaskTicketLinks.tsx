@@ -24,9 +24,9 @@ interface TaskTicketLinksProps {
   phaseId: string;
   projectId: string;
   initialLinks?: IProjectTicketLinkWithDetails[];
-  tempTaskId?: string;
   onShowLinkDialog: (options: { tickets: SelectOption[], onSelect: (ticketId: string) => void }) => void;
   onShowCreateDialog: (onTicketCreated: (ticket: ITicket) => void) => void;
+  onLinksChange?: (links: IProjectTicketLinkWithDetails[]) => void;
 }
 
 interface SelectOption {
@@ -34,14 +34,22 @@ interface SelectOption {
   label: string;
 }
 
+interface TicketDetails {
+  ticket_id: string;
+  ticket_number: string;
+  title: string;
+  status_name?: string;
+  closed_at?: Date | null;
+}
+
 export default function TaskTicketLinks({
   taskId,
   phaseId,
   projectId,
   initialLinks = [],
-  tempTaskId = `temp-${Date.now()}`,
   onShowLinkDialog,
-  onShowCreateDialog
+  onShowCreateDialog,
+  onLinksChange
 }: TaskTicketLinksProps) {
   const [taskTicketLinks, setTaskTicketLinks] = useState<IProjectTicketLinkWithDetails[]>(initialLinks);
   const [availableTickets, setAvailableTickets] = useState<ITicketListItem[]>([]);
@@ -75,6 +83,7 @@ export default function TaskTicketLinks({
         try {
           const links = await getTaskTicketLinksAction(taskId);
           setTaskTicketLinks(links);
+          onLinksChange?.(links);
         } catch (error) {
           console.error('Error fetching ticket links:', error);
         }
@@ -82,7 +91,37 @@ export default function TaskTicketLinks({
     };
 
     fetchLinks();
-  }, [taskId]);
+  }, [taskId, onLinksChange]);
+
+  const addTempTicketLink = (ticketDetails: TicketDetails | ITicketListItem | ITicket) => {
+    // Check if ticket is already linked
+    if (!('ticket_id' in ticketDetails) || !ticketDetails.ticket_id) {
+      return null;
+    }
+
+    const isAlreadyLinked = taskTicketLinks.some(link => link.ticket_id === ticketDetails.ticket_id);
+    if (isAlreadyLinked) {
+      toast.error('This ticket is already linked to this task');
+      return null;
+    }
+
+    const tempLink: IProjectTicketLinkWithDetails = {
+      link_id: `temp-${Date.now()}`,
+      task_id: 'temp',
+      ticket_id: ticketDetails.ticket_id,
+      ticket_number: 'ticket_number' in ticketDetails ? ticketDetails.ticket_number : `#${Date.now()}`,
+      title: ticketDetails.title,
+      created_at: new Date(),
+      project_id: projectId,
+      phase_id: phaseId,
+      status_name: 'status_name' in ticketDetails ? ticketDetails.status_name || 'New' : 'New',
+      is_closed: 'closed_at' in ticketDetails ? ticketDetails.closed_at !== null : false
+    };
+    const newLinks = [...taskTicketLinks, tempLink];
+    setTaskTicketLinks(newLinks);
+    onLinksChange?.(newLinks);
+    return tempLink;
+  };
 
   const onLinkTicket = async (ticketId: string) => {
     if (!ticketId) return;
@@ -92,32 +131,18 @@ export default function TaskTicketLinks({
         await addTicketLinkAction(projectId, taskId, ticketId, phaseId);
         const links = await getTaskTicketLinksAction(taskId);
         setTaskTicketLinks(links);
+        onLinksChange?.(links);
+        toast.success('Ticket linked successfully');
       } else {
         // For new tasks, store the link temporarily
         const selectedTicketDetails = availableTickets.find(t => t.ticket_id === ticketId);
         if (selectedTicketDetails) {
-          const tempLink: IProjectTicketLinkWithDetails = {
-            link_id: `temp-${Date.now()}`,
-            task_id: 'temp',
-            ticket_id: ticketId,
-            ticket_number: selectedTicketDetails.ticket_number,
-            title: selectedTicketDetails.title,
-            created_at: new Date(),
-            project_id: projectId,
-            phase_id: phaseId,
-            status_name: selectedTicketDetails.status_name,
-            is_closed: selectedTicketDetails.closed_at !== null
-          };
-          const newLinks = [...taskTicketLinks, tempLink];
-          setTaskTicketLinks(newLinks);
-          // Store links in DOM for TaskForm to access later
-          const dataElement = document.querySelector(`[data-task-id="${tempTaskId}"]`);
-          if (dataElement) {
-            dataElement.setAttribute('data-ticket-links', JSON.stringify(newLinks));
+          const link = addTempTicketLink(selectedTicketDetails);
+          if (link) {
+            toast.success('Ticket linked successfully');
           }
         }
       }
-      toast.success('Ticket linked successfully');
     } catch (error) {
       console.error('Error linking ticket:', error);
       if (error instanceof Error && error.message === 'This ticket is already linked to this task') {
@@ -155,14 +180,12 @@ export default function TaskTicketLinks({
         await deleteTaskTicketLinkAction(linkId);
         const links = await getTaskTicketLinksAction(taskId);
         setTaskTicketLinks(links);
+        onLinksChange?.(links);
       } else {
-        // For new tasks, just remove from state and update DOM data
+        // For new tasks, just remove from state
         const newLinks = taskTicketLinks.filter(link => link.link_id !== linkId);
         setTaskTicketLinks(newLinks);
-        const dataElement = document.querySelector(`[data-task-id="${tempTaskId}"]`);
-        if (dataElement) {
-          dataElement.setAttribute('data-ticket-links', JSON.stringify(newLinks));
-        }
+        onLinksChange?.(newLinks);
       }
       toast.success('Ticket link removed');
     } catch (error) {
@@ -191,7 +214,16 @@ export default function TaskTicketLinks({
       return;
     }
     try {
-      await onLinkTicket(ticket.ticket_id);
+      if (taskId) {
+        await onLinkTicket(ticket.ticket_id);
+      } else {
+        // For new tasks, add to temporary list
+        const link = addTempTicketLink(ticket);
+        if (link) {
+          toast.success('Ticket created and linked successfully');
+        }
+      }
+      
       // Update available tickets list
       const user = await getCurrentUser();
       if (user) {
@@ -208,7 +240,7 @@ export default function TaskTicketLinks({
   };
 
   return (
-    <div className="mt-6" data-task-id={tempTaskId}>
+    <div className="mt-6">
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-semibold">Associated Tickets</h3>
         <div className="flex space-x-2">

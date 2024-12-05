@@ -92,6 +92,7 @@ export default function TaskForm({
   const [selectedTicketId, setSelectedTicketId] = useState('');
   const [onTicketSelected, setOnTicketSelected] = useState<((ticketId: string) => void) | null>(null);
   const [onTicketCreated, setOnTicketCreated] = useState<(ticket: ITicket) => void>(() => () => {});
+  const [pendingTicketLinks, setPendingTicketLinks] = useState<IProjectTicketLinkWithDetails[]>([]);
   const [selectedStatusId, setSelectedStatusId] = useState<string>(
     task?.project_status_mapping_id || 
     defaultStatus?.project_status_mapping_id || 
@@ -218,11 +219,10 @@ export default function TaskForm({
       let resultTask: IProjectTask | null = null;
 
       if (mode === 'edit' && task) {
-        // Always use moveTaskToPhase to ensure both phase and status are updated together
+        // Edit mode logic remains the same
         const movedTask = await moveTaskToPhase(task.task_id, selectedPhaseId, selectedStatusId);
         
         if (movedTask) {
-          // Update other fields
           const taskData: Partial<IProjectTask> = {
             task_name: taskName,
             description: description,
@@ -234,12 +234,9 @@ export default function TaskForm({
           };
           resultTask = await updateTaskWithChecklist(movedTask.task_id, taskData);
         }
-        onClose(); // Only close in edit mode
+        onSubmit(resultTask);
+        onClose();
       } else {
-        // Get ticket links data before creating task
-        const ticketLinksData = document.querySelector(`[data-task-id="${tempTaskId}"]`)?.getAttribute('data-ticket-links');
-        const ticketLinks = ticketLinksData ? JSON.parse(ticketLinksData) : [];
-
         // Create mode
         const taskData = {
           task_name: taskName,
@@ -253,23 +250,33 @@ export default function TaskForm({
           phase_id: phase.phase_id
         };
 
+        // Create the task first
         resultTask = await addTaskToPhase(phase.phase_id, taskData, checklistItems);
 
         if (resultTask) {
-          // Add task resources
-          for (const resource of tempTaskResources) {
-            await addTaskResourceAction(resultTask.task_id, resource.additional_user_id);
-          }
-          
-          // Add ticket links using the actual task ID and phase ID
-          for (const link of ticketLinks) {
-            await addTicketLinkAction(phase.project_id, resultTask.task_id, link.ticket_id, phase.phase_id);
+          try {
+            // Add task resources
+            for (const resource of tempTaskResources) {
+              await addTaskResourceAction(resultTask.task_id, resource.additional_user_id);
+            }
+            
+            // Add ticket links using the actual task ID and phase ID
+            for (const link of pendingTicketLinks) {
+              await addTicketLinkAction(phase.project_id, resultTask.task_id, link.ticket_id, phase.phase_id);
+            }
+
+            // Only submit and close after everything is done
+            onSubmit(resultTask);
+            onClose();
+          } catch (error) {
+            console.error('Error adding resources or linking tickets:', error);
+            toast.error('Task created but failed to link some items');
+            // Still submit the task even if linking fails
+            onSubmit(resultTask);
+            onClose();
           }
         }
       }
-      
-      onSubmit(resultTask);
-      // Note: We removed onClose() here to keep the form open in create mode
     } catch (error) {
       console.error('Error saving task:', error);
       toast.error('Failed to save task');
@@ -609,9 +616,9 @@ export default function TaskForm({
                   phaseId={phase.phase_id}
                   projectId={phase.project_id}
                   initialLinks={task?.ticket_links}
-                  tempTaskId={tempTaskId}
                   onShowLinkDialog={handleShowLinkDialog}
                   onShowCreateDialog={handleShowCreateDialog}
+                  onLinksChange={setPendingTicketLinks}
                 />
 
                 <div className="flex justify-between mt-6">
