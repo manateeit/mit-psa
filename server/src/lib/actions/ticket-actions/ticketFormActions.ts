@@ -30,35 +30,52 @@ export async function getTicketFormData(prefilledCompanyId?: string): Promise<Ti
       throw new Error('No active session found');
     }
 
-    // Fetch all data in parallel
-    const [
-      users,
-      channels,
-      statuses,
-      priorities,
-      companies,
-      selectedCompany
-    ] = await Promise.all([
-      getAllUsers(),
-      getAllChannels(),
-      getTicketStatuses(),
-      getAllPriorities(),
-      getAllCompanies(false),
-      prefilledCompanyId ? getCompanyById(prefilledCompanyId) : null
+    // Fetch required data first
+    const [users, channels, statuses, priorities, companies] = await Promise.all([
+      getAllUsers().catch(error => {
+        console.error('Error fetching users:', error);
+        return [];
+      }),
+      getAllChannels().catch(error => {
+        console.error('Error fetching channels:', error);
+        return [];
+      }),
+      getTicketStatuses().catch(error => {
+        console.error('Error fetching statuses:', error);
+        return [];
+      }),
+      getAllPriorities().catch(error => {
+        console.error('Error fetching priorities:', error);
+        return [];
+      }),
+      getAllCompanies(false).catch(error => {
+        console.error('Error fetching companies:', error);
+        return [];
+      })
     ]);
 
-    // If we have a prefilled company, get its contacts
+    // Handle optional prefilled company data separately
+    let selectedCompany = null;
     let contacts: IContact[] = [];
-    if (selectedCompany && selectedCompany.client_type === 'company') {
-      contacts = await getContactsByCompany(selectedCompany.company_id);
+
+    if (prefilledCompanyId) {
+      try {
+        selectedCompany = await getCompanyById(prefilledCompanyId);
+        if (selectedCompany?.client_type === 'company') {
+          contacts = await getContactsByCompany(selectedCompany.company_id).catch(() => []);
+        }
+      } catch (error) {
+        console.error('Error fetching prefilled company data:', error);
+        // Continue without the prefilled data
+      }
     }
 
     return {
-      users,
-      channels,
-      statuses,
-      priorities,
-      companies,
+      users: users || [],
+      channels: channels || [],
+      statuses: statuses || [],
+      priorities: priorities || [],
+      companies: companies || [],
       contacts: contacts.length > 0 ? contacts : undefined,
       selectedCompany: selectedCompany && selectedCompany.client_type ? {
         company_id: selectedCompany.company_id,
@@ -68,6 +85,13 @@ export async function getTicketFormData(prefilledCompanyId?: string): Promise<Ti
     };
   } catch (error) {
     console.error('Error fetching ticket form data:', error);
-    throw new Error('Failed to load form data');
+    // Return empty data instead of throwing
+    return {
+      users: [],
+      channels: [],
+      statuses: [],
+      priorities: [],
+      companies: [],
+    };
   }
 }

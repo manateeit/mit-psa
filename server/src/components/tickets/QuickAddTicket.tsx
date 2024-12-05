@@ -12,7 +12,7 @@ import { getTicketCategoriesByChannel } from '@/lib/actions/categoryActions';
 import { IUser, IChannel, ITicketStatus, IPriority, ICompany, IContact, ITicket, ITicketCategory } from '@/interfaces';
 import { TicketFormData } from '@/lib/actions/ticket-actions/ticketFormActions';
 import { ChannelPicker } from '@/components/settings/general/ChannelPicker';
-import { CompanyPicker } from '../companies/CompanyPicker';
+import { CompanyPicker } from '@/components/companies/CompanyPicker';
 import { CategoryPicker } from './CategoryPicker';
 import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 import { Input } from '@/components/ui/Input';
@@ -46,6 +46,7 @@ export function QuickAddTicket({
 }: QuickAddTicketProps) {
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState(prefilledDescription || '');
     const [assignedTo, setAssignedTo] = useState('');
@@ -68,7 +69,17 @@ export function QuickAddTicket({
     const [isPrefilledCompany, setIsPrefilledCompany] = useState(false);
 
     useEffect(() => {
+        if (!open) {
+            // Reset form state when dialog closes
+            setError(null);
+            setIsSubmitting(false);
+            setIsLoading(false);
+            return;
+        }
+        
         const fetchData = async () => {
+            setIsLoading(true);
+            setError(null);
             try {
                 const formData = await getTicketFormData(prefilledCompany?.id);
                 
@@ -79,7 +90,6 @@ export function QuickAddTicket({
 
                 if (Array.isArray(formData.statuses) && formData.statuses.length > 0) {
                     setStatuses(formData.statuses);
-                    // Set default status if none selected
                     if (!statusId) {
                         const defaultStatus = formData.statuses.find(s => !s.is_closed);
                         if (defaultStatus) {
@@ -107,28 +117,32 @@ export function QuickAddTicket({
             } catch (error) {
                 console.error('Error fetching form data:', error);
                 setError('Failed to load form data. Please try again.');
+            } finally {
+                setIsLoading(false);
             }
         };
 
         fetchData();
-    }, [prefilledCompany, prefilledContact, prefilledDescription]);
+    }, [open, prefilledCompany?.id]);
 
     useEffect(() => {
         const fetchContacts = async () => {
             if (companyId && !isPrefilledCompany) {
                 try {
                     const contactsData = await getContactsByCompany(companyId);
-                    setContacts(contactsData);
+                    setContacts(contactsData || []);
                 } catch (error) {
                     console.error('Error fetching contacts:', error);
                     setContacts([]);
-                    setError('Failed to load contacts. Please try again.');
                 }
             } else if (!isPrefilledCompany) {
                 setContacts([]);
             }
         };
-        fetchContacts();
+        
+        if (companyId) {
+            fetchContacts();
+        }
     }, [companyId, isPrefilledCompany]);
 
     useEffect(() => {
@@ -136,7 +150,7 @@ export function QuickAddTicket({
             if (channelId) {
                 try {
                     const categoriesData = await getTicketCategoriesByChannel(channelId);
-                    setCategories(categoriesData);
+                    setCategories(categoriesData || []);
                 } catch (error) {
                     console.error('Error fetching categories:', error);
                     setCategories([]);
@@ -146,7 +160,10 @@ export function QuickAddTicket({
                 setSelectedCategories([]);
             }
         };
-        fetchCategories();
+
+        if (channelId) {
+            fetchCategories();
+        }
     }, [channelId]);
 
     const handleCompanyChange = async (newCompanyId: string) => {
@@ -173,7 +190,7 @@ export function QuickAddTicket({
 
     const handleChannelChange = (newChannelId: string) => {
         setChannelId(newChannelId);
-        setSelectedCategories([]); // Reset categories when channel changes
+        setSelectedCategories([]);
     };
     
     const handleSubmit = async (e: React.FormEvent) => {
@@ -187,7 +204,6 @@ export function QuickAddTicket({
                 throw new Error('You must be logged in to create a ticket');
             }
 
-            // Validate required fields
             if (!title.trim()) throw new Error('Title is required');
             if (!description.trim()) throw new Error('Description is required');
             if (!assignedTo) throw new Error('Please assign the ticket to someone');
@@ -212,7 +228,6 @@ export function QuickAddTicket({
                 formData.append('contact_name_id', contactId);
             }
 
-            // Add category data
             if (selectedCategories.length > 0) {
                 const category = categories.find(c => c.category_id === selectedCategories[0]);
                 if (category) {
@@ -229,10 +244,8 @@ export function QuickAddTicket({
                 throw new Error('Failed to create ticket');
             }
             
-            // First notify parent of success
             await onTicketAdded(newTicket);
             
-            // Then clear form and close
             setTitle('');
             setDescription('');
             setAssignedTo('');
@@ -245,11 +258,12 @@ export function QuickAddTicket({
             setSelectedCategories([]);
             setError(null);
             
-            // Finally close the dialog
             onOpenChange(false);
         } catch (error) {
             console.error('Error creating ticket:', error);
             setError(error instanceof Error ? error.message : 'Failed to create ticket. Please try again.');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -260,9 +274,29 @@ export function QuickAddTicket({
         return true;
     });
 
+    if (isLoading) {
+        return (
+            <Dialog.Root open={open} onOpenChange={onOpenChange}>
+                <Dialog.Portal>
+                    <Dialog.Overlay className="fixed inset-0 bg-black/50 animate-fade-in" />
+                    <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-scale-in">
+                        <div className="bg-white p-6 rounded-lg shadow-lg">
+                            <div className="flex items-center justify-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
+                            </div>
+                        </div>
+                    </Dialog.Content>
+                </Dialog.Portal>
+            </Dialog.Root>
+        );
+    }
+
     const dialogContent = (
         <div className="bg-white p-6 rounded-lg shadow-lg w-96 max-h-[90vh] overflow-y-auto">
-            <div className="text-xl font-bold mb-4">Quick Add Ticket</div>
+            <Dialog.Title className="text-xl font-bold mb-4">Quick Add Ticket</Dialog.Title>
+            <Dialog.Description className="sr-only">
+                Form to create a new ticket with fields for title, description, company, contact, assignee, channel, category, status, and priority.
+            </Dialog.Description>
             
             {error && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start space-x-2">
@@ -379,35 +413,19 @@ export function QuickAddTicket({
         </div>
     );
 
-    // If embedded, render content directly without portal
-    if (isEmbedded) {
-        return (
-            <Dialog.Root open={open} onOpenChange={onOpenChange}>
-                <Dialog.Content 
-                    className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
-                >
-                    {dialogContent}
-                    <Dialog.Close asChild>
-                        <Button 
-                            variant="ghost"
-                            className="absolute top-4 right-4" 
-                            aria-label="Close"
-                        >
-                            <X className="h-4 w-4" />
-                        </Button>
-                    </Dialog.Close>
-                </Dialog.Content>
-            </Dialog.Root>
-        );
-    }
-
-    // If not embedded, use portal
     return (
         <Dialog.Root open={open} onOpenChange={onOpenChange}>
             <Dialog.Portal>
-                <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50 animate-fade-in" />
+                <Dialog.Overlay 
+                    className="fixed inset-0 bg-black/50 animate-fade-in"
+                    onClick={() => onOpenChange(false)}
+                />
                 <Dialog.Content 
                     className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-scale-in"
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                    onCloseAutoFocus={(e) => e.preventDefault()}
+                    onPointerDownOutside={(e) => e.preventDefault()}
+                    onInteractOutside={(e) => e.preventDefault()}
                 >
                     {dialogContent}
                     <Dialog.Close asChild>
@@ -415,6 +433,7 @@ export function QuickAddTicket({
                             variant="ghost"
                             className="absolute top-4 right-4" 
                             aria-label="Close"
+                            tabIndex={-1}
                         >
                             <X className="h-4 w-4" />
                         </Button>

@@ -36,7 +36,6 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   label,
 }): JSX.Element => {
   const selectedOption = options.find(option => option.value === value);
-  const [isOpen, setIsOpen] = React.useState(false);
 
   return (
     <div className={label ? 'mb-4' : ''}>
@@ -49,8 +48,6 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
         value={value} 
         onValueChange={onValueChange} 
         disabled={disabled}
-        open={isOpen}
-        onOpenChange={setIsOpen}
       >
         <RadixSelect.Trigger
           className={`
@@ -63,6 +60,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
             ${className}
             ${customStyles?.trigger || ''}
           `}
+          aria-label={placeholder}
         >
           <RadixSelect.Value 
             placeholder={placeholder}
@@ -75,42 +73,51 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
           </RadixSelect.Icon>
         </RadixSelect.Trigger>
 
-        {isOpen && (
-          <RadixSelect.Portal>
-            <RadixSelect.Content
-              className={`
-                overflow-hidden bg-white rounded-md shadow-lg
-                border border-gray-200 mt-1 z-[60] w-fit
-                ${customStyles?.content || ''}
-              `}
-              position="popper"
-              sideOffset={4}
-              align="start"
-            >
-              <RadixSelect.Viewport className="p-1">
-                {options.map((option): JSX.Element => (
-                  <RadixSelect.Item
-                    key={option.value}
-                    value={option.value}
-                    className={`
-                      relative flex items-center px-3 py-2 text-sm rounded text-gray-900
-                      cursor-pointer bg-white hover:bg-gray-100 focus:bg-gray-100
-                      focus:outline-none select-none whitespace-nowrap
-                      ${customStyles?.item || ''}
-                    `}
-                  >
-                    <RadixSelect.ItemText>{option.label}</RadixSelect.ItemText>
-                    {customStyles?.itemIndicator && (
-                      <RadixSelect.ItemIndicator className={customStyles.itemIndicator}>
-                        <ChevronDown className="w-4 h-4 text-gray-400" />
-                      </RadixSelect.ItemIndicator>
-                    )}
-                  </RadixSelect.Item>
-                ))}
-              </RadixSelect.Viewport>
-            </RadixSelect.Content>
-          </RadixSelect.Portal>
-        )}
+        <RadixSelect.Portal>
+          <RadixSelect.Content
+            className={`
+              overflow-hidden bg-white rounded-md shadow-lg
+              border border-gray-200 mt-1 z-[9999] w-[var(--radix-select-trigger-width)]
+              ${customStyles?.content || ''}
+            `}
+            position="popper"
+            sideOffset={4}
+            align="start"
+            onCloseAutoFocus={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.stopPropagation()}
+          >
+            <RadixSelect.ScrollUpButton className="flex items-center justify-center h-6 bg-white text-gray-700 cursor-default">
+              <ChevronDown className="w-4 h-4 rotate-180" />
+            </RadixSelect.ScrollUpButton>
+            
+            <RadixSelect.Viewport className="p-1">
+              {options.map((option): JSX.Element => (
+                <RadixSelect.Item
+                  key={option.value}
+                  value={option.value}
+                  className={`
+                    relative flex items-center px-3 py-2 text-sm rounded text-gray-900
+                    cursor-pointer bg-white hover:bg-gray-100 focus:bg-gray-100
+                    focus:outline-none select-none whitespace-nowrap
+                    data-[highlighted]:bg-gray-100
+                    ${customStyles?.item || ''}
+                  `}
+                >
+                  <RadixSelect.ItemText>{option.label}</RadixSelect.ItemText>
+                  {customStyles?.itemIndicator && (
+                    <RadixSelect.ItemIndicator className={customStyles.itemIndicator}>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </RadixSelect.ItemIndicator>
+                  )}
+                </RadixSelect.Item>
+              ))}
+            </RadixSelect.Viewport>
+
+            <RadixSelect.ScrollDownButton className="flex items-center justify-center h-6 bg-white text-gray-700 cursor-default">
+              <ChevronDown className="w-4 h-4" />
+            </RadixSelect.ScrollDownButton>
+          </RadixSelect.Content>
+        </RadixSelect.Portal>
       </RadixSelect.Root>
     </div>
   );
