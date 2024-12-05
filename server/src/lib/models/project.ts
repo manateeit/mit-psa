@@ -691,7 +691,7 @@ const ProjectModel = {
     }
   },
   
-  addTaskTicketLink: async (projectId: string, taskId: string | null, ticketId: string): Promise<IProjectTicketLink> => {
+  addTaskTicketLink: async (projectId: string, taskId: string | null, ticketId: string, phaseId: string): Promise<IProjectTicketLink> => {
     try {
       const {knex: db, tenant} = await createTenantKnex();
 
@@ -699,6 +699,7 @@ const ProjectModel = {
       const existingLink = await db<IProjectTicketLink>('project_ticket_links')
         .where({
           project_id: projectId,
+          phase_id: phaseId,
           task_id: taskId,
           ticket_id: ticketId
         })
@@ -712,6 +713,7 @@ const ProjectModel = {
         .insert({
           link_id: uuidv4(),
           project_id: projectId,
+          phase_id: phaseId,
           task_id: taskId,
           ticket_id: ticketId,
           tenant: tenant!,
@@ -834,6 +836,61 @@ const ProjectModel = {
       return resources;
     } catch (error) {
       console.error('Error getting task resources:', error);
+      throw error;
+    }
+  },
+
+  getAllTaskChecklistItems: async (projectId: string): Promise<{ [taskId: string]: ITaskChecklistItem[] }> => {
+    try {
+      const {knex: db} = await createTenantKnex();
+      const items = await db('task_checklist_items')
+        .join('project_tasks', 'task_checklist_items.task_id', 'project_tasks.task_id')
+        .join('project_phases', 'project_tasks.phase_id', 'project_phases.phase_id')
+        .where('project_phases.project_id', projectId)
+        .orderBy('task_checklist_items.order_number', 'asc')
+        .select('task_checklist_items.*');
+
+      // Group items by task_id
+      return items.reduce((acc: { [taskId: string]: ITaskChecklistItem[] }, item) => {
+        if (!acc[item.task_id]) {
+          acc[item.task_id] = [];
+        }
+        acc[item.task_id].push(item);
+        return acc;
+      }, {});
+    } catch (error) {
+      console.error('Error getting all task checklist items:', error);
+      throw error;
+    }
+  },
+
+  getAllTaskTicketLinks: async (projectId: string): Promise<{ [taskId: string]: IProjectTicketLinkWithDetails[] }> => {
+    try {
+      const {knex: db} = await createTenantKnex();
+      const links = await db('project_ticket_links')
+        .where('project_ticket_links.project_id', projectId)
+        .leftJoin('tickets', 'project_ticket_links.ticket_id', 'tickets.ticket_id')
+        .leftJoin('statuses', 'tickets.status_id', 'statuses.status_id')
+        .select(
+          'project_ticket_links.*',
+          'tickets.ticket_number',
+          'tickets.title',
+          'statuses.name as status_name',
+          'statuses.is_closed'
+        );
+
+      // Group links by task_id
+      return links.reduce((acc: { [taskId: string]: IProjectTicketLinkWithDetails[] }, link) => {
+        if (link.task_id) {  // Only group if task_id exists
+          if (!acc[link.task_id]) {
+            acc[link.task_id] = [];
+          }
+          acc[link.task_id].push(link);
+        }
+        return acc;
+      }, {});
+    } catch (error) {
+      console.error('Error getting all task ticket links:', error);
       throw error;
     }
   }

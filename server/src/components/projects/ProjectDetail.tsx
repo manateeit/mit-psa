@@ -1,13 +1,21 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink, ProjectStatus } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { useDrawer } from '@/context/DrawerContext';
 import TaskQuickAdd from './TaskQuickAdd';
 import TaskEdit from './TaskEdit';
 import PhaseQuickAdd from './PhaseQuickAdd';
-import { updateTaskStatus, getProjectTaskStatuses, updatePhase, moveTaskToPhase, updateTaskWithChecklist, deletePhase, getTaskChecklistItems } from '@/lib/actions/projectActions';
+import { 
+  updateTaskStatus, 
+  getProjectTaskStatuses, 
+  updatePhase, 
+  moveTaskToPhase, 
+  updateTaskWithChecklist, 
+  deletePhase,
+  getTaskChecklistItems 
+} from '@/lib/actions/projectActions';
 import styles from './ProjectDetail.module.css';
 import { Toaster, toast } from 'react-hot-toast';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
@@ -27,7 +35,7 @@ interface ProjectDetailProps {
 export default function ProjectDetail({ 
   project, 
   phases, 
-  tasks, 
+  tasks: initialTasks, 
   ticketLinks: _ticketLinks, 
   statuses: initialStatuses, 
   users
@@ -38,7 +46,7 @@ export default function ProjectDetail({
   const [currentPhase, setCurrentPhase] = useState<IProjectPhase | null>(null);
   const [selectedPhase, setSelectedPhase] = useState<IProjectPhase | null>(null);
   const { openDrawer: _openDrawer, closeDrawer: _closeDrawer } = useDrawer();
-  const [projectTasks, setProjectTasks] = useState<IProjectTask[]>(tasks);
+  const [projectTasks, setProjectTasks] = useState<IProjectTask[]>(initialTasks);
   const [projectPhases, setProjectPhases] = useState<IProjectPhase[]>(phases);
   const [projectStatuses, setProjectStatuses] = useState<ProjectStatus[]>(initialStatuses);
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -57,35 +65,6 @@ export default function ProjectDetail({
     phaseId: string;
     phaseName: string;
   } | null>(null);
-
-  useEffect(() => {
-    const loadChecklistItems = async () => {
-      try {
-        const tasksWithChecklists = await Promise.all(
-          tasks.map(async (task): Promise<IProjectTask> => {
-            const checklistItems = await getTaskChecklistItems(task.task_id);
-            return { ...task, checklist_items: checklistItems };
-          })
-        );
-        setProjectTasks(tasksWithChecklists);
-      } catch (error) {
-        console.error('Error loading checklist items:', error);
-      }
-    };
-    loadChecklistItems();
-  }, [tasks]);
-
-  useEffect(() => {
-    const loadProjectStatuses = async () => {
-      try {
-        const statuses = await getProjectTaskStatuses(project.project_id);
-        setProjectStatuses(statuses);
-      } catch (error) {
-        console.error('Error loading project statuses:', error);
-      }
-    };
-    loadProjectStatuses();
-  }, [project.project_id]);
 
   const filteredTasks = useMemo(() => {
     if (!selectedPhase) return [];

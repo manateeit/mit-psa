@@ -1,43 +1,51 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { QuickAddTicket } from '@/components/tickets/QuickAddTicket';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { 
   addTicketLinkAction,
   deleteTaskTicketLinkAction,
   getTaskTicketLinksAction
 } from '@/lib/actions/projectActions';
-import { getTicketsForList, getTicketById } from '@/lib/actions/ticket-actions/ticketActions'
+import { getTicketsForList, getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
 import { ITicketListFilters } from '@/interfaces/ticket.interfaces';
 import { useDrawer } from '@/context/DrawerContext';
 import TicketDetails from '@/components/tickets/TicketDetails';
 import { ITicketListItem, ITicket } from '@/interfaces/ticket.interfaces';
 import { IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { Button } from '@/components/ui/Button';
-import CustomSelect from '@/components/ui/CustomSelect';
 import { Link, Plus, ExternalLink, Trash2 } from 'lucide-react';
-import * as Dialog from '@radix-ui/react-dialog';
-import { QuickAddTicket } from '@/components/tickets/QuickAddTicket';
 import { toast } from 'react-hot-toast';
+import GenericDialog from '@/components/ui/GenericDialog';
 
 interface TaskTicketLinksProps {
   taskId: string | null;
   phaseId: string;
   projectId: string;
   initialLinks?: IProjectTicketLinkWithDetails[];
+  tempTaskId?: string;
+  onShowLinkDialog: (options: { tickets: SelectOption[], onSelect: (ticketId: string) => void }) => void;
+  onShowCreateDialog: (onTicketCreated: (ticket: ITicket) => void) => void;
+}
+
+interface SelectOption {
+  value: string;
+  label: string;
 }
 
 export default function TaskTicketLinks({
   taskId,
   phaseId,
   projectId,
-  initialLinks = []
+  initialLinks = [],
+  tempTaskId = `temp-${Date.now()}`,
+  onShowLinkDialog,
+  onShowCreateDialog
 }: TaskTicketLinksProps) {
-  const [showTicketDialog, setShowTicketDialog] = useState(false);
-  const [showNewTicketForm, setShowNewTicketForm] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<string>('');
   const [taskTicketLinks, setTaskTicketLinks] = useState<IProjectTicketLinkWithDetails[]>(initialLinks);
   const [availableTickets, setAvailableTickets] = useState<ITicketListItem[]>([]);
+  const { openDrawer } = useDrawer();
 
   useEffect(() => {
     const fetchTickets = async () => {
@@ -76,39 +84,12 @@ export default function TaskTicketLinks({
     fetchLinks();
   }, [taskId]);
 
-  const handleLinkTicket = async () => {
-    if (!selectedTicket) return;
-    
-    try {
-      await onLinkTicket(selectedTicket);
-      toast.success('Ticket linked successfully');
-      setShowTicketDialog(false);
-      setSelectedTicket('');
-    } catch (error: any) {
-      console.error('Error linking ticket:', error);
-      if (error.message === 'This ticket is already linked to this task') {
-        toast.error('This ticket is already linked to this task');
-      } else {
-        toast.error('Failed to link ticket');
-      }
-    }
-  };
-
-  const ticketOptions = availableTickets
-    .filter((ticket): ticket is ITicketListItem & { ticket_id: string } => ticket.ticket_id !== undefined)
-    .map((ticket): { value: string; label: string } => ({
-      value: ticket.ticket_id,
-      label: `${ticket.ticket_number} - ${ticket.title}`
-    }));
-
-  const { openDrawer } = useDrawer();
-
   const onLinkTicket = async (ticketId: string) => {
     if (!ticketId) return;
     
     try {
       if (taskId) {
-        await addTicketLinkAction(projectId, taskId, ticketId);
+        await addTicketLinkAction(projectId, taskId, ticketId, phaseId);
         const links = await getTaskTicketLinksAction(taskId);
         setTaskTicketLinks(links);
       } else {
@@ -127,11 +108,23 @@ export default function TaskTicketLinks({
             status_name: selectedTicketDetails.status_name,
             is_closed: selectedTicketDetails.closed_at !== null
           };
-          setTaskTicketLinks([...taskTicketLinks, tempLink]);
+          const newLinks = [...taskTicketLinks, tempLink];
+          setTaskTicketLinks(newLinks);
+          // Store links in DOM for TaskForm to access later
+          const dataElement = document.querySelector(`[data-task-id="${tempTaskId}"]`);
+          if (dataElement) {
+            dataElement.setAttribute('data-ticket-links', JSON.stringify(newLinks));
+          }
         }
       }
+      toast.success('Ticket linked successfully');
     } catch (error) {
-      throw error;
+      console.error('Error linking ticket:', error);
+      if (error instanceof Error && error.message === 'This ticket is already linked to this task') {
+        toast.error('This ticket is already linked to this task');
+      } else {
+        toast.error('Failed to link ticket');
+      }
     }
   };
 
@@ -163,14 +156,33 @@ export default function TaskTicketLinks({
         const links = await getTaskTicketLinksAction(taskId);
         setTaskTicketLinks(links);
       } else {
-        // For new tasks, just remove from state
-        setTaskTicketLinks(taskTicketLinks.filter(link => link.link_id !== linkId));
+        // For new tasks, just remove from state and update DOM data
+        const newLinks = taskTicketLinks.filter(link => link.link_id !== linkId);
+        setTaskTicketLinks(newLinks);
+        const dataElement = document.querySelector(`[data-task-id="${tempTaskId}"]`);
+        if (dataElement) {
+          dataElement.setAttribute('data-ticket-links', JSON.stringify(newLinks));
+        }
       }
       toast.success('Ticket link removed');
     } catch (error) {
       console.error('Error deleting ticket link:', error);
       toast.error('Failed to remove ticket link');
     }
+  };
+
+  const handleShowLinkDialog = () => {
+    const ticketOptions = availableTickets
+      .filter((ticket): ticket is ITicketListItem & { ticket_id: string } => ticket.ticket_id !== undefined)
+      .map((ticket): SelectOption => ({
+        value: ticket.ticket_id,
+        label: `${ticket.ticket_number} - ${ticket.title}`
+      }));
+
+    onShowLinkDialog({
+      tickets: ticketOptions,
+      onSelect: onLinkTicket
+    });
   };
 
   const onNewTicketCreated = async (ticket: ITicket) => {
@@ -180,8 +192,15 @@ export default function TaskTicketLinks({
     }
     try {
       await onLinkTicket(ticket.ticket_id);
-      setShowNewTicketForm(false);
-      toast.success('New ticket created and linked');
+      // Update available tickets list
+      const user = await getCurrentUser();
+      if (user) {
+        const filters: ITicketListFilters = {
+          channelFilterState: 'all'
+        };
+        const tickets = await getTicketsForList(user, filters);
+        setAvailableTickets(tickets);
+      }
     } catch (error) {
       console.error('Error linking new ticket:', error);
       toast.error('Failed to link new ticket');
@@ -189,14 +208,14 @@ export default function TaskTicketLinks({
   };
 
   return (
-    <div className="mt-6">
+    <div className="mt-6" data-task-id={tempTaskId}>
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-semibold">Associated Tickets</h3>
         <div className="flex space-x-2">
           <Button
             type="button"
             variant="soft"
-            onClick={() => setShowTicketDialog(true)}
+            onClick={handleShowLinkDialog}
             className="flex items-center"
           >
             <Link className="h-4 w-4 mr-1" />
@@ -205,7 +224,7 @@ export default function TaskTicketLinks({
           <Button
             type="button"
             variant="soft"
-            onClick={() => setShowNewTicketForm(true)}
+            onClick={() => onShowCreateDialog(onNewTicketCreated)}
             className="flex items-center"
           >
             <Plus className="h-4 w-4 mr-1" />
@@ -239,46 +258,6 @@ export default function TaskTicketLinks({
           </div>
         ))}
       </div>
-
-      <Dialog.Root open={showTicketDialog} onOpenChange={setShowTicketDialog}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 rounded-lg shadow-lg w-[400px]">
-            <Dialog.Title className="text-lg font-semibold mb-4">Link Existing Ticket</Dialog.Title>
-            <div className="space-y-4">
-              <CustomSelect
-                value={selectedTicket}
-                onValueChange={setSelectedTicket}
-                options={ticketOptions}
-                placeholder="Select a ticket"
-                className="w-full"
-              />
-              <div className="flex justify-end space-x-2">
-                <Button variant="ghost" onClick={() => setShowTicketDialog(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleLinkTicket} disabled={!selectedTicket}>
-                  Link Ticket
-                </Button>
-              </div>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
-
-      <Dialog.Root open={showNewTicketForm} onOpenChange={setShowNewTicketForm}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 rounded-lg shadow-lg w-[600px]">
-            <Dialog.Title className="text-lg font-semibold mb-4">Create New Ticket</Dialog.Title>
-            <QuickAddTicket 
-              open={showNewTicketForm}
-              onOpenChange={setShowNewTicketForm}
-              onTicketAdded={onNewTicketCreated}
-            />
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
     </div>
   );
 }

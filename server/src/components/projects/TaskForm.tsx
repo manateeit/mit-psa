@@ -14,14 +14,15 @@ import {
   getProjectTaskStatuses,
   addTaskResourceAction,
   removeTaskResourceAction,
-  getTaskResourcesAction
+  getTaskResourcesAction,
+  addTicketLinkAction
 } from '@/lib/actions/projectActions';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
 import EditableText from '@/components/ui/EditableText';
-import { ListChecks, UserPlus, Trash2 } from 'lucide-react';
+import { ListChecks, UserPlus, Trash2, X } from 'lucide-react';
 import UserPicker from '@/components/ui/UserPicker';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import CustomSelect from '@/components/ui/CustomSelect';
@@ -29,6 +30,9 @@ import { Input } from '@/components/ui/Input';
 import { toast } from 'react-hot-toast';
 import TaskTicketLinks from './TaskTicketLinks';
 import TreeSelect, { TreeSelectOption, TreeSelectPath } from '@/components/ui/TreeSelect';
+import GenericDialog from '@/components/ui/GenericDialog';
+import { QuickAddTicket } from '@/components/tickets/QuickAddTicket';
+import { ITicket } from '@/interfaces/ticket.interfaces';
 
 type ProjectTreeTypes = 'project' | 'phase' | 'status';
 
@@ -43,6 +47,11 @@ interface TaskFormProps {
   users: IUserWithRoles[];
   mode: 'create' | 'edit';
   onPhaseChange: (phaseId: string) => void;
+}
+
+interface SelectOption {
+  value: string;
+  label: string;
 }
 
 export default function TaskForm({
@@ -62,11 +71,6 @@ export default function TaskForm({
   const [description, setDescription] = useState(task?.description || '');
   const [projectTreeOptions, setProjectTreeOptions] = useState<Array<TreeSelectOption<'project' | 'phase' | 'status'>>>([]);
   const [selectedPhaseId, setSelectedPhaseId] = useState<string>(phase.phase_id);
-  const [selectedStatusId, setSelectedStatusId] = useState<string>(
-    task?.project_status_mapping_id || 
-    defaultStatus?.project_status_mapping_id || 
-    projectStatuses[0]?.project_status_mapping_id
-  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checklistItems, setChecklistItems] = useState<Omit<ITaskChecklistItem, 'tenant'>[]>(task?.checklist_items || []);
   const [isEditingChecklist, setIsEditingChecklist] = useState(false);
@@ -81,6 +85,18 @@ export default function TaskForm({
   const [taskResources, setTaskResources] = useState<any[]>(task?.task_id ? [] : []);
   const [tempTaskResources, setTempTaskResources] = useState<any[]>([]);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showLinkTicketDialog, setShowLinkTicketDialog] = useState(false);
+  const [showCreateTicketDialog, setShowCreateTicketDialog] = useState(false);
+  const [linkTicketOptions, setLinkTicketOptions] = useState<SelectOption[]>([]);
+  const [selectedTicketId, setSelectedTicketId] = useState('');
+  const [onTicketSelected, setOnTicketSelected] = useState<((ticketId: string) => void) | null>(null);
+  const [onTicketCreated, setOnTicketCreated] = useState<(ticket: ITicket) => void>(() => () => {});
+  const [selectedStatusId, setSelectedStatusId] = useState<string>(
+    task?.project_status_mapping_id || 
+    defaultStatus?.project_status_mapping_id || 
+    projectStatuses[0]?.project_status_mapping_id
+  );
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -218,7 +234,12 @@ export default function TaskForm({
           };
           resultTask = await updateTaskWithChecklist(movedTask.task_id, taskData);
         }
+        onClose(); // Only close in edit mode
       } else {
+        // Get ticket links data before creating task
+        const ticketLinksData = document.querySelector(`[data-task-id="${tempTaskId}"]`)?.getAttribute('data-ticket-links');
+        const ticketLinks = ticketLinksData ? JSON.parse(ticketLinksData) : [];
+
         // Create mode
         const taskData = {
           task_name: taskName,
@@ -234,17 +255,21 @@ export default function TaskForm({
 
         resultTask = await addTaskToPhase(phase.phase_id, taskData, checklistItems);
 
-        // Add task resources for new task
         if (resultTask) {
+          // Add task resources
           for (const resource of tempTaskResources) {
             await addTaskResourceAction(resultTask.task_id, resource.additional_user_id);
           }
+          
+          // Add ticket links using the actual task ID and phase ID
+          for (const link of ticketLinks) {
+            await addTicketLinkAction(phase.project_id, resultTask.task_id, link.ticket_id, phase.phase_id);
+          }
         }
-        
       }
       
       onSubmit(resultTask);
-      onClose();
+      // Note: We removed onClose() here to keep the form open in create mode
     } catch (error) {
       console.error('Error saving task:', error);
       toast.error('Failed to save task');
@@ -315,7 +340,6 @@ export default function TaskForm({
     setChecklistItems(updatedItems);
   };
 
-
   const handleDeleteConfirm = async () => {
     if (!task?.task_id) return;
     
@@ -378,13 +402,38 @@ export default function TaskForm({
     }
   };
 
+  const handleShowLinkDialog = ({ tickets, onSelect }: { tickets: SelectOption[], onSelect: (ticketId: string) => void }) => {
+    setLinkTicketOptions(tickets);
+    setOnTicketSelected(() => onSelect);
+    setShowLinkTicketDialog(true);
+  };
+
+  const handleShowCreateDialog = (onCreated: (ticket: ITicket) => void) => {
+    setOnTicketCreated(() => onCreated);
+    setShowCreateDialog(true);
+  };
+
+  const handleLinkTicket = () => {
+    if (!selectedTicketId || !onTicketSelected) return;
+    onTicketSelected(selectedTicketId);
+    setShowLinkTicketDialog(false);
+    setSelectedTicketId('');
+    setOnTicketSelected(null);
+  };
 
   return (
     <>
       <Dialog.Root open={true} onOpenChange={handleDialogClose}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-[600px] max-h-[90vh] overflow-y-auto">
+          <Dialog.Content 
+            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-[600px] max-h-[90vh] overflow-y-auto"
+            onOpenAutoFocus={(e) => {
+              if (showCreateDialog || showLinkTicketDialog) {
+                e.preventDefault();
+              }
+            }}
+          >
             <Dialog.Title className="text-xl font-semibold mb-4">
               {mode === 'edit' ? 'Edit Task' : 'Add New Task'}
             </Dialog.Title>
@@ -560,6 +609,9 @@ export default function TaskForm({
                   phaseId={phase.phase_id}
                   projectId={phase.project_id}
                   initialLinks={task?.ticket_links}
+                  tempTaskId={tempTaskId}
+                  onShowLinkDialog={handleShowLinkDialog}
+                  onShowCreateDialog={handleShowCreateDialog}
                 />
 
                 <div className="flex justify-between mt-6">
@@ -591,7 +643,60 @@ export default function TaskForm({
         </Dialog.Portal>
       </Dialog.Root>
 
-      <ConfirmationDialog
+      {/* Render ticket dialogs at root level */}
+      {showLinkTicketDialog && (
+        <Dialog.Root 
+          open={showLinkTicketDialog} 
+          onOpenChange={(open) => !open && setShowLinkTicketDialog(false)}
+          modal={true}
+        >
+          <Dialog.Portal container={document.body}>
+            <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50 z-[60]" />
+            <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg p-6 w-[400px] z-[70]">
+              <h2 className="text-xl font-semibold mb-4">Link Existing Ticket</h2>
+              <div className="space-y-4">
+                <CustomSelect
+                  value={selectedTicketId}
+                  onValueChange={setSelectedTicketId}
+                  options={linkTicketOptions}
+                  placeholder="Select a ticket"
+                  className="w-full"
+                />
+                <div className="flex justify-end space-x-2">
+                  <Button variant="ghost" onClick={() => setShowLinkTicketDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleLinkTicket} disabled={!selectedTicketId}>
+                    Link Ticket
+                  </Button>
+                </div>
+              </div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
+      )}
+
+      {showCreateDialog && (
+        <div className="relative z-[80]">
+          <QuickAddTicket
+            open={showCreateDialog}
+            onOpenChange={(open) => {
+              if (!open) {
+                setShowCreateDialog(false);
+                setOnTicketCreated(() => () => {});
+              }
+            }}
+            onTicketAdded={(ticket) => {
+              onTicketCreated(ticket);
+              setShowCreateDialog(false);
+              setOnTicketCreated(() => () => {});
+            }}
+            isEmbedded={true}
+          />
+        </div>
+      )}
+
+<ConfirmationDialog
         isOpen={showCancelConfirm}
         onClose={handleCancelDismiss}
         onConfirm={handleCancelConfirm}
@@ -626,7 +731,6 @@ export default function TaskForm({
         />
       )}
 
-
       <Dialog.Root open={showAgentPicker} onOpenChange={setShowAgentPicker}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
@@ -637,7 +741,6 @@ export default function TaskForm({
                 value=""
                 onValueChange={handleAddAgent}
                 users={users.filter(u => 
-                  // Only filter out current user if no one is assigned, always filter out assined user and additional resources
                   (!assignedUser ? u.user_id !== currentUserId : true) && 
                   u.user_id !== assignedUser && 
                   !(task?.task_id ? taskResources : tempTaskResources)

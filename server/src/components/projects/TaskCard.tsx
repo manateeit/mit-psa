@@ -24,15 +24,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onDragStart,
   onDragEnd,
 }) => {
-  const [taskTickets, setTaskTickets] = useState<IProjectTicketLinkWithDetails[]>([]);
+  const [taskTickets, setTaskTickets] = useState<IProjectTicketLinkWithDetails[]>(task.ticket_links || []);
   const [taskResources, setTaskResources] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [links, resources] = await Promise.all([
-          getTaskTicketLinksAction(task.task_id),
-          getTaskResourcesAction(task.task_id)
+          task.task_id ? getTaskTicketLinksAction(task.task_id) : Promise.resolve(task.ticket_links || []),
+          task.task_id ? getTaskResourcesAction(task.task_id) : Promise.resolve([])
         ]);
         setTaskTickets(links);
         setTaskResources(resources);
@@ -42,7 +42,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     };
 
     fetchData();
-  }, [task.task_id]);
+  }, [task.task_id, task.ticket_links]);
 
   const checklistItems = task.checklist_items || [];
   const completedItems = checklistItems.filter(item => item.completed).length;

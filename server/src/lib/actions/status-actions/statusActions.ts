@@ -6,27 +6,32 @@ import { options } from "@/app/api/auth/[...nextauth]/options";
 import { IStatus, ItemType } from '@/interfaces/project.interfaces';
 
 export async function getTicketStatuses() {
-  const session = await getServerSession(options);
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized');
-  }
-
-  const {knex: db, tenant} = await createTenantKnex();
-  if (!tenant) {
-    throw new Error("User is not logged in");
-  }
-
   try {
+    // Get the session first to ensure we have a valid user
+    const session = await getServerSession(options);
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized');
+    }
+
+    // Get the database connection with tenant
+    const {knex: db, tenant} = await createTenantKnex();
+    if (!tenant) {
+      throw new Error("Tenant not found");
+    }
+
+    // Fetch statuses for the current tenant
     const statuses = await db<IStatus>('statuses')
       .where({
         tenant,
         status_type: 'ticket' as ItemType
       })
-      .select('*');
+      .select('*')
+      .orderBy('order_number');
+
     return statuses;
   } catch (error) {
     console.error('Error fetching ticket statuses:', error);
-    throw new Error('Failed to fetch ticket statuses');
+    throw error;
   }
 }
 
@@ -43,7 +48,7 @@ export async function createStatus(statusData: Omit<IStatus, 'status_id' | 'tena
   const {knex: db, tenant} = await createTenantKnex();
   try {
     if (!tenant) {
-      throw new Error("User is not logged in");
+      throw new Error("Tenant not found");
     }
 
     const newStatus = await db.transaction(async (trx) => {
@@ -114,7 +119,7 @@ export async function updateStatus(statusId: string, statusData: Partial<IStatus
   const {knex: db, tenant} = await createTenantKnex();
   try {
     if (!tenant) {
-      throw new Error("User is not logged in");
+      throw new Error("Tenant not found");
     }
 
     // Check if new name conflicts with existing status
@@ -170,7 +175,7 @@ export async function deleteStatus(statusId: string) {
   const {knex: db, tenant} = await createTenantKnex();
   try {
     if (!tenant) {
-      throw new Error("User is not logged in");
+      throw new Error("Tenant not found");
     }
 
     // Check if status is in use
