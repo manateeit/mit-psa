@@ -12,6 +12,7 @@ interface ChannelPickerProps {
   selectedChannelId: string | null;
   filterState: 'active' | 'inactive' | 'all';
   onFilterStateChange: (state: 'active' | 'inactive' | 'all') => void;
+  className?: string;
 }
 
 export const ChannelPicker: React.FC<ChannelPickerProps> = ({
@@ -20,6 +21,7 @@ export const ChannelPicker: React.FC<ChannelPickerProps> = ({
   selectedChannelId,
   filterState,
   onFilterStateChange,
+  className = 'w-full'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,7 +69,7 @@ export const ChannelPicker: React.FC<ChannelPickerProps> = ({
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="w-full min-h-[38px] px-3 py-2 border border-gray-200 rounded-md shadow-sm flex justify-between items-center bg-white text-left text-base hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+          className={`min-h-[38px] px-3 py-2 border border-gray-200 rounded-md shadow-sm flex justify-between items-center bg-white text-left text-base hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent ${className}`}
         >
           <span className="text-gray-700">{getButtonLabel()}</span>
           <ChevronDownIcon className="w-4 h-4 text-gray-400 ml-2" />
