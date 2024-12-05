@@ -6,6 +6,7 @@ import { Circle, Plus } from 'lucide-react';
 import TaskCard from './TaskCard';
 import styles from './ProjectDetail.module.css';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
+import { useState, useEffect } from 'react';
 
 interface StatusColumnProps {
   status: ProjectStatus;
@@ -44,11 +45,79 @@ export const StatusColumn: React.FC<StatusColumnProps> = ({
   onDragStart,
   onDragEnd,
 }) => {
+  const [isDraggedOver, setIsDraggedOver] = useState(false);
+  const [scrollInterval, setScrollInterval] = useState<NodeJS.Timeout | null>(null);
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollInterval) {
+        clearInterval(scrollInterval);
+      }
+    };
+  }, [scrollInterval]);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!isDraggedOver) {
+      setIsDraggedOver(true);
+    }
+
+    // Get the mouse position relative to the viewport
+    const mouseY = e.clientY;
+    const scrollThreshold = 200;
+
+    // Clear any existing scroll interval
+    if (scrollInterval) {
+      clearInterval(scrollInterval);
+      setScrollInterval(null);
+    }
+
+    // If mouse is near the top of the viewport, start scrolling up
+    if (mouseY < scrollThreshold) {
+      const newInterval = setInterval(() => {
+        window.scrollBy({
+          top: -10,
+          behavior: 'smooth'
+        });
+      }, 100);
+      setScrollInterval(newInterval);
+    }
+
+    onDragOver(e);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggedOver(false);
+    
+    // Clear scroll interval when leaving the drop zone
+    if (scrollInterval) {
+      clearInterval(scrollInterval);
+      setScrollInterval(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    setIsDraggedOver(false);
+    
+    // Clear scroll interval when dropping
+    if (scrollInterval) {
+      clearInterval(scrollInterval);
+      setScrollInterval(null);
+    }
+    
+    onDrop(e, status.project_status_mapping_id);
+  };
+
   return (
     <div
-      className={`${styles.kanbanColumn} ${backgroundColor} rounded-lg border-gray-200 shadow-sm border-2 border-solid`}
-      onDrop={(e) => onDrop(e, status.project_status_mapping_id)}
-      onDragOver={onDragOver}
+      className={`${styles.kanbanColumn} ${backgroundColor} rounded-lg border-2 border-solid transition-all duration-200 ${
+        isDraggedOver ? 'border-purple-500' : 'border-gray-200'
+      }`}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
     >
       <div className="font-bold text-sm p-3 rounded-t-lg flex items-center justify-between relative z-10">
         <div className={`flex ${darkBackgroundColor} rounded-[20px] border-2 ${borderColor} shadow-sm items-center ps-3 py-3 pe-4`}>

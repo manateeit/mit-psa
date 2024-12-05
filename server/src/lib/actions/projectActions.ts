@@ -614,7 +614,7 @@ export async function getProjectDetails(projectId: string): Promise<{
             throw new Error('Project not found');
         }
 
-        const tasks = rawTasks.map(task => ({
+        const tasks = rawTasks.map((task): IProjectTask & { checklist_items: ITaskChecklistItem[] } => ({
             ...task,
             checklist_items: checklistItemsMap[task.task_id] || []
         }));

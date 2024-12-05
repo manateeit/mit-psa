@@ -26,6 +26,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 }) => {
   const [taskTickets, setTaskTickets] = useState<IProjectTicketLinkWithDetails[]>(task.ticket_links || []);
   const [taskResources, setTaskResources] = useState<any[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -53,20 +54,32 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const hasTickets = taskTickets.length > 0;
   const allTicketsCompleted = hasTickets && completedTickets === taskTickets.length;
 
+  const handleDragStart = (e: React.DragEvent) => {
+    setIsDragging(true);
+    onDragStart(e, task.task_id);
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    setIsDragging(false);
+    onDragEnd(e);
+  };
+
   return (
     <div
       draggable
-      onDragStart={(e) => onDragStart(e, task.task_id)}
-      onDragEnd={onDragEnd}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
       onClick={() => onTaskSelected(task)}
-      className="bg-white p-3 mb-2 rounded shadow-sm cursor-pointer hover:shadow-md transition-shadow duration-200 border border-gray-200 flex flex-col gap-1"
+      className={`bg-white p-3 mb-2 rounded shadow-sm cursor-pointer hover:shadow-md transition-all duration-200 border border-gray-200 flex flex-col gap-1 ${
+        isDragging ? 'opacity-50 ring-2 ring-purple-500 shadow-lg scale-105' : ''
+      }`}
     >
-      <input
-        className="font-semibold text-base mb-1 w-full bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-purple-500 rounded px-1"
-        value={task.task_name}
-        onChange={(e) => onAssigneeChange(task.task_id, task.assigned_to || '', e.target.value)}
+      <div
+        className="font-semibold text-base mb-1 w-full px-1"
         onClick={(e) => e.stopPropagation()}
-      />
+      >
+        {task.task_name}
+      </div>
       {task.description && (
         <p className="text-sm text-gray-600 mb-2 line-clamp-2">
           {task.description}
