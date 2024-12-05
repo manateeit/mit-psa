@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink, ProjectStatus } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { useDrawer } from '@/context/DrawerContext';
@@ -77,18 +77,35 @@ export default function ProjectDetail({
     ).length;
   }, [filteredTasks, projectStatuses]);
 
+  const [scrollInterval, setScrollInterval] = useState<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (scrollInterval) {
+        clearInterval(scrollInterval);
+      }
+    };
+  }, [scrollInterval]);
+
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData('text/plain', taskId);
     if (e.target instanceof HTMLElement) {
       e.target.classList.add('opacity-50');
     }
+    document.body.classList.add('dragging-task');
   };
 
   const handleDragEnd = (e: React.DragEvent) => {
     if (e.target instanceof HTMLElement) {
       e.target.classList.remove('opacity-50');
     }
+    document.body.classList.remove('dragging-task');
     setDragOverPhaseId(null);
+    
+    if (scrollInterval) {
+      clearInterval(scrollInterval);
+      setScrollInterval(null);
+    }
   };
 
   const handleDrop = async (e: React.DragEvent, projectStatusMappingId: string) => {
@@ -111,11 +128,49 @@ export default function ProjectDetail({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    
+    const mouseY = e.clientY;
+    const viewportHeight = window.innerHeight;
+    const topThreshold = viewportHeight * 0.3; // Start scrolling at top 30%
+    const bottomThreshold = viewportHeight * 0.7; // Start scrolling at bottom 30%
+    const edgeThreshold = 100; // Pixels from very edge for max speed
+    const maxScrollSpeed = 25;
+
+    if (scrollInterval) {
+      clearInterval(scrollInterval);
+      setScrollInterval(null);
+    }
+
+    // Calculate scroll speed based on distance from edges
+    if (mouseY < topThreshold) {
+      const distance = Math.max(mouseY - edgeThreshold, 0);
+      const speed = Math.min(maxScrollSpeed, maxScrollSpeed * (1 - distance / (topThreshold - edgeThreshold)));
+      
+      const newInterval = setInterval(() => {
+        window.scrollBy({
+          top: -speed,
+          behavior: 'auto' // Use auto for smoother continuous scrolling
+        });
+      }, 16); // 60fps
+      setScrollInterval(newInterval);
+    } else if (mouseY > bottomThreshold) {
+      const distance = Math.max((viewportHeight - mouseY) - edgeThreshold, 0);
+      const speed = Math.min(maxScrollSpeed, maxScrollSpeed * (1 - distance / (viewportHeight - bottomThreshold - edgeThreshold)));
+      
+      const newInterval = setInterval(() => {
+        window.scrollBy({
+          top: speed,
+          behavior: 'auto' // Use auto for smoother continuous scrolling
+        });
+      }, 16); // 60fps
+      setScrollInterval(newInterval);
+    }
   };
 
   const handlePhaseDragOver = (e: React.DragEvent, phaseId: string) => {
     e.preventDefault();
     setDragOverPhaseId(phaseId);
+    handleDragOver(e);
   };
 
   const handlePhaseDragLeave = () => {
@@ -420,7 +475,10 @@ export default function ProjectDetail({
   return (
     <div className={styles.pageContainer}>
       <Toaster position="top-right" />
-      <div className={styles.mainContent}>
+      <div 
+        className={styles.mainContent}
+        onDragOver={handleDragOver}
+      >
         <div className={styles.contentWrapper}>
           <div className={styles.phasesList}>
             <ProjectPhases
@@ -456,7 +514,6 @@ export default function ProjectDetail({
         </div>
       </div>
 
-      {/* Modal components remain the same */}
       {(showQuickAdd && (currentPhase || selectedPhase)) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg relative">

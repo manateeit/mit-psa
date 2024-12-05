@@ -57,11 +57,29 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const handleDragStart = (e: React.DragEvent) => {
     setIsDragging(true);
     onDragStart(e, task.task_id);
+    
+    // Add scroll zones indicator class to body
+    document.body.classList.add('dragging-task');
+    
+    // Set dragged element's height on the drag image
+    if (e.target instanceof HTMLElement) {
+      const rect = e.target.getBoundingClientRect();
+      const dragImage = e.target.cloneNode(true) as HTMLElement;
+      dragImage.style.width = `${rect.width}px`;
+      dragImage.style.height = `${rect.height}px`;
+      dragImage.style.transform = 'translateY(-1000px)';
+      document.body.appendChild(dragImage);
+      e.dataTransfer.setDragImage(dragImage, rect.width / 2, rect.height / 2);
+      setTimeout(() => document.body.removeChild(dragImage), 0);
+    }
   };
 
   const handleDragEnd = (e: React.DragEvent) => {
     setIsDragging(false);
     onDragEnd(e);
+    
+    // Remove scroll zones indicator class from body
+    document.body.classList.remove('dragging-task');
   };
 
   return (
