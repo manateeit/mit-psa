@@ -6,7 +6,7 @@ import { Circle, Plus } from 'lucide-react';
 import TaskCard from './TaskCard';
 import styles from './ProjectDetail.module.css';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface StatusColumnProps {
   status: ProjectStatus;
@@ -46,67 +46,22 @@ export const StatusColumn: React.FC<StatusColumnProps> = ({
   onDragEnd,
 }) => {
   const [isDraggedOver, setIsDraggedOver] = useState(false);
-  const [scrollInterval, setScrollInterval] = useState<NodeJS.Timeout | null>(null);
-
-  // Cleanup interval on unmount
-  useEffect(() => {
-    return () => {
-      if (scrollInterval) {
-        clearInterval(scrollInterval);
-      }
-    };
-  }, [scrollInterval]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     if (!isDraggedOver) {
       setIsDraggedOver(true);
     }
-
-    // Get the mouse position relative to the viewport
-    const mouseY = e.clientY;
-    const scrollThreshold = 200;
-
-    // Clear any existing scroll interval
-    if (scrollInterval) {
-      clearInterval(scrollInterval);
-      setScrollInterval(null);
-    }
-
-    // If mouse is near the top of the viewport, start scrolling up
-    if (mouseY < scrollThreshold) {
-      const newInterval = setInterval(() => {
-        window.scrollBy({
-          top: -10,
-          behavior: 'smooth'
-        });
-      }, 100);
-      setScrollInterval(newInterval);
-    }
-
     onDragOver(e);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDraggedOver(false);
-    
-    // Clear scroll interval when leaving the drop zone
-    if (scrollInterval) {
-      clearInterval(scrollInterval);
-      setScrollInterval(null);
-    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     setIsDraggedOver(false);
-    
-    // Clear scroll interval when dropping
-    if (scrollInterval) {
-      clearInterval(scrollInterval);
-      setScrollInterval(null);
-    }
-    
     onDrop(e, status.project_status_mapping_id);
   };
 

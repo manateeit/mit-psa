@@ -10,6 +10,7 @@
   padding: 1rem;
   position: relative;
   overflow-y: auto;
+  scroll-behavior: smooth;
 }
 
 .mainContent::-webkit-scrollbar {
@@ -119,4 +120,44 @@
   align-items: center;
   justify-content: center;
   font-size: 12px;
+}
+
+/* Global scroll zones */
+.mainContent::before,
+.mainContent::after {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 30vh;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 10;
+}
+
+.mainContent::before {
+  top: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.12) 0%,
+    rgba(0,0,0,0.12) 70%,
+    transparent 100%
+  );
+}
+
+.mainContent::after {
+  bottom: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0,0,0,0.12) 0%,
+    rgba(0,0,0,0.12) 70%,
+    transparent 100%
+  );
+}
+
+body.dragging-task .mainContent::before,
+body.dragging-task .mainContent::after {
+  opacity: 1;
+  pointer-events: auto;
 }
