@@ -213,13 +213,15 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
       </div>
       <div className="bg-white shadow rounded-lg p-4">
         <div className="flex items-center gap-3">
-          <ChannelPicker
-            channels={channels}
-            onSelect={handleChannelSelect}
-            selectedChannelId={selectedChannel}
-            filterState={channelFilterState}
-            onFilterStateChange={setChannelFilterState}
-          />
+          <div className="w-fit">
+            <ChannelPicker
+              channels={channels}
+              onSelect={handleChannelSelect}
+              selectedChannelId={selectedChannel}
+              filterState={channelFilterState}
+              onFilterStateChange={setChannelFilterState}
+            />
+          </div>
           <CustomSelect
             options={statusOptions}
             value={selectedStatus}

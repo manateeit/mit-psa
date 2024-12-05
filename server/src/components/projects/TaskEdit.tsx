@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { IProjectPhase, IProjectTask, ProjectStatus } from '@/interfaces/project.interfaces';
+import { IProjectPhase, IProjectTask, ProjectStatus, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { getProjectTaskStatuses } from '@/lib/actions/projectActions';
 import TaskForm from './TaskForm';

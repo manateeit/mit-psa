@@ -599,18 +599,29 @@ export async function getProjectDetails(projectId: string): Promise<{
         }
 
         await checkPermission(currentUser, 'project', 'read');
-        const project = await ProjectModel.getById(projectId);
-        if (project == null) {
+        
+        const [project, phases, rawTasks, statuses, users, checklistItemsMap, ticketLinksMap] = await Promise.all([
+            ProjectModel.getById(projectId),
+            ProjectModel.getPhases(projectId),
+            ProjectModel.getTasks(projectId),
+            getProjectTaskStatuses(projectId),
+            getAllUsers(),
+            ProjectModel.getAllTaskChecklistItems(projectId),
+            ProjectModel.getAllTaskTicketLinks(projectId)
+        ]);
+
+        if (!project) {
             throw new Error('Project not found');
         }
-        const phases = await ProjectModel.getPhases(projectId);
-        const tasks = await ProjectModel.getTasks(projectId);
-        // Get all ticket links for all tasks in the project
-        const ticketLinks = await Promise.all(
-            tasks.map((task: IProjectTask): Promise<IProjectTicketLinkWithDetails[]> => ProjectModel.getTaskTicketLinks(task.task_id))
-        ).then(links => links.flat());
-        const statuses = await getProjectTaskStatuses(projectId);
-        const users = await getAllUsers();
+
+        const tasks = rawTasks.map((task): IProjectTask & { checklist_items: ITaskChecklistItem[] } => ({
+            ...task,
+            checklist_items: checklistItemsMap[task.task_id] || []
+        }));
+
+        // Flatten ticket links for backward compatibility
+        const ticketLinks = Object.values(ticketLinksMap).flat();
+
         return { project, phases, tasks, ticketLinks, statuses, users };
     } catch (error) {
         console.error('Error fetching project details:', error);
@@ -865,7 +876,7 @@ export async function deleteTask(taskId: string): Promise<void> {
     }
 }
 
-export async function addTicketLinkAction(projectId: string, taskId: string | null, ticketId: string): Promise<IProjectTicketLink> {
+export async function addTicketLinkAction(projectId: string, taskId: string | null, ticketId: string, phaseId: string): Promise<IProjectTicketLink> {
     try {
         const currentUser = await getCurrentUser();
         if (!currentUser) {
@@ -873,7 +884,7 @@ export async function addTicketLinkAction(projectId: string, taskId: string | nu
         }
 
         await checkPermission(currentUser, 'project', 'update');
-        return await ProjectModel.addTaskTicketLink(projectId, taskId, ticketId);
+        return await ProjectModel.addTaskTicketLink(projectId, taskId, ticketId, phaseId);
     } catch (error) {
         console.error('Error adding ticket link:', error);
         throw error;

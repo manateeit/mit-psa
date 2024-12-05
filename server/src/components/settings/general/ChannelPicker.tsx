@@ -1,10 +1,10 @@
 // server/src/components/ChannelPicker.tsx
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
+import * as Popover from '@radix-ui/react-popover';
 import { Input } from '@/components/ui/Input';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { IChannel } from '@/interfaces';
-import { ChevronDownIcon } from '@radix-ui/react-icons';
+import { ChevronDownIcon, Cross2Icon } from '@radix-ui/react-icons';
 
 interface ChannelPickerProps {
   channels: IChannel[];
@@ -12,6 +12,7 @@ interface ChannelPickerProps {
   selectedChannelId: string | null;
   filterState: 'active' | 'inactive' | 'all';
   onFilterStateChange: (state: 'active' | 'inactive' | 'all') => void;
+  className?: string;
 }
 
 export const ChannelPicker: React.FC<ChannelPickerProps> = ({
@@ -20,6 +21,7 @@ export const ChannelPicker: React.FC<ChannelPickerProps> = ({
   selectedChannelId,
   filterState,
   onFilterStateChange,
+  className = 'w-full'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -63,60 +65,76 @@ export const ChannelPicker: React.FC<ChannelPickerProps> = ({
   };
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => setIsOpen(true)}
-        className="w-full min-h-[38px] px-3 py-2 border border-gray-200 rounded-md shadow-sm flex justify-between items-center bg-white text-left text-base hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-      >
-        <span className="text-gray-700">{getButtonLabel()}</span>
-        <ChevronDownIcon className="w-4 h-4 text-gray-400 ml-2" />
-      </button>
+    <Popover.Root open={isOpen} onOpenChange={setIsOpen}>
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          className={`min-h-[38px] px-3 py-2 border border-gray-200 rounded-md shadow-sm flex justify-between items-center bg-white text-left text-base hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent ${className}`}
+        >
+          <span className="text-gray-700">{getButtonLabel()}</span>
+          <ChevronDownIcon className="w-4 h-4 text-gray-400 ml-2" />
+        </button>
+      </Popover.Trigger>
 
-      <Dialog isOpen={isOpen} onClose={() => setIsOpen(false)}>
-        <DialogHeader>
-          <DialogTitle>Select Channel</DialogTitle>
-        </DialogHeader>
-        <DialogContent>
-          <div className="mb-4">
-            <CustomSelect
-              value={filterState}
-              onValueChange={(value) =>
-                onFilterStateChange(value as 'active' | 'inactive' | 'all')
-              }
-              options={[
-                { value: 'active', label: 'Active Channels' },
-                { value: 'inactive', label: 'Inactive Channels' },
-                { value: 'all', label: 'All Channels' },
-              ]}
-              placeholder="Filter channels"
-            />
-          </div>
-          <Input
-            placeholder="Search channels"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="mb-4"
-          />
-          <div className="max-h-60 overflow-y-auto">
-            {filteredChannels.map((channel):JSX.Element => (
-              <button
-                key={channel.channel_id}
-                onClick={() =>
-                  channel.channel_id && handleSelect(channel.channel_id)
+      <Popover.Portal>
+        <Popover.Content
+          className="bg-white rounded-lg shadow-lg border border-gray-200 w-[300px] z-50"
+          sideOffset={5}
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Select Channel</h3>
+              <Popover.Close className="rounded-full p-1 hover:bg-gray-100" aria-label="Close">
+                <Cross2Icon className="w-4 h-4" />
+              </Popover.Close>
+            </div>
+
+            <div className="mb-4">
+              <CustomSelect
+                value={filterState}
+                onValueChange={(value) =>
+                  onFilterStateChange(value as 'active' | 'inactive' | 'all')
                 }
-                className={`w-full text-left px-4 py-2 hover:bg-gray-100 text-base ${
-                  channel.channel_id === selectedChannelId ? 'bg-purple-100' : ''
-                }`}
-              >
-                {channel.channel_name}
-                {channel.is_inactive && (
-                  <span className="ml-2 text-gray-500">(Inactive)</span>
-                )}
-              </button>
-            ))}
+                options={[
+                  { value: 'active', label: 'Active Channels' },
+                  { value: 'inactive', label: 'Inactive Channels' },
+                  { value: 'all', label: 'All Channels' },
+                ]}
+                placeholder="Filter channels"
+              />
+            </div>
+
+            <Input
+              placeholder="Search channels"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="mb-4"
+            />
+
+            <div className="max-h-60 overflow-y-auto">
+              {filteredChannels.map((channel):JSX.Element => (
+                <button
+                  key={channel.channel_id}
+                  onClick={() =>
+                    channel.channel_id && handleSelect(channel.channel_id)
+                  }
+                  className={`w-full text-left px-4 py-2 hover:bg-gray-100 text-base ${
+                    channel.channel_id === selectedChannelId ? 'bg-purple-100' : ''
+                  }`}
+                >
+                  {channel.channel_name}
+                  {channel.is_inactive && (
+                    <span className="ml-2 text-gray-500">(Inactive)</span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 };

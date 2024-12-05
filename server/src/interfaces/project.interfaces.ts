@@ -74,6 +74,7 @@ export interface IProjectTask extends TenantEntity {
   wbs_code: string;  
   due_date: Date | null;
   checklist_items?: ITaskChecklistItem[];
+  ticket_links?: IProjectTicketLinkWithDetails[];
 }
 
 export interface IProjectTaskCardInfo extends IProjectTask {
