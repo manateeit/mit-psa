@@ -78,7 +78,7 @@ export const ChannelPicker: React.FC<ChannelPickerProps> = ({
 
       <Popover.Portal>
         <Popover.Content
-          className="bg-white rounded-lg shadow-lg border border-gray-200 w-[300px] z-50"
+          className="bg-white rounded-lg shadow-lg border border-gray-200 w-[300px] z-[100]"
           sideOffset={5}
           align="start"
           onOpenAutoFocus={(e) => e.preventDefault()}

@@ -11,7 +11,6 @@ import {
   moveTaskToPhase, 
   deleteTask,
   getProjectTreeData,
-  getProjectTaskStatuses,
   addTaskResourceAction,
   removeTaskResourceAction,
   getTaskResourcesAction,
@@ -22,17 +21,13 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
 import EditableText from '@/components/ui/EditableText';
-import { ListChecks, UserPlus, Trash2, X } from 'lucide-react';
+import { ListChecks, UserPlus, Trash2 } from 'lucide-react';
 import UserPicker from '@/components/ui/UserPicker';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
-import CustomSelect from '@/components/ui/CustomSelect';
 import { Input } from '@/components/ui/Input';
 import { toast } from 'react-hot-toast';
 import TaskTicketLinks from './TaskTicketLinks';
 import TreeSelect, { TreeSelectOption, TreeSelectPath } from '@/components/ui/TreeSelect';
-import GenericDialog from '@/components/ui/GenericDialog';
-import { QuickAddTicket } from '@/components/tickets/QuickAddTicket';
-import { ITicket } from '@/interfaces/ticket.interfaces';
 
 type ProjectTreeTypes = 'project' | 'phase' | 'status';
 
@@ -47,11 +42,6 @@ interface TaskFormProps {
   users: IUserWithRoles[];
   mode: 'create' | 'edit';
   onPhaseChange: (phaseId: string) => void;
-}
-
-interface SelectOption {
-  value: string;
-  label: string;
 }
 
 export default function TaskForm({
@@ -85,14 +75,8 @@ export default function TaskForm({
   const [taskResources, setTaskResources] = useState<any[]>(task?.task_id ? [] : []);
   const [tempTaskResources, setTempTaskResources] = useState<any[]>([]);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showLinkTicketDialog, setShowLinkTicketDialog] = useState(false);
-  const [showCreateTicketDialog, setShowCreateTicketDialog] = useState(false);
-  const [linkTicketOptions, setLinkTicketOptions] = useState<SelectOption[]>([]);
-  const [selectedTicketId, setSelectedTicketId] = useState('');
-  const [onTicketSelected, setOnTicketSelected] = useState<((ticketId: string) => void) | null>(null);
-  const [onTicketCreated, setOnTicketCreated] = useState<(ticket: ITicket) => void>(() => () => {});
   const [pendingTicketLinks, setPendingTicketLinks] = useState<IProjectTicketLinkWithDetails[]>([]);
+
   const [selectedStatusId, setSelectedStatusId] = useState<string>(
     task?.project_status_mapping_id || 
     defaultStatus?.project_status_mapping_id || 
@@ -141,7 +125,7 @@ export default function TaskForm({
 
     fetchProjectsData();
   }, [mode]);
-  
+
   const handleTreeSelectChange = async (
     value: string, 
     type: ProjectTreeTypes,
@@ -409,25 +393,6 @@ export default function TaskForm({
     }
   };
 
-  const handleShowLinkDialog = ({ tickets, onSelect }: { tickets: SelectOption[], onSelect: (ticketId: string) => void }) => {
-    setLinkTicketOptions(tickets);
-    setOnTicketSelected(() => onSelect);
-    setShowLinkTicketDialog(true);
-  };
-
-  const handleShowCreateDialog = (onCreated: (ticket: ITicket) => void) => {
-    setOnTicketCreated(() => onCreated);
-    setShowCreateDialog(true);
-  };
-
-  const handleLinkTicket = () => {
-    if (!selectedTicketId || !onTicketSelected) return;
-    onTicketSelected(selectedTicketId);
-    setShowLinkTicketDialog(false);
-    setSelectedTicketId('');
-    setOnTicketSelected(null);
-  };
-
   return (
     <>
       <Dialog.Root open={true} onOpenChange={handleDialogClose}>
@@ -435,11 +400,6 @@ export default function TaskForm({
           <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
           <Dialog.Content 
             className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-[600px] max-h-[90vh] overflow-y-auto"
-            onOpenAutoFocus={(e) => {
-              if (showCreateDialog || showLinkTicketDialog) {
-                e.preventDefault();
-              }
-            }}
           >
             <Dialog.Title className="text-xl font-semibold mb-4">
               {mode === 'edit' ? 'Edit Task' : 'Add New Task'}
@@ -611,15 +571,14 @@ export default function TaskForm({
                   </Button>
                 )}
 
-                <TaskTicketLinks
-                  taskId={task?.task_id || null}
-                  phaseId={phase.phase_id}
-                  projectId={phase.project_id}
-                  initialLinks={task?.ticket_links}
-                  onShowLinkDialog={handleShowLinkDialog}
-                  onShowCreateDialog={handleShowCreateDialog}
-                  onLinksChange={setPendingTicketLinks}
-                />
+            <TaskTicketLinks
+              taskId={task?.task_id || undefined}
+              phaseId={phase.phase_id}
+              projectId={phase.project_id}
+              initialLinks={task?.ticket_links}
+              users={users}
+              onLinksChange={setPendingTicketLinks}
+            />
 
                 <div className="flex justify-between mt-6">
                   <Button 
@@ -650,60 +609,7 @@ export default function TaskForm({
         </Dialog.Portal>
       </Dialog.Root>
 
-      {/* Render ticket dialogs at root level */}
-      {showLinkTicketDialog && (
-        <Dialog.Root 
-          open={showLinkTicketDialog} 
-          onOpenChange={(open) => !open && setShowLinkTicketDialog(false)}
-          modal={true}
-        >
-          <Dialog.Portal container={document.body}>
-            <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50 z-[60]" />
-            <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg p-6 w-[400px] z-[70]">
-              <h2 className="text-xl font-semibold mb-4">Link Existing Ticket</h2>
-              <div className="space-y-4">
-                <CustomSelect
-                  value={selectedTicketId}
-                  onValueChange={setSelectedTicketId}
-                  options={linkTicketOptions}
-                  placeholder="Select a ticket"
-                  className="w-full"
-                />
-                <div className="flex justify-end space-x-2">
-                  <Button variant="ghost" onClick={() => setShowLinkTicketDialog(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleLinkTicket} disabled={!selectedTicketId}>
-                    Link Ticket
-                  </Button>
-                </div>
-              </div>
-            </Dialog.Content>
-          </Dialog.Portal>
-        </Dialog.Root>
-      )}
-
-      {showCreateDialog && (
-        <div className="relative z-[80]">
-          <QuickAddTicket
-            open={showCreateDialog}
-            onOpenChange={(open) => {
-              if (!open) {
-                setShowCreateDialog(false);
-                setOnTicketCreated(() => () => {});
-              }
-            }}
-            onTicketAdded={(ticket) => {
-              onTicketCreated(ticket);
-              setShowCreateDialog(false);
-              setOnTicketCreated(() => () => {});
-            }}
-            isEmbedded={true}
-          />
-        </div>
-      )}
-
-<ConfirmationDialog
+      <ConfirmationDialog
         isOpen={showCancelConfirm}
         onClose={handleCancelDismiss}
         onConfirm={handleCancelConfirm}

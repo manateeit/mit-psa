@@ -99,7 +99,7 @@ const UserPicker: React.FC<UserPickerProps> = ({ label, value, onValueChange, si
         <CustomTrigger />
         <RadixSelect.Portal>
           <RadixSelect.Content
-            className="overflow-hidden bg-white rounded-md shadow-lg border border-gray-200 mt-1 z-50"
+            className="overflow-hidden bg-white rounded-md shadow-lg border border-gray-200 mt-1 z-[100]"
             position="popper"
             sideOffset={4}
             align="start"
