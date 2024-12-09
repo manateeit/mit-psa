@@ -14,11 +14,14 @@ interface UserPickerProps {
 }
 
 const UserPicker: React.FC<UserPickerProps> = ({ label, value, onValueChange, size = 'sm', users }) => {
-  const currentUser = users.find(user => user.user_id === value);
+  // Filter for internal users only
+  const internalUsers = users.filter(user => user.user_type === 'internal');
+  
+  const currentUser = internalUsers.find(user => user.user_id === value);
   
   const options = [
     { value: 'unassigned', label: 'Not assigned' },
-    ...users.map((user): { value: string; label: string; } => ({
+    ...internalUsers.map((user): { value: string; label: string; } => ({
       value: user.user_id,
       label: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unnamed User',
     }))
@@ -31,7 +34,7 @@ const UserPicker: React.FC<UserPickerProps> = ({ label, value, onValueChange, si
 
   const CustomTrigger = React.forwardRef<HTMLButtonElement, RadixSelect.SelectTriggerProps>((props, forwardedRef) => {
     const selectedOption = options.find(option => option.value === (value || 'unassigned'));
-    const user = users.find(u => u.user_id === value);
+    const user = internalUsers.find(u => u.user_id === value);
 
     return (
       <RadixSelect.Trigger
@@ -106,7 +109,7 @@ const UserPicker: React.FC<UserPickerProps> = ({ label, value, onValueChange, si
           >
             <RadixSelect.Viewport className="p-1">
               <CustomItem value="unassigned">Not assigned</CustomItem>
-              {users.map((user): JSX.Element => (
+              {internalUsers.map((user): JSX.Element => (
                 <CustomItem key={user.user_id} value={user.user_id} user={user}>
                   {`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unnamed User'}
                 </CustomItem>
