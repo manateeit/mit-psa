@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { IUser, IUserWithRoles, IRole } from '@/interfaces/auth.interfaces';
-import { findUserById, updateUser } from '@/lib/actions/user-actions/userActions';
+import { findUserById, updateUser, changeOwnPassword, adminChangeUserPassword, getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { getRoles, getUserRoles, assignRoleToUser, removeRoleFromUser } from '@/lib/actions/policyActions';
 import { useDrawer } from '@/context/DrawerContext';
 import { Text, Flex } from '@radix-ui/themes';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/Switch';
 import { Card } from '@/components/ui/Card';
 import CustomSelect from '@/components/ui/CustomSelect';
+import { EyeOpenIcon, EyeClosedIcon } from '@radix-ui/react-icons';
 
 interface UserDetailsProps {
   userId: string;
@@ -18,6 +19,7 @@ interface UserDetailsProps {
 
 const UserDetails: React.FC<UserDetailsProps> = ({ userId, onUpdate }) => {
   const [user, setUser] = useState<IUserWithRoles | null>(null);
+  const [currentUser, setCurrentUser] = useState<IUserWithRoles | null>(null);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -27,12 +29,40 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId, onUpdate }) => {
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const { closeDrawer } = useDrawer();
+
+  // Password change states
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [adminNewPassword, setAdminNewPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showAdminNewPassword, setShowAdminNewPassword] = useState(false);
 
   useEffect(() => {
     fetchUserDetails();
     fetchAvailableRoles();
+    fetchCurrentUser();
   }, [userId]);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const user = await getCurrentUser();
+      setCurrentUser(user);
+      if (user) {
+        // Fetch roles using policyActions to ensure proper tenant context
+        const userRoles = await getUserRoles(user.user_id);
+        setIsAdmin(userRoles.some(role => role.role_name === 'admin'));
+      }
+    } catch (err) {
+      console.error('Error fetching current user:', err);
+    }
+  };
 
   const fetchUserDetails = async () => {
     try {
@@ -120,6 +150,61 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId, onUpdate }) => {
       }
     }
   };
+
+  const handleChangeOwnPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordError('Password must be at least 8 characters long');
+      return;
+    }
+
+    try {
+      const result = await changeOwnPassword(currentPassword, newPassword);
+      if (result.success) {
+        setPasswordSuccess('Password changed successfully');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        setPasswordError(result.error || 'Failed to change password');
+      }
+    } catch (err) {
+      setPasswordError('An error occurred while changing password');
+    }
+  };
+
+  const handleAdminChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (adminNewPassword.length < 8) {
+      setPasswordError('Password must be at least 8 characters long');
+      return;
+    }
+
+    try {
+      const result = await adminChangeUserPassword(userId, adminNewPassword);
+      if (result.success) {
+        setPasswordSuccess('Password changed successfully');
+        setAdminNewPassword('');
+      } else {
+        setPasswordError(result.error || 'Failed to change password');
+      }
+    } catch (err) {
+      setPasswordError('An error occurred while changing password');
+    }
+  };
+
+  const isOwnProfile = currentUser?.user_id === userId;
 
   if (loading) {
     return (
@@ -248,6 +333,142 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId, onUpdate }) => {
             />
           </div>
         </div>
+
+      {/* Password Change Section */}
+      {isOwnProfile && (
+        <Card className="p-4 mt-4">
+          <Text size="3" weight="medium" className="mb-4">Change Your Password</Text>
+          <form onSubmit={handleChangeOwnPassword} className="space-y-4">
+            <div>
+                <Text as="label" size="2" weight="medium" className="mb-2 block">
+                  Current Password
+                </Text>
+                <div className="relative">
+                  <Input
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showCurrentPassword ? (
+                      <EyeOpenIcon className="h-5 w-5 text-gray-400" />
+                    ) : (
+                      <EyeClosedIcon className="h-5 w-5 text-gray-400" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <Text as="label" size="2" weight="medium" className="mb-2 block">
+                  New Password
+                </Text>
+                <div className="relative">
+                  <Input
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showNewPassword ? (
+                      <EyeOpenIcon className="h-5 w-5 text-gray-400" />
+                    ) : (
+                      <EyeClosedIcon className="h-5 w-5 text-gray-400" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <Text as="label" size="2" weight="medium" className="mb-2 block">
+                  Confirm New Password
+                </Text>
+                <div className="relative">
+                  <Input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOpenIcon className="h-5 w-5 text-gray-400" />
+                    ) : (
+                      <EyeClosedIcon className="h-5 w-5 text-gray-400" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <Button type="submit" variant="default">
+                Change Password
+              </Button>
+            </form>
+          </Card>
+        )}
+
+      {/* Admin Password Change Section */}
+      {isAdmin && !isOwnProfile && (
+        <Card className="p-4 mt-4">
+          <Text size="3" weight="medium" className="mb-4">Set User Password (Admin)</Text>
+          <form onSubmit={handleAdminChangePassword} className="space-y-4">
+            <div>
+              <Text as="label" size="2" weight="medium" className="mb-2 block">
+                New Password
+              </Text>
+              <div className="relative">
+                <Input
+                  type={showAdminNewPassword ? "text" : "password"}
+                  value={adminNewPassword}
+                  onChange={(e) => setAdminNewPassword(e.target.value)}
+                  className="w-full pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminNewPassword(!showAdminNewPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showAdminNewPassword ? (
+                    <EyeOpenIcon className="h-5 w-5 text-gray-400" />
+                  ) : (
+                    <EyeClosedIcon className="h-5 w-5 text-gray-400" />
+                  )}
+                </button>
+              </div>
+            </div>
+            <Button type="submit" variant="default">
+              Set Password
+            </Button>
+          </form>
+        </Card>
+      )}
+
+        {passwordError && (
+          <Text size="2" color="red" className="mt-2">
+            {passwordError}
+          </Text>
+        )}
+
+        {passwordSuccess && (
+          <Text size="2" color="green" className="mt-2">
+            {passwordSuccess}
+          </Text>
+        )}
       </Flex>
 
       <div className="flex justify-end space-x-2 mt-6">

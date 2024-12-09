@@ -5,7 +5,7 @@ import knex from 'knex';
 import { parse, addDays, parseISO, differenceInCalendarDays } from 'date-fns';
 import { TextEncoder } from 'util';
 import dotenv from 'dotenv';
-import { ICompanyTaxSettings, ITaxRate, ICompanyTaxRate } from '@/interfaces/tax.interfaces';
+import { ICompanyTaxSettings, ITaxRate } from '@/interfaces/tax.interfaces';
 
 global.TextEncoder = TextEncoder;
 
@@ -355,19 +355,46 @@ describe('Billing Invoice Generation', () => {
       });
 
       // Create a test user if none exists
-      const testUserId = await db('users')
-        .insert({
-          tenant: context.tenantId,
-          user_id: uuidv4(),
-          username: 'testuser',
-          email: 'test@example.com',
-          first_name: 'Test',
-          last_name: 'User',
-          hashed_password: 'dummy-hash',
-          role: 'user'  // Adding required role field
-        })
-        .returning('user_id')
-        .then(rows => rows[0].user_id);
+      const testUserId = await db.transaction(async (trx) => {
+        const [user] = await trx('users')
+          .insert({
+            tenant: context.tenantId,
+            user_id: uuidv4(),
+            username: 'testuser',
+            email: 'test@example.com',
+            first_name: 'Test',
+            last_name: 'User',
+            hashed_password: 'dummy-hash'
+          })
+          .returning('user_id');
+        
+        // Get or create default user role
+        let userRole = await trx('roles')
+        .where({ 
+          role_name: 'user',
+      tenant: context.tenantId 
+    })
+    .first();
+
+  if (!userRole) {
+    [userRole] = await trx('roles')
+      .insert({
+        role_name: 'user',
+        description: 'Default user role',
+        tenant: context.tenantId
+      })
+      .returning('*');
+  }
+
+  // Assign role to user
+  await trx('user_roles').insert({
+    user_id: user.user_id,
+    role_id: userRole.role_id,
+    tenant: context.tenantId
+  });
+
+  return user.user_id;
+});
 
       await db('time_entries').insert({
         tenant: context.tenantId,
@@ -599,7 +626,7 @@ describe('Billing Invoice Generation', () => {
   //     // Arrange
   //     const initialDate = '2023-01-01T00:00:00Z';
   //     const changeDate = '2023-02-01T00:00:00Z';
-      
+
   //     // Create initial monthly cycle
   //     await db('company_billing_cycles').insert({
   //       company_id: context.companyId,
@@ -684,7 +711,7 @@ describe('Billing Invoice Generation', () => {
         .first();
 
       const januaryInvoice = await generateInvoice(billingCycle.billing_cycle_id);
-      
+
       // Verify January invoice used monthly cycle
       const savedJanuaryInvoice = await db('invoices')
         .where('invoice_id', januaryInvoice.invoice_id)

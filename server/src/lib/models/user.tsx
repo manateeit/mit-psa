@@ -1,7 +1,8 @@
-import logger from '../../utils/logger';
-import { IUser, IRole, IUserRole, IUserWithRoles, IRoleWithPermissions, IPermission } from '../../interfaces/auth.interfaces';
-import { getConnection } from '../db/db';
-import { createTenantKnex } from '../db';
+import logger from '@/utils/logger';
+import { IUser, IRole, IUserRole, IUserWithRoles, IRoleWithPermissions, IPermission } from '@/interfaces/auth.interfaces';
+import { getConnection } from '@/lib/db/db';
+import { createTenantKnex } from '@/lib/db';
+import { hashPassword, verifyPassword } from '@/utils/encryption/encryption';
 
 // Update the IUserRole interface to make tenant optional and allow null
 interface IUserRoleWithOptionalTenant extends Omit<IUserRole, 'tenant'> {
@@ -143,6 +144,25 @@ const User = {
     }
   },
 
+  verifyPassword: async (user_id: string, password: string): Promise<boolean> => {
+    const db = await getConnection();
+    try {
+      const user = await db<IUser>('users')
+        .select('hashed_password')
+        .where({ user_id })
+        .first();
+
+      if (!user) {
+        return false;
+      }
+
+      return verifyPassword(password, user.hashed_password);
+    } catch (error) {
+      logger.error(`Error verifying password for user ${user_id}:`, error);
+      throw error;
+    }
+  },
+
   delete: async (user_id: string): Promise<void> => {
     const db = await getConnection();
     try {
@@ -168,15 +188,19 @@ const User = {
     const {knex: db, tenant} = await createTenantKnex();
     try {
       let query = db<IRole>('roles')
-        .join('user_roles', 'roles.role_id', 'user_roles.role_id')
-        .where('user_roles.user_id', user_id);
-      
-      if (tenant !== null) {
-        query = query.andWhere('user_roles.tenant', tenant);
-      }
+        .join('user_roles', function() {
+          this.on('roles.role_id', '=', 'user_roles.role_id')
+              .andOn('roles.tenant', '=', 'user_roles.tenant');
+        })
+        .where('user_roles.user_id', user_id)
+        .where('roles.tenant', tenant);
       
       const roles = await query.select('roles.*');
-      return roles;
+      // Convert role names to lowercase for case-insensitive comparison
+      return roles.map(role => ({
+        ...role,
+        role_name: role.role_name.toLowerCase()
+      }));
     } catch (error) {
       logger.error(`Error getting roles for user with id ${user_id}:`, error);
       throw error;
