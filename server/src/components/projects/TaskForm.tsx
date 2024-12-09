@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/Input';
 import { toast } from 'react-hot-toast';
 import TaskTicketLinks from './TaskTicketLinks';
 import TreeSelect, { TreeSelectOption, TreeSelectPath } from '@/components/ui/TreeSelect';
+import { Checkbox } from '@/components/ui/Checkbox';
 
 type ProjectTreeTypes = 'project' | 'phase' | 'status';
 
@@ -429,7 +430,7 @@ export default function TaskForm({
                   value={description}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
                   placeholder="Description"
-                  className="w-full p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full max-w-4xl p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 whitespace-pre-wrap break-words"
                   rows={3}
                 />
 
@@ -525,38 +526,38 @@ export default function TaskForm({
 
                 <div className="flex flex-col space-y-2">
                   {checklistItems.map((item, index): JSX.Element => (
-                    <div key={index} className="flex items-center space-x-2">
+                    <div key={index} className="flex items-center gap-2 w-full">
                       {isEditingChecklist ? (
                         <>
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={item.completed}
                             onChange={(e) => updateChecklistItem(index, 'completed', e.target.checked)}
-                            className="mr-2"
+                            className="flex-none"
                           />
-                          <Input
-                            value={item.item_name}
-                            onChange={(e) => updateChecklistItem(index, 'item_name', e.target.value)}
-                            placeholder="Checklist item"
-                            className="flex-grow"
-                          />
+                          <div className="flex-1">
+                            <TextArea
+                              value={item.item_name}
+                              onChange={(e) => updateChecklistItem(index, 'item_name', e.target.value)}
+                              placeholder="Checklist item"
+                              className="w-full"
+                            />
+                          </div>
                           <button
                             type="button"
                             onClick={() => removeChecklistItem(index)}
-                            className="text-red-500"
+                            className="text-red-500 flex-none"
                           >
                             Remove
                           </button>
                         </>
                       ) : (
                         <>
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={item.completed}
                             onChange={(e) => updateChecklistItem(index, 'completed', e.target.checked)}
-                            className="mr-2"
+                            className="flex-none"
                           />
-                          <span className={item.completed ? 'line-through text-gray-500' : ''}>
+                          <span className={`flex-1 whitespace-pre-wrap ${item.completed ? 'line-through text-gray-500' : ''}`}>
                             {item.item_name}
                           </span>
                         </>
