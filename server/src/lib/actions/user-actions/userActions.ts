@@ -27,9 +27,7 @@ export async function addUser(userData: { firstName: string; lastName: string; e
           username: userData.email,
           is_inactive: false,
           hashed_password: hashPassword(userData.password),
-          tenant: tenant || undefined,
-          role: 'user'
-          // Add any other required fields with default values
+          tenant: tenant || undefined
         }).returning('*');
 
       await trx('user_roles').insert({
@@ -324,8 +322,7 @@ export async function registerClientUser(
         user_type: 'client',
         contact_id: contact.contact_name_id,
         is_inactive: false,
-        created_at: new Date(),
-        role: 'user' // Set the role field to match what addUser uses
+        created_at: new Date()
       })
       .returning('*');
 
@@ -404,21 +401,26 @@ export async function adminChangeUserPassword(
       return { success: false, error: 'Admin user not found' };
     }
 
-    // Verify admin has permission
-    const userRoles = await User.getUserRoles(currentUser.user_id);
-    const isAdmin = userRoles.some(role => role.role_name === 'admin');
+    // Get the user to verify they're in the same tenant
+    const targetUser = await User.get(userId);
+    if (!targetUser) {
+      return { success: false, error: 'User not found' };
+    }
+
+    // Verify users are in the same tenant
+    if (targetUser.tenant !== currentUser.tenant) {
+      return { success: false, error: 'Unauthorized: Cannot modify user from different tenant' };
+    }
+
+    const currentUserRoles = await getUserRoles(currentUser.user_id);
+    const isAdmin = currentUserRoles.some(role => role.role_name.toLowerCase() === 'admin');
+    
     if (!isAdmin) {
       return { success: false, error: 'Unauthorized: Admin privileges required' };
     }
 
-    // Get user's email to use with updatePassword
-    const user = await User.get(userId);
-    if (!user) {
-      return { success: false, error: 'User not found' };
-    }
-
     // Update password using the User model's updatePassword method
-    await User.updatePassword(user.email, hashPassword(newPassword));
+    await User.updatePassword(targetUser.email, hashPassword(newPassword));
 
     return { success: true };
   } catch (error) {
