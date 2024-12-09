@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/Switch';
 import { Card } from '@/components/ui/Card';
 import CustomSelect from '@/components/ui/CustomSelect';
+import { EyeOpenIcon, EyeClosedIcon } from '@radix-ui/react-icons';
 
 interface UserDetailsProps {
   userId: string;
@@ -38,6 +39,10 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId, onUpdate }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [adminNewPassword, setAdminNewPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showAdminNewPassword, setShowAdminNewPassword] = useState(false);
 
   useEffect(() => {
     fetchUserDetails();
@@ -338,37 +343,76 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId, onUpdate }) => {
                 <Text as="label" size="2" weight="medium" className="mb-2 block">
                   Current Password
                 </Text>
-                <Input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showCurrentPassword ? (
+                      <EyeOpenIcon className="h-5 w-5 text-gray-400" />
+                    ) : (
+                      <EyeClosedIcon className="h-5 w-5 text-gray-400" />
+                    )}
+                  </button>
+                </div>
               </div>
               <div>
                 <Text as="label" size="2" weight="medium" className="mb-2 block">
                   New Password
                 </Text>
-                <Input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showNewPassword ? (
+                      <EyeOpenIcon className="h-5 w-5 text-gray-400" />
+                    ) : (
+                      <EyeClosedIcon className="h-5 w-5 text-gray-400" />
+                    )}
+                  </button>
+                </div>
               </div>
               <div>
                 <Text as="label" size="2" weight="medium" className="mb-2 block">
                   Confirm New Password
                 </Text>
-                <Input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOpenIcon className="h-5 w-5 text-gray-400" />
+                    ) : (
+                      <EyeClosedIcon className="h-5 w-5 text-gray-400" />
+                    )}
+                  </button>
+                </div>
               </div>
               <Button type="submit" variant="default">
                 Change Password
@@ -386,13 +430,26 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId, onUpdate }) => {
               <Text as="label" size="2" weight="medium" className="mb-2 block">
                 New Password
               </Text>
-              <Input
-                type="password"
-                value={adminNewPassword}
-                onChange={(e) => setAdminNewPassword(e.target.value)}
-                className="w-full"
-                required
-              />
+              <div className="relative">
+                <Input
+                  type={showAdminNewPassword ? "text" : "password"}
+                  value={adminNewPassword}
+                  onChange={(e) => setAdminNewPassword(e.target.value)}
+                  className="w-full pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminNewPassword(!showAdminNewPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showAdminNewPassword ? (
+                    <EyeOpenIcon className="h-5 w-5 text-gray-400" />
+                  ) : (
+                    <EyeClosedIcon className="h-5 w-5 text-gray-400" />
+                  )}
+                </button>
+              </div>
             </div>
             <Button type="submit" variant="default">
               Set Password
