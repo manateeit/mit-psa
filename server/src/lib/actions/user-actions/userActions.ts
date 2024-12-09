@@ -251,7 +251,6 @@ export async function setUserPreference(userId: string, settingName: string, set
   }
 }
 
-
 export async function verifyContactEmail(email: string): Promise<{ exists: boolean; isActive: boolean; companyId?: string; tenant?: string }> {
   try {
     const db = await getAdminConnection();
@@ -288,7 +287,7 @@ export async function registerClientUser(
     // First verify the contact exists and get their tenant
     const contact = await db('contacts')
       .where({ email })
-      .select('contact_name_id', 'company_id', 'tenant', 'is_inactive')
+      .select('contact_name_id', 'company_id', 'tenant', 'is_inactive', 'full_name')
       .first();
 
     if (!contact) {
@@ -308,11 +307,18 @@ export async function registerClientUser(
       return { success: false, error: 'User with this email already exists' };
     }
 
+    // Split full name into first and last name
+    const nameParts = contact.full_name.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
     // Create the user with client user type
     const [user] = await db('users')
       .insert({
         email,
         username: email,
+        first_name: firstName,
+        last_name: lastName,
         hashed_password: hashPassword(password),
         tenant: contact.tenant,
         user_type: 'client',
@@ -357,5 +363,66 @@ export async function registerClientUser(
   } catch (error) {
     console.error('Error registering client user:', error);
     return { success: false, error: 'Failed to register user' };
+  }
+}
+
+// New function for users to change their own password
+export async function changeOwnPassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return { success: false, error: 'User not found' };
+    }
+
+    // Verify current password using the User model's verifyPassword method
+    const isCurrentPasswordValid = await User.verifyPassword(currentUser.user_id, currentPassword);
+    if (!isCurrentPasswordValid) {
+      return { success: false, error: 'Current password is incorrect' };
+    }
+
+    // Update password using the User model's updatePassword method
+    await User.updatePassword(currentUser.email, hashPassword(newPassword));
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error changing password:', error);
+    return { success: false, error: 'Failed to change password' };
+  }
+}
+
+// Function for admins to change user passwords
+export async function adminChangeUserPassword(
+  userId: string,
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return { success: false, error: 'Admin user not found' };
+    }
+
+    // Verify admin has permission
+    const userRoles = await User.getUserRoles(currentUser.user_id);
+    const isAdmin = userRoles.some(role => role.role_name === 'admin');
+    if (!isAdmin) {
+      return { success: false, error: 'Unauthorized: Admin privileges required' };
+    }
+
+    // Get user's email to use with updatePassword
+    const user = await User.get(userId);
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
+
+    // Update password using the User model's updatePassword method
+    await User.updatePassword(user.email, hashPassword(newPassword));
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error changing user password:', error);
+    return { success: false, error: 'Failed to change user password' };
   }
 }
