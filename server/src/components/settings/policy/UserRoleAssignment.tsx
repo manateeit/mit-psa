@@ -4,14 +4,15 @@ import { useState, useEffect } from 'react';
 import { Flex, Text } from '@radix-ui/themes';
 import { Button } from '@/components/ui/Button';
 import { assignRoleToUser, removeRoleFromUser, getRoles, getUserRoles } from '@/lib/actions/policyActions';
-import { findUserById } from '@/lib/actions/user-actions/userActions';
-import { IUser, IRole } from '@/interfaces/auth.interfaces';
+import { getAllUsers } from '@/lib/actions/user-actions/userActions';
+import { IRole, IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
+import UserPicker from '@/components/ui/UserPicker';
 
 export default function UserRoleAssignment() {
-  const [users, setUsers] = useState<IUser[]>([]);
+  const [users, setUsers] = useState<IUserWithRoles[]>([]);
   const [roles, setRoles] = useState<IRole[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [selectedRole, setSelectedRole] = useState<string>('');
@@ -23,11 +24,15 @@ export default function UserRoleAssignment() {
   }, []);
 
   const fetchUsers = async () => {
-    // This is a placeholder. You'll need to implement a method to fetch all users.
-    const fetchedUsers = await findUserById('11111111-1111-1111-1111-111111111111');
-    if (fetchedUsers) {
-      setUsers([fetchedUsers]);
-      fetchUserRoles(fetchedUsers.user_id);
+    try {
+      const fetchedUsers = await getAllUsers();
+      setUsers(fetchedUsers);
+      // Fetch roles for each user
+      fetchedUsers.forEach(user => {
+        fetchUserRoles(user.user_id);
+      });
+    } catch (error) {
+      console.error('Error fetching users:', error);
     }
   };
 
@@ -53,10 +58,11 @@ export default function UserRoleAssignment() {
     fetchUserRoles(userId);
   };
 
-  const columns: ColumnDefinition<IUser>[] = [
+  const columns: ColumnDefinition<IUserWithRoles>[] = [
     {
       title: 'User',
       dataIndex: 'username',
+      render: (_, record) => `${record.first_name || ''} ${record.last_name || ''}`.trim() || record.username || 'Unnamed User',
     },
     {
       title: 'Roles',
@@ -78,11 +84,6 @@ export default function UserRoleAssignment() {
     },
   ];
 
-  const userOptions = users.map((user): SelectOption => ({
-    value: user.user_id,
-    label: user.username
-  }));
-
   const roleOptions = roles.map((role): SelectOption => ({
     value: role.role_id,
     label: role.role_name
@@ -94,11 +95,11 @@ export default function UserRoleAssignment() {
         <Text size="5" weight="bold">Assign Roles to Users</Text>
         <Flex gap="2" align="center">
           <div className="relative z-20 inline-block">
-            <CustomSelect
+            <UserPicker
               value={selectedUser}
               onValueChange={setSelectedUser}
-              options={userOptions}
-              placeholder="Select User"
+              users={users}
+              label="Select User"
             />
           </div>
           <div className="relative z-10 inline-block">
