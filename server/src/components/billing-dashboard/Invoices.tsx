@@ -106,7 +106,7 @@ const Invoices: React.FC = () => {
               )
             }))}
             onValueChange={handleTemplateSelect}
-            value={selectedTemplate?.template_id}
+            value={selectedTemplate?.template_id || ''}
             placeholder="Select invoice template..."
           />
         </div>

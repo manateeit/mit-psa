@@ -187,7 +187,7 @@ const User = {
   getUserRoles: async (user_id: string): Promise<IRole[]> => {
     const {knex: db, tenant} = await createTenantKnex();
     try {
-      let query = db<IRole>('roles')
+      const query = db<IRole>('roles')
         .join('user_roles', function() {
           this.on('roles.role_id', '=', 'user_roles.role_id')
               .andOn('roles.tenant', '=', 'user_roles.tenant');
@@ -197,7 +197,7 @@ const User = {
       
       const roles = await query.select('roles.*');
       // Convert role names to lowercase for case-insensitive comparison
-      return roles.map(role => ({
+      return roles.map((role: IRole): IRole => ({
         ...role,
         role_name: role.role_name.toLowerCase()
       }));

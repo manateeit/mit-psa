@@ -402,7 +402,6 @@ async function createInvoice(billingResult: IBillingResult, companyId: string, s
   return viewModel;
 }
 
-
 async function calculateChargeDetails(
   charge: IBillingCharge,
   companyId: string,
@@ -421,7 +420,6 @@ async function calculateChargeDetails(
   const taxCalculationResult = await taxService.calculateTax(companyId, netAmount, endDate);
   return { netAmount, taxCalculationResult };
 }
-
 
 export async function generateInvoiceNumber(): Promise<string> {
   const { knex } = await createTenantKnex();
@@ -517,19 +515,10 @@ export async function fetchAllInvoices(): Promise<InvoiceViewModel[]> {
   }
 }
 
-async function getCompanyById(companyId: string): Promise<ICompany> {
-  const { knex } = await createTenantKnex();
-  const company = await knex('companies').where({ company_id: companyId }).first();
-  if (!company) {
-    throw new Error(`Company with ID ${companyId} not found`);
-  }
-  return company as ICompany;
-}
-
-export async function getInvoiceTemplate(templateId: string): Promise<IInvoiceTemplate | null> {
+export async function getInvoiceTemplate(_templateId: string): Promise<IInvoiceTemplate | null> {
   const { knex } = await createTenantKnex();
   const template = await knex<IInvoiceTemplate>('invoice_templates')
-    .where({ template_id: templateId })
+    .where({ template_id: _templateId })
     .first();
 
   if (template) {
@@ -553,16 +542,15 @@ export async function saveInvoiceTemplate(template: Omit<IInvoiceTemplate, 'tena
     throw new Error('Cannot modify standard templates');
   }
 
-  // Remove template_id if cloning
-  if (template.isClone) {
-    delete template.template_id;
-    delete template.isStandard;
-    delete template.isClone;
-  }
+  // When cloning, create a new template object with a new template_id
+  const templateToSave = template.isClone ? {
+    ...template,                // Keep all existing fields
+    template_id: uuidv4(),      // Generate new ID for clone
+    isStandard: false,         // Reset standard flag
+    isClone: false             // Reset clone flag
+  } : template;
   
-  const savedTemplate = await Invoice.saveTemplate({
-    ...template
-  });
+  const savedTemplate = await Invoice.saveTemplate(templateToSave);
   return {
     ...savedTemplate,
     parsed: savedTemplate.dsl ? parseInvoiceTemplate(savedTemplate.dsl) : null
@@ -597,7 +585,7 @@ export async function addInvoiceAnnotation(annotation: Omit<IInvoiceAnnotation, 
   };
 }
 
-export async function getInvoiceAnnotations(invoiceId: string): Promise<IInvoiceAnnotation[]> {
+export async function getInvoiceAnnotations(_invoiceId: string): Promise<IInvoiceAnnotation[]> {
   // Implementation to fetch annotations for an invoice
   return [];
 }
