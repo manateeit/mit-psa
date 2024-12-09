@@ -77,7 +77,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
           ref={combinedRef}
           rows={1}
           className={`
-            w-full 
+            w-full max-w-4xl
             px-3 
             py-2 
             border 
@@ -90,7 +90,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
             focus:border-transparent 
             resize-none 
             overflow-hidden 
-            whitespace-pre-wrap
+            whitespace-pre-wrap break-words
             ${className}
           `}
           onChange={handleInput}
