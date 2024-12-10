@@ -236,12 +236,18 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
 
   if (entry_id) {
     // Update existing entry
+    console.log('Updating time entry:', {
+      entry_id,
+      billable_duration: validatedTimeEntry.billable_duration,
+      entryData
+    });
     resultingEntry = await db<ITimeEntry>('time_entries')
       .where({ entry_id: entry_id })
       .update({
         ...entryData,
         updated_at: db.fn.now()
       }).returning('*');
+    console.log('Updated time entry result:', resultingEntry);
   } else {
     // log the entry data
     console.log(`Saving new time entry: ${JSON.stringify(entryData)}`);
@@ -495,6 +501,23 @@ export async function fetchCompanyTaxRateForWorkItem(workItemId: string, workIte
   } catch (error) {
     console.error('Error fetching tax rate:', error);
     return undefined;
+  }
+}
+
+export async function deleteTimeEntry(entryId: string): Promise<void> {
+  const {knex: db} = await createTenantKnex();
+  const session = await getServerSession(options);
+  if (!session?.user?.id) {
+    throw new Error("User not authenticated");
+  }
+
+  try {
+    await db('time_entries')
+      .where({ entry_id: entryId })
+      .delete();
+  } catch (error) {
+    console.error('Error deleting time entry:', error);
+    throw new Error('Failed to delete time entry');
   }
 }
 
