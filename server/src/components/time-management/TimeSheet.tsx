@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react';
-import { ITimeEntryWithWorkItem, ITimeEntry, ITimeSheet, ITimeSheetComment } from '@/interfaces/timeEntry.interfaces';
+import { ITimeEntryWithWorkItem, ITimeEntry, ITimeSheet, ITimeSheetComment, TimeSheetStatus } from '@/interfaces/timeEntry.interfaces';
 import { IWorkItem } from '@/interfaces/workItem.interfaces';
 import { TimeEntryDialog } from './TimeEntryDialog';
 import { AddWorkItemDialog } from './AddWorkItemDialog';
 import { fetchTimeEntriesForTimeSheet, fetchWorkItemsForTimeSheet, saveTimeEntry, submitTimeSheet, addWorkItem } from '@/lib/actions/timeEntryActions';
 import { ApprovalActions } from './ApprovalActions';
 import { fetchTimeSheet } from '@/lib/actions/timeSheetActions';
-import { Button } from '@radix-ui/themes';
+import { Button } from '@/components/ui/Button';
 import React from 'react';
 import { ArrowLeftIcon } from '@radix-ui/react-icons';
 import { fetchTimeSheetComments, addCommentToTimeSheet } from '@/lib/actions/timeSheetActions';
@@ -37,8 +37,11 @@ interface ITimeEntryWithWorkItemString extends Omit<ITimeEntryWithWorkItem, 'sta
 
 const Comments: React.FC<{
     comments: ITimeSheetComment[],
-    onAddComment: (comment: string) => Promise<void>
-}> = ({ comments, onAddComment }) => {
+    onAddComment: (comment: string) => Promise<void>,
+    timeSheetStatus: TimeSheetStatus,
+    timeSheetId: string,
+    onCommentsUpdate: (comments: ITimeSheetComment[]) => void
+}> = ({ comments, onAddComment, timeSheetStatus, timeSheetId, onCommentsUpdate }) => {
     const [newComment, setNewComment] = useState('');
     const [isAddingComment, setIsAddingComment] = useState(false);
 
@@ -47,10 +50,11 @@ const Comments: React.FC<{
             setIsAddingComment(true);
             try {
                 await onAddComment(newComment);
+                const fetchedComments = await fetchTimeSheetComments(timeSheetId);
+                onCommentsUpdate(fetchedComments);
                 setNewComment('');
             } catch (error) {
                 console.error('Failed to add comment:', error);
-                // Show error message to user
             } finally {
                 setIsAddingComment(false);
             }
@@ -58,42 +62,58 @@ const Comments: React.FC<{
     };
 
     return (
-        <div className="mt-6 bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-lg font-semibold mb-4">Comments</h3>
-            {comments.length === 0 ? (
-                <p>No comments yet.</p>
-            ) : (
-                <ul className="space-y-4">
-                    {comments.map((comment, index): JSX.Element => (
-                        <li key={index} className="bg-white p-3 rounded shadow">
-                            <div className="flex justify-between items-start">
-                                <span className="font-medium">{comment.user_name}</span>
-                                <span className="text-sm text-gray-500">
-                                    {new Date(comment.created_at).toLocaleString()}
-                                </span>
-                            </div>
-                            <p className="mt-2">{comment.comment}</p>
-                            {comment.is_approver && (
-                                <span className="mt-2 inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+        <div className="space-y-4">
+            {comments.map((comment) => (
+                <div 
+                    key={comment.comment_id} 
+                    className={`${comment.is_approver ? 'p-3 rounded shadow bg-orange-50 border border-orange-200' : 'p-3 rounded shadow bg-white'}`}
+                >
+                    <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                            <p className="font-semibold">
+                                {comment.is_approver ? 
+                                    <span className="text-orange-600">
+                                        {comment.user_name}
+                                    </span> : 
+                                    <span>{comment.user_name}</span>
+                                }
+                            </p>
+                            {comment.is_approver ? (
+                                <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
                                     Approver
                                 </span>
+                            ) : (
+                                <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                                    Employee
+                                </span>
                             )}
-                        </li>
-                    ))}
-                </ul>
-            )}
+                        </div>
+                        <p className="text-sm text-gray-500">
+                            {new Date(comment.created_at).toLocaleString()}
+                        </p>
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap">{comment.comment}</p>
+                </div>
+            ))}
             <div className="mt-4">
                 <TextArea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Add a comment..."
-                    className="mb-2"
+                    placeholder={timeSheetStatus === 'CHANGES_REQUESTED' ? 
+                        "Respond to the requested changes..." : 
+                        "Add a comment..."}
+                    className={timeSheetStatus === 'CHANGES_REQUESTED' ? 
+                        'border-orange-200 focus:border-orange-500' : ''}
                 />
                 <Button
                     onClick={handleAddComment}
                     disabled={isAddingComment}
+                    className={`mt-2 ${timeSheetStatus === 'CHANGES_REQUESTED' ? 
+                        'bg-orange-500 hover:bg-orange-600' : ''}`}
                 >
-                    {isAddingComment ? 'Adding...' : 'Add Comment'}
+                    {isAddingComment ? 'Adding...' : 
+                        timeSheetStatus === 'CHANGES_REQUESTED' ? 
+                        'Respond to Changes' : 'Add Comment'}
                 </Button>
             </div>
         </div>
@@ -596,40 +616,34 @@ const handleSaveTimeEntry = async (timeEntry: ITimeEntry) => {
                     })()}
                 </span>
                 {isEditable && (
-                    <Button onClick={handleSubmitTimeSheet}>Submit Time Sheet</Button>
+                    <Button 
+                        onClick={handleSubmitTimeSheet}
+                        variant="default"
+                        className="bg-primary-500 hover:bg-primary-600 text-white"
+                    >
+                        Submit Time Sheet
+                    </Button>
                 )}
 
             </div>
 
-            {timeSheet.approval_status !== 'DRAFT' && (
-                isLoadingComments ? (
-                    <div>Loading comments...</div>
-                ) : (
-                    <Comments comments={comments} onAddComment={handleAddComment} />
-                )
+            {(timeSheet.approval_status === 'CHANGES_REQUESTED' || comments.length > 0) && (
+                <div className="mb-8">
+                    {isLoadingComments ? (
+                        <div>Loading comments...</div>
+                    ) : (
+                        <Comments 
+                            comments={comments} 
+                            onAddComment={handleAddComment}
+                            timeSheetStatus={timeSheet.approval_status}
+                            timeSheetId={timeSheet.id}
+                            onCommentsUpdate={setComments}
+                        />
+                    )}
+                </div>
             )}
 
             <div className="overflow-x-auto">
-                {isManager && timeSheet.approval_status === 'SUBMITTED' && (
-                    <ApprovalActions
-                        timeSheet={timeSheet}
-                        onApprove={async () => {
-                            // Implement approve action
-                            const updatedTimeSheet = await fetchTimeSheet(timeSheet.id);
-                            setTimeSheet(updatedTimeSheet);
-                        }}
-                        onReject={async () => {
-                            // Implement reject action
-                            const updatedTimeSheet = await fetchTimeSheet(timeSheet.id);
-                            setTimeSheet(updatedTimeSheet);
-                        }}
-                        onRequestChanges={async () => {
-                            // Implement request changes action
-                            const updatedTimeSheet = await fetchTimeSheet(timeSheet.id);
-                            setTimeSheet(updatedTimeSheet);
-                        }}
-                    />
-                )}
 
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>

@@ -27,28 +27,6 @@ export async function fetchTimeSheetsForApproval(teamIds: string[]): Promise<ITi
         'time_periods.end_date as period_end_date'
       );
 
-    const timeSheetIds = timeSheets.map((sheet): string => sheet.id);
-    const comments = await db('time_sheet_comments')
-      .whereIn('time_sheet_id', timeSheetIds)
-      .join('users', 'time_sheet_comments.user_id', 'users.user_id')
-      .select(
-        'time_sheet_comments.*',
-        'users.first_name as commenter_first_name',
-        'users.last_name as commenter_last_name'
-      )
-      .orderBy('time_sheet_comments.created_at', 'desc');
-
-    const commentsByTimeSheet = comments.reduce((acc, comment) => {
-      if (!acc[comment.time_sheet_id]) {
-        acc[comment.time_sheet_id] = [];
-      }
-      acc[comment.time_sheet_id].push({
-        ...comment,
-        user_name: `${comment.commenter_first_name} ${comment.commenter_last_name}`
-      });
-      return acc;
-    }, {} as Record<string, ITimeSheetComment[]>);
-
     const timeSheetApprovals: ITimeSheetApproval[] = timeSheets.map((sheet): ITimeSheetApproval => ({
       id: sheet.id,
       user_id: sheet.user_id,
@@ -59,7 +37,7 @@ export async function fetchTimeSheetsForApproval(teamIds: string[]): Promise<ITi
       approved_by: sheet.approved_by || undefined,
       employee_name: `${sheet.first_name} ${sheet.last_name}`,
       employee_email: sheet.email,
-      comments: commentsByTimeSheet[sheet.id] || [],
+      comments: [],
       time_period: {
         start_date: formatISO(new Date(sheet.period_start_date)),
         end_date: formatISO(new Date(sheet.period_end_date)),
@@ -94,7 +72,13 @@ export async function addCommentToTimeSheet(
       })
       .returning('*');
 
-    return validateData(timeSheetCommentSchema, newComment);
+    // Format the created_at date before validation
+    const formattedComment = {
+      ...newComment,
+      created_at: formatISO(new Date(newComment.created_at))
+    };
+
+    return validateData(timeSheetCommentSchema, formattedComment);
   } catch (error) {
     console.error('Failed to add comment to time sheet:', error);
     throw new Error('Failed to add comment to time sheet');
@@ -204,6 +188,7 @@ export async function fetchTimeEntriesForTimeSheet(timeSheetId: string): Promise
 
     const formattedEntries = timeEntries.map((entry):ITimeEntry => ({
       ...entry,
+      work_item_id: entry.work_item_id || '', // Convert null to empty string
       work_item_type: entry.work_item_type as WorkItemType,
       start_time: formatISO(entry.start_time),
       end_time: formatISO(entry.end_time),
@@ -219,33 +204,47 @@ export async function fetchTimeEntriesForTimeSheet(timeSheetId: string): Promise
 }
 
 export async function fetchTimeSheetComments(timeSheetId: string): Promise<ITimeSheetComment[]> {
-  console.log(`Fetching time sheet comments for timeSheetId: ${timeSheetId}`);
   try {
-    console.log('Calling TimeSheetComment.getByTimeSheetId...');
-    const timeSheetApprovals = await TimeSheetComment.getByTimeSheetId(timeSheetId);
+    const {knex: db} = await createTenantKnex();
+    
+    // First get the time sheet details to get user info
+    const timeSheet = await db('time_sheets')
+      .join('users', 'time_sheets.user_id', 'users.user_id')
+      .where('time_sheets.id', timeSheetId)
+      .select(
+        'users.first_name',
+        'users.last_name',
+        'users.email'
+      )
+      .first();
 
-    console.log('Processing time sheet approvals to extract comments...');
-    if (!timeSheetApprovals || !timeSheetApprovals.comments) {
-      console.log('No time sheet approval or comments found');
-      return [];
+    if (!timeSheet) {
+      throw new Error('Time sheet not found');
     }
-    console.log(`Processing approval for employee: ${timeSheetApprovals.employee_name}`);
-    const comments = timeSheetApprovals.comments.map((comment): ITimeSheetComment => {
-      console.log(`Processing comment: ${comment.comment_id}`);
-      return {
-        comment_id: comment.comment_id,
-        time_sheet_id: timeSheetId,
-        user_id: comment.user_id,
-        comment: comment.comment,
-        created_at: comment.created_at,
-        is_approver: comment.is_approver,
-        user_name: comment.user_name || `${timeSheetApprovals.employee_name} (${timeSheetApprovals.employee_email})`,
-        tenant: comment.tenant
-      };
-    });
 
-    console.log(`Processed ${comments.length} comments in total`);
-    return validateArray(timeSheetCommentSchema, comments);
+    // Then get all comments with user info
+    const comments = await db('time_sheet_comments')
+      .join('users', 'time_sheet_comments.user_id', 'users.user_id')
+      .where('time_sheet_comments.time_sheet_id', timeSheetId)
+      .select(
+        'time_sheet_comments.*',
+        'users.first_name',
+        'users.last_name'
+      )
+      .orderBy('time_sheet_comments.created_at', 'desc');
+
+    const formattedComments = comments.map((comment): ITimeSheetComment => ({
+      comment_id: comment.comment_id,
+      time_sheet_id: timeSheetId,
+      user_id: comment.user_id,
+      comment: comment.comment,
+      created_at: formatISO(new Date(comment.created_at)),
+      is_approver: comment.is_approver,
+      user_name: `${comment.first_name} ${comment.last_name}`,
+      tenant: comment.tenant
+    }));
+
+    return validateArray(timeSheetCommentSchema, formattedComments);
   } catch (error) {
     console.error('Error fetching time sheet comments:', error);
     console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace available');
