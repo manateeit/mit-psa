@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ITimeSheet, ITimeEntry, ITimeSheetComment, ITimeSheetApproval, ITimeEntryWithWorkItem, TimeSheetStatus } from '@/interfaces/timeEntry.interfaces';
-import { addCommentToTimeSheet } from '@/lib/actions/timeSheetActions';
+import { addCommentToTimeSheet, fetchTimeSheetComments } from '@/lib/actions/timeSheetActions';
 import { FaCheck, FaTimes, FaClock, FaUndo, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { IWorkItem } from '@/interfaces/workItem.interfaces';
 import { Button } from '@/components/ui/Button';
@@ -212,16 +212,19 @@ export function TimeSheetApproval({
     if (newComment.trim() && !isAddingComment) {
       setIsAddingComment(true);
       try {
-        const comment = await addCommentToTimeSheet(
+        await addCommentToTimeSheet(
           timeSheet.id,
           currentUser.user_id,
           newComment,
           true
         );
 
+        // Fetch updated comments
+        const updatedComments = await fetchTimeSheetComments(timeSheet.id);
+        
         setTimeSheet(prevTimeSheet => ({
           ...prevTimeSheet,
-          comments: [...(prevTimeSheet.comments || []), comment]
+          comments: updatedComments
         }));
 
         setNewComment('');
@@ -356,19 +359,46 @@ export function TimeSheetApproval({
       {/* Add sections for Leave and Time Off, Previous Period Comparison if data is available */}
 
 
-      <Card>
+      <Card className="bg-orange-50">
         <CardHeader>
-          <CardTitle>Comments</CardTitle>
+          <CardTitle>
+            Comments {timeSheet.approval_status === 'CHANGES_REQUESTED' && 
+              <span className="text-sm font-normal text-orange-600">
+                (Changes have been requested - please review comments)
+              </span>
+            }
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {timeSheet.comments?.map((comment):JSX.Element => (
-              <div key={comment.comment_id} className="border-b pb-2">
-                <p className="font-semibold">
-                  {timeSheet.employee_name} ({comment.is_approver ? 'Approver' : 'Employee'})
-                </p>
-                <p>{comment.comment}</p>
-                <p className="text-sm text-gray-500">{comment.created_at.toLocaleString()}</p>
+              <div 
+                key={comment.comment_id} 
+                className={`${comment.is_approver ? 'p-3 rounded shadow bg-orange-50 border border-orange-200' : 'p-3 rounded shadow bg-white'} mb-4`}
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold">
+                      {comment.is_approver ? 
+                        <span className="text-orange-600">
+                          {comment.user_name || `${currentUser.first_name} ${currentUser.last_name}`}
+                        </span> : 
+                        <span>{timeSheet.employee_name}</span>
+                      }
+                    </p>
+                    {comment.is_approver ? (
+                      <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                        Approver
+                      </span>
+                    ) : (
+                      <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                        Employee
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500">{new Date(comment.created_at).toLocaleString()}</p>
+                </div>
+                <p className="mt-1 whitespace-pre-wrap">{comment.comment}</p>
               </div>
             ))}
           </div>
@@ -376,14 +406,21 @@ export function TimeSheetApproval({
             <TextArea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Add a comment..."
+              placeholder={timeSheet.approval_status === 'CHANGES_REQUESTED' ? 
+                "Add your response to the requested changes..." : 
+                "Add a comment..."}
+              className={timeSheet.approval_status === 'CHANGES_REQUESTED' ? 
+                "border-orange-200 focus:border-orange-500" : ""}
             />
             <Button
               onClick={handleAddComment}
-              className="mt-2"
+              className={`mt-2 ${timeSheet.approval_status === 'CHANGES_REQUESTED' ? 
+                'bg-orange-500 hover:bg-orange-600' : ''}`}
               disabled={isAddingComment}
             >
-              {isAddingComment ? 'Adding...' : 'Add Comment'}
+              {isAddingComment ? 'Adding...' : 
+                timeSheet.approval_status === 'CHANGES_REQUESTED' ? 
+                'Respond to Changes' : 'Add Comment'}
             </Button>
           </div>
         </CardContent>

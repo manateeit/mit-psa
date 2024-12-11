@@ -45,12 +45,20 @@ export default function ManagerApprovalDashboard({ currentUser }: ManagerApprova
 
   const handleViewTimeSheet = async (timeSheet: ITimeSheetApproval) => {
     try {
-      const timeEntries = await fetchTimeEntriesForTimeSheet(timeSheet.id);
+      const [timeEntries, comments] = await Promise.all([
+        fetchTimeEntriesForTimeSheet(timeSheet.id),
+        fetchTimeSheetComments(timeSheet.id)
+      ]);
+
+      const timeSheetWithComments = {
+        ...timeSheet,
+        comments
+      };
 
       openDrawer(
         <TimeSheetApproval
           currentUser={currentUser}
-          timeSheet={timeSheet}
+          timeSheet={timeSheetWithComments}
           timeEntries={timeEntries}
           onApprove={async () => {
             await approveTimeSheet(timeSheet.id, currentUser.user_id);
