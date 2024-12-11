@@ -4,12 +4,19 @@ import { createTenantKnex } from '../db';
 import { v4 as uuid4 } from 'uuid';
 
 const Team = {
-    create: async (teamData: Omit<ITeam, 'team_id' | 'tenant'>): Promise<ITeam> => {
+    create: async (teamData: Omit<ITeam, 'team_id' | 'tenant' | 'members'>): Promise<ITeam> => {
         try {
+            if (!teamData.manager_id) {
+                throw new Error('manager_id is required when creating a team');
+            }
             logger.info('Creating new team:', teamData);
             const {knex: db, tenant} = await createTenantKnex();
             const [createdTeam] = await db<ITeam>('teams')
-                .insert({...teamData, team_id: uuid4(), tenant: tenant!})
+                .insert({
+                    ...teamData,
+                    team_id: uuid4(),
+                    tenant: tenant!
+                })
                 .returning('*');
             
             if (!createdTeam) {
@@ -71,6 +78,9 @@ const Team = {
     delete: async (team_id: string): Promise<void> => {
         try {
             const {knex: db} = await createTenantKnex();
+            // Delete team members first
+            await db('team_members').where({ team_id }).del();
+            // Then delete the team
             await db<ITeam>('teams').where({ team_id }).del();
         } catch (error) {
             logger.error(`Error deleting team with id ${team_id}:`, error);

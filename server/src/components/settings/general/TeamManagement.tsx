@@ -29,11 +29,21 @@ const TeamManagement: React.FC = () => {
     }
   };
 
-  const handleTeamUpdate = (updatedTeam: ITeam | null) => {
-    if (updatedTeam) {
-      setTeams((prevTeams) => prevTeams.map((team):ITeam => 
-        team.team_id === updatedTeam.team_id ? updatedTeam : team
-      ));
+  const handleTeamUpdate = (updatedTeam: ITeam | null, deleted?: boolean) => {
+    if (deleted) {
+      setTeams((prevTeams) => prevTeams.filter(team => team.team_id !== updatedTeam?.team_id));
+      setSelectedTeam(null);
+    } else if (updatedTeam) {
+      setTeams((prevTeams) => {
+        const existingTeam = prevTeams.find(team => team.team_id === updatedTeam.team_id);
+        if (existingTeam) {
+          return prevTeams.map((team):ITeam => 
+            team.team_id === updatedTeam.team_id ? updatedTeam : team
+          );
+        } else {
+          return [...prevTeams, updatedTeam];
+        }
+      });
       setSelectedTeam(updatedTeam);
     } else {
       setSelectedTeam(null);
