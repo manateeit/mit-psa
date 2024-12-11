@@ -4,10 +4,30 @@ import Team from '@/lib/models/team';
 import { ITeam, IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { getMultipleUsersWithRoles } from '@/lib/actions/user-actions/userActions';
 
-export async function createTeam(teamData: ITeam): Promise<ITeam> {
+export async function createTeam(teamData: Omit<ITeam, 'members'> & { members?: IUserWithRoles[] }): Promise<ITeam> {
   try {
-    const createdTeam = await Team.create(teamData);
-    return createdTeam;
+    // Extract members from teamData
+    const { members, ...teamDataWithoutMembers } = teamData;
+    
+    // If no manager_id is provided and there are members, use the first member as manager
+    if (!teamDataWithoutMembers.manager_id && members && members.length > 0) {
+      teamDataWithoutMembers.manager_id = members[0].user_id;
+    } else if (!teamDataWithoutMembers.manager_id) {
+      throw new Error('A team must have a manager. Please specify a manager_id or provide at least one team member.');
+    }
+    
+    // Create the team first
+    const createdTeam = await Team.create(teamDataWithoutMembers);
+    
+    // If members were provided, add them to the team
+    if (members && members.length > 0) {
+      await Promise.all(
+        members.map(member => Team.addMember(createdTeam.team_id, member.user_id))
+      );
+    }
+    
+    // Return the complete team with members
+    return await getTeamById(createdTeam.team_id);
   } catch (error) {
     console.error(error);
     throw new Error('Failed to create team');

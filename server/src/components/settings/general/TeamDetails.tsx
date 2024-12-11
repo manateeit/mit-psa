@@ -151,7 +151,7 @@ const TeamDetails: React.FC<TeamDetailsProps> = ({ teamId, onUpdate }): JSX.Elem
             onClick={handleSaveTeamName}
             className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors"
           >
-            Save
+            Rename
           </button>
         </div>
       </div>
