@@ -8,7 +8,7 @@ import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 
 interface TeamListProps {
   teams: ITeam[];
-  onSelectTeam: (team: ITeam | null) => void;
+  onSelectTeam: (team: ITeam | null, deleted?: boolean) => void;
 }
 
 const TeamList: React.FC<TeamListProps> = ({ teams, onSelectTeam }) => {
