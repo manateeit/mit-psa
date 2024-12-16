@@ -11,7 +11,7 @@ import { getAllPriorities, createPriority, deletePriority, updatePriority } from
 import { getTicketCategories, createTicketCategory, deleteTicketCategory, updateTicketCategory } from '@/lib/actions/ticketCategoryActions';
 import { IChannel } from '@/interfaces/channel.interface';
 import { ITicketStatus, IPriority, ITicketCategory } from '@/interfaces/ticket.interfaces';
-import { useSession } from 'next-auth/react';
+import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { Switch } from '@/components/ui/Switch';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
@@ -164,9 +164,17 @@ const TicketingSettings = (): JSX.Element => {
   const [editingCategory, setEditingCategory] = useState<string>('');
   const [editedCategoryName, setEditedCategoryName] = useState<string>('');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [userId, setUserId] = useState<string>('');
 
-  const { data: session } = useSession();
-  const userId = session?.user?.id;
+  useEffect(() => {
+    const initUser = async () => {
+      const user = await getCurrentUser();
+      if (user) {
+        setUserId(user.user_id);
+      }
+    };
+    initUser();
+  }, []);
 
   useEffect(() => {
     const fetchData = async (): Promise<void> => {
@@ -189,8 +197,6 @@ const TicketingSettings = (): JSX.Element => {
     fetchData();
   }, []);
 
-  
-    // Only clear selected parent category when changing channel filter if it's not a subcategory
     useEffect(() => {
       if (categoryChannelFilter !== 'all' && selectedParentCategory) {
         const parentCategory = categories.find(c => c.category_id === selectedParentCategory);
@@ -199,7 +205,7 @@ const TicketingSettings = (): JSX.Element => {
         }
       }
     }, [categoryChannelFilter, categories, selectedParentCategory]);
-  
+
     const filteredChannels = channels.filter(channel => {
       const isStatusMatch = 
         filterStatus === 'all' || 
@@ -211,13 +217,11 @@ const TicketingSettings = (): JSX.Element => {
     
       return isStatusMatch && isNameMatch;
     });
-  
-    // Show all categories when "All Channels" is selected or filter by channel
+
     const filteredCategories = categories.filter(category => {
       if (categoryChannelFilter === 'all') {
         return true;
       }
-      // If a specific channel is selected, show categories for that channel
       return category.channel_id === categoryChannelFilter;
     });
 
@@ -251,7 +255,7 @@ const TicketingSettings = (): JSX.Element => {
       if (newStatus.trim() === '') {
         return;
       }
-      
+
       try {
         const addedStatus = await createStatus({
           name: newStatus.trim(),
@@ -274,11 +278,11 @@ const TicketingSettings = (): JSX.Element => {
     };
 
     const addPriority = async (): Promise<void> => {
-      if (newPriority.trim() !== '') {
+      if (newPriority.trim() !== '' && userId) {
         try {
           const addedPriority = await createPriority({
             priority_name: newPriority.trim(),
-            created_by: userId || '',
+            created_by: userId,
             created_at: new Date()
           });
           setPriorities([...priorities, addedPriority]);
@@ -364,22 +368,18 @@ const TicketingSettings = (): JSX.Element => {
       try {
         let selectedChannelId: string | undefined;
       
-        // If adding a subcategory, use the parent's channel
         if (selectedParentCategory) {
           const parentCategory = categories.find(c => c.category_id === selectedParentCategory);
           selectedChannelId = parentCategory?.channel_id;
         } 
-        // If a specific channel is selected in the filter
         else if (categoryChannelFilter !== 'all') {
           selectedChannelId = categoryChannelFilter;
         }
-        // If "All Channels" is selected, show warning
         else {
           alert('Please select a specific channel from the dropdown first before adding a category.');
           return;
         }
       
-        // Add type check for selectedChannelId
         if (!selectedChannelId) {
           throw new Error('No channel selected');
         }
@@ -401,6 +401,7 @@ const TicketingSettings = (): JSX.Element => {
         }
       }
     };
+
     const handleDeleteChannel = async (channelId: string): Promise<void> => {
       try {
         await deleteChannel(channelId);
@@ -409,7 +410,7 @@ const TicketingSettings = (): JSX.Element => {
         console.error('Error deleting channel:', error);
       }
     };
-
+  
     const handleDeleteStatus = async (statusId: string): Promise<void> => {
       try {
         await deleteStatus(statusId);
@@ -418,7 +419,7 @@ const TicketingSettings = (): JSX.Element => {
         console.error('Error deleting status:', error);
       }
     };
-
+  
     const handleDeletePriority = async (priorityId: string): Promise<void> => {
       try {
         await deletePriority(priorityId);
@@ -427,21 +428,21 @@ const TicketingSettings = (): JSX.Element => {
         console.error('Error deleting priority:', error);
       }
     };
-
+  
     const handleDeleteCategory = async (categoryId: string): Promise<void> => {
       const category = categories.find(c => c.category_id === categoryId);
       if (!category) return;
-
+    
       const hasSubcategories = categories.some(c => c.parent_category === categoryId);
       if (hasSubcategories) {
         alert(`Cannot delete "${category.category_name}" because it has subcategories.\n\nPlease delete all subcategories first.`);
         return;
       }
-
+    
       if (!confirm(`Are you sure you want to delete the category "${category.category_name}"?\n\nThis action cannot be undone.`)) {
         return;
       }
-
+    
       try {
         await deleteTicketCategory(categoryId);
         setCategories(categories.filter(c => c.category_id !== categoryId));
@@ -477,14 +478,13 @@ const TicketingSettings = (): JSX.Element => {
     setCollapsedCategories(new Set(parentCategories));
   }, [categories]);
   
-  // First get top-level categories for the selected channel (or all channels)
   const topLevelCategories = categories.filter(category => {
     const matchesChannel = categoryChannelFilter === 'all' || category.channel_id === categoryChannelFilter;
     const isTopLevel = !category.parent_category;
     return matchesChannel && isTopLevel;
   });
 
-    const visibleCategories = topLevelCategories.reduce((acc: ITicketCategory[], category): ITicketCategory[] => {
+  const visibleCategories = topLevelCategories.reduce((acc: ITicketCategory[], category): ITicketCategory[] => {
     acc.push(category);
     if (!collapsedCategories.has(category.category_id)) {
       const subcategories = categories.filter(c => c.parent_category === category.category_id);
@@ -595,7 +595,7 @@ const TicketingSettings = (): JSX.Element => {
                 )}
               </Button>
             ) : (
-              <div className="w-6 mr-2" /> // Spacer for alignment
+              <div className="w-6 mr-2" />
             )}
             {editingCategory === record.category_id ? (
               <Input
