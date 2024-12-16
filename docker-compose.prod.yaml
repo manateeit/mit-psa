@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  server:
+    environment:
+      NODE_ENV: production
+      APP_ENV: production
+
+  setup:
+    environment:
+      NODE_ENV: production
+      APP_ENV: production
+
+  hocuspocus:
+    environment:
+      NODE_ENV: production
+      APP_ENV: production
