@@ -51,7 +51,13 @@ export class JobScheduler {
       try {
         // Use postgres admin credentials with development environment
         const env = process.env.APP_ENV || 'development';
-        const { host, port, user, password, database } = postgresConnection;
+        const { host, port, user, database } = postgresConnection;
+        let { password } = postgresConnection;
+        
+        // Ensure password is properly encoded for URL
+        if (password) {
+          password = encodeURIComponent(password);
+        }
         
         // Construct connection string using postgres admin credentials
         const connectionString = `postgres://${user}:${password}@${host}:${port}/${database}?application_name=pgboss_${env}`;
@@ -60,6 +66,7 @@ export class JobScheduler {
           connectionString: connectionString,
           retryLimit: 3,
           retryBackoff: true,
+          ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
         });
 
         boss.on('error', error => {

@@ -2,6 +2,7 @@ import { Knex } from 'knex';
 import { setTypeParser } from 'pg-types';
 import dotenv from 'dotenv';
 import fs from 'fs';
+import path from 'path';
 
 type Function = (err: Error | null, connection: Knex.Client) => void;
 
@@ -21,27 +22,56 @@ setTypeParser(1114, str => new Date(str + 'Z'));
 
 const getPassword = (secretPath: string, envVar: string): string => {
   try {
-    return fs.readFileSync(secretPath, 'utf8').trim();
+    // Get the absolute path to the project root, handling both development and production paths
+    let projectRoot = process.cwd(); // This will be the project root in both dev and prod
+    
+    // If we're in the server directory (development), go up one level
+    if (projectRoot.endsWith('server')) {
+      projectRoot = path.resolve(projectRoot, '..');
+    }
+    
+    const fullPath = path.join(projectRoot, secretPath);
+    console.log(`Attempting to read secret from: ${fullPath}`);
+    
+    if (!fs.existsSync(fullPath)) {
+      console.warn(`Secret file not found at path: ${fullPath}`);
+      if (process.env[envVar]) {
+        console.warn(`Using ${envVar} environment variable instead of Docker secret`);
+        return process.env[envVar] || '';
+      }
+      console.warn(`Neither secret file ${fullPath} nor ${envVar} environment variable found`);
+      return '';
+    }
+
+    const content = fs.readFileSync(fullPath, 'utf8').trim();
+    if (!content) {
+      console.warn(`Secret file ${fullPath} is empty`);
+      return '';
+    }
+
+    console.log(`Successfully read secret from: ${fullPath}`);
+    return content;
   } catch (error) {
+    console.error(`Error reading secret file: ${error}`);
     if (process.env[envVar]) {
       console.warn(`Using ${envVar} environment variable instead of Docker secret`);
       return process.env[envVar] || '';
     }
-    console.warn(`Neither secret file ${secretPath} nor ${envVar} environment variable found, using empty string`);
+    console.warn(`Neither secret file ${secretPath} nor ${envVar} environment variable found`);
     return '';
   }
 };
 
-const getDbPassword = () => getPassword('/run/secrets/db_password_server', 'DB_PASSWORD_SERVER');
-const getPostgresPassword = () => getPassword('/run/secrets/postgres_password', 'POSTGRES_PASSWORD');
+const getDbPassword = () => getPassword('secrets/db_password_server', 'DB_PASSWORD_SERVER');
+const getPostgresPassword = () => getPassword('secrets/postgres_password', 'POSTGRES_PASSWORD');
 
 // Special connection config for postgres user (needed for job scheduler)
 export const postgresConnection = {
   host: process.env.DB_HOST || 'localhost',
   port: Number(process.env.DB_PORT) || 5432,
-  user: 'postgres',
-  password: getPostgresPassword(),
-  database: process.env.DB_NAME_SERVER || 'postgres'
+  user: process.env.DB_USER_ADMIN || 'postgres',
+  password: process.env.DB_PASSWORD_ADMIN || getPostgresPassword(),
+  database: process.env.DB_NAME_SERVER || 'server'
 } satisfies Knex.PgConnectionConfig;
 
 interface CustomKnexConfig extends Knex.Config {
@@ -64,9 +94,9 @@ const knexfile: Record<string, CustomKnexConfig> = {
     connection: {
       host: process.env.DB_HOST || 'localhost',
       port: Number(process.env.DB_PORT) || 5432,
-      user: process.env.DB_USER_SERVER || 'postgres',
-      password: getDbPassword(),
-      database: process.env.DB_NAME_SERVER || 'postgres'
+      user: 'app_user',
+      password: process.env.DB_PASSWORD_SERVER || getDbPassword(),
+      database: process.env.DB_NAME_SERVER || 'server'
     },
     pool: {
       min: 0,
@@ -82,9 +112,9 @@ const knexfile: Record<string, CustomKnexConfig> = {
     connection: {
       host: process.env.DB_HOST || 'localhost',
       port: Number(process.env.DB_PORT) || 5432,
-      user: process.env.DB_USER_SERVER || 'postgres',
-      password: getDbPassword(),
-      database: process.env.DB_NAME_SERVER || 'postgres'
+      user: 'app_user',
+      password: process.env.DB_PASSWORD_SERVER || getDbPassword(),
+      database: process.env.DB_NAME_SERVER || 'server'
     },
     pool: {
       min: 0,
@@ -100,9 +130,9 @@ const knexfile: Record<string, CustomKnexConfig> = {
     connection: {
       host: 'localhost',
       port: 5432,
-      user: 'postgres',
-      password: getPassword('/run/secrets/postgres_password', 'POSTGRES_PASSWORD'),
-      database: 'postgres'
+      user: process.env.DB_USER_ADMIN || 'postgres',
+      password: process.env.DB_PASSWORD_ADMIN || getPostgresPassword(),
+      database: process.env.DB_NAME_SERVER || 'server'
     },
     pool: {
       min: 0,
