@@ -15,6 +15,11 @@ export interface SimpleColumnDefinition<T> extends BaseColumnDefinition<T> {
 
 export type ColumnDefinition<T> = SimpleColumnDefinition<T> | RenderColumnDefinition<T, any>;
 
+export interface EditableConfig {
+  editing: boolean;
+  onEdit?: (value: string) => void;
+}
+
 export interface DataTableProps<T> {
   data: T[];
   columns: ColumnDefinition<T>[];
@@ -23,5 +28,6 @@ export interface DataTableProps<T> {
   currentPage?: number;
   onPageChange?: (page: number) => void;
   pageSize?: number;
-  totalItems?: number;  // Added for server-side pagination support
+  totalItems?: number;
+  editableConfig?: EditableConfig;
 }

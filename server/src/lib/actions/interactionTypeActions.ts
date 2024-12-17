@@ -74,6 +74,19 @@ export async function deleteInteractionType(typeId: string): Promise<void> {
     }
 
     const {knex: db} = await createTenantKnex();
+
+    // Check for existing records using this interaction type
+    const existingRecords = await db('interactions')
+      .where({ 
+        type_id: typeId,
+        tenant: currentUser.tenant 
+      })
+      .first();
+
+    if (existingRecords) {
+      throw new Error('Cannot delete interaction type: records exist that use this type');
+    }
+
     const deletedCount = await db('interaction_types')
       .where({ type_id: typeId, tenant: currentUser.tenant })
       .delete();
@@ -83,7 +96,7 @@ export async function deleteInteractionType(typeId: string): Promise<void> {
     }
   } catch (error) {
     console.error('Error deleting interaction type:', error);
-    throw new Error('Failed to delete interaction type');
+    throw error; // Throw the original error to preserve the message
   }
 }
 

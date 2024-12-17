@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -25,16 +25,18 @@ const getNestedValue = (obj: unknown, path: string | string[]): unknown => {
   }, obj);
 };
 
-export const DataTable = <T extends object>({
-  data,
-  columns,
-  pagination = true,
-  onRowClick,
-  currentPage = 1,
-  onPageChange,
-  pageSize = 10,
-  totalItems,
-}: DataTableProps<T>): React.ReactElement => {
+export const DataTable = <T extends object>(props: DataTableProps<T>): React.ReactElement => {
+  const {
+    data,
+    columns,
+    pagination = true,
+    onRowClick,
+    currentPage = 1,
+    onPageChange,
+    pageSize = 10,
+    totalItems,
+    editableConfig
+  } = props;
   // Create stable column definitions
   const tableColumns = useMemo<ColumnDef<T>[]>(
     () =>
@@ -61,6 +63,9 @@ export const DataTable = <T extends object>({
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    meta: {
+      editableConfig: props.editableConfig,
+    },
   });
 
   const handleRowClick = (row: Row<T>) => {
