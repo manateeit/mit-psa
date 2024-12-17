@@ -38,7 +38,7 @@ A comprehensive Professional Services Automation platform designed for Managed S
 
 ## Getting Started
 
-For detailed setup instructions, please refer to our [Complete Setup Guide](docs/setup_guide.md). The guide covers:
+For detailed setup instructions, please refer to our [Complete Setup Guide](/docs/setup_guide.md). The guide covers:
 - Prerequisites and system requirements
 - Installation steps for both Community and Enterprise editions
 - Environment configuration
@@ -48,22 +48,22 @@ For detailed setup instructions, please refer to our [Complete Setup Guide](docs
 ## Documentation
 
 ### Setup & Configuration
-- [Complete Setup Guide](docs/setup_guide.md) - Step-by-step setup instructions
-- [Configuration Guide](docs/configuration_guide.md) - Detailed configuration options
-- [Development Guide](docs/development_guide.md) - Development workflow and best practices
+- [Complete Setup Guide](/docs/setup_guide.md) - Step-by-step setup instructions
+- [Configuration Guide](/docs/configuration_guide.md) - Detailed configuration options
+- [Development Guide](/docs/development_guide.md) - Development workflow and best practices
 
 ### Architecture & Components
-- [Docker Compose Structure](docs/docker_compose.md) - Container orchestration
-- [Secrets Management](docs/secrets_management.md) - Secure credentials handling
-- [Configuration Standards](docs/configuration_standards.md) - Coding and config standards
-- [Entrypoint Scripts](docs/entrypoint_scripts.md) - Service initialization
+- [Docker Compose Structure](/docs/docker_compose.md) - Container orchestration
+- [Secrets Management](/docs/secrets_management.md) - Secure credentials handling
+- [Configuration Standards](/docs/configuration_standards.md) - Coding and config standards
+- [Entrypoint Scripts](/docs/entrypoint_scripts.md) - Service initialization
 
 ### Features & Modules
-- [Architecture Overview](docs/overview.md)
-- [Billing System](docs/billing.md)
-- [International Tax Support](docs/international_tax_support.md)
-- [Asset Management](docs/asset_management.md)
-- [Time Entry Guide](docs/time_entry.md)
+- [Architecture Overview](/docs/overview.md)
+- [Billing System](/docs/billing.md)
+- [International Tax Support](/docs/international_tax_support.md)
+- [Asset Management](/docs/asset_management.md)
+- [Time Entry Guide](/docs/time_entry.md)
 
 ## Project Structure
 
@@ -108,11 +108,11 @@ This project uses multiple licenses:
 - Enterprise Edition (`ee/`): See `ee/LICENSE`
 - All other content: GNU Affero General Public License Version 3 (AGPL-3.0)
 
-See [LICENSE.md](LICENSE.md) for details.
+See [LICENSE.md](/LICENSE.md) for details.
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](docs/contributing.md) for details on how to get started.
+We welcome contributions! Please see our [Contributing Guide](/docs/contributing.md) for details on how to get started.
 
 ---
 Copyright (c) 2024 Nine Minds LLC
