@@ -171,11 +171,9 @@ export default function AssetDashboard({ initialAssets }: AssetDashboardProps) {
       }
     },
     { 
-      dataIndex: ['company', 'company_name'],
+      dataIndex: 'company_name',
       title: 'Company',
-      render: (value: unknown, record: Asset) => {
-        return record.company?.company_name || 'Unassigned';
-      }
+      render: (_: unknown, record: Asset) => record.company?.company_name || 'Unassigned'
     },
     {
       dataIndex: 'location',
@@ -282,7 +280,10 @@ export default function AssetDashboard({ initialAssets }: AssetDashboardProps) {
         <h3 className="text-xl font-semibold mb-4 text-[rgb(var(--color-text-900))]">Recent Assets</h3>
         <DataTable
           columns={columns}
-          data={assets.slice(0, 5)}
+          data={assets.slice(0, 5).map(asset => ({
+            ...asset,
+            id: asset.asset_id // Add id property for unique keys
+          }))}
           pagination={false}
           onRowClick={(asset) => router.push(`/msp/assets/${asset.asset_id}`)}
         />

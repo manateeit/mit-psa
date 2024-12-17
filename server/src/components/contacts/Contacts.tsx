@@ -347,7 +347,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
   const columns: ColumnDefinition<IContact>[] = [
     {
       title: 'Name',
-      dataIndex: 'contact_name_id',
+      dataIndex: 'full_name',
       render: (value, record) => (
         <div className="flex items-center">
           <img 
@@ -356,57 +356,109 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
             alt={`${record.full_name} avatar`}
             loading="lazy"
           />
-          <button
+          <div
+            role="button"
+            tabIndex={0}
             onClick={() => handleViewDetails(record)}
-            className="text-blue-600 hover:underline"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleViewDetails(record);
+              }
+            }}
+            className="text-blue-600 hover:underline cursor-pointer"
           >
             {record.full_name}
-          </button>
+          </div>
         </div>
       ),
     },
     {
       title: 'Email',
       dataIndex: 'email',
+      render: (value, record) => record.email || 'N/A',
     },
     {
       title: 'Phone Number',
       dataIndex: 'phone_number',
+      render: (value, record) => record.phone_number || 'N/A',
     },
     {
       title: 'Company',
       dataIndex: 'company_id',
-      render: (value, record) => (
-        <button
-          onClick={() => handleCompanyClick(value)}
-          className="text-blue-600 hover:underline"
-        >
-          {getCompanyName(value)}
-        </button>
-      ),
+      render: (value, record) => {
+        const companyId = record.company_id;
+        if (typeof companyId !== 'string' || !companyId) {
+          return <span className="text-gray-500">No Company</span>;
+        }
+
+        const company = companies.find(c => c.company_id === companyId);
+        if (!company) {
+          return <span className="text-gray-500">{getCompanyName(companyId)}</span>;
+        }
+
+        return (
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => openDrawer(
+              <CompanyDetails 
+                company={company} 
+                documents={[]} 
+                contacts={[]} 
+                isInDrawer={true} 
+              />
+            )}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openDrawer(
+                  <CompanyDetails 
+                    company={company} 
+                    documents={[]} 
+                    contacts={[]} 
+                    isInDrawer={true} 
+                  />
+                );
+              }
+            }}
+            className="text-blue-600 hover:underline cursor-pointer"
+          >
+            {company.company_name}
+          </div>
+        );
+      },
     },
     {
       title: 'Tags',
-      dataIndex: 'contact_name_id',
-      render: (value, record) => (
-        <TagManager
-          entityId={value}
-          entityType="contact"
-          initialTags={contactTagsRef.current[value] || []}
-          existingTags={allUniqueTags}
-          onTagsChange={(tags) => handleTagsChange(value, tags)}
-        />
-      ),
+      dataIndex: 'tags',
+      render: (value, record) => {
+        if (!record.contact_name_id) return null;
+        
+        return (
+          <TagManager
+            entityId={record.contact_name_id}
+            entityType="contact"
+            initialTags={contactTagsRef.current[record.contact_name_id] || []}
+            existingTags={allUniqueTags}
+            onTagsChange={(tags) => handleTagsChange(record.contact_name_id, tags)}
+          />
+        );
+      },
     },
     {
       title: 'Actions',
-      dataIndex: 'contact_name_id',
+      dataIndex: 'actions',
       render: (value, record) => (
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
-            <Button variant="ghost">
+            <div
+              role="button"
+              tabIndex={0}
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 w-9 p-0"
+            >
               <MoreVertical size={16} />
-            </Button>
+            </div>
           </DropdownMenu.Trigger>
           <DropdownMenu.Content className="bg-white rounded-md shadow-lg p-1">
             <DropdownMenu.Item 
@@ -494,10 +546,10 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
           </div>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
-              <button className="border border-gray-300 rounded-md p-2 flex items-center gap-2">
+              <div className="border border-gray-300 rounded-md p-2 flex items-center gap-2 hover:bg-gray-50 cursor-pointer">
                 <MoreVertical size={16} />
                 Actions
-              </button>
+              </div>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content className="bg-white rounded-md shadow-lg p-1">
               <DropdownMenu.Item 
@@ -518,10 +570,9 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
           </DropdownMenu.Root>
         </div>
       <DataTable
-        data={filteredContacts.map((contact): IContact & { id: string } => ({
+        data={filteredContacts.map(contact => ({
           ...contact,
-          // Create a truly unique identifier using contact_name_id
-          id: contact.contact_name_id
+          id: contact.contact_name_id // Add id property for unique keys
         }))}
         columns={columns}
         pagination={true}

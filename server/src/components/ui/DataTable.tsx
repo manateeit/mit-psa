@@ -37,20 +37,20 @@ export const DataTable = <T extends object>(props: DataTableProps<T>): React.Rea
     totalItems,
     editableConfig
   } = props;
+
+  // Generate a unique context for this table instance
+  const tableContext = useMemo(() => Math.random().toString(36).substring(7), []);
+
   // Create stable column definitions
   const tableColumns = useMemo<ColumnDef<T>[]>(
     () =>
       columns.map((col): ColumnDef<T> => ({
-        id: Array.isArray(col.dataIndex) ? col.dataIndex.join('.') : col.dataIndex,
+        id: Array.isArray(col.dataIndex) ? col.dataIndex.join('_') : col.dataIndex,
         accessorFn: (row) => getNestedValue(row, col.dataIndex),
         header: () => col.title,
         cell: (info) => col.render ? col.render(info.getValue(), info.row.original, info.row.index) : info.getValue(),
       })),
-    [columns.map((col):unknown => ({ 
-      id: Array.isArray(col.dataIndex) ? col.dataIndex.join('.') : col.dataIndex,
-      title: col.title,
-      hasRender: !!col.render 
-    }))]
+    [columns]
   );
 
   // Calculate pagination values using totalItems if provided, otherwise use data.length
@@ -91,48 +91,58 @@ export const DataTable = <T extends object>(props: DataTableProps<T>): React.Rea
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-white">
-            {table.getHeaderGroups().map((headerGroup):JSX.Element => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header):JSX.Element => (
-                  <th 
-                    key={`${headerGroup.id}_${header.id}`}
-                    onClick={header.column.getToggleSortingHandler()}
-                    className="px-6 py-3 text-left text-xs font-medium text-[rgb(var(--color-text-700))] tracking-wider cursor-pointer hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-center space-x-1">
-                      <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
-                      <span className="text-gray-400">
-                        {{
-                          asc: ' ↑',
-                          desc: ' ↓',
-                        }[header.column.getIsSorted() as string] ?? null}
-                      </span>
-                    </div>
-                  </th>
-                ))}
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={`${tableContext}_headergroup_${headerGroup.id}`}>
+                {headerGroup.headers.map((header) => {
+                  const columnId = header.column.columnDef.id || header.id;
+                  return (
+                    <th 
+                      key={`${tableContext}_header_${columnId}`}
+                      onClick={header.column.getToggleSortingHandler()}
+                      className="px-6 py-3 text-left text-xs font-medium text-[rgb(var(--color-text-700))] tracking-wider cursor-pointer hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
+                        <span className="text-gray-400">
+                          {{
+                            asc: ' ↑',
+                            desc: ' ↓',
+                          }[header.column.getIsSorted() as string] ?? null}
+                        </span>
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             ))}
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {table.getRowModel().rows.map((row, index):JSX.Element => (
-              <tr
-                key={row.id}
-                onClick={() => handleRowClick(row)}
-                className={`
-                  ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}
-                  hover:bg-blue-50 transition-colors cursor-pointer
-                `}
-              >
-                {row.getVisibleCells().map((cell, cellIndex):JSX.Element => (
-                  <td 
-                    key={`${row.index}-${cellIndex}`}
-                    className="px-6 py-4 whitespace-nowrap text-[14px] text-[rgb(var(--color-text-700))]"
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {table.getRowModel().rows.map((row) => {
+              // Use the id property if it exists in the data, otherwise use row.id
+              const rowId = ('id' in row.original) ? (row.original as { id: string }).id : row.id;
+              return (
+                <tr
+                  key={`${tableContext}_row_${rowId}`}
+                  onClick={() => handleRowClick(row)}
+                  className={`
+                    ${row.index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}
+                    hover:bg-blue-50 transition-colors cursor-pointer
+                  `}
+                >
+                  {row.getVisibleCells().map((cell) => {
+                    const columnId = cell.column.columnDef.id || cell.column.id;
+                    return (
+                      <td 
+                        key={`${tableContext}_cell_${rowId}_${columnId}`}
+                        className="px-6 py-4 whitespace-nowrap text-[14px] text-[rgb(var(--color-text-700))]"
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

@@ -1,6 +1,6 @@
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
-import { ICompany } from "@/interfaces/company.interfaces";
+import { ICompany } from '@/interfaces/company.interfaces';
 import Link from "next/link";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -19,13 +19,13 @@ const CompaniesList = ({ selectedCompanies, filteredCompanies, setSelectedCompan
     const columns: ColumnDefinition<ICompany>[] = [
         {
             title: '',
-            dataIndex: 'company_id',
+            dataIndex: 'checkbox',
             render: (value: string, record: ICompany) => (
                 <input
                     type="checkbox"
                     className="form-checkbox h-4 w-4"
-                    checked={selectedCompanies.includes(value)}
-                    onChange={() => handleCheckboxChange(value)}
+                    checked={selectedCompanies.includes(record.company_id)}
+                    onChange={() => handleCheckboxChange(record.company_id)}
                 />
             ),
         },
@@ -34,55 +34,60 @@ const CompaniesList = ({ selectedCompanies, filteredCompanies, setSelectedCompan
             dataIndex: 'company_name',
             render: (text: string, record: ICompany) => (
                 <Link href={`/msp/companies/${record.company_id}`} className="text-blue-600">
-                    {text}
+                    {record.company_name}
                 </Link>
             ),
         },
         {
             title: 'Client Type',
             dataIndex: 'client_type',
-            render: (text: string | null) => text || 'N/A',
+            render: (text: string | null, record: ICompany) => record.client_type || 'N/A',
         },
         {
             title: 'Phone',
             dataIndex: 'phone_no',
-            render: (text: string | null) => text || 'N/A',
+            render: (text: string | null, record: ICompany) => record.phone_no || 'N/A',
         },
         {
             title: 'Address',
             dataIndex: 'address',
-            render: (text: string | null) => text || 'N/A',
+            render: (text: string | null, record: ICompany) => record.address || 'N/A',
         },
         {
             title: 'Account Owner',
             dataIndex: ['properties', 'account_manager_name'],
-            render: (text: string | undefined) => text || 'N/A',
-          },
+            render: (text: string | undefined, record: ICompany) => 
+                record.properties?.account_manager_name || 'N/A',
+        },
         {
             title: 'Url',
             dataIndex: 'url',
-            render: (text: string | null) => (
-                text && text.trim() !== '' ? (
-                    <a href={text} target="_blank" rel="noopener noreferrer" className="text-blue-600">
-                        {text}
+            render: (text: string | null, record: ICompany) => (
+                record.url && record.url.trim() !== '' ? (
+                    <a href={record.url} target="_blank" rel="noopener noreferrer" className="text-blue-600">
+                        {record.url}
                     </a>
                 ) : 'N/A'
             ),
         },
         {
             title: 'Actions',
-            dataIndex: 'company_id',
+            dataIndex: 'actions',
             render: (value: string, record: ICompany) => (
                 <DropdownMenu.Root>
                     <DropdownMenu.Trigger asChild>
-                        <Button variant="ghost" size="1">
+                        <div
+                            role="button"
+                            tabIndex={0}
+                            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 w-9 p-0"
+                        >
                             <MoreVertical size={16} />
-                        </Button>
+                        </div>
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content className="bg-white rounded-md shadow-lg p-1">
                         <DropdownMenu.Item 
                             className="px-2 py-1 text-sm cursor-pointer hover:bg-gray-100 flex items-center"
-                            onSelect={() => handleEditCompany(value)}
+                            onSelect={() => handleEditCompany(record.company_id)}
                         >
                             <Pencil size={14} className="mr-2" />
                             Edit
@@ -103,7 +108,10 @@ const CompaniesList = ({ selectedCompanies, filteredCompanies, setSelectedCompan
     return (
         <div className="w-full">
             <DataTable
-                data={filteredCompanies}
+                data={filteredCompanies.map(company => ({
+                    ...company,
+                    id: company.company_id
+                }))}
                 columns={columns}
             />
         </div>
