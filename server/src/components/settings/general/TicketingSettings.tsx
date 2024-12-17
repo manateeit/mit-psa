@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import CustomTabs from '@/components/ui/CustomTabs';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -45,11 +45,20 @@ function SettingSection<T extends object>({
   columns
 }: SettingSectionProps<T>): JSX.Element {
   const [editingItem, setEditingItem] = useState<T | null>(null);
-  const [editedName, setEditedName] = useState('');
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   const startEditing = (item: T): void => {
     setEditingItem(item);
-    setEditedName(getItemName(item));
+    setTimeout(() => {
+      if (editInputRef.current) {
+        editInputRef.current.value = getItemName(item);
+        editInputRef.current.focus();
+      }
+    }, 0);
+  };
+
+  const cancelEditing = (): void => {
+    setEditingItem(null);
   };
 
   const getPlaceholder = (): string => {
@@ -68,7 +77,7 @@ function SettingSection<T extends object>({
   };
 
   const saveEdit = (): void => {
-    if (editingItem) {
+    if (editingItem && editInputRef.current?.value.trim()) {
       let propertyName: string;
       switch (title) {
         case "Channels":
@@ -88,11 +97,40 @@ function SettingSection<T extends object>({
           return;
       }
 
-      const updatedItem = { ...editingItem, [propertyName]: editedName };
+      const updatedItem = { ...editingItem, [propertyName]: editInputRef.current.value.trim() };
       updateItem(updatedItem as T);
       setEditingItem(null);
     }
   };
+
+  // Modify columns to include inline editing
+  const modifiedColumns: ColumnDefinition<T>[] = columns.map(column => {
+    if (column.dataIndex === 'channel_name' || column.dataIndex === 'name' || 
+        column.dataIndex === 'priority_name' || column.dataIndex === 'category_name') {
+      return {
+        ...column,
+        render: (value: any, record: T) => (
+          editingItem === record ? (
+            <Input
+              ref={editInputRef}
+              defaultValue={value}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  saveEdit();
+                } else if (e.key === 'Escape') {
+                  cancelEditing();
+                }
+              }}
+              className="w-full"
+            />
+          ) : (
+            <span className="text-gray-700">{value}</span>
+          )
+        )
+      };
+    }
+    return column;
+  });
 
   const actionColumn: ColumnDefinition<T> = {
     title: 'Action',
@@ -100,29 +138,58 @@ function SettingSection<T extends object>({
     render: (_, item) => (
       <div className="flex items-center justify-end space-x-2">
         {editingItem === item ? (
-          <Button onClick={saveEdit} size="sm">Save</Button>
+          <>
+            <Button 
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                saveEdit();
+              }}
+            >
+              Save
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                cancelEditing();
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </>
         ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => startEditing(item)}
-          >
-            <Edit2 className="h-4 w-4" />
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                startEditing(item);
+              }}
+            >
+              <Edit2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteItem(getItemKey(item));
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            {renderExtraActions && renderExtraActions(item)}
+          </>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => deleteItem(getItemKey(item))}
-        >
-          <X className="h-4 w-4" />
-        </Button>
-        {renderExtraActions && renderExtraActions(item)}
       </div>
     )
   };
 
-  const allColumns = [...columns, actionColumn];
+  const allColumns = [...modifiedColumns, actionColumn];
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm">
@@ -165,6 +232,7 @@ const TicketingSettings = (): JSX.Element => {
   const [editedCategoryName, setEditedCategoryName] = useState<string>('');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [userId, setUserId] = useState<string>('');
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const initUser = async () => {
@@ -328,28 +396,33 @@ const TicketingSettings = (): JSX.Element => {
 
     const handleEditCategory = (category: ITicketCategory) => {
       setEditingCategory(category.category_id);
-      setEditedCategoryName(category.category_name);
+      // Let the input render first, then set its value
+      setTimeout(() => {
+        if (editInputRef.current) {
+          editInputRef.current.value = category.category_name;
+          editInputRef.current.focus();
+        }
+      }, 0);
     };
 
     const handleSaveCategory = async (categoryId: string) => {
-      if (!editedCategoryName.trim()) {
+      if (!editInputRef.current?.value.trim()) {
         return;
       }
-
+  
       try {
         const category = categories.find(c => c.category_id === categoryId);
         if (!category) return;
 
         const updatedCategory = await updateTicketCategory(categoryId, {
           ...category,
-          category_name: editedCategoryName.trim()
+          category_name: editInputRef.current.value.trim()
         });
 
         setCategories(categories.map((c):ITicketCategory => 
           c.category_id === categoryId ? updatedCategory : c
         ));
         setEditingCategory('');
-        setEditedCategoryName('');
       } catch (error) {
         console.error('Error updating category:', error);
         if (error instanceof Error) {
@@ -599,11 +672,16 @@ const TicketingSettings = (): JSX.Element => {
             )}
             {editingCategory === record.category_id ? (
               <Input
-                type="text"
-                value={editedCategoryName}
-                onChange={(e) => setEditedCategoryName(e.target.value)}
+                ref={editInputRef}
+                defaultValue={value}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSaveCategory(record.category_id);
+                  } else if (e.key === 'Escape') {
+                    setEditingCategory('');
+                  }
+                }}
                 className="flex-grow"
-                autoFocus
               />
             ) : (
               <span>{value}</span>
@@ -716,16 +794,19 @@ const TicketingSettings = (): JSX.Element => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleSaveCategory(item.category_id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSaveCategory(item.category_id);
+                          }}
                         >
                           Save
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setEditingCategory('');
-                            setEditedCategoryName('');
                           }}
                         >
                           <X className="h-4 w-4" />
@@ -736,14 +817,20 @@ const TicketingSettings = (): JSX.Element => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleEditCategory(item)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditCategory(item);
+                          }}
                         >
                           <Edit2 className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setSelectedParentCategory(item.category_id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedParentCategory(item.category_id);
+                          }}
                           title="Add Subcategory"
                         >
                           <Network className="h-4 w-4" />
@@ -751,7 +838,10 @@ const TicketingSettings = (): JSX.Element => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteCategory(item.category_id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCategory(item.category_id);
+                          }}
                         >
                           <X className="h-4 w-4" />
                         </Button>
@@ -806,3 +896,4 @@ const TicketingSettings = (): JSX.Element => {
 };
 
 export default TicketingSettings;
+
