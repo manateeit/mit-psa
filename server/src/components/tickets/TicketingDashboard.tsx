@@ -126,6 +126,14 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
     }
   }, [user, selectedChannel, selectedStatus, selectedPriority, searchQuery, channelFilterState]);
 
+  // Add id to each ticket for DataTable keys
+  const ticketsWithIds = useMemo(() => 
+    filteredTickets.map(ticket => ({
+      ...ticket,
+      id: ticket.ticket_id
+    }))
+  , [filteredTickets]);
+
   // Filter tickets based on selected categories
   useEffect(() => {
     let filtered = [...tickets];
@@ -257,7 +265,7 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({ initialTickets,
           </div>
         ) : (
           <DataTable
-            data={filteredTickets}
+            data={ticketsWithIds}
             columns={columns}
           />
         )}

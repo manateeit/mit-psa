@@ -347,7 +347,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
   const columns: ColumnDefinition<IContact>[] = [
     {
       title: 'Name',
-      dataIndex: ['contact_name_id', 'full_name'],
+      dataIndex: 'full_name',
       render: (value, record) => (
         <div className="flex items-center">
           <img 
@@ -376,14 +376,16 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
     {
       title: 'Email',
       dataIndex: 'email',
+      render: (value, record) => record.email || 'N/A',
     },
     {
       title: 'Phone Number',
       dataIndex: 'phone_number',
+      render: (value, record) => record.phone_number || 'N/A',
     },
     {
       title: 'Company',
-      dataIndex: ['company_id', 'company_name'],
+      dataIndex: 'company_id',
       render: (value, record) => {
         const companyId = record.company_id;
         if (typeof companyId !== 'string' || !companyId) {
@@ -429,7 +431,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
     },
     {
       title: 'Tags',
-      dataIndex: ['contact_name_id', 'tags'],
+      dataIndex: 'tags',
       render: (value, record) => {
         if (!record.contact_name_id) return null;
         
@@ -446,13 +448,17 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
     },
     {
       title: 'Actions',
-      dataIndex: ['contact_name_id', 'actions'],
+      dataIndex: 'actions',
       render: (value, record) => (
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
-            <Button variant="ghost">
+            <div
+              role="button"
+              tabIndex={0}
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 w-9 p-0"
+            >
               <MoreVertical size={16} />
-            </Button>
+            </div>
           </DropdownMenu.Trigger>
           <DropdownMenu.Content className="bg-white rounded-md shadow-lg p-1">
             <DropdownMenu.Item 
@@ -564,7 +570,10 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
           </DropdownMenu.Root>
         </div>
       <DataTable
-        data={filteredContacts}
+        data={filteredContacts.map(contact => ({
+          ...contact,
+          id: contact.contact_name_id // Add id property for unique keys
+        }))}
         columns={columns}
         pagination={true}
         currentPage={currentPage}
