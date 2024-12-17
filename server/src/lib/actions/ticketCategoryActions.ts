@@ -1,9 +1,8 @@
 'use server'
 
-import { createTenantKnex } from '../db';
-import { getServerSession } from "next-auth/next";
-import { options } from "../../app/api/auth/[...nextauth]/options";
-import { ITicketCategory } from '../../interfaces/ticket.interfaces';
+import { createTenantKnex } from '@/lib/db';
+import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
+import { ITicketCategory } from '@/interfaces/ticket.interfaces';
 
 async function orderCategoriesHierarchically(categories: ITicketCategory[]): Promise<ITicketCategory[]> {
   // First separate parent categories and subcategories
@@ -38,8 +37,8 @@ async function orderCategoriesHierarchically(categories: ITicketCategory[]): Pro
 }
 
 export async function getTicketCategories() {
-  const session = await getServerSession(options);
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     throw new Error('Unauthorized');
   }
 
@@ -59,8 +58,8 @@ export async function getTicketCategories() {
 }
 
 export async function createTicketCategory(categoryName: string, channelId: string, parentCategory?: string) {
-  const session = await getServerSession(options);
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     throw new Error('Unauthorized');
   }
 
@@ -97,7 +96,7 @@ export async function createTicketCategory(categoryName: string, channelId: stri
         category_name: categoryName.trim(),
         channel_id: channelId,
         parent_category: parentCategory,
-        created_by: session.user.id
+        created_by: user.user_id
       })
       .returning('*');
 
@@ -112,8 +111,8 @@ export async function createTicketCategory(categoryName: string, channelId: stri
 }
 
 export async function deleteTicketCategory(categoryId: string) {
-  const session = await getServerSession(options);
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     throw new Error('Unauthorized');
   }
 
@@ -169,8 +168,8 @@ export async function deleteTicketCategory(categoryId: string) {
 }
 
 export async function updateTicketCategory(categoryId: string, categoryData: Partial<ITicketCategory>) {
-  const session = await getServerSession(options);
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     throw new Error('Unauthorized');
   }
 
@@ -227,8 +226,8 @@ export async function updateTicketCategory(categoryId: string, categoryData: Par
 }
 
 export async function getTicketCategoriesByChannel(channelId: string) {
-  const session = await getServerSession(options);
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     throw new Error('Unauthorized');
   }
 

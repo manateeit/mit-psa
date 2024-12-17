@@ -1,15 +1,14 @@
 'use server'
 
 import { createTenantKnex } from '@/lib/db';
-import { getServerSession } from "next-auth/next";
-import { options } from "@/app/api/auth/[...nextauth]/options";
+import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { IStatus, ItemType } from '@/interfaces/project.interfaces';
 
 export async function getTicketStatuses() {
   try {
-    // Get the session first to ensure we have a valid user
-    const session = await getServerSession(options);
-    if (!session?.user?.id) {
+    // Get the current user to ensure we have a valid user
+    const user = await getCurrentUser();
+    if (!user) {
       throw new Error('Unauthorized');
     }
 
@@ -36,8 +35,8 @@ export async function getTicketStatuses() {
 }
 
 export async function createStatus(statusData: Omit<IStatus, 'status_id' | 'tenant'>): Promise<IStatus> {
-  const session = await getServerSession(options);
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     throw new Error('Unauthorized');
   }
 
@@ -84,7 +83,7 @@ export async function createStatus(statusData: Omit<IStatus, 'status_id' | 'tena
           tenant,
           name: statusData.name.trim(),
           is_closed: false,
-          created_by: session.user.id
+          created_by: user.user_id
         })
         .returning('*');
 
@@ -103,8 +102,8 @@ export async function createStatus(statusData: Omit<IStatus, 'status_id' | 'tena
 }
 
 export async function updateStatus(statusId: string, statusData: Partial<IStatus>) {
-  const session = await getServerSession(options);
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     throw new Error('Unauthorized');
   }
 
@@ -163,8 +162,8 @@ export async function updateStatus(statusId: string, statusData: Partial<IStatus
 }
 
 export async function deleteStatus(statusId: string) {
-  const session = await getServerSession(options);
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     throw new Error('Unauthorized');
   }
 
