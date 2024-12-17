@@ -13,7 +13,7 @@ This guide provides step-by-step instructions for setting up the PSA system usin
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-org/alga-psa.git
+git clone https://github.com/nine-minds/alga-psa.git
 cd alga-psa
 ```
 
