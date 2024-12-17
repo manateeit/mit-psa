@@ -66,14 +66,8 @@ chmod 600 secrets/*
 
 1. Copy the appropriate environment template:
 
-For development:
 ```bash
-cp .env.example .env.development
-```
-
-For production:
-```bash
-cp .env.example .env.production
+cp .env.example server/.env
 ```
 
 2. Edit the environment file and configure required values:
