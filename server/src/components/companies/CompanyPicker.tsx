@@ -1,6 +1,7 @@
 // server/src/components/CompanyPicker.tsx
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Input } from '../ui/Input';
 import CustomSelect from '../ui/CustomSelect';
 import { ICompany } from '@/interfaces';
@@ -14,6 +15,7 @@ interface CompanyPickerProps {
   onFilterStateChange: (state: 'all' | 'active' | 'inactive') => void;
   clientTypeFilter: 'all' | 'company' | 'individual';
   onClientTypeFilterChange: (type: 'all' | 'company' | 'individual') => void;
+  fitContent?: boolean;
 }
 
 export const CompanyPicker: React.FC<CompanyPickerProps> = ({
@@ -24,6 +26,7 @@ export const CompanyPicker: React.FC<CompanyPickerProps> = ({
   onFilterStateChange,
   clientTypeFilter,
   onClientTypeFilterChange,
+  fitContent = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,15 +55,18 @@ export const CompanyPicker: React.FC<CompanyPickerProps> = ({
   }, [filterCompanies]);
 
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (!dropdownRef.current?.contains(target) && target.nodeName !== 'SELECT') {
         setIsOpen(false);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isOpen]);
 
   const handleSelect = (companyId: string) => {
     onSelect(companyId);
@@ -80,7 +86,7 @@ export const CompanyPicker: React.FC<CompanyPickerProps> = ({
     : null;
 
   return (
-    <div className="rounded-md" ref={dropdownRef}>
+    <div className={`${fitContent ? 'w-fit' : 'w-full'} rounded-md relative`} ref={dropdownRef}>
       <button 
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -90,47 +96,62 @@ export const CompanyPicker: React.FC<CompanyPickerProps> = ({
         <ChevronDownIcon />
       </button>
       
-      {isOpen && (
-        <div className="absolute left-0 right-0 z-[100] mt-1 bg-white border rounded-md shadow-lg">
-          <div className="p-4 space-y-4 bg-white">
-            <div className="flex justify-between items-center space-x-4">
-              <div className="flex-1 relative z-[110]">
+      {isOpen && createPortal(
+        <div 
+          className={`fixed z-[100] bg-white border rounded-md shadow-lg ${fitContent ? 'w-max' : 'w-[350px]'}`}
+          style={{ 
+            top: (dropdownRef.current?.getBoundingClientRect().bottom ?? 0) + 4,
+            left: dropdownRef.current?.getBoundingClientRect().left ?? 0
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="p-3 space-y-3 bg-white">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="w-full">
                 <CustomSelect
-                  value={filterState}
-                  onValueChange={handleFilterStateChange}
-                  options={[
-                    { value: 'active', label: 'Active Clients' },
-                    { value: 'inactive', label: 'Inactive Clients' },
-                    { value: 'all', label: 'All Clients' },
-                  ]}
-                  placeholder="Filter by status"
-                />
+                value={filterState}
+                onValueChange={handleFilterStateChange}
+                options={[
+                  { value: 'active', label: 'Active Clients' },
+                  { value: 'inactive', label: 'Inactive Clients' },
+                  { value: 'all', label: 'All Clients' },
+                ]}
+                placeholder="Filter by status"
+              />
               </div>
-              <div className="flex-1 relative z-[110]">
+              <div className="w-full">
                 <CustomSelect
-                  value={clientTypeFilter}
-                  onValueChange={handleClientTypeFilterChange}
-                  options={[
-                    { value: 'all', label: 'All Types' },
-                    { value: 'company', label: 'Companies' },
-                    { value: 'individual', label: 'Individuals' },
-                  ]}
-                  placeholder="Filter by client type"
+                value={clientTypeFilter}
+                onValueChange={handleClientTypeFilterChange}
+                options={[
+                  { value: 'all', label: 'All Types' },
+                  { value: 'company', label: 'Companies' },
+                  { value: 'individual', label: 'Individuals' },
+                ]}
+                placeholder="Filter by client type"
                 />
               </div>
             </div>
-            <Input
-              placeholder="Search clients..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+            <div className="whitespace-nowrap">
+              <Input
+                placeholder="Search clients..."
+                value={searchTerm}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setSearchTerm(e.target.value);
+                }}
+              />
+            </div>
           </div>
           <div className="max-h-60 overflow-y-auto border-t bg-white">
             {filteredCompanies.map((company):JSX.Element => (
               <button
                 type="button"
                 key={company.company_id}
-                onClick={() => handleSelect(company.company_id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelect(company.company_id);
+                }}
                 className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${
                   company.company_id === selectedCompanyId ? 'bg-blue-100' : ''
                 }`}
@@ -144,7 +165,7 @@ export const CompanyPicker: React.FC<CompanyPickerProps> = ({
             ))}
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 };
