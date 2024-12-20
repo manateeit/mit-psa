@@ -90,6 +90,8 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [showCompanyPicker, setShowCompanyPicker] = useState(false);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -158,47 +160,71 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
           <div>
             <h5 className="font-bold">Contact</h5>
             <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <p
-                  className="text-sm text-blue-500 cursor-pointer hover:underline"
-                  onClick={onContactClick}
-                >
-                  {contactInfo?.full_name || 'N/A'}
-                </p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowContactPicker(!showContactPicker)}
-                  className="p-1 h-auto"
-                >
-                  <Edit2 className="h-3 w-3" />
-                </Button>
-              </div>
-              {showContactPicker && (
-                <div className="flex items-center group">
-                  <CustomSelect
-                    value={contactInfo?.contact_name_id || ''}
-                    onValueChange={(value) => {
-                      onChangeContact(value || null);
-                      setShowContactPicker(false);
-                    }}
-                    options={contacts.map((contact) => ({
-                      value: contact.contact_name_id,
-                      label: contact.full_name
-                    }))}
-                    placeholder="Select Contact"
-                  />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <p
+                    className="text-sm text-blue-500 cursor-pointer hover:underline"
+                    onClick={onContactClick}
+                  >
+                    {contactInfo?.full_name || 'N/A'}
+                  </p>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      onChangeContact(null);
-                      setShowContactPicker(false);
-                    }}
-                    className="h-auto opacity-0 group-hover:opacity-100"
+                    onClick={() => setShowContactPicker(!showContactPicker)}
+                    className="p-1 h-auto"
                   >
-                    <X className="h-4 w-4" />
+                    <Edit2 className="h-3 w-3" />
                   </Button>
+                </div>
+                {contactInfo && showContactPicker && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onChangeContact(null)}
+                    className="p-1 h-auto text-red-500 hover:text-red-700"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              {showContactPicker && (
+                <div className="space-y-2">
+                  <div className="flex items-center group">
+                    <CustomSelect
+                      value={selectedContactId || contactInfo?.contact_name_id || ''}
+                      onValueChange={(value) => {
+                        setSelectedContactId(value);
+                      }}
+                      options={contacts.map((contact) => ({
+                        value: contact.contact_name_id,
+                        label: contact.full_name
+                      }))}
+                      placeholder="Select Contact"
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowContactPicker(false);
+                        setSelectedContactId(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        onChangeContact(selectedContactId);
+                        setShowContactPicker(false);
+                      }}
+                    >
+                      Save
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -229,33 +255,45 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
                 </Button>
               </div>
               {showCompanyPicker && (
-                <div className="flex items-center group relative">
-                  <div className="w-full">
-                    <CompanyPicker
-                      companies={companies}
-                      onSelect={(companyId) => {
-                        onChangeCompany(companyId);
+                <div className="space-y-2">
+                  <div className="flex items-center group relative">
+                    <div className="w-full">
+                      <CompanyPicker
+                        companies={companies}
+                        onSelect={setSelectedCompanyId}
+                        selectedCompanyId={selectedCompanyId || company?.company_id || ''}
+                        filterState={companyFilterState}
+                        onFilterStateChange={onCompanyFilterStateChange}
+                        clientTypeFilter={clientTypeFilter}
+                        onClientTypeFilterChange={onClientTypeFilterChange}
+                        fitContent={false}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowCompanyPicker(false);
+                        setSelectedCompanyId(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        if (selectedCompanyId) {
+                          onChangeCompany(selectedCompanyId);
+                        }
                         setShowCompanyPicker(false);
                       }}
-                      selectedCompanyId={company?.company_id || ''}
-                      filterState={companyFilterState}
-                      onFilterStateChange={onCompanyFilterStateChange}
-                      clientTypeFilter={clientTypeFilter}
-                      onClientTypeFilterChange={onClientTypeFilterChange}
-                      fitContent={false}
-                    />
+                    >
+                      Save
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      onChangeCompany('');
-                      setShowCompanyPicker(false);
-                    }}
-                    className="h-auto opacity-0 group-hover:opacity-100"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
                 </div>
               )}
             </div>
