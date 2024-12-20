@@ -1,3 +1,4 @@
+
 // server/src/components/tickets/TicketProperties.tsx
 import React, { useState } from 'react';
 import { ITicket, ITimeSheet, ITimePeriod, ITimeEntry } from '@/interfaces';
@@ -6,11 +7,13 @@ import { ITicketResource } from '@/interfaces/ticketResource.interfaces';
 import { Button } from '@/components/ui/Button';
 import { Label } from '@/components/ui/Label';
 import { Input } from '@/components/ui/Input';
-import { Clock, Play, Pause, StopCircle, UserPlus } from 'lucide-react';
+import { Clock, Edit2, Play, Pause, StopCircle, UserPlus, X } from 'lucide-react';
 import styles from './TicketDetails.module.css';
 import UserPicker from '@/components/ui/UserPicker';
 import AvatarIcon from '@/components/ui/AvatarIcon';
 import { TimeEntryDialog } from '@/components/time-management/TimeEntryDialog';
+import { CompanyPicker } from '@/components/companies/CompanyPicker';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { toast } from 'react-hot-toast';
 
 interface TicketPropertiesProps {
@@ -29,6 +32,10 @@ interface TicketPropertiesProps {
   currentTimePeriod: ITimePeriod | null;
   userId: string;
   tenant: string;
+  contacts: any[];
+  companies: any[];
+  companyFilterState: 'all' | 'active' | 'inactive';
+  clientTypeFilter: 'all' | 'company' | 'individual';
   onStart: () => void;
   onPause: () => void;
   onStop: () => void;
@@ -39,6 +46,10 @@ interface TicketPropertiesProps {
   onAgentClick: (userId: string) => void;
   onAddAgent: (userId: string) => Promise<void>;
   onRemoveAgent: (assignmentId: string) => Promise<void>;
+  onChangeContact: (contactId: string | null) => void;
+  onChangeCompany: (companyId: string) => void;
+  onCompanyFilterStateChange: (state: 'all' | 'active' | 'inactive') => void;
+  onClientTypeFilterChange: (type: 'all' | 'company' | 'individual') => void;
 }
 
 const TicketProperties: React.FC<TicketPropertiesProps> = ({
@@ -57,6 +68,10 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
   currentTimePeriod,
   userId,
   tenant,
+  contacts,
+  companies,
+  companyFilterState,
+  clientTypeFilter,
   onStart,
   onPause,
   onStop,
@@ -67,8 +82,16 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
   onAgentClick,
   onAddAgent,
   onRemoveAgent,
+  onChangeContact,
+  onChangeCompany,
+  onCompanyFilterStateChange,
+  onClientTypeFilterChange,
 }) => {
   const [showAgentPicker, setShowAgentPicker] = useState(false);
+  const [showContactPicker, setShowContactPicker] = useState(false);
+  const [showCompanyPicker, setShowCompanyPicker] = useState(false);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -136,12 +159,75 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
         <div className="space-y-2">
           <div>
             <h5 className="font-bold">Contact</h5>
-            <p
-              className="text-sm text-blue-500 cursor-pointer hover:underline"
-              onClick={onContactClick}
-            >
-              {contactInfo?.full_name || 'N/A'}
-            </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <p
+                    className="text-sm text-blue-500 cursor-pointer hover:underline"
+                    onClick={onContactClick}
+                  >
+                    {contactInfo?.full_name || 'N/A'}
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowContactPicker(!showContactPicker)}
+                    className="p-1 h-auto"
+                  >
+                    <Edit2 className="h-3 w-3" />
+                  </Button>
+                </div>
+                {contactInfo && showContactPicker && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onChangeContact(null)}
+                    className="p-1 h-auto text-red-500 hover:text-red-700"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              {showContactPicker && (
+                <div className="space-y-2">
+                  <div className="flex items-center group">
+                    <CustomSelect
+                      value={selectedContactId || contactInfo?.contact_name_id || ''}
+                      onValueChange={(value) => {
+                        setSelectedContactId(value);
+                      }}
+                      options={contacts.map((contact) => ({
+                        value: contact.contact_name_id,
+                        label: contact.full_name
+                      }))}
+                      placeholder="Select Contact"
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowContactPicker(false);
+                        setSelectedContactId(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        onChangeContact(selectedContactId);
+                        setShowContactPicker(false);
+                      }}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <div>
             <h5 className="font-bold">Created By</h5>
@@ -151,12 +237,66 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
           </div>
           <div>
             <h5 className="font-bold">Client</h5>
-            <p
-              className="text-sm text-blue-500 cursor-pointer hover:underline"
-              onClick={onCompanyClick}
-            >
-              {company?.company_name || 'N/A'}
-            </p>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <p
+                  className="text-sm text-blue-500 cursor-pointer hover:underline"
+                  onClick={onCompanyClick}
+                >
+                  {company?.company_name || 'N/A'}
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowCompanyPicker(!showCompanyPicker)}
+                  className="p-1 h-auto"
+                >
+                  <Edit2 className="h-3 w-3" />
+                </Button>
+              </div>
+              {showCompanyPicker && (
+                <div className="space-y-2">
+                  <div className="flex items-center group relative">
+                    <div className="w-full">
+                      <CompanyPicker
+                        companies={companies}
+                        onSelect={setSelectedCompanyId}
+                        selectedCompanyId={selectedCompanyId || company?.company_id || ''}
+                        filterState={companyFilterState}
+                        onFilterStateChange={onCompanyFilterStateChange}
+                        clientTypeFilter={clientTypeFilter}
+                        onClientTypeFilterChange={onClientTypeFilterChange}
+                        fitContent={false}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowCompanyPicker(false);
+                        setSelectedCompanyId(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        if (selectedCompanyId) {
+                          onChangeCompany(selectedCompanyId);
+                        }
+                        setShowCompanyPicker(false);
+                      }}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <div>
             <h5 className="font-bold">{contactInfo ? 'Contact Phone' : 'Company Phone'}</h5>
@@ -241,7 +381,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
             )}
 
             <div className="space-y-2">
-              {additionalAgents.map((agent):JSX.Element => {
+              {additionalAgents.map((agent) => {
                 const agentUser = availableAgents.find(u => u.user_id === agent.additional_user_id);
                 return (
                   <div 

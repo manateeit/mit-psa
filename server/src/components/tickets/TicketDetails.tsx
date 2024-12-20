@@ -6,7 +6,7 @@ import TicketInfo from './TicketInfo';
 import TicketProperties from './TicketProperties';
 import TicketConversation from './TicketConversation';
 import AssociatedAssets from '../assets/AssociatedAssets';
-import { TimeEntryDialog } from '../time-management/TimeEntryDialog';
+import { TimeEntryDialog } from '@/components/time-management/TimeEntryDialog';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
 import { useDrawer } from '@/context/DrawerContext';
@@ -14,8 +14,8 @@ import { findUserById, getAllUsers, getCurrentUser } from '@/lib/actions/user-ac
 import { findChannelById, getAllChannels } from '@/lib/actions/channel-actions/channelActions';
 import { findCommentsByTicketId, deleteComment, createComment, updateComment, findCommentById } from '@/lib/actions/comment-actions/commentActions';
 import { getDocumentByTicketId } from '@/lib/actions/document-actions/documentActions';
-import { getContactByContactNameId } from '@/lib/actions/contact-actions/contactActions';
-import { getCompanyById } from '@/lib/actions/companyActions';
+import { getContactByContactNameId, getContactsByCompany } from '@/lib/actions/contact-actions/contactActions';
+import { getCompanyById, getAllCompanies } from '@/lib/actions/companyActions';
 import { updateTicket } from '@/lib/actions/ticket-actions/ticketActions';
 import { getTicketStatuses } from '@/lib/actions/status-actions/statusActions';
 import { getAllPriorities } from '@/lib/actions/priorityActions';
@@ -44,9 +44,10 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
   const [documents, setDocuments] = useState<any[]>([]);
   const [company, setCompany] = useState<ICompany | null>(null);
   const [contactInfo, setContactInfo] = useState<IContact | null>(null);
-  const [contactCompany, setContactCompany] = useState<ICompany | null>(null);
   const [createdByUser, setCreatedByUser] = useState<IUser | null>(null);
   const [channel, setChannel] = useState<any>(null);
+  const [companies, setCompanies] = useState<ICompany[]>([]);
+  const [contacts, setContacts] = useState<IContact[]>([]);
 
   const [statusOptions, setStatusOptions] = useState<{ value: string, label: string }[]>([]);
   const [agentOptions, setAgentOptions] = useState<{ value: string, label: string }[]>([]);
@@ -61,7 +62,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
   const [currentComment, setCurrentComment] = useState<IComment | null>(null);
 
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [isRunning, setIsRunning] = useState(true); // Start timer automatically
+  const [isRunning, setIsRunning] = useState(true);
   const [timeDescription, setTimeDescription] = useState('');
   const [isTimeEntryDialogOpen, setIsTimeEntryDialogOpen] = useState(false);
   const [currentTimeSheet, setCurrentTimeSheet] = useState<ITimeSheet | null>(null);
@@ -70,6 +71,12 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
   const [availableAgents, setAvailableAgents] = useState<IUserWithRoles[]>([]);
   const [additionalAgents, setAdditionalAgents] = useState<ITicketResource[]>([]);
   const [team, setTeam] = useState<ITeam | null>(null);
+
+  const [isChangeContactDialogOpen, setIsChangeContactDialogOpen] = useState(false);
+  const [isChangeCompanyDialogOpen, setIsChangeCompanyDialogOpen] = useState(false);
+  const [companyFilterState, setCompanyFilterState] = useState<'all' | 'active' | 'inactive'>('all');
+  const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
+
 
   const { openDrawer } = useDrawer();
 
@@ -95,22 +102,48 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
       const ticketId = initialTicket.ticket_id;
 
       try {
-        // Get current user first as we need it for several operations
         const currentUser = await getCurrentUser();
         if (!currentUser) {
           toast.error('No user session found');
           return;
         }
 
-        const comments = await findCommentsByTicketId(ticketId || '');
-        setConversations(comments);
+        const [
+          comments,
+          docs,
+          companiesData,
+          channel,
+          resources,
+          users,
+          statuses,
+          channels,
+          priorities
+        ] = await Promise.all([
+          findCommentsByTicketId(ticketId || ''),
+          getDocumentByTicketId(ticketId || ''),
+          getAllCompanies(),
+          findChannelById(ticket.channel_id),
+          getTicketResources(ticketId!, currentUser),
+          getAllUsers(),
+          getTicketStatuses(),
+          getAllChannels(),
+          getAllPriorities()
+        ]);
 
-        const docs = await getDocumentByTicketId(ticketId || '');
+        setConversations(comments);
         setDocuments(docs);
+        setCompanies(companiesData);
+        setChannel(channel);
+        setAdditionalAgents(resources);
+        setAvailableAgents(users);
 
         if (ticket.company_id) {
-          const companyData = await getCompanyById(ticket.company_id);
+          const [companyData, contactsData] = await Promise.all([
+            getCompanyById(ticket.company_id),
+            getContactsByCompany(ticket.company_id)
+          ]);
           setCompany(companyData);
+          setContacts(contactsData || []);
         }
 
         if (ticket.contact_name_id) {
@@ -122,15 +155,6 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
           const userData = await findUserById(ticket.entered_by);
           setCreatedByUser(userData);
         }
-
-        const channel = await findChannelById(ticket.channel_id);
-        setChannel(channel);
-
-        const resources = await getTicketResources(ticketId!, currentUser);
-        setAdditionalAgents(resources);
-
-        const users = await getAllUsers();
-        setAvailableAgents(users);
 
         const userMapData = users.reduce((acc, user) => {
           acc[user.user_id] = { 
@@ -144,7 +168,6 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
         }, {} as Record<string, { user_id: string; first_name: string; last_name: string; email?: string, user_type: string }>);
         setUserMap(userMapData);
 
-        const statuses = await getTicketStatuses();
         setStatusOptions(statuses.map((status): { value: string; label: string } => ({ 
           value: status.status_id!, 
           label: status.name ?? "" 
@@ -155,14 +178,12 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
           label: `${agent.first_name} ${agent.last_name}` 
         })));
 
-        const channels = await getAllChannels();
         setChannelOptions(channels.filter(channel => channel.channel_id !== undefined)
           .map((channel): { value: string; label: string } => ({ 
             value: channel.channel_id!, 
             label: channel.channel_name ?? "" 
           })));
 
-        const priorities = await getAllPriorities();
         setPriorityOptions(priorities.map((priority): { value: string; label: string } => ({ 
           value: priority.priority_id, 
           label: priority.priority_name 
@@ -175,7 +196,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
     };
 
     fetchData();
-  }, [initialTicket.ticket_id]);
+  }, [initialTicket.ticket_id, ticket.company_id, ticket.contact_name_id, ticket.channel_id, ticket.entered_by]);
 
   const handleCompanyClick = async () => {
     if (ticket.company_id) {
@@ -201,30 +222,15 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
     }
   };
 
-  useEffect(() => {
-    const fetchContactCompany = async () => {
-      if (ticket.company_id) {
-        try {
-          const companyData = await getCompanyById(ticket.company_id);
-          setContactCompany(companyData);
-        } catch (error) {
-          console.error('Error fetching contact company:', error);
-        }
-      }
-    };
-
-    fetchContactCompany();
-  }, [ticket.company_id]);
-
   const handleContactClick = () => {
-    if (contactInfo && contactCompany) {
+    if (contactInfo && company) {
       openDrawer(
         <ContactDetailsView 
           initialContact={{
             ...contactInfo,
-            company_id: contactCompany.company_id
+            company_id: company.company_id
           }}
-          companies={[contactCompany]}
+          companies={[company]}
           isInDrawer={true}
         />
       );
@@ -344,10 +350,6 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
     if (!currentComment) return;
 
     try {
-      // Log the updates being sent (for debugging)
-      console.log('[handleSave] Updating comment with:', updates);
-
-      // Pass all updates to the updateComment function
       await updateComment(currentComment.comment_id!, updates);
 
       const updatedCommentData = await findCommentById(currentComment.comment_id!);
@@ -425,6 +427,69 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
     }
   };
 
+  const handleChangeContact = () => {
+    setIsChangeContactDialogOpen(true);
+  };
+
+  const handleChangeCompany = () => {
+    setIsChangeCompanyDialogOpen(true);
+  };
+
+  const handleContactChange = async (newContactId: string | null) => {
+    try {
+      const user = await getCurrentUser();
+      if (!user) {
+        toast.error('No user session found');
+        return;
+      }
+
+      await updateTicket(ticket.ticket_id!, { contact_name_id: newContactId }, user);
+      
+      if (newContactId) {
+        const contactData = await getContactByContactNameId(newContactId);
+        setContactInfo(contactData);
+      } else {
+        setContactInfo(null);
+      }
+
+      setIsChangeContactDialogOpen(false);
+      toast.success('Contact updated successfully');
+    } catch (error) {
+      console.error('Error updating contact:', error);
+      toast.error('Failed to update contact');
+    }
+  };
+
+  const handleCompanyChange = async (newCompanyId: string) => {
+    try {
+      const user = await getCurrentUser();
+      if (!user) {
+        toast.error('No user session found');
+        return;
+      }
+
+      await updateTicket(ticket.ticket_id!, { 
+        company_id: newCompanyId,
+        contact_name_id: null // Reset contact when company changes
+      }, user);
+      
+      const [companyData, contactsData] = await Promise.all([
+        getCompanyById(newCompanyId),
+        getContactsByCompany(newCompanyId)
+      ]);
+      
+      setCompany(companyData);
+      setContacts(contactsData || []);
+      setContactInfo(null); // Reset contact info
+
+      setIsChangeCompanyDialogOpen(false);
+      toast.success('Client updated successfully');
+    } catch (error) {
+      console.error('Error updating company:', error);
+      toast.error('Failed to update client');
+    }
+  };
+
   return (
     <div className="bg-gray-100">
       {isTimeEntryDialogOpen && currentTimeSheet && (
@@ -460,6 +525,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
           defaultEndTime={new Date(Date.now() + elapsedTime * 1000)}
         />
       )}
+
       <div className="flex gap-6">
         <div className="flex-grow col-span-2 space-y-6">
           <TicketInfo
@@ -522,6 +588,14 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ initialTicket }) => {
             currentTimePeriod={currentTimePeriod}
             userId={userId || ''}
             tenant={tenant}
+            contacts={contacts}
+            companies={companies}
+            companyFilterState={companyFilterState}
+            clientTypeFilter={clientTypeFilter}
+            onChangeContact={handleContactChange}
+            onChangeCompany={handleCompanyChange}
+            onCompanyFilterStateChange={setCompanyFilterState}
+            onClientTypeFilterChange={setClientTypeFilter}
           />
           {ticket.company_id && ticket.ticket_id && (
             <div className="mt-6">
