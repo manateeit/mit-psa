@@ -4,6 +4,7 @@ import {
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
+  getPaginationRowModel,
   flexRender,
   ColumnDef,
   Row,
@@ -53,7 +54,20 @@ export const DataTable = <T extends object>(props: DataTableProps<T>): React.Rea
     [columns]
   );
 
-  // Calculate pagination values using totalItems if provided, otherwise use data.length
+  // Keep internal pagination state synced with props
+  React.useEffect(() => {
+    setPagination(prev => ({
+      ...prev,
+      pageIndex: currentPage - 1
+    }));
+  }, [currentPage]);
+
+  const [{ pageIndex, pageSize: currentPageSize }, setPagination] = React.useState({
+    pageIndex: currentPage - 1,
+    pageSize,
+  });
+
+  // Calculate total pages based on totalItems if provided, otherwise use data length
   const total = totalItems ?? data.length;
   const totalPages = Math.ceil(total / pageSize);
 
@@ -63,6 +77,16 @@ export const DataTable = <T extends object>(props: DataTableProps<T>): React.Rea
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    pageCount: totalPages,
+    state: {
+      pagination: {
+        pageIndex,
+        pageSize: currentPageSize,
+      },
+    },
+    onPaginationChange: setPagination,
+    manualPagination: totalItems !== undefined,
     meta: {
       editableConfig: props.editableConfig,
     },
@@ -74,16 +98,19 @@ export const DataTable = <T extends object>(props: DataTableProps<T>): React.Rea
     }
   };
 
-  const handlePreviousPage = () => {
-    if (onPageChange && currentPage > 1) {
-      onPageChange(currentPage - 1);
+  // Notify parent component of page changes
+  React.useEffect(() => {
+    if (onPageChange) {
+      onPageChange(pageIndex + 1);
     }
+  }, [pageIndex, onPageChange]);
+
+  const handlePreviousPage = () => {
+    table.previousPage();
   };
 
   const handleNextPage = () => {
-    if (onPageChange && currentPage < totalPages) {
-      onPageChange(currentPage + 1);
-    }
+    table.nextPage();
   };
 
   return (
@@ -117,7 +144,7 @@ export const DataTable = <T extends object>(props: DataTableProps<T>): React.Rea
             ))}
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {table.getRowModel().rows.map((row) => {
+            {table.getPaginationRowModel().rows.map((row) => {
               // Use the id property if it exists in the data, otherwise use row.id
               const rowId = ('id' in row.original) ? (row.original as { id: string }).id : row.id;
               return (
@@ -151,17 +178,18 @@ export const DataTable = <T extends object>(props: DataTableProps<T>): React.Rea
           <div className="flex items-center justify-between">
             <button
               onClick={handlePreviousPage}
-              disabled={currentPage <= 1}
+              disabled={!table.getCanPreviousPage()}
               className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-[rgb(var(--color-text-700))] bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Previous
             </button>
             <span className="text-sm text-[rgb(var(--color-text-700))]">
-              Page {currentPage} of {totalPages} ({total} total records)
+              Page {pageIndex + 1} of{' '}
+              {totalPages} ({total} total records)
             </span>
             <button
               onClick={handleNextPage}
-              disabled={currentPage >= totalPages}
+              disabled={!table.getCanNextPage()}
               className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-[rgb(var(--color-text-700))] bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Next
