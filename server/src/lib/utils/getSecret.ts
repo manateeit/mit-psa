@@ -28,7 +28,4 @@ export function getSecret(secretName: string, envVar: string, defaultValue: stri
     return defaultValue;
   }
 }
-  }
-}
-  }
-}
+
