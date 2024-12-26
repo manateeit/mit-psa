@@ -28,10 +28,8 @@ exports.up = async function(knex) {
     WHERE content IS NOT NULL AND content != '';
   `);
 
-  // Then remove the content column from documents table
-  return knex.schema.alterTable('documents', table => {
-    table.dropColumn('content');
-  });
+  // Keep the content column in documents table
+  return Promise.resolve();
 };
 
 /**
@@ -39,11 +37,6 @@ exports.up = async function(knex) {
  * @returns { Promise<void> }
  */
 exports.down = async function(knex) {
-  // First add the content column back
-  await knex.schema.alterTable('documents', table => {
-    table.text('content');
-  });
-
   // Then migrate content back from document_content
   await knex.raw(`
     UPDATE documents d
