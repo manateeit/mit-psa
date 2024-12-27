@@ -5,6 +5,8 @@ import React, { useState } from 'react';
 import CustomSelect from '../ui/CustomSelect';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '../ui/Button';
+
+type PlanType = 'fixed' | 'bucket' | 'time-based' | 'usage-based';
 import { createBillingPlan } from '@/lib/actions/billingPlanAction';
 import { IBillingPlan } from '@/interfaces/billing.interfaces';
 import { useTenant } from '../TenantProvider';
@@ -17,10 +19,20 @@ export function QuickAddBillingPlan({ onPlanAdded }: QuickAddBillingPlanProps) {
   const [open, setOpen] = useState(false)
   const [planName, setPlanName] = useState('')
   const [billingFrequency, setBillingFrequency] = useState('')
-  const [planType, setPlanType] = useState('Fixed')
+  const [planType, setPlanType] = useState<PlanType>('fixed')
   const [isCustom, setIsCustom] = useState(false);
-  const planTypes = ['Fixed', 'Hourly', 'Usage', 'Bucket'];
+  const planTypes = ['fixed', 'bucket', 'time-based', 'usage-based'];
   const tenant = useTenant()!;
+
+  const isPlanType = (value: string): value is PlanType => {
+    return ['fixed', 'bucket', 'time-based', 'usage-based'].includes(value);
+  };
+
+  const handlePlanTypeChange = (value: string) => {
+    if (isPlanType(value)) {
+      setPlanType(value);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -74,7 +86,7 @@ export function QuickAddBillingPlan({ onPlanAdded }: QuickAddBillingPlanProps) {
               <label className="block mb-2">Plan Type</label>
               <CustomSelect
                 options={planTypes.map(type => ({ value: type, label: type }))}
-                onValueChange={setPlanType}
+                onValueChange={handlePlanTypeChange}
                 value={planType}
                 placeholder="Select plan type"
               />
