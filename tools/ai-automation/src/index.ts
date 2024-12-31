@@ -3,6 +3,8 @@ import cors from 'cors';
 import http from 'http';
 import { Server } from 'socket.io';
 import { puppeteerManager } from './puppeteerManager';
+import { toolManager } from './tools/toolManager';
+import { uiStateManager } from './uiStateManager';
 
 interface ScriptRequest {
   code: string;
@@ -41,11 +43,12 @@ app.use(cors({
 // });
 app.use(express.json());
 
-// WebSocket connection for screenshot streaming
+// WebSocket connection handling
 io.on('connection', (socket) => {
-  console.log('Client connected for screenshot streaming');
+  console.log('Client connected');
 
-  const interval = setInterval(async () => {
+  // Handle screenshot streaming
+  const screenshotInterval = setInterval(async () => {
     try {
       const page = puppeteerManager.getPage();
       const buf = await page.screenshot();
@@ -54,10 +57,25 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('Error taking screenshot', error);
     }
-  }, 2000); // every 2 seconds
+  }, 2000);
+
+  // Handle UI reflection updates
+  socket.on('UI_STATE_UPDATE', (pageState) => {
+    console.log('Received UI state update:', {
+      pageId: pageState.id,
+      title: pageState.title,
+      componentCount: pageState.components.length
+    });
+    
+    // Store the state in UIStateManager
+    uiStateManager.updateState(pageState);
+    
+    // Broadcast to other clients
+    socket.broadcast.emit('UI_STATE_UPDATE', pageState);
+  });
 
   socket.on('disconnect', () => {
-    clearInterval(interval);
+    clearInterval(screenshotInterval);
     console.log('Client disconnected');
   });
 });
@@ -150,7 +168,8 @@ app.post('/api/puppeteer', (async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Script is required' });
     }
 
-    const result = await puppeteerManager.execute_puppeteer_script(script);
+    const page = puppeteerManager.getPage();
+    const result = await toolManager.executeTool('execute_script', page, { script });
     
     console.log('Puppeteer script result:', result);
     console.log(`Completed in ${Date.now() - startTime}ms`);
@@ -159,6 +178,34 @@ app.post('/api/puppeteer', (async (req: Request, res: Response) => {
     console.error('Error in /api/puppeteer:', error);
     console.log(`Failed in ${Date.now() - startTime}ms`);
     res.status(500).json({
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+}) as RequestHandler);
+
+app.post('/api/tool', (async (req: Request, res: Response) => {
+  console.log('\n[POST /api/tool]');
+  console.log('Request body:', req.body);
+  const startTime = Date.now();
+
+  const { toolName, args } = req.body;
+
+  if (!toolName) {
+    console.log('Error: Tool name is required');
+    return res.status(400).json({ error: 'Tool name is required' });
+  }
+
+  try {
+    const page = puppeteerManager.getPage();
+    const result = await toolManager.executeTool(toolName, page, args);
+
+    console.log('Tool execution result:', result);
+    console.log(`Completed in ${Date.now() - startTime}ms`);
+    res.json({ result });
+  } catch (error) {
+    console.error('Error executing tool:', error);
+    console.log(`Failed in ${Date.now() - startTime}ms`);
+    res.status(500).json({ 
       error: error instanceof Error ? error.message : String(error)
     });
   }
