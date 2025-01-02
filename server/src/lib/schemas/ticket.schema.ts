@@ -94,6 +94,7 @@ export const ticketListFiltersSchema = z.object({
     statusId: z.string().optional(),
     priorityId: z.string().optional(),
     categoryId: z.string().optional(),
+    companyId: z.string().uuid().nullish(),  // Added company filter
     searchQuery: z.string().optional(),
     channelFilterState: z.enum(['active', 'inactive', 'all'])
 });

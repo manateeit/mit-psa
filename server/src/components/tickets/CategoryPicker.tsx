@@ -1,208 +1,217 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import React, { useMemo } from 'react';
 import { ITicketCategory } from '@/interfaces/ticket.interfaces';
+import TreeSelect, { TreeSelectOption, TreeSelectPath } from '@/components/ui/TreeSelect';
 
 interface CategoryPickerProps {
   categories: ITicketCategory[];
   selectedCategories: string[];
-  onSelect: (categoryIds: string[]) => void;
+  excludedCategories?: string[];
+  onSelect: (categoryIds: string[], excludedIds: string[]) => void;
   placeholder?: string;
   multiSelect?: boolean;
   className?: string;
   containerClassName?: string;
+  showExclude?: boolean;
+  showReset?: boolean;
+  allowEmpty?: boolean;
 }
+
+type CategoryType = 'parent' | 'child';
 
 export const CategoryPicker: React.FC<CategoryPickerProps> = ({
   categories,
   selectedCategories,
+  excludedCategories = [],
   onSelect,
   placeholder = 'Select categories...',
   multiSelect = false,
   className = '',
-  containerClassName = ''
+  showExclude = false,
+  showReset = false,
+  allowEmpty = false,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeParent, setActiveParent] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+  // Transform categories into TreeSelect format
+  const treeOptions = useMemo((): TreeSelectOption<CategoryType>[] => {
+    // First, separate parents and children
+    const parentCategories = categories.filter(c => !c.parent_category);
+    const childrenMap = new Map<string, ITicketCategory[]>();
+    
+    // Group children by parent
+    categories.filter(c => c.parent_category).forEach(child => {
+      if (!childrenMap.has(child.parent_category!)) {
+        childrenMap.set(child.parent_category!, []);
       }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Organize categories into parent-child structure
-  const parentCategories = categories.filter(c => !c.parent_category);
-  const childCategories = categories.filter(c => c.parent_category);
-  const categoryMap = new Map<string, ITicketCategory[]>();
-  
-  childCategories.forEach((child: ITicketCategory): void => {
-    if (!categoryMap.has(child.parent_category!)) {
-      categoryMap.set(child.parent_category!, []);
-    }
-    categoryMap.get(child.parent_category!)?.push(child);
-  });
-
-  // Filter categories based on search query
-  const filterCategories = (query: string) => {
-    if (!query) return parentCategories;
-
-    const lowercaseQuery = query.toLowerCase();
-    const matchingParents = parentCategories.filter((parent: ITicketCategory): boolean =>
-      parent.category_name.toLowerCase().includes(lowercaseQuery)
-    );
-
-    const matchingChildren = childCategories.filter(child =>
-      child.category_name.toLowerCase().includes(lowercaseQuery)
-    );
-
-    // Include parents of matching children
-    const parentsOfMatches = new Set(matchingChildren.map((child: ITicketCategory): string => child.parent_category!));
-    const additionalParents = parentCategories.filter(parent =>
-      parentsOfMatches.has(parent.category_id)
-    );
-
-    return [...new Set([...matchingParents, ...additionalParents])];
-  };
-
-  const getSelectedCategoryNames = () => {
-    return selectedCategories.map((categoryId: string): string => {
-      const category = categories.find(c => c.category_id === categoryId);
-      if (!category) return '';
-      
-      if (category.parent_category) {
-        const parent = categories.find(c => c.category_id === category.parent_category);
-        return parent ? `${parent.category_name} → ${category.category_name}` : category.category_name;
-      }
-      return category.category_name;
+      childrenMap.get(child.parent_category!)?.push(child);
     });
-  };
 
-  const handleCategorySelect = (categoryId: string) => {
-    const category = categories.find(c => c.category_id === categoryId);
-    if (!category) return;
+    // Transform into tree structure with selected and excluded states
+    const categoryOptions = parentCategories.map(parent => ({
+      label: parent.category_name,
+      value: parent.category_id,
+      type: 'parent' as CategoryType,
+      selected: selectedCategories.includes(parent.category_id),
+      excluded: excludedCategories.includes(parent.category_id),
+      children: childrenMap.get(parent.category_id)?.map(child => ({
+        label: child.category_name,
+        value: child.category_id,
+        type: 'child' as CategoryType,
+        selected: selectedCategories.includes(child.category_id),
+        excluded: excludedCategories.includes(child.category_id),
+      })) || undefined
+    }));
 
-    if (multiSelect) {
-      // For filtering: allow multiple selections
-      const newSelection = selectedCategories.includes(categoryId)
-        ? selectedCategories.filter(id => id !== categoryId)
-        : [...selectedCategories, categoryId];
-      onSelect(newSelection);
+    // Add "No Category" option at the beginning
+    return [
+      {
+        label: 'No Category',
+        value: 'no-category',
+        type: 'parent' as CategoryType,
+        selected: selectedCategories.includes('no-category'),
+        excluded: excludedCategories.includes('no-category'),
+      },
+      ...categoryOptions
+    ];
+  }, [categories, selectedCategories, excludedCategories]);
+
+  // Handle selection changes
+  const handleValueChange = (value: string, type: CategoryType, excluded: boolean, path?: TreeSelectPath) => {
+    // Handle reset action
+    if (value === '') {
+      onSelect([], []); // Clear both selected and excluded categories
+      return;
+    }
+
+    if (value === 'no-category') {
+      // Handle "No Category" selection
+      if (excluded) {
+        // Toggle exclusion of "No Category"
+        const newExcluded = excludedCategories.includes(value)
+          ? excludedCategories.filter(id => id !== value)
+          : [...excludedCategories, value];
+        onSelect(selectedCategories, newExcluded);
+      } else {
+        // Select "No Category"
+        onSelect([value], []);
+      }
+      return;
+    }
+
+    // Find the selected category
+    const selectedCategory = categories.find(c => c.category_id === value);
+    if (!selectedCategory) return;
+
+    if (excluded) {
+      // Handle exclusion toggle
+      if (excludedCategories.includes(value)) {
+        // Remove from exclusions
+        onSelect(selectedCategories, excludedCategories.filter(id => id !== value));
+      } else {
+        // Add to exclusions and remove from selections if present
+        onSelect(
+          selectedCategories.filter(id => id !== value),
+          [...excludedCategories, value]
+        );
+      }
     } else {
-      // For ticket assignment: single selection
-      onSelect([categoryId]);
-      setIsOpen(false);
+      // Handle selection
+      if (multiSelect) {
+        if (selectedCategories.includes(value)) {
+          // Remove from selection
+          onSelect(
+            selectedCategories.filter(id => id !== value),
+            excludedCategories
+          );
+        } else {
+          // Add to selection and remove from exclusions if present
+          onSelect(
+            [...selectedCategories, value],
+            excludedCategories.filter(id => id !== value)
+          );
+        }
+      } else {
+        // Single select mode
+        onSelect([value], []);
+      }
     }
   };
 
-  const handleRemoveCategory = (categoryId: string) => {
-    if (multiSelect) {
-      onSelect(selectedCategories.filter(id => id !== categoryId));
-    } else {
-      onSelect([]);
+  // Update display label to show both selected and excluded categories
+  const currentValue = selectedCategories[0] || '';
+  const displayLabel = useMemo(() => {
+    const parts = [];
+    
+    if (selectedCategories.length > 0) {
+      if (selectedCategories.length === 1) {
+        const selectedId = selectedCategories[0];
+        if (selectedId === 'no-category') {
+          parts.push('No Category');
+        } else {
+          const selectedCategory = categories.find(c => c.category_id === selectedId);
+          if (selectedCategory) {
+            if (selectedCategory.parent_category) {
+              // If it's a subcategory, show parent → child format
+              const parentCategory = categories.find(c => c.category_id === selectedCategory.parent_category);
+              if (parentCategory) {
+                parts.push(`${parentCategory.category_name} → ${selectedCategory.category_name}`);
+              } else {
+                parts.push(selectedCategory.category_name);
+              }
+            } else {
+              parts.push(selectedCategory.category_name);
+            }
+          }
+        }
+      } else {
+        parts.push(`${selectedCategories.length} categories`);
+      }
     }
-  };
+    
+    if (excludedCategories.length > 0) {
+      if (excludedCategories.length === 1) {
+        const excludedId = excludedCategories[0];
+        if (excludedId === 'no-category') {
+          parts.push('excluding No Category');
+        } else {
+          const excludedCategory = categories.find(c => c.category_id === excludedId);
+          if (excludedCategory) {
+            if (excludedCategory.parent_category) {
+              // If it's a subcategory, show parent → child format
+              const parentCategory = categories.find(c => c.category_id === excludedCategory.parent_category);
+              if (parentCategory) {
+                parts.push(`excluding ${parentCategory.category_name} → ${excludedCategory.category_name}`);
+              } else {
+                parts.push(`excluding ${excludedCategory.category_name}`);
+              }
+            } else {
+              parts.push(`excluding ${excludedCategory.category_name}`);
+            }
+          }
+        }
+      } else {
+        parts.push(`excluding ${excludedCategories.length} categories`);
+      }
+    }
+    
+    return parts.join(', ') || '';
+  }, [selectedCategories, excludedCategories, categories]);
 
   return (
-    <div className={`relative ${containerClassName}`} ref={containerRef}>
-      <button 
-        type="button"
-        className={`flex items-center justify-between border border-gray-200 rounded-md shadow-sm bg-white cursor-pointer min-h-[38px] hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent px-3 py-2 ${className}`}
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <div className="flex-1 flex flex-wrap gap-2 min-h-[20px]">
-          {selectedCategories.length > 0 ? (
-            getSelectedCategoryNames().map((name: string, index: number): JSX.Element => (
-              <div key={selectedCategories[index]} className="bg-gray-50 rounded px-2 py-1 text-gray-700 flex items-center gap-1">
-                {name}
-                <X 
-                  className="w-4 h-4 cursor-pointer hover:text-gray-900" 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveCategory(selectedCategories[index]);
-                  }}
-                />
-              </div>
-            ))
-          ) : (
-            <span className="text-gray-500">{placeholder}</span>
-          )}
-        </div>
-        <ChevronDown className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" />
-      </button>
-
-      {isOpen && (
-        <div className="absolute z-50 mt-1 bg-white rounded-md shadow-lg border border-gray-200 w-fit" style={{ minWidth: '100%', maxWidth: 'max-content' }}>
-          <div className="p-1">
-            <div className="flex items-center border border-gray-200 rounded mb-2 mx-1">
-              <input
-                type="text"
-                className="w-full px-3 py-2 text-gray-700 outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent rounded-md"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-            <div className="max-h-64 overflow-y-auto">
-              {filterCategories(searchQuery).map((parent: ITicketCategory): JSX.Element => (
-                <div key={parent.category_id}>
-                  <div
-                    className="relative flex items-center justify-between px-3 py-2 rounded cursor-pointer hover:bg-gray-100 focus:bg-gray-100 focus:outline-none select-none mx-1 whitespace-nowrap"
-                    onClick={() => {
-                      if (!categoryMap.has(parent.category_id)) {
-                        handleCategorySelect(parent.category_id);
-                      } else {
-                        setActiveParent(activeParent === parent.category_id ? null : parent.category_id);
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedCategories.includes(parent.category_id)}
-                        onChange={() => handleCategorySelect(parent.category_id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="rounded border-gray-300"
-                      />
-                      <span>{parent.category_name}</span>
-                    </div>
-                    {categoryMap.has(parent.category_id) && (
-                      <ChevronDown 
-                        className={`w-4 h-4 text-gray-400 transition-transform ml-4 ${
-                          activeParent === parent.category_id ? 'transform rotate-180' : ''
-                        }`}
-                      />
-                    )}
-                  </div>
-                  {activeParent === parent.category_id && categoryMap.get(parent.category_id)?.map((child: ITicketCategory): JSX.Element => (
-                    <div
-                      key={child.category_id}
-                      className="relative flex items-center px-6 py-2 rounded cursor-pointer hover:bg-gray-100 focus:bg-gray-100 focus:outline-none select-none mx-1 whitespace-nowrap"
-                      onClick={() => handleCategorySelect(child.category_id)}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedCategories.includes(child.category_id)}
-                        onChange={() => handleCategorySelect(child.category_id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="mr-2 rounded border-gray-300"
-                      />
-                      <span>{child.category_name}</span>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    <TreeSelect
+      options={treeOptions}
+      value={currentValue}
+      onValueChange={handleValueChange}
+      placeholder={displayLabel || placeholder}
+      className={className}
+      selectedClassName="bg-gray-50"
+      hoverClassName="hover:bg-gray-50"
+      triggerClassName="hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+      contentClassName="bg-white rounded-md shadow-lg border border-gray-200"
+      multiSelect={multiSelect}
+      showExclude={showExclude}
+      showReset={true}
+      allowEmpty={true}
+    />
   );
 };
+
+export default CategoryPicker;

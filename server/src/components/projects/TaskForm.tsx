@@ -130,26 +130,59 @@ export default function TaskForm({
   const handleTreeSelectChange = async (
     value: string, 
     type: ProjectTreeTypes,
+    excluded: boolean,
     path?: TreeSelectPath
   ) => {
     if (!path) return;
 
-    // Always use the phase from the path
+    // Get IDs from the path
     const phaseId = path['phase'];
     const statusId = path['status'];
     
-    // Update phase ID and find the corresponding phase object
+    // Find the selected phase from tree options
+    const findPhaseInTree = (options: TreeSelectOption<ProjectTreeTypes>[]): TreeSelectOption<ProjectTreeTypes> | undefined => {
+      for (const opt of options) {
+        if (opt.type === 'phase' && opt.value === phaseId) {
+          return opt;
+        }
+        if (opt.children) {
+          const found = findPhaseInTree(opt.children);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+
+    const selectedPhaseOption = findPhaseInTree(projectTreeOptions);
+    if (!selectedPhaseOption) return;
+
+    // Update phase ID
     setSelectedPhaseId(phaseId);
-    const newPhase = phases?.find(p => p.phase_id === phaseId);
     
-    // Update status ID if a status was selected
+    // Update status ID based on the following priority:
+    // 1. Status from path (if provided)
+    // 2. Current task's status (if valid in new project)
+    // 3. Default status for the project
+    // 4. First available status
     if (statusId) {
       setSelectedStatusId(statusId);
+    } else {
+      // Try to keep current status if it exists in the new project
+      const currentStatusId = task?.project_status_mapping_id;
+      const currentStatusValid = currentStatusId && projectStatuses.some(s => s.project_status_mapping_id === currentStatusId);
+      
+      if (currentStatusValid) {
+        setSelectedStatusId(currentStatusId);
+      } else if (defaultStatus?.project_status_mapping_id) {
+        setSelectedStatusId(defaultStatus.project_status_mapping_id);
+      } else if (projectStatuses.length > 0) {
+        setSelectedStatusId(projectStatuses[0].project_status_mapping_id);
+      }
     }
     
     // Show move confirmation if it's a different phase
-    if (newPhase && (newPhase.phase_id !== phase.phase_id || newPhase.project_id !== phase.project_id)) {
-      setSelectedPhase(newPhase);
+    if (phaseId !== phase.phase_id) {
+      setSelectedPhase({ ...phase, phase_id: phaseId });
       setShowMoveConfirmation(true);
     }
     
@@ -215,7 +248,8 @@ export default function TaskForm({
             estimated_hours: estimatedHours,
             actual_hours: actualHours,
             due_date: task.due_date,
-            checklist_items: checklistItems
+            checklist_items: checklistItems,
+            project_status_mapping_id: selectedStatusId // Ensure status mapping is updated
           };
           resultTask = await updateTaskWithChecklist(movedTask.task_id, taskData);
         }
@@ -417,13 +451,17 @@ export default function TaskForm({
                 {mode === 'edit' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Move to</label>
-                    <TreeSelect<ProjectTreeTypes>
-                      value={selectedPhaseId}
-                      onValueChange={handleTreeSelectChange}
-                      options={projectTreeOptions}
-                      placeholder="Select destination..."
-                      className="w-full"
-                    />
+              <TreeSelect<ProjectTreeTypes>
+                value={selectedPhaseId}
+                onValueChange={handleTreeSelectChange}
+                options={projectTreeOptions}
+                placeholder="Select destination..."
+                className="w-full"
+                multiSelect={false}
+                showExclude={false}
+                showReset={false}
+                allowEmpty={false}
+              />
                   </div>
                 )}
                 <TextArea

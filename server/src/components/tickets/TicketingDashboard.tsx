@@ -16,12 +16,14 @@ import { getTicketStatuses } from '@/lib/actions/status-actions/statusActions';
 import { getAllPriorities } from '@/lib/actions/priorityActions';
 import { getAllUsers, getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { getTicketCategories } from '@/lib/actions/ticketCategoryActions';
+import { getAllCompanies } from '@/lib/actions/companyActions';
 import { ChannelPicker } from '@/components/settings/general/ChannelPicker';
-import { IChannel } from '@/interfaces';
+import { CompanyPicker } from '@/components/companies/CompanyPicker';
+import { IChannel, ICompany } from '@/interfaces';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import { getTicketsForList, deleteTicket } from '@/lib/actions/ticket-actions/ticketActions';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, XCircle } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 interface TicketingDashboardProps {
@@ -84,15 +86,21 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
   {
     title: 'Category',
     dataIndex: 'category_id',
-    render: (value: string) => {
-      if (!value) return 'No Category';
+    render: (value: string, record: ITicketListItem) => {
+      if (!value && !record.subcategory_id) return 'No Category';
+      
+      // If there's a subcategory, use that for display
+      if (record.subcategory_id) {
+        const subcategory = categories.find(c => c.category_id === record.subcategory_id);
+        if (!subcategory) return 'Unknown Category';
+        
+        const parent = categories.find(c => c.category_id === subcategory.parent_category);
+        return parent ? `${parent.category_name} → ${subcategory.category_name}` : subcategory.category_name;
+      }
+      
+      // Otherwise use the main category
       const category = categories.find(c => c.category_id === value);
       if (!category) return 'Unknown Category';
-      
-      if (category.parent_category) {
-        const parent = categories.find(c => c.category_id === category.parent_category);
-        return parent ? `${parent.category_name} → ${category.category_name}` : category.category_name;
-      }
       return category.category_name;
     },
   },
@@ -133,12 +141,17 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
   const [filteredTickets, setFilteredTickets] = useState<ITicketListItem[]>(initialTickets);
   const [channels, setChannels] = useState<IChannel[]>([]);
   const [categories, setCategories] = useState<ITicketCategory[]>([]);
+  const [companies, setCompanies] = useState<ICompany[]>([]);
   const [statusOptions, setStatusOptions] = useState<SelectOption[]>([]);
   const [priorityOptions, setPriorityOptions] = useState<SelectOption[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<string>('');
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+  const [companyFilterState, setCompanyFilterState] = useState<'active' | 'inactive' | 'all'>('active');
+  const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [excludedCategories, setExcludedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [channelFilterState, setChannelFilterState] = useState<'active' | 'inactive' | 'all'>('active');
@@ -153,7 +166,8 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
       getTicketStatuses(),
       getAllPriorities(),
       getAllUsers(),
-      getTicketCategories()
+      getTicketCategories(),
+      getAllCompanies()
     ]);
   }, []);
 
@@ -170,6 +184,7 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
         channelId: selectedChannel || undefined,
         statusId: selectedStatus !== 'all' ? selectedStatus : undefined,
         priorityId: selectedPriority !== 'all' ? selectedPriority : undefined,
+        companyId: selectedCompany || undefined,
         searchQuery,
         channelFilterState
       });
@@ -184,7 +199,7 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
         setIsLoading(false);
       }
     }
-  }, [selectedChannel, selectedStatus, selectedPriority, searchQuery, channelFilterState]);
+  }, [selectedChannel, selectedStatus, selectedPriority, selectedCompany, searchQuery, channelFilterState]);
 
   // Add id to each ticket for DataTable keys
   const ticketsWithIds = useMemo(() => 
@@ -194,30 +209,90 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
     }))
   , [filteredTickets]);
 
-  // Filter tickets based on selected categories
+  // Filter tickets based on selected and excluded categories
   useEffect(() => {
     let filtered = [...tickets];
     
     if (selectedCategories.length > 0) {
-      filtered = filtered.filter(ticket => 
-        ticket.category_id && selectedCategories.includes(ticket.category_id)
-      );
+      filtered = filtered.filter(ticket => {
+        // Handle "No Category" selection
+        if (selectedCategories.includes('no-category')) {
+          return !ticket.category_id && !ticket.subcategory_id;
+        }
+
+        for (const selectedCategoryId of selectedCategories) {
+          const selectedCategory = categories.find(c => c.category_id === selectedCategoryId);
+          if (!selectedCategory) continue;
+
+          if (selectedCategory.parent_category) {
+            // If selected category is a subcategory, match only that specific subcategory
+            return ticket.subcategory_id === selectedCategoryId;
+          } else {
+            // If selected category is a parent, match either:
+            // 1. The parent category_id directly
+            // 2. Any subcategory that belongs to this parent
+            if (ticket.category_id === selectedCategoryId) return true;
+            if (ticket.subcategory_id) {
+              const ticketSubcategory = categories.find(c => c.category_id === ticket.subcategory_id);
+              return ticketSubcategory?.parent_category === selectedCategoryId;
+            }
+          }
+        }
+        return false;
+      });
+    }
+
+    if (excludedCategories.length > 0) {
+      filtered = filtered.filter(ticket => {
+        // Handle "No Category" exclusion
+        if (!ticket.category_id && !ticket.subcategory_id) {
+          return !excludedCategories.includes('no-category');
+        }
+
+        // Check if any excluded category matches this ticket
+        for (const excludedId of excludedCategories) {
+          const excludedCategory = categories.find(c => c.category_id === excludedId);
+          if (!excludedCategory) continue;
+
+          // If excluding a subcategory, only exclude tickets with that exact subcategory_id
+          if (excludedCategory.parent_category) {
+            if (ticket.subcategory_id === excludedId) {
+              return false;
+            }
+          } else {
+            // If excluding a parent category, exclude tickets with:
+            // 1. The parent category_id directly
+            // 2. Any subcategory belonging to this parent
+            if (ticket.category_id === excludedId) {
+              return false;
+            }
+            if (ticket.subcategory_id) {
+              const ticketSubcategory = categories.find(c => c.category_id === ticket.subcategory_id);
+              if (ticketSubcategory?.parent_category === excludedId) {
+                return false;
+              }
+            }
+          }
+        }
+        return true;
+      });
     }
 
     setFilteredTickets(filtered);
-  }, [tickets, selectedCategories]);
+  }, [tickets, selectedCategories, excludedCategories]);
 
   useEffect(() => {
     let isMounted = true;
 
     (async () => {
       try {
-        const [fetchedChannels, statuses, priorities, _, fetchedCategories] = await fetchOptions();
+        const [fetchedChannels, statuses, priorities, _, fetchedCategories, fetchedCompanies] = await fetchOptions();
 
         if (!isMounted) return;
 
         setChannels(fetchedChannels);
         setCategories(fetchedCategories);
+        setCompanies(fetchedCompanies);
 
         setStatusOptions([
           { value: 'all', label: 'All Statuses' },
@@ -269,9 +344,35 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
     setChannelFilterState('all');
   }, []);
 
-  const handleCategorySelect = (categoryIds: string[]) => {
+  const handleCategorySelect = useCallback((categoryIds: string[], excludedIds: string[]) => {
     setSelectedCategories(categoryIds);
-  };
+    setExcludedCategories(excludedIds);
+  }, []);
+
+  const handleCompanySelect = useCallback((companyId: string) => {
+    setSelectedCompany(companyId);
+  }, []);
+
+  const handleCompanyFilterStateChange = useCallback((state: 'active' | 'inactive' | 'all') => {
+    setCompanyFilterState(state);
+  }, []);
+
+  const handleClientTypeFilterChange = useCallback((type: 'all' | 'company' | 'individual') => {
+    setClientTypeFilter(type);
+  }, []);
+
+  const handleResetFilters = useCallback(() => {
+    setSelectedChannel('');
+    setSelectedCompany(null);
+    setSelectedStatus('all');
+    setSelectedPriority('all');
+    setSelectedCategories([]);
+    setExcludedCategories([]);
+    setSearchQuery('');
+    setChannelFilterState('active');
+    setCompanyFilterState('active');
+    setClientTypeFilter('all');
+  }, []);
 
   return (
     <div>
@@ -280,16 +381,27 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
         <Button onClick={() => setIsQuickAddOpen(true)}>Add Ticket</Button>
       </div>
       <div className="bg-white shadow rounded-lg p-4">
-        <div className="flex items-center gap-3">
-          <div className="w-fit">
-            <ChannelPicker
-              channels={channels}
-              onSelect={handleChannelSelect}
-              selectedChannelId={selectedChannel}
-              filterState={channelFilterState}
-              onFilterStateChange={setChannelFilterState}
-            />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+        <div className="w-fit">
+          <ChannelPicker
+            channels={channels}
+            onSelect={handleChannelSelect}
+            selectedChannelId={selectedChannel}
+            filterState={channelFilterState}
+            onFilterStateChange={setChannelFilterState}
+          />
           </div>
+          <CompanyPicker
+            companies={companies}
+            onSelect={handleCompanySelect}
+            selectedCompanyId={selectedCompany}
+            filterState={companyFilterState}
+            onFilterStateChange={handleCompanyFilterStateChange}
+            clientTypeFilter={clientTypeFilter}
+            onClientTypeFilterChange={handleClientTypeFilterChange}
+            fitContent={true}
+          />
           <CustomSelect
             options={statusOptions}
             value={selectedStatus}
@@ -305,18 +417,31 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
           <CategoryPicker
             categories={categories}
             selectedCategories={selectedCategories}
+            excludedCategories={excludedCategories}
             onSelect={handleCategorySelect}
             placeholder="Filter by category"
             multiSelect={true}
-            className="text-sm"
+            showExclude={true}
+            showReset={true}
+            allowEmpty={true}
+            className="text-sm min-w-[200px]"
           />
-          <input
-            type="text"
-            placeholder="Search tickets..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-[38px] border rounded px-3 py-2 text-sm min-w-[200px]"
-          />
+            <input
+              type="text"
+              placeholder="Search tickets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-[38px] border rounded px-3 py-2 text-sm min-w-[200px]"
+            />
+          </div>
+          <Button
+            variant="outline"
+            onClick={handleResetFilters}
+            className="whitespace-nowrap flex items-center gap-2"
+          >
+            <XCircle className="h-4 w-4" />
+            Reset Filters
+          </Button>
         </div>
         <h2 className="text-xl font-semibold mt-6 mb-2">Tickets</h2>
         {isLoading ? (
