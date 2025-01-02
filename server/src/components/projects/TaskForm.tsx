@@ -130,6 +130,7 @@ export default function TaskForm({
   const handleTreeSelectChange = async (
     value: string, 
     type: ProjectTreeTypes,
+    excluded: boolean,
     path?: TreeSelectPath
   ) => {
     if (!path) return;
@@ -417,13 +418,17 @@ export default function TaskForm({
                 {mode === 'edit' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Move to</label>
-                    <TreeSelect<ProjectTreeTypes>
-                      value={selectedPhaseId}
-                      onValueChange={handleTreeSelectChange}
-                      options={projectTreeOptions}
-                      placeholder="Select destination..."
-                      className="w-full"
-                    />
+              <TreeSelect<ProjectTreeTypes>
+                value={selectedPhaseId}
+                onValueChange={handleTreeSelectChange}
+                options={projectTreeOptions}
+                placeholder="Select destination..."
+                className="w-full"
+                multiSelect={false}
+                showExclude={false}
+                showReset={false}
+                allowEmpty={false}
+              />
                   </div>
                 )}
                 <TextArea

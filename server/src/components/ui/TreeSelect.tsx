@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import * as RadixSelect from '@radix-ui/react-select';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, X } from 'lucide-react';
 
 export interface TreeSelectOption<T extends string = string> {
   label: string;
   value: string;
   type: T;
   children?: TreeSelectOption<T>[];
+  excluded?: boolean;
+  selected?: boolean;
 }
 
 export interface TreeSelectPath {
@@ -16,7 +18,7 @@ export interface TreeSelectPath {
 interface TreeSelectProps<T extends string = string> {
   options: TreeSelectOption<T>[];
   value: string;
-  onValueChange: (value: string, type: T, path?: TreeSelectPath) => void;
+  onValueChange: (value: string, type: T, excluded: boolean, path?: TreeSelectPath) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
@@ -25,6 +27,10 @@ interface TreeSelectProps<T extends string = string> {
   hoverClassName?: string;
   triggerClassName?: string;
   contentClassName?: string;
+  multiSelect?: boolean;
+  showExclude?: boolean;
+  showReset?: boolean;
+  allowEmpty?: boolean;
 }
 
 function TreeSelect<T extends string>({
@@ -35,10 +41,14 @@ function TreeSelect<T extends string>({
   className,
   disabled,
   label,
-  selectedClassName = 'bg-gray-100',
-  hoverClassName = 'hover:bg-gray-100',
+  selectedClassName = 'bg-gray-50',
+  hoverClassName = 'hover:bg-gray-50',
   triggerClassName = 'hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent',
   contentClassName = 'bg-white rounded-md shadow-lg border border-gray-200',
+  multiSelect = false,
+  showExclude = false,
+  showReset = false,
+  allowEmpty = false,
 }: TreeSelectProps<T>): JSX.Element {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [isOpen, setIsOpen] = useState(false);
@@ -123,12 +133,52 @@ function TreeSelect<T extends string>({
     const labels = fullPath.map((p: TreeSelectOption<T>): string => p.label);
     setDisplayLabel(labels.join(' > '));
 
-    onValueChange(option.value, option.type, pathObj);
+    onValueChange(option.value, option.type, option.excluded || false, pathObj);
 
-    // Close the dropdown only for leaf nodes
-    if (!option.children?.length) {
+    // Close the dropdown only for non-multiselect or leaf nodes
+    if (!multiSelect || (!option.children?.length && !showExclude)) {
       setIsOpen(false);
     }
+  };
+
+  const handleExclude = (option: TreeSelectOption<T>, ancestors: TreeSelectOption<T>[], e: React.MouseEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const newExcluded = !option.excluded;
+    option.excluded = newExcluded;
+    option.selected = false; // Remove selection when excluding
+    
+    // Build the full path including the selected option
+    const fullPath = [...ancestors, option];
+    const pathObj: TreeSelectPath = {};
+    fullPath.forEach((opt: TreeSelectOption<T>): void => {
+      pathObj[opt.type] = opt.value;
+    });
+
+    onValueChange(option.value, option.type, newExcluded, pathObj);
+  };
+
+  const handleReset = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
+    // Reset all options' states
+    const resetOptions = (opts: TreeSelectOption<T>[]) => {
+      opts.forEach(opt => {
+        opt.selected = false;
+        opt.excluded = false;
+        if (opt.children) {
+          resetOptions(opt.children);
+        }
+      });
+    };
+    resetOptions(options);
+
+    onValueChange('', '' as T, false);
+    setSelectedValue('');
+    setDisplayLabel('');
+    setIsOpen(false);
   };
 
   const renderOption = (
@@ -138,7 +188,6 @@ function TreeSelect<T extends string>({
   ): JSX.Element => {
     const isExpanded = expandedItems.has(option.value);
     const hasChildren = option.children && option.children.length > 0;
-    const isSelected = option.value === selectedValue;
 
     return (
       <React.Fragment key={option.value}>
@@ -147,31 +196,76 @@ function TreeSelect<T extends string>({
             relative flex items-center py-2 text-sm rounded text-gray-900
             bg-white select-none whitespace-nowrap pl-3
             ${hoverClassName}
-            ${isSelected ? selectedClassName : ''}
+            ${option.selected ? selectedClassName : ''}
           `}
           style={{ paddingLeft: `${level * 16 + 12}px` }}
           onMouseDown={(e) => e.preventDefault()}
         >
-          <div className="flex items-center min-w-0">
-            {hasChildren && (
+          <div className="flex items-center justify-between w-full pr-2">
+            <div className="flex items-center min-w-0">
+              {hasChildren && (
+                <div 
+                  className="flex-shrink-0 cursor-pointer p-0.5 hover:text-gray-900 rounded transition-colors mr-1"
+                  onClick={(e) => toggleExpand(option.value, e)}
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="w-4 h-4 text-gray-600" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-gray-600" />
+                  )}
+                </div>
+              )}
+              {!hasChildren && <div className="w-5" />}
               <div 
-                className="flex-shrink-0 cursor-pointer p-0.5 hover:text-gray-900 rounded transition-colors mr-1"
-                onClick={(e) => toggleExpand(option.value, e)}
+                className={`
+                  cursor-pointer truncate
+                  ${option.excluded ? 'line-through text-red-500' : ''}
+                  ${option.selected ? 'text-purple-600' : ''}
+                `}
+                onClick={(e) => handleSelect(option, ancestors, e)}
               >
-                {isExpanded ? (
-                  <ChevronDown className="w-4 h-4 text-gray-600" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-gray-600" />
+                {option.label}
+              </div>
+            </div>
+            {(multiSelect || showExclude) && (
+              <div className="flex items-center gap-1 ml-2">
+                {multiSelect && (
+                  <button
+                    type="button"
+                    className={`
+                      p-1 rounded hover:bg-gray-200 transition-colors
+                      ${option.selected ? 'text-purple-500' : 'text-gray-400'}
+                    `}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      option.selected = !option.selected;
+                      option.excluded = false;
+                      handleSelect(option, ancestors, e);
+                    }}
+                    title="Include category"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </button>
+                )}
+                {showExclude && (
+                  <button
+                    type="button"
+                    className={`
+                      p-1 rounded hover:bg-gray-200 transition-colors
+                      ${option.excluded ? 'text-red-500' : 'text-gray-400'}
+                    `}
+                    onClick={(e) => handleExclude(option, ancestors, e)}
+                    title="Exclude category"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 )}
               </div>
             )}
-            {!hasChildren && <div className="w-5" />}
-            <div 
-              className="cursor-pointer truncate"
-              onClick={(e) => handleSelect(option, ancestors, e)}
-            >
-              {option.label}
-            </div>
           </div>
         </div>
         {isExpanded && option.children?.map((child: TreeSelectOption<T>): JSX.Element => 
@@ -181,6 +275,8 @@ function TreeSelect<T extends string>({
     );
   };
 
+  const hasSelections = options.some(opt => opt.selected || opt.excluded);
+
   return (
     <div className={label ? 'mb-4' : ''}>
       {label && (
@@ -188,49 +284,74 @@ function TreeSelect<T extends string>({
           {label}
         </label>
       )}
-      <RadixSelect.Root 
-        value={selectedValue}
-        open={isOpen}
-        onOpenChange={setIsOpen}
-        disabled={disabled}
-      >
-        <RadixSelect.Trigger
-          className={`
-            inline-flex items-center justify-between
-            border border-gray-200 rounded-lg p-2
-            bg-white cursor-pointer min-h-[38px]
-            disabled:opacity-50 disabled:cursor-not-allowed
-            text-sm w-full
-            ${triggerClassName}
-            ${className}
-          `}
+      <div className="relative">
+        <RadixSelect.Root 
+          value={selectedValue}
+          open={isOpen}
+          onOpenChange={setIsOpen}
+          disabled={disabled}
         >
-          <RadixSelect.Value 
-            placeholder={placeholder}
-            className="flex-1 text-left"
+          <RadixSelect.Trigger
+            className={`
+              inline-flex items-center justify-between
+              border border-gray-200 rounded-lg p-2
+              bg-white cursor-pointer min-h-[38px]
+              disabled:opacity-50 disabled:cursor-not-allowed
+              text-sm w-full
+              ${triggerClassName}
+              ${className}
+            `}
           >
-            {displayLabel || placeholder}
-          </RadixSelect.Value>
-          <RadixSelect.Icon>
-            <ChevronDown className="w-4 h-4 text-gray-500" />
-          </RadixSelect.Icon>
-        </RadixSelect.Trigger>
+            <RadixSelect.Value 
+              placeholder={placeholder}
+              className="flex-1 text-left"
+            >
+              {displayLabel || placeholder}
+            </RadixSelect.Value>
+            <div className="flex items-center gap-2">
+              {showReset && hasSelections && (
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="p-1 hover:bg-gray-100 rounded-full"
+                >
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              )}
+              <RadixSelect.Icon>
+                <ChevronDown className="w-4 h-4 text-gray-500" />
+              </RadixSelect.Icon>
+            </div>
+          </RadixSelect.Trigger>
 
-        <RadixSelect.Portal>
-          <RadixSelect.Content
-            className={`overflow-hidden mt-1 z-[60] w-fit min-w-[200px] ${contentClassName}`}
-            position="popper"
-            sideOffset={4}
-            align="start"
-            avoidCollisions={true}
-            sticky="always"
-          >
-            <RadixSelect.Viewport className="p-1 max-h-[300px] overflow-y-auto">
-              {options.map((option: TreeSelectOption<T>): JSX.Element => renderOption(option))}
-            </RadixSelect.Viewport>
-          </RadixSelect.Content>
-        </RadixSelect.Portal>
-      </RadixSelect.Root>
+          <RadixSelect.Portal>
+            <RadixSelect.Content
+              className={`overflow-hidden mt-1 z-[60] w-fit min-w-[200px] ${contentClassName}`}
+              position="popper"
+              sideOffset={4}
+              align="start"
+              avoidCollisions={true}
+              sticky="always"
+            >
+              <RadixSelect.Viewport className="p-1 max-h-[300px] overflow-y-auto">
+                {allowEmpty && (
+                  <div
+                    className={`
+                      relative flex items-center py-2 text-sm rounded text-gray-900
+                      bg-white select-none whitespace-nowrap pl-3 cursor-pointer
+                      ${hoverClassName}
+                    `}
+                    onClick={handleReset}
+                  >
+                    Clear selection
+                  </div>
+                )}
+                {options.map((option: TreeSelectOption<T>): JSX.Element => renderOption(option))}
+              </RadixSelect.Viewport>
+            </RadixSelect.Content>
+          </RadixSelect.Portal>
+        </RadixSelect.Root>
+      </div>
     </div>
   );
 }

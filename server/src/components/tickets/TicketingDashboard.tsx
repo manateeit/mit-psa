@@ -139,6 +139,7 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [excludedCategories, setExcludedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [channelFilterState, setChannelFilterState] = useState<'active' | 'inactive' | 'all'>('active');
@@ -194,18 +195,34 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
     }))
   , [filteredTickets]);
 
-  // Filter tickets based on selected categories
+  // Filter tickets based on selected and excluded categories
   useEffect(() => {
     let filtered = [...tickets];
     
     if (selectedCategories.length > 0) {
-      filtered = filtered.filter(ticket => 
-        ticket.category_id && selectedCategories.includes(ticket.category_id)
-      );
+      filtered = filtered.filter(ticket => {
+        // Handle "No Category" selection
+        if (selectedCategories.includes('no-category')) {
+          return !ticket.category_id || selectedCategories.includes(ticket.category_id);
+        }
+        // Handle regular category selection
+        return ticket.category_id && selectedCategories.includes(ticket.category_id);
+      });
+    }
+
+    if (excludedCategories.length > 0) {
+      filtered = filtered.filter(ticket => {
+        // Handle "No Category" exclusion
+        if (!ticket.category_id) {
+          return !excludedCategories.includes('no-category');
+        }
+        // Handle regular category exclusion
+        return !excludedCategories.includes(ticket.category_id);
+      });
     }
 
     setFilteredTickets(filtered);
-  }, [tickets, selectedCategories]);
+  }, [tickets, selectedCategories, excludedCategories]);
 
   useEffect(() => {
     let isMounted = true;
@@ -269,8 +286,9 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
     setChannelFilterState('all');
   }, []);
 
-  const handleCategorySelect = (categoryIds: string[]) => {
+  const handleCategorySelect = (categoryIds: string[], excludedIds: string[]) => {
     setSelectedCategories(categoryIds);
+    setExcludedCategories(excludedIds);
   };
 
   return (
@@ -305,10 +323,14 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
           <CategoryPicker
             categories={categories}
             selectedCategories={selectedCategories}
+            excludedCategories={excludedCategories}
             onSelect={handleCategorySelect}
             placeholder="Filter by category"
             multiSelect={true}
-            className="text-sm"
+            showExclude={true}
+            showReset={true}
+            allowEmpty={true}
+            className="text-sm min-w-[250px]"
           />
           <input
             type="text"
