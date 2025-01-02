@@ -136,7 +136,6 @@ function TreeSelect<T extends string>({
     level: number = 0,
     ancestors: TreeSelectOption<T>[] = []
   ): JSX.Element => {
-    const paddingLeft = level * 16;
     const isExpanded = expandedItems.has(option.value);
     const hasChildren = option.children && option.children.length > 0;
     const isSelected = option.value === selectedValue;
@@ -145,31 +144,34 @@ function TreeSelect<T extends string>({
       <React.Fragment key={option.value}>
         <div
           className={`
-            relative flex items-center px-3 py-2 text-sm rounded text-gray-900
-            bg-white select-none whitespace-nowrap
+            relative flex items-center py-2 text-sm rounded text-gray-900
+            bg-white select-none whitespace-nowrap pl-3
             ${hoverClassName}
             ${isSelected ? selectedClassName : ''}
           `}
-          style={{ paddingLeft: `${paddingLeft + 12}px` }}
+          style={{ paddingLeft: `${level * 16 + 12}px` }}
           onMouseDown={(e) => e.preventDefault()}
         >
-          {hasChildren && (
+          <div className="flex items-center min-w-0">
+            {hasChildren && (
+              <div 
+                className="flex-shrink-0 cursor-pointer p-0.5 hover:text-gray-900 rounded transition-colors mr-1"
+                onClick={(e) => toggleExpand(option.value, e)}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="w-4 h-4 text-gray-600" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-gray-600" />
+                )}
+              </div>
+            )}
+            {!hasChildren && <div className="w-5" />}
             <div 
-              className="absolute left-1 cursor-pointer p-1"
-              onClick={(e) => toggleExpand(option.value, e)}
+              className="cursor-pointer truncate"
+              onClick={(e) => handleSelect(option, ancestors, e)}
             >
-              {isExpanded ? (
-                <ChevronDown className="w-4 h-4 text-gray-400" />
-              ) : (
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              )}
+              {option.label}
             </div>
-          )}
-          <div 
-            className="flex-1 cursor-pointer"
-            onClick={(e) => handleSelect(option, ancestors, e)}
-          >
-            {option.label}
           </div>
         </div>
         {isExpanded && option.children?.map((child: TreeSelectOption<T>): JSX.Element => 
@@ -220,6 +222,8 @@ function TreeSelect<T extends string>({
             position="popper"
             sideOffset={4}
             align="start"
+            avoidCollisions={true}
+            sticky="always"
           >
             <RadixSelect.Viewport className="p-1 max-h-[300px] overflow-y-auto">
               {options.map((option: TreeSelectOption<T>): JSX.Element => renderOption(option))}
