@@ -81,27 +81,57 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
       return;
     }
 
-    if (multiSelect) {
+    if (value === 'no-category') {
+      // Handle "No Category" selection
       if (excluded) {
-        // Handle excluded categories
+        // Toggle exclusion of "No Category"
         const newExcluded = excludedCategories.includes(value)
           ? excludedCategories.filter(id => id !== value)
           : [...excludedCategories, value];
-        // Remove from selected if it was there
-        const newSelection = selectedCategories.filter(id => id !== value);
-        onSelect(newSelection, newExcluded);
+        onSelect(selectedCategories, newExcluded);
       } else {
-        // Handle included categories
-        const newSelection = selectedCategories.includes(value)
-          ? selectedCategories.filter(id => id !== value)
-          : [...selectedCategories, value];
-        // Remove from excluded if it was there
-        const newExcluded = excludedCategories.filter(id => id !== value);
-        onSelect(newSelection, newExcluded);
+        // Select "No Category"
+        onSelect([value], []);
+      }
+      return;
+    }
+
+    // Find the selected category
+    const selectedCategory = categories.find(c => c.category_id === value);
+    if (!selectedCategory) return;
+
+    if (excluded) {
+      // Handle exclusion toggle
+      if (excludedCategories.includes(value)) {
+        // Remove from exclusions
+        onSelect(selectedCategories, excludedCategories.filter(id => id !== value));
+      } else {
+        // Add to exclusions and remove from selections if present
+        onSelect(
+          selectedCategories.filter(id => id !== value),
+          [...excludedCategories, value]
+        );
       }
     } else {
-      // For single-select, just use the new value
-      onSelect([value], []);
+      // Handle selection
+      if (multiSelect) {
+        if (selectedCategories.includes(value)) {
+          // Remove from selection
+          onSelect(
+            selectedCategories.filter(id => id !== value),
+            excludedCategories
+          );
+        } else {
+          // Add to selection and remove from exclusions if present
+          onSelect(
+            [...selectedCategories, value],
+            excludedCategories.filter(id => id !== value)
+          );
+        }
+      } else {
+        // Single select mode
+        onSelect([value], []);
+      }
     }
   };
 
@@ -111,21 +141,55 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({
     const parts = [];
     
     if (selectedCategories.length > 0) {
-      const selectedText = selectedCategories.length === 1
-        ? selectedCategories[0] === 'no-category'
-          ? 'No Category'
-          : categories.find(c => c.category_id === selectedCategories[0])?.category_name
-        : `${selectedCategories.length} categories`;
-      if (selectedText) parts.push(selectedText);
+      if (selectedCategories.length === 1) {
+        const selectedId = selectedCategories[0];
+        if (selectedId === 'no-category') {
+          parts.push('No Category');
+        } else {
+          const selectedCategory = categories.find(c => c.category_id === selectedId);
+          if (selectedCategory) {
+            if (selectedCategory.parent_category) {
+              // If it's a subcategory, show parent → child format
+              const parentCategory = categories.find(c => c.category_id === selectedCategory.parent_category);
+              if (parentCategory) {
+                parts.push(`${parentCategory.category_name} → ${selectedCategory.category_name}`);
+              } else {
+                parts.push(selectedCategory.category_name);
+              }
+            } else {
+              parts.push(selectedCategory.category_name);
+            }
+          }
+        }
+      } else {
+        parts.push(`${selectedCategories.length} categories`);
+      }
     }
     
     if (excludedCategories.length > 0) {
-      const excludedText = excludedCategories.length === 1
-        ? excludedCategories[0] === 'no-category'
-          ? 'excluding No Category'
-          : `excluding ${categories.find(c => c.category_id === excludedCategories[0])?.category_name}`
-        : `excluding ${excludedCategories.length} categories`;
-      parts.push(excludedText);
+      if (excludedCategories.length === 1) {
+        const excludedId = excludedCategories[0];
+        if (excludedId === 'no-category') {
+          parts.push('excluding No Category');
+        } else {
+          const excludedCategory = categories.find(c => c.category_id === excludedId);
+          if (excludedCategory) {
+            if (excludedCategory.parent_category) {
+              // If it's a subcategory, show parent → child format
+              const parentCategory = categories.find(c => c.category_id === excludedCategory.parent_category);
+              if (parentCategory) {
+                parts.push(`excluding ${parentCategory.category_name} → ${excludedCategory.category_name}`);
+              } else {
+                parts.push(`excluding ${excludedCategory.category_name}`);
+              }
+            } else {
+              parts.push(`excluding ${excludedCategory.category_name}`);
+            }
+          }
+        }
+      } else {
+        parts.push(`excluding ${excludedCategories.length} categories`);
+      }
     }
     
     return parts.join(', ') || '';

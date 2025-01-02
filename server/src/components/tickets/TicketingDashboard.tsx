@@ -84,15 +84,21 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
   {
     title: 'Category',
     dataIndex: 'category_id',
-    render: (value: string) => {
-      if (!value) return 'No Category';
+    render: (value: string, record: ITicketListItem) => {
+      if (!value && !record.subcategory_id) return 'No Category';
+      
+      // If there's a subcategory, use that for display
+      if (record.subcategory_id) {
+        const subcategory = categories.find(c => c.category_id === record.subcategory_id);
+        if (!subcategory) return 'Unknown Category';
+        
+        const parent = categories.find(c => c.category_id === subcategory.parent_category);
+        return parent ? `${parent.category_name} → ${subcategory.category_name}` : subcategory.category_name;
+      }
+      
+      // Otherwise use the main category
       const category = categories.find(c => c.category_id === value);
       if (!category) return 'Unknown Category';
-      
-      if (category.parent_category) {
-        const parent = categories.find(c => c.category_id === category.parent_category);
-        return parent ? `${parent.category_name} → ${category.category_name}` : category.category_name;
-      }
       return category.category_name;
     },
   },
@@ -203,21 +209,64 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
       filtered = filtered.filter(ticket => {
         // Handle "No Category" selection
         if (selectedCategories.includes('no-category')) {
-          return !ticket.category_id || selectedCategories.includes(ticket.category_id);
+          return !ticket.category_id && !ticket.subcategory_id;
         }
-        // Handle regular category selection
-        return ticket.category_id && selectedCategories.includes(ticket.category_id);
+
+        for (const selectedCategoryId of selectedCategories) {
+          const selectedCategory = categories.find(c => c.category_id === selectedCategoryId);
+          if (!selectedCategory) continue;
+
+          if (selectedCategory.parent_category) {
+            // If selected category is a subcategory, match only that specific subcategory
+            return ticket.subcategory_id === selectedCategoryId;
+          } else {
+            // If selected category is a parent, match either:
+            // 1. The parent category_id directly
+            // 2. Any subcategory that belongs to this parent
+            if (ticket.category_id === selectedCategoryId) return true;
+            if (ticket.subcategory_id) {
+              const ticketSubcategory = categories.find(c => c.category_id === ticket.subcategory_id);
+              return ticketSubcategory?.parent_category === selectedCategoryId;
+            }
+          }
+        }
+        return false;
       });
     }
 
     if (excludedCategories.length > 0) {
       filtered = filtered.filter(ticket => {
         // Handle "No Category" exclusion
-        if (!ticket.category_id) {
+        if (!ticket.category_id && !ticket.subcategory_id) {
           return !excludedCategories.includes('no-category');
         }
-        // Handle regular category exclusion
-        return !excludedCategories.includes(ticket.category_id);
+
+        // Check if any excluded category matches this ticket
+        for (const excludedId of excludedCategories) {
+          const excludedCategory = categories.find(c => c.category_id === excludedId);
+          if (!excludedCategory) continue;
+
+          // If excluding a subcategory, only exclude tickets with that exact subcategory_id
+          if (excludedCategory.parent_category) {
+            if (ticket.subcategory_id === excludedId) {
+              return false;
+            }
+          } else {
+            // If excluding a parent category, exclude tickets with:
+            // 1. The parent category_id directly
+            // 2. Any subcategory belonging to this parent
+            if (ticket.category_id === excludedId) {
+              return false;
+            }
+            if (ticket.subcategory_id) {
+              const ticketSubcategory = categories.find(c => c.category_id === ticket.subcategory_id);
+              if (ticketSubcategory?.parent_category === excludedId) {
+                return false;
+              }
+            }
+          }
+        }
+        return true;
       });
     }
 

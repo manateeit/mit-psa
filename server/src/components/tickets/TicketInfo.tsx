@@ -92,7 +92,7 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
       onSelectChange('category_id', selectedCategory.parent_category);
       onSelectChange('subcategory_id', selectedCategoryId);
     } else {
-      // If it's a parent category, set only category_id and clear subcategory
+      // If it's a parent category, set category_id and clear subcategory
       onSelectChange('category_id', selectedCategoryId);
       onSelectChange('subcategory_id', null);
     }

@@ -116,26 +116,22 @@ function TreeSelect<T extends string>({
     });
   };
 
-  const handleSelect = (option: TreeSelectOption<T>, ancestors: TreeSelectOption<T>[], e: React.MouseEvent): void => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    // Build the full path including the selected option
+  const buildPathObject = (option: TreeSelectOption<T>, ancestors: TreeSelectOption<T>[]): TreeSelectPath => {
     const fullPath = [...ancestors, option];
     const pathObj: TreeSelectPath = {};
     fullPath.forEach((opt: TreeSelectOption<T>): void => {
       pathObj[opt.type] = opt.value;
     });
+    return pathObj;
+  };
 
-    setSelectedValue(option.value);
-    
-    // Set display label to show the full path
-    const labels = fullPath.map((p: TreeSelectOption<T>): string => p.label);
-    setDisplayLabel(labels.join(' > '));
+  const handleSelect = (option: TreeSelectOption<T>, ancestors: TreeSelectOption<T>[], e: React.MouseEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
 
-    onValueChange(option.value, option.type, option.excluded || false, pathObj);
+    const pathObj = buildPathObject(option, ancestors);
+    onValueChange(option.value, option.type, false, pathObj);
 
-    // Close the dropdown only for non-multiselect or leaf nodes
     if (!multiSelect || (!option.children?.length && !showExclude)) {
       setIsOpen(false);
     }
@@ -144,37 +140,15 @@ function TreeSelect<T extends string>({
   const handleExclude = (option: TreeSelectOption<T>, ancestors: TreeSelectOption<T>[], e: React.MouseEvent): void => {
     e.preventDefault();
     e.stopPropagation();
-
-    const newExcluded = !option.excluded;
-    option.excluded = newExcluded;
-    option.selected = false; // Remove selection when excluding
     
-    // Build the full path including the selected option
-    const fullPath = [...ancestors, option];
-    const pathObj: TreeSelectPath = {};
-    fullPath.forEach((opt: TreeSelectOption<T>): void => {
-      pathObj[opt.type] = opt.value;
-    });
-
-    onValueChange(option.value, option.type, newExcluded, pathObj);
+    const pathObj = buildPathObject(option, ancestors);
+    onValueChange(option.value, option.type, true, pathObj);
   };
 
   const handleReset = (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
     
-    // Reset all options' states
-    const resetOptions = (opts: TreeSelectOption<T>[]) => {
-      opts.forEach(opt => {
-        opt.selected = false;
-        opt.excluded = false;
-        if (opt.children) {
-          resetOptions(opt.children);
-        }
-      });
-    };
-    resetOptions(options);
-
     onValueChange('', '' as T, false);
     setSelectedValue('');
     setDisplayLabel('');
@@ -238,8 +212,6 @@ function TreeSelect<T extends string>({
                     `}
                     onClick={(e) => {
                       e.stopPropagation();
-                      option.selected = !option.selected;
-                      option.excluded = false;
                       handleSelect(option, ancestors, e);
                     }}
                     title="Include category"
@@ -250,19 +222,25 @@ function TreeSelect<T extends string>({
                   </button>
                 )}
                 {showExclude && (
-                  <button
-                    type="button"
-                    className={`
-                      p-1 rounded hover:bg-gray-200 transition-colors
-                      ${option.excluded ? 'text-red-500' : 'text-gray-400'}
-                    `}
-                    onClick={(e) => handleExclude(option, ancestors, e)}
-                    title="Exclude category"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className={`
+                        p-1 rounded hover:bg-gray-200 transition-colors
+                        ${option.excluded ? 'text-red-500' : 'text-gray-400'}
+                      `}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleExclude(option, ancestors, e);
+                      }}
+                      title="Exclude category"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 )}
               </div>
             )}
