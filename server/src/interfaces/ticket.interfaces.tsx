@@ -42,6 +42,7 @@ export interface ITicketListFilters {
   statusId?: string;
   priorityId?: string;
   categoryId?: string;
+  companyId?: string;
   searchQuery?: string;
   channelFilterState: 'active' | 'inactive' | 'all';
 }

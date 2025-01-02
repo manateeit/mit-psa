@@ -454,6 +454,10 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
       query = query.where('t.category_id', validatedFilters.categoryId);
     }
 
+    if (validatedFilters.companyId) {
+      query = query.where('t.company_id', validatedFilters.companyId);
+    }
+
     if (validatedFilters.searchQuery) {
       const searchTerm = `%${validatedFilters.searchQuery}%`;
       query = query.where(function(this: any) {

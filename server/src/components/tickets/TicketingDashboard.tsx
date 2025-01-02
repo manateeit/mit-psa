@@ -16,8 +16,10 @@ import { getTicketStatuses } from '@/lib/actions/status-actions/statusActions';
 import { getAllPriorities } from '@/lib/actions/priorityActions';
 import { getAllUsers, getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { getTicketCategories } from '@/lib/actions/ticketCategoryActions';
+import { getAllCompanies } from '@/lib/actions/companyActions';
 import { ChannelPicker } from '@/components/settings/general/ChannelPicker';
-import { IChannel } from '@/interfaces';
+import { CompanyPicker } from '@/components/companies/CompanyPicker';
+import { IChannel, ICompany } from '@/interfaces';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import { getTicketsForList, deleteTicket } from '@/lib/actions/ticket-actions/ticketActions';
@@ -139,9 +141,13 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
   const [filteredTickets, setFilteredTickets] = useState<ITicketListItem[]>(initialTickets);
   const [channels, setChannels] = useState<IChannel[]>([]);
   const [categories, setCategories] = useState<ITicketCategory[]>([]);
+  const [companies, setCompanies] = useState<ICompany[]>([]);
   const [statusOptions, setStatusOptions] = useState<SelectOption[]>([]);
   const [priorityOptions, setPriorityOptions] = useState<SelectOption[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<string>('');
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+  const [companyFilterState, setCompanyFilterState] = useState<'active' | 'inactive' | 'all'>('active');
+  const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -160,7 +166,8 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
       getTicketStatuses(),
       getAllPriorities(),
       getAllUsers(),
-      getTicketCategories()
+      getTicketCategories(),
+      getAllCompanies()
     ]);
   }, []);
 
@@ -177,6 +184,7 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
         channelId: selectedChannel || undefined,
         statusId: selectedStatus !== 'all' ? selectedStatus : undefined,
         priorityId: selectedPriority !== 'all' ? selectedPriority : undefined,
+        companyId: selectedCompany || undefined,
         searchQuery,
         channelFilterState
       });
@@ -191,7 +199,7 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
         setIsLoading(false);
       }
     }
-  }, [selectedChannel, selectedStatus, selectedPriority, searchQuery, channelFilterState]);
+  }, [selectedChannel, selectedStatus, selectedPriority, selectedCompany, searchQuery, channelFilterState]);
 
   // Add id to each ticket for DataTable keys
   const ticketsWithIds = useMemo(() => 
@@ -278,12 +286,13 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
 
     (async () => {
       try {
-        const [fetchedChannels, statuses, priorities, _, fetchedCategories] = await fetchOptions();
+        const [fetchedChannels, statuses, priorities, _, fetchedCategories, fetchedCompanies] = await fetchOptions();
 
         if (!isMounted) return;
 
         setChannels(fetchedChannels);
         setCategories(fetchedCategories);
+        setCompanies(fetchedCompanies);
 
         setStatusOptions([
           { value: 'all', label: 'All Statuses' },
@@ -335,10 +344,22 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
     setChannelFilterState('all');
   }, []);
 
-  const handleCategorySelect = (categoryIds: string[], excludedIds: string[]) => {
+  const handleCategorySelect = useCallback((categoryIds: string[], excludedIds: string[]) => {
     setSelectedCategories(categoryIds);
     setExcludedCategories(excludedIds);
-  };
+  }, []);
+
+  const handleCompanySelect = useCallback((companyId: string) => {
+    setSelectedCompany(companyId);
+  }, []);
+
+  const handleCompanyFilterStateChange = useCallback((state: 'active' | 'inactive' | 'all') => {
+    setCompanyFilterState(state);
+  }, []);
+
+  const handleClientTypeFilterChange = useCallback((type: 'all' | 'company' | 'individual') => {
+    setClientTypeFilter(type);
+  }, []);
 
   return (
     <div>
@@ -348,15 +369,25 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
       </div>
       <div className="bg-white shadow rounded-lg p-4">
         <div className="flex items-center gap-3">
-          <div className="w-fit">
-            <ChannelPicker
-              channels={channels}
-              onSelect={handleChannelSelect}
-              selectedChannelId={selectedChannel}
-              filterState={channelFilterState}
-              onFilterStateChange={setChannelFilterState}
-            />
+        <div className="w-fit">
+          <ChannelPicker
+            channels={channels}
+            onSelect={handleChannelSelect}
+            selectedChannelId={selectedChannel}
+            filterState={channelFilterState}
+            onFilterStateChange={setChannelFilterState}
+          />
           </div>
+          <CompanyPicker
+            companies={companies}
+            onSelect={handleCompanySelect}
+            selectedCompanyId={selectedCompany}
+            filterState={companyFilterState}
+            onFilterStateChange={handleCompanyFilterStateChange}
+            clientTypeFilter={clientTypeFilter}
+            onClientTypeFilterChange={handleClientTypeFilterChange}
+            fitContent={true}
+          />
           <CustomSelect
             options={statusOptions}
             value={selectedStatus}
@@ -379,7 +410,7 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
             showExclude={true}
             showReset={true}
             allowEmpty={true}
-            className="text-sm min-w-[250px]"
+            className="text-sm min-w-[200px]"
           />
           <input
             type="text"
