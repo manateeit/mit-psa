@@ -23,7 +23,7 @@ import { IChannel, ICompany } from '@/interfaces';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import { getTicketsForList, deleteTicket } from '@/lib/actions/ticket-actions/ticketActions';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, XCircle } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 interface TicketingDashboardProps {
@@ -361,6 +361,19 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
     setClientTypeFilter(type);
   }, []);
 
+  const handleResetFilters = useCallback(() => {
+    setSelectedChannel('');
+    setSelectedCompany(null);
+    setSelectedStatus('all');
+    setSelectedPriority('all');
+    setSelectedCategories([]);
+    setExcludedCategories([]);
+    setSearchQuery('');
+    setChannelFilterState('active');
+    setCompanyFilterState('active');
+    setClientTypeFilter('all');
+  }, []);
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -368,7 +381,8 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
         <Button onClick={() => setIsQuickAddOpen(true)}>Add Ticket</Button>
       </div>
       <div className="bg-white shadow rounded-lg p-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
         <div className="w-fit">
           <ChannelPicker
             channels={channels}
@@ -412,13 +426,22 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
             allowEmpty={true}
             className="text-sm min-w-[200px]"
           />
-          <input
-            type="text"
-            placeholder="Search tickets..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-[38px] border rounded px-3 py-2 text-sm min-w-[200px]"
-          />
+            <input
+              type="text"
+              placeholder="Search tickets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-[38px] border rounded px-3 py-2 text-sm min-w-[200px]"
+            />
+          </div>
+          <Button
+            variant="outline"
+            onClick={handleResetFilters}
+            className="whitespace-nowrap flex items-center gap-2"
+          >
+            <XCircle className="h-4 w-4" />
+            Reset Filters
+          </Button>
         </div>
         <h2 className="text-xl font-semibold mt-6 mb-2">Tickets</h2>
         {isLoading ? (
