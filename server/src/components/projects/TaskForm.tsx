@@ -447,7 +447,7 @@ export default function TaskForm({
           <Dialog.Content 
             className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-[600px] max-h-[90vh] overflow-y-auto"
           >
-            <Dialog.Title className="text-xl font-semibold mb-4">
+            <Dialog.Title className="text-lg font-medium mb-4">
               {mode === 'edit' ? 'Edit Task' : 'Add New Task'}
             </Dialog.Title>
             <form onSubmit={handleSubmit} className="flex flex-col">
@@ -456,7 +456,7 @@ export default function TaskForm({
                   value={taskName}
                   onChange={setTaskName}
                   placeholder="Title..."
-                  className="w-full text-lg font-semibold"
+                  className="w-full text-2xl font-bold"
                 />
 
                 {mode === 'edit' && (

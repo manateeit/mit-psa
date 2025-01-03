@@ -93,7 +93,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       }`}
     >
       <div
-        className="font-semibold text-base mb-1 w-full px-1"
+        className="font-semibold text-2xl mb-1 w-full px-1"
         onClick={(e) => e.stopPropagation()}
       >
         {task.task_name}
