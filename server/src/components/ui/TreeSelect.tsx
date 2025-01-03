@@ -34,7 +34,7 @@ interface TreeSelectProps<T extends string = string> {
 }
 
 function TreeSelect<T extends string>({
-  options,
+  options = [],
   value,
   onValueChange,
   placeholder,
@@ -76,6 +76,11 @@ function TreeSelect<T extends string>({
 
   // Update expanded items and display label when value changes
   useEffect(() => {
+    if (!Array.isArray(options)) {
+      console.error('TreeSelect: options is not an array', options);
+      return;
+    }
+    
     if (value) {
       setSelectedValue(value);
       const result = findSelectedOptionWithPath(options, value);
@@ -267,7 +272,7 @@ function TreeSelect<T extends string>({
           value={selectedValue}
           open={isOpen}
           onOpenChange={setIsOpen}
-          disabled={disabled}
+          disabled={disabled || !Array.isArray(options) || options.length === 0}
         >
           <RadixSelect.Trigger
             className={`

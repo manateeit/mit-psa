@@ -112,14 +112,17 @@ export default function TaskForm({
       if (mode === 'edit') {
         try {
           const treeData = await getProjectTreeData();
-          if (treeData && treeData.length > 0) {
+          if (treeData && Array.isArray(treeData) && treeData.length > 0) {
             setProjectTreeOptions(treeData);
           } else {
+            console.error('Invalid or empty tree data received:', treeData);
             toast.error('No projects available with valid phases and statuses');
+            setProjectTreeOptions([]);
           }
         } catch (error) {
           console.error('Error fetching projects:', error);
           toast.error('Error loading project data. Please try again.');
+          setProjectTreeOptions([]);
         }
       }
     };
@@ -133,11 +136,19 @@ export default function TaskForm({
     excluded: boolean,
     path?: TreeSelectPath
   ) => {
-    if (!path) return;
+    if (!path) {
+      console.error('Path is undefined in tree select change');
+      return;
+    }  
 
     // Get IDs from the path
     const phaseId = path['phase'];
     const statusId = path['status'];
+
+    if (!phaseId) {
+      console.error('Phase ID is missing from path');
+      return;
+    }
     
     // Find the selected phase from tree options
     const findPhaseInTree = (options: TreeSelectOption<ProjectTreeTypes>[]): TreeSelectOption<ProjectTreeTypes> | undefined => {
@@ -451,6 +462,7 @@ export default function TaskForm({
                 {mode === 'edit' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Move to</label>
+                    {projectTreeOptions.length > 0 ? (
               <TreeSelect<ProjectTreeTypes>
                 value={selectedPhaseId}
                 onValueChange={handleTreeSelectChange}
@@ -462,6 +474,9 @@ export default function TaskForm({
                 showReset={false}
                 allowEmpty={false}
               />
+            ) : (
+              <div className="text-sm text-gray-500">Loading...</div>
+            )}
                   </div>
                 )}
                 <TextArea
