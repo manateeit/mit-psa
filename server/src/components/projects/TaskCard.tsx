@@ -92,10 +92,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         isDragging ? 'opacity-50 ring-2 ring-purple-500 shadow-lg scale-105' : ''
       }`}
     >
-      <div
-        className="font-semibold text-base mb-1 w-full px-1"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="font-semibold text-2xl mb-1 w-full px-1">
         {task.task_name}
       </div>
       {task.description && (
@@ -104,7 +101,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </p>
       )}
       <div className="flex items-center gap-2">
-        <div onClick={(e) => e.stopPropagation()}>
+        <div>
           <UserPicker
             value={task.assigned_to || ''}
             onValueChange={(newAssigneeId: string) => onAssigneeChange(task.task_id, newAssigneeId)}

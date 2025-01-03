@@ -66,7 +66,7 @@ export const projectTaskSchema = tenantSchema.extend({
   phase_id: z.string(),
   task_name: z.string(),
   description: z.string().nullable(),
-  assigned_to: z.string().nullable(),
+  assigned_to: z.string().uuid().nullable().or(z.literal('unassigned')),
   estimated_hours: z.number().nullable(),
   actual_hours: z.number().nullable(),
   project_status_mapping_id: z.string(),
@@ -124,6 +124,8 @@ export const createTaskSchema = projectTaskSchema.omit({
   created_at: true,
   updated_at: true,
   tenant: true
+}).extend({
+  assigned_to: z.string().uuid().nullable().or(z.literal('')).transform(val => val === '' ? null : val)
 });
 
 export const updateTaskSchema = projectTaskSchema.partial().omit({
@@ -131,6 +133,8 @@ export const updateTaskSchema = projectTaskSchema.partial().omit({
   created_at: true,
   updated_at: true,
   tenant: true
+}).extend({
+  assigned_to: z.string().uuid().nullable().or(z.literal('')).transform(val => val === '' ? null : val)
 });
 
 export const createChecklistItemSchema = taskChecklistItemSchema.omit({

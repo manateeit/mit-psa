@@ -332,7 +332,7 @@ export default function ProjectDetail({
   
       const updatedTask = await updateTaskWithChecklist(taskId, {
         ...task,
-        assigned_to: newAssigneeId,
+        assigned_to: newAssigneeId === 'unassigned' || newAssigneeId === '' ? null : newAssigneeId,
         task_name: newTaskName || task.task_name,
         estimated_hours: Number(task.estimated_hours) || 0,
         actual_hours: Number(task.actual_hours) || 0,

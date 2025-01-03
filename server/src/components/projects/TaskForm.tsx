@@ -4,11 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem, ProjectStatus, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import AvatarIcon from '@/components/ui/AvatarIcon';
-import { 
-  updateTaskWithChecklist, 
-  addTaskToPhase, 
-  getTaskChecklistItems, 
-  moveTaskToPhase, 
+import {
+  updateTaskWithChecklist,
+  addTaskToPhase,
+  getTaskChecklistItems,
+  moveTaskToPhase,
   deleteTask,
   getProjectTreeData,
   addTaskResourceAction,
@@ -65,7 +65,7 @@ export default function TaskForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checklistItems, setChecklistItems] = useState<Omit<ITaskChecklistItem, 'tenant'>[]>(task?.checklist_items || []);
   const [isEditingChecklist, setIsEditingChecklist] = useState(false);
-  const [assignedUser, setAssignedUser] = useState<string>(task?.assigned_to || '');
+  const [assignedUser, setAssignedUser] = useState<string | null>(task?.assigned_to ?? null);
   const [selectedPhase, setSelectedPhase] = useState<IProjectPhase>(phase);
   const [showMoveConfirmation, setShowMoveConfirmation] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -77,10 +77,11 @@ export default function TaskForm({
   const [tempTaskResources, setTempTaskResources] = useState<any[]>([]);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [pendingTicketLinks, setPendingTicketLinks] = useState<IProjectTicketLinkWithDetails[]>(task?.ticket_links || []);
+  const [editingChecklistItemId, setEditingChecklistItemId] = useState<string | null>(null);
 
   const [selectedStatusId, setSelectedStatusId] = useState<string>(
-    task?.project_status_mapping_id || 
-    defaultStatus?.project_status_mapping_id || 
+    task?.project_status_mapping_id ||
+    defaultStatus?.project_status_mapping_id ||
     projectStatuses[0]?.project_status_mapping_id
   );
 
@@ -112,14 +113,17 @@ export default function TaskForm({
       if (mode === 'edit') {
         try {
           const treeData = await getProjectTreeData();
-          if (treeData && treeData.length > 0) {
+          if (treeData && Array.isArray(treeData) && treeData.length > 0) {
             setProjectTreeOptions(treeData);
           } else {
+            console.error('Invalid or empty tree data received:', treeData);
             toast.error('No projects available with valid phases and statuses');
+            setProjectTreeOptions([]);
           }
         } catch (error) {
           console.error('Error fetching projects:', error);
           toast.error('Error loading project data. Please try again.');
+          setProjectTreeOptions([]);
         }
       }
     };
@@ -128,16 +132,24 @@ export default function TaskForm({
   }, [mode]);
 
   const handleTreeSelectChange = async (
-    value: string, 
+    value: string,
     type: ProjectTreeTypes,
     excluded: boolean,
     path?: TreeSelectPath
   ) => {
-    if (!path) return;
+    if (!path) {
+      console.error('Path is undefined in tree select change');
+      return;
+    }
 
     // Get IDs from the path
     const phaseId = path['phase'];
     const statusId = path['status'];
+
+    if (!phaseId) {
+      console.error('Phase ID is missing from path');
+      return;
+    }
     
     // Find the selected phase from tree options
     const findPhaseInTree = (options: TreeSelectOption<ProjectTreeTypes>[]): TreeSelectOption<ProjectTreeTypes> | undefined => {
@@ -203,7 +215,7 @@ export default function TaskForm({
         const taskData: Partial<IProjectTask> = {
           task_name: taskName,
           description: description,
-          assigned_to: assignedUser || currentUserId,
+          assigned_to: assignedUser || null,
           estimated_hours: estimatedHours,
           actual_hours: actualHours,
           due_date: task.due_date,
@@ -236,6 +248,9 @@ export default function TaskForm({
     try {
       let resultTask: IProjectTask | null = null;
 
+      // Convert empty string to null for database
+      const finalAssignedTo = !assignedUser || assignedUser === '' ? null : assignedUser;
+
       if (mode === 'edit' && task) {
         // Edit mode logic remains the same
         const movedTask = await moveTaskToPhase(task.task_id, selectedPhaseId, selectedStatusId);
@@ -244,12 +259,12 @@ export default function TaskForm({
           const taskData: Partial<IProjectTask> = {
             task_name: taskName,
             description: description,
-            assigned_to: assignedUser || currentUserId,
+            assigned_to: finalAssignedTo,
             estimated_hours: estimatedHours,
             actual_hours: actualHours,
             due_date: task.due_date,
             checklist_items: checklistItems,
-            project_status_mapping_id: selectedStatusId // Ensure status mapping is updated
+            project_status_mapping_id: selectedStatusId
           };
           resultTask = await updateTaskWithChecklist(movedTask.task_id, taskData);
         }
@@ -262,7 +277,7 @@ export default function TaskForm({
           project_status_mapping_id: selectedStatusId,
           wbs_code: `${phase.wbs_code}.0`,
           description: description,
-          assigned_to: assignedUser || currentUserId,
+          assigned_to: finalAssignedTo,
           estimated_hours: estimatedHours,
           actual_hours: actualHours,
           due_date: new Date(),
@@ -493,21 +508,23 @@ export default function TaskForm({
           <Dialog.Content 
             className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-[600px] max-h-[90vh] overflow-y-auto"
           >
-            <Dialog.Title className="text-xl font-semibold mb-4">
+            <Dialog.Title className="text-lg font-medium mb-4">
               {mode === 'edit' ? 'Edit Task' : 'Add New Task'}
             </Dialog.Title>
             <form onSubmit={handleSubmit} className="flex flex-col">
               <div className="space-y-4">
-                <EditableText
+                <TextArea
                   value={taskName}
-                  onChange={setTaskName}
+                  onChange={(e) => setTaskName(e.target.value)}
                   placeholder="Title..."
-                  className="w-full text-lg font-semibold"
+                  className="w-full text-2xl font-bold p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  rows={1}
                 />
 
                 {mode === 'edit' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Move to</label>
+                    {projectTreeOptions.length > 0 ? (
               <TreeSelect<ProjectTreeTypes>
                 value={selectedPhaseId}
                 onValueChange={handleTreeSelectChange}
@@ -519,6 +536,9 @@ export default function TaskForm({
                 showReset={false}
                 allowEmpty={false}
               />
+            ) : (
+              <div className="text-sm text-gray-500">Loading...</div>
+            )}
                   </div>
                 )}
                 <TextArea
@@ -560,8 +580,11 @@ export default function TaskForm({
                 <div className="space-y-4">
                   <UserPicker
                     label="Assigned To"
-                    value={assignedUser}
-                    onValueChange={setAssignedUser}
+                    value={assignedUser ?? ''}
+                    onValueChange={(value) => {
+                      // Only set to null if explicitly choosing "Not assigned"
+                      setAssignedUser(value === '' ? null : value);
+                    }}
                     size="sm"
                     users={users.filter(u => 
                       !(task?.task_id ? taskResources : tempTaskResources)
@@ -622,7 +645,7 @@ export default function TaskForm({
                 <div className="flex flex-col space-y-2">
                   {checklistItems.map((item, index): JSX.Element => (
                     <div key={index} className="flex items-center gap-2 w-full">
-                      {isEditingChecklist ? (
+                      {isEditingChecklist || editingChecklistItemId === item.checklist_item_id ? (
                         <>
                           <Checkbox
                             checked={item.completed}
@@ -635,6 +658,7 @@ export default function TaskForm({
                               onChange={(e) => updateChecklistItem(index, 'item_name', e.target.value)}
                               placeholder="Checklist item"
                               className="w-full"
+                              onBlur={() => setEditingChecklistItemId(null)} // Stop editing when focus is lost
                             />
                           </div>
                           <button
@@ -652,7 +676,10 @@ export default function TaskForm({
                             onChange={(e) => updateChecklistItem(index, 'completed', e.target.checked)}
                             className="flex-none"
                           />
-                          <span className={`flex-1 whitespace-pre-wrap ${item.completed ? 'line-through text-gray-500' : ''}`}>
+                          <span
+                            className={`flex-1 whitespace-pre-wrap ${item.completed ? 'line-through text-gray-500' : ''}`}
+                            onClick={() => setEditingChecklistItemId(item.checklist_item_id)} // Start editing when clicked
+                          >
                             {item.item_name}
                           </span>
                         </>

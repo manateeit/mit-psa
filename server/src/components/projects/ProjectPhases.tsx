@@ -45,23 +45,21 @@ export const ProjectPhases: React.FC<ProjectPhasesProps> = ({
 }) => {
   return (
     <div className="bg-white shadow rounded-lg p-4">
-      <div className="flex justify-between items-center mb-2">
-        <h2 className="text-xl font-bold">Project Phases</h2>
-        <div className="flex gap-2">
-          <Button
-            onClick={onAddTask}
-            className="text-sm"
-            disabled={!selectedPhase || isAddingTask}
-          >
-            {isAddingTask ? 'Adding...' : '+ Add Task'}
-          </Button>
-          <Button
-            onClick={onAddPhase}
-            className="text-sm"
-          >
-            + Add Phase
-          </Button>
-        </div>
+      <h2 className="text-xl font-bold mb-2">Project Phases</h2>
+      <div className="flex gap-2 mb-4">
+        <Button
+          onClick={onAddTask}
+          className="text-sm"
+          disabled={!selectedPhase || isAddingTask}
+        >
+          {isAddingTask ? 'Adding...' : '+ Add Task'}
+        </Button>
+        <Button
+          onClick={onAddPhase}
+          className="text-sm"
+        >
+          + Add Phase
+        </Button>
       </div>
       <ul className="space-y-2">
         {phases.map((phase: IProjectPhase): JSX.Element => (
