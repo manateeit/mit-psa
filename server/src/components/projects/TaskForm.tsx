@@ -456,11 +456,12 @@ export default function TaskForm({
             </Dialog.Title>
             <form onSubmit={handleSubmit} className="flex flex-col">
               <div className="space-y-4">
-                <EditableText
+                <TextArea
                   value={taskName}
-                  onChange={setTaskName}
+                  onChange={(e) => setTaskName(e.target.value)}
                   placeholder="Title..."
-                  className="w-full text-2xl font-bold"
+                  className="w-full text-2xl font-bold p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  rows={1}
                 />
 
                 {mode === 'edit' && (
