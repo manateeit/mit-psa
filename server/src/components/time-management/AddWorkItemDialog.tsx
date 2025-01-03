@@ -11,8 +11,10 @@ interface AddWorkItemDialogProps {
 }
 
 export function AddWorkItemDialog({ isOpen, onClose, onAdd, existingWorkItems }: AddWorkItemDialogProps) {
-  const handleSelect = (workItem: IWorkItem) => {
-    onAdd(workItem);
+  const handleSelect = (workItem: IWorkItem | null) => {
+    if (workItem) {
+      onAdd(workItem);
+    }
   };
 
   return (
