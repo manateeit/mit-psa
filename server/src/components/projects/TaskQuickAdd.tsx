@@ -30,6 +30,10 @@ export default function TaskQuickAdd({
   onPhaseChange
 }: TaskQuickAddProps): JSX.Element {
   const handleSubmit = async (resultTask: IProjectTask | null) => {
+    // Ensure assigned_to is null if empty string or undefined
+    if (resultTask) {
+      resultTask.assigned_to = resultTask.assigned_to || null;
+    }
     if (task) {
       // Edit mode
       await onTaskUpdated(resultTask);

@@ -65,7 +65,7 @@ export default function TaskForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checklistItems, setChecklistItems] = useState<Omit<ITaskChecklistItem, 'tenant'>[]>(task?.checklist_items || []);
   const [isEditingChecklist, setIsEditingChecklist] = useState(false);
-  const [assignedUser, setAssignedUser] = useState<string>(task?.assigned_to || '');
+  const [assignedUser, setAssignedUser] = useState<string | null>(task?.assigned_to ?? null);
   const [selectedPhase, setSelectedPhase] = useState<IProjectPhase>(phase);
   const [showMoveConfirmation, setShowMoveConfirmation] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -215,7 +215,7 @@ export default function TaskForm({
         const taskData: Partial<IProjectTask> = {
           task_name: taskName,
           description: description,
-          assigned_to: assignedUser || currentUserId,
+          assigned_to: assignedUser || null,
           estimated_hours: estimatedHours,
           actual_hours: actualHours,
           due_date: task.due_date,
@@ -248,6 +248,9 @@ export default function TaskForm({
     try {
       let resultTask: IProjectTask | null = null;
 
+      // Convert empty string to null for database
+      const finalAssignedTo = !assignedUser || assignedUser === '' ? null : assignedUser;
+
       if (mode === 'edit' && task) {
         // Edit mode logic remains the same
         const movedTask = await moveTaskToPhase(task.task_id, selectedPhaseId, selectedStatusId);
@@ -256,12 +259,12 @@ export default function TaskForm({
           const taskData: Partial<IProjectTask> = {
             task_name: taskName,
             description: description,
-            assigned_to: assignedUser || currentUserId,
+            assigned_to: finalAssignedTo,
             estimated_hours: estimatedHours,
             actual_hours: actualHours,
             due_date: task.due_date,
             checklist_items: checklistItems,
-            project_status_mapping_id: selectedStatusId // Ensure status mapping is updated
+            project_status_mapping_id: selectedStatusId
           };
           resultTask = await updateTaskWithChecklist(movedTask.task_id, taskData);
         }
@@ -274,7 +277,7 @@ export default function TaskForm({
           project_status_mapping_id: selectedStatusId,
           wbs_code: `${phase.wbs_code}.0`,
           description: description,
-          assigned_to: assignedUser || currentUserId,
+          assigned_to: finalAssignedTo,
           estimated_hours: estimatedHours,
           actual_hours: actualHours,
           due_date: new Date(),
@@ -519,8 +522,11 @@ export default function TaskForm({
                 <div className="space-y-4">
                   <UserPicker
                     label="Assigned To"
-                    value={assignedUser}
-                    onValueChange={setAssignedUser}
+                    value={assignedUser ?? ''}
+                    onValueChange={(value) => {
+                      // Only set to null if explicitly choosing "Not assigned"
+                      setAssignedUser(value === '' ? null : value);
+                    }}
                     size="sm"
                     users={users.filter(u => 
                       !(task?.task_id ? taskResources : tempTaskResources)

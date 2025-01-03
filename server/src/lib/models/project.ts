@@ -456,8 +456,11 @@ const ProjectModel = {
   addTask: async (phaseId: string, taskData: Omit<IProjectTask, 'task_id' | 'phase_id' | 'created_at' | 'updated_at' | 'tenant'>): Promise<IProjectTask> => {
     try {
       const {knex: db, tenant} = await createTenantKnex();
-      const currentUser = await getCurrentUser();
-      const phase = await ProjectModel.getPhaseById(phaseId);
+      const [currentUser, phase] = await Promise.all([
+        getCurrentUser(),
+        ProjectModel.getPhaseById(phaseId)
+      ]);
+
       if (!phase) {
         throw new Error('Phase not found');
       }
@@ -469,7 +472,7 @@ const ProjectModel = {
         .insert({
           ...taskData,
           task_id: uuidv4(),
-          assigned_to: taskData.assigned_to || currentUser?.user_id,
+          assigned_to: taskData.assigned_to === '' ? null : taskData.assigned_to,
           phase_id: phaseId,
           project_status_mapping_id: taskData.project_status_mapping_id,
           wbs_code: newWbsCode, // Always use the generated WBS code
@@ -512,12 +515,10 @@ const ProjectModel = {
   updateTask: async (taskId: string, taskData: Partial<IProjectTask>): Promise<IProjectTask> => {
     try {
       const {knex: db} = await createTenantKnex();
-      const currentUser = await getCurrentUser();
 
-      // Always include phase_id in the update if it's provided
       const finalTaskData = {
         ...taskData,
-        assigned_to: taskData.assigned_to ?? currentUser?.user_id,
+        assigned_to: taskData.assigned_to === '' ? null : taskData.assigned_to,
         updated_at: db.fn.now()
       };
 
