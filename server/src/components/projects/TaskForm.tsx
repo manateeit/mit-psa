@@ -4,11 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem, ProjectStatus, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import AvatarIcon from '@/components/ui/AvatarIcon';
-import { 
-  updateTaskWithChecklist, 
-  addTaskToPhase, 
-  getTaskChecklistItems, 
-  moveTaskToPhase, 
+import {
+  updateTaskWithChecklist,
+  addTaskToPhase,
+  getTaskChecklistItems,
+  moveTaskToPhase,
   deleteTask,
   getProjectTreeData,
   addTaskResourceAction,
@@ -77,10 +77,11 @@ export default function TaskForm({
   const [tempTaskResources, setTempTaskResources] = useState<any[]>([]);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [pendingTicketLinks, setPendingTicketLinks] = useState<IProjectTicketLinkWithDetails[]>([]);
+  const [editingChecklistItemId, setEditingChecklistItemId] = useState<string | null>(null);
 
   const [selectedStatusId, setSelectedStatusId] = useState<string>(
-    task?.project_status_mapping_id || 
-    defaultStatus?.project_status_mapping_id || 
+    task?.project_status_mapping_id ||
+    defaultStatus?.project_status_mapping_id ||
     projectStatuses[0]?.project_status_mapping_id
   );
 
@@ -131,7 +132,7 @@ export default function TaskForm({
   }, [mode]);
 
   const handleTreeSelectChange = async (
-    value: string, 
+    value: string,
     type: ProjectTreeTypes,
     excluded: boolean,
     path?: TreeSelectPath
@@ -139,7 +140,7 @@ export default function TaskForm({
     if (!path) {
       console.error('Path is undefined in tree select change');
       return;
-    }  
+    }
 
     // Get IDs from the path
     const phaseId = path['phase'];
@@ -580,7 +581,7 @@ export default function TaskForm({
                 <div className="flex flex-col space-y-2">
                   {checklistItems.map((item, index): JSX.Element => (
                     <div key={index} className="flex items-center gap-2 w-full">
-                      {isEditingChecklist ? (
+                      {isEditingChecklist || editingChecklistItemId === item.checklist_item_id ? (
                         <>
                           <Checkbox
                             checked={item.completed}
@@ -593,6 +594,7 @@ export default function TaskForm({
                               onChange={(e) => updateChecklistItem(index, 'item_name', e.target.value)}
                               placeholder="Checklist item"
                               className="w-full"
+                              onBlur={() => setEditingChecklistItemId(null)} // Stop editing when focus is lost
                             />
                           </div>
                           <button
@@ -610,7 +612,10 @@ export default function TaskForm({
                             onChange={(e) => updateChecklistItem(index, 'completed', e.target.checked)}
                             className="flex-none"
                           />
-                          <span className={`flex-1 whitespace-pre-wrap ${item.completed ? 'line-through text-gray-500' : ''}`}>
+                          <span
+                            className={`flex-1 whitespace-pre-wrap ${item.completed ? 'line-through text-gray-500' : ''}`}
+                            onClick={() => setEditingChecklistItemId(item.checklist_item_id)} // Start editing when clicked
+                          >
                             {item.item_name}
                           </span>
                         </>
