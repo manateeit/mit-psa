@@ -736,9 +736,9 @@ export default function TaskForm({
         isOpen={showCancelConfirm}
         onClose={handleCancelDismiss}
         onConfirm={handleCancelConfirm}
-        title="Cancel Task"
+        title="Cancel Edit"
         message="Are you sure you want to cancel? Any unsaved changes will be lost."
-        confirmLabel="Cancel"
+        confirmLabel="Discard changes"
         cancelLabel="Continue editing"
       />
 

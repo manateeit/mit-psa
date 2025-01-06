@@ -88,9 +88,6 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
       id={id}
       title={title}
     >
-      <DialogHeader>
-        <DialogTitle>{title}</DialogTitle>
-      </DialogHeader>
       <DialogContent>
         <p className="text-gray-600">{message}</p>
         <DialogFooter>
