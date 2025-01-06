@@ -61,6 +61,10 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     // Add scroll zones indicator class to body
     document.body.classList.add('dragging-task');
     
+    // Set data for transfer
+    e.dataTransfer.setData('text/plain', task.task_id);
+    e.dataTransfer.effectAllowed = 'move';
+    
     // Set dragged element's height on the drag image
     if (e.target instanceof HTMLElement) {
       const rect = e.target.getBoundingClientRect();
@@ -68,6 +72,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       dragImage.style.width = `${rect.width}px`;
       dragImage.style.height = `${rect.height}px`;
       dragImage.style.transform = 'translateY(-1000px)';
+      dragImage.classList.add('drag-image');
       document.body.appendChild(dragImage);
       e.dataTransfer.setDragImage(dragImage, rect.width / 2, rect.height / 2);
       setTimeout(() => document.body.removeChild(dragImage), 0);
@@ -80,6 +85,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     
     // Remove scroll zones indicator class from body
     document.body.classList.remove('dragging-task');
+    
+    // Clear data transfer
+    e.dataTransfer.clearData();
   };
 
   return (
@@ -87,10 +95,13 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       draggable
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragOver={(e) => e.preventDefault()} // Allow drop
       onClick={() => onTaskSelected(task)}
       className={`bg-white p-3 mb-2 rounded shadow-sm cursor-pointer hover:shadow-md transition-all duration-200 border border-gray-200 flex flex-col gap-1 ${
         isDragging ? 'opacity-50 ring-2 ring-purple-500 shadow-lg scale-105' : ''
       }`}
+      aria-grabbed={isDragging}
+      aria-label={`Task: ${task.task_name}. Drag to reorder`}
     >
       <div className="font-semibold text-2xl mb-1 w-full px-1">
         {task.task_name}

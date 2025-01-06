@@ -70,10 +70,25 @@ const ProjectTaskModel = {
   updateTaskStatus: async (taskId: string, projectStatusMappingId: string): Promise<IProjectTask> => {
     try {
       const {knex: db} = await createTenantKnex();
+      
+      // Get current task to preserve phase information
+      const task = await db<IProjectTask>('project_tasks')
+        .where('task_id', taskId)
+        .first();
+      
+      if (!task) {
+        throw new Error('Task not found');
+      }
+
+      // Generate new WBS code for the task in its current phase
+      const parentWbs = task.wbs_code.split('.').slice(0, -1).join('.');
+      const newWbsCode = await ProjectTaskModel.generateNextWbsCode(parentWbs);
+
       const [updatedTask] = await db<IProjectTask>('project_tasks')
         .where('task_id', taskId)
         .update({ 
           project_status_mapping_id: projectStatusMappingId,
+          wbs_code: newWbsCode,
           updated_at: db.fn.now()
         })
         .returning('*');

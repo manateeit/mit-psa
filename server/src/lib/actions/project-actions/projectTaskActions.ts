@@ -1,20 +1,20 @@
 'use server';
 
 import { Knex } from 'knex';
-import ProjectTaskModel from '../../models/projectTask';
-import ProjectModel from '../../models/project';
+import ProjectTaskModel from '@/lib/models/projectTask';
+import ProjectModel from '@/lib/models/project';
 import { IProjectTask, IProjectTicketLink, IProjectStatusMapping, ITaskChecklistItem, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { IUser, IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { hasPermission } from '@/lib/auth/rbac';
-import { validateData, validateArray } from '../../utils/validation';
+import { validateData, validateArray } from '@/lib/utils/validation';
 import { createTenantKnex } from '@/lib/db';
 import { 
     createTaskSchema, 
     updateTaskSchema, 
     createChecklistItemSchema, 
     updateChecklistItemSchema
-} from '../../schemas/project.schemas';
+} from '@/lib/schemas/project.schemas';
 
 async function checkPermission(user: IUser, resource: string, action: string): Promise<void> {
     const hasPermissionResult = await hasPermission(user, resource, action);
@@ -53,7 +53,11 @@ export async function updateTaskWithChecklist(
             }
         }
         
-        return await ProjectTaskModel.getTaskById(taskId);
+        const finalTask = await ProjectTaskModel.getTaskById(taskId);
+        if (!finalTask) {
+            throw new Error('Task not found after update');
+        }
+        return finalTask;
     } catch (error) {
         console.error('Error updating task:', error);
         throw error;
@@ -87,19 +91,121 @@ export async function addTaskToPhase(
     }
 }
 
-export async function updateTaskStatus(taskId: string, projectStatusMappingId: string): Promise<IProjectTask> {
-    try {
+export async function updateTaskStatus(
+    taskId: string, 
+    projectStatusMappingId: string,
+    position?: number // Optional position to insert the task
+): Promise<IProjectTask> {
+    
+    const {knex: db} = await createTenantKnex();
+    
+    return await db.transaction(async (trx: Knex.Transaction) => {
         const currentUser = await getCurrentUser();
         if (!currentUser) {
             throw new Error("user not found");
         }
 
         await checkPermission(currentUser, 'project', 'update');
-        return await ProjectTaskModel.updateTaskStatus(taskId, projectStatusMappingId);
-    } catch (error) {
-        console.error('Error updating task status:', error);
-        throw error;
-    }
+        
+        try {
+            // Get the current task to preserve its phase_id
+            const task = await trx<IProjectTask>('project_tasks')
+                .where('task_id', taskId)
+                .first();
+            if (!task) {
+                throw new Error('Task not found');
+            }
+
+            // Validate the target status exists in the same project
+            const targetStatus = await trx('project_status_mappings')
+                .where('project_status_mapping_id', projectStatusMappingId)
+                .first();
+            
+            if (!targetStatus) {
+                throw new Error('Target status not found');
+            }
+
+            // Get all tasks in the target status
+            const targetStatusTasks = await trx<IProjectTask>('project_tasks')
+                .where('project_status_mapping_id', projectStatusMappingId)
+                .andWhere('phase_id', task.phase_id)
+                .orderBy('wbs_code');
+            
+        // Generate new WBS codes
+        const parentWbs = task.wbs_code.split('.').slice(0, -1).join('.');
+        const updates = [];
+
+        if (targetStatusTasks.length === 0) {
+            // If moving to empty status, just use .1
+            updates.push({
+                taskId: taskId,
+                newWbsCode: `${parentWbs}.1`
+            });
+        } else if (typeof position === 'number' && position >= 0 && position <= targetStatusTasks.length) {
+            // If position is specified, insert at that position and shift others
+            const before = targetStatusTasks.slice(0, position);
+            const after = targetStatusTasks.slice(position);
+
+            // Update tasks before insertion point
+            before.forEach((t, index) => {
+                updates.push({
+                    taskId: t.task_id,
+                    newWbsCode: `${parentWbs}.${index + 1}`
+                });
+            });
+
+            // Add moved task at specified position
+            updates.push({
+                taskId: taskId,
+                newWbsCode: `${parentWbs}.${position + 1}`
+            });
+
+            // Update tasks after insertion point
+            after.forEach((t, index) => {
+                updates.push({
+                    taskId: t.task_id,
+                    newWbsCode: `${parentWbs}.${position + index + 2}`
+                });
+            });
+        } else {
+            // Default behavior - add to end
+            targetStatusTasks.forEach((t, index) => {
+                updates.push({
+                    taskId: t.task_id,
+                    newWbsCode: `${parentWbs}.${index + 1}`
+                });
+            });
+
+            updates.push({
+                taskId: taskId,
+                newWbsCode: `${parentWbs}.${targetStatusTasks.length + 1}`
+            });
+        }
+
+            // Update all tasks
+            await Promise.all(updates.map(({taskId, newWbsCode}) =>
+                trx('project_tasks')
+                    .where('task_id', taskId)
+                    .update({
+                        wbs_code: newWbsCode,
+                        project_status_mapping_id: projectStatusMappingId,
+                        updated_at: trx.fn.now()
+                    })
+            ));
+
+            const updatedTask = await trx<IProjectTask>('project_tasks')
+                .where('task_id', taskId)
+                .first();
+            if (!updatedTask) {
+                throw new Error('Task not found after status update');
+            }
+            
+            return updatedTask;
+        } catch (error) {
+            console.error('Error in updateTaskStatus transaction:', error);
+            throw error;
+        }
+    });
 }
 
 export async function addChecklistItemToTask(
