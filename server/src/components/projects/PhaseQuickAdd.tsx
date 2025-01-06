@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
 import EditableText from '@/components/ui/EditableText';
 import { toast } from 'react-hot-toast';
-import { addProjectPhase } from '@/lib/actions/projectActions';
+import { addProjectPhase } from '@/lib/actions/project-actions/projectActions';
 
 interface PhaseQuickAddProps {
   projectId: string;

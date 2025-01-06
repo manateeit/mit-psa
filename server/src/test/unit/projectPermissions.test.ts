@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { IUser, IUserWithRoles, IRoleWithPermissions, IPermission, IRole } from '../../interfaces/auth.interfaces';
 import { IProject } from '../../interfaces/project.interfaces';
-import * as projectActions from '../../lib/actions/projectActions';
+import * as projectActions from '../../lib/actions/project-actions/projectActions';
 import ProjectModel from '../../lib/models/project';
 
 // Mock the Project model methods
@@ -148,6 +148,7 @@ describe('Project Permissions', () => {
       last_name: 'Doe',
       email: 'john@example.com',
       hashed_password: 'hashed_password_here',
+      user_type: 'user',
       roles: [userRole],
       is_inactive: false
     };
@@ -160,6 +161,7 @@ describe('Project Permissions', () => {
       last_name: 'Admin',
       email: 'jane@example.com',
       hashed_password: 'hashed_password_here',
+      user_type: 'admin',
       roles: [adminRole],
       is_inactive: false
     };
@@ -173,6 +175,7 @@ describe('Project Permissions', () => {
       email: 'no@permissions.com',
       hashed_password: 'hashed_password_here',
       is_inactive: false,
+      user_type: 'user',
       roles: [] // Empty roles array
     };
 

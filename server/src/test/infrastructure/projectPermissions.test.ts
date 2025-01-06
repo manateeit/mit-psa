@@ -4,7 +4,7 @@ import knex from 'knex';
 import dotenv from 'dotenv';
 import { IUserWithRoles, IRole, IRoleWithPermissions, IPermission } from '../../interfaces/auth.interfaces';
 import { IProject, IProjectPhase, IProjectTask, IStatus } from '../../interfaces/project.interfaces';
-import * as projectActions from '../../lib/actions/projectActions';
+import * as projectActions from '../../lib/actions/project-actions/projectActions';
 import * as userActions from '../../lib/actions/user-actions/userActions';
 import * as rbac from '../../lib/auth/rbac';
 
@@ -195,7 +195,7 @@ describe('Project Permissions Infrastructure', () => {
         email: 'john@example.com',
         hashed_password: 'hashed_password_here',
         is_inactive: false,
-        role: 'user'
+        user_type: 'user'
       };
 
       const adminUserData = {
@@ -207,7 +207,7 @@ describe('Project Permissions Infrastructure', () => {
         email: 'jane@example.com',
         hashed_password: 'hashed_password_here',
         is_inactive: false,
-        role: 'admin'
+        user_type: 'admin'
       };
 
       // Insert users into the database

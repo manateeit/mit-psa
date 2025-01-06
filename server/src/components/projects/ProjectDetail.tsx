@@ -7,16 +7,8 @@ import { useDrawer } from '@/context/DrawerContext';
 import TaskQuickAdd from './TaskQuickAdd';
 import TaskEdit from './TaskEdit';
 import PhaseQuickAdd from './PhaseQuickAdd';
-import { 
-  updateTaskStatus, 
-  getProjectTaskStatuses, 
-  reorderTasksInStatus,
-  updatePhase, 
-  moveTaskToPhase, 
-  updateTaskWithChecklist, 
-  deletePhase,
-  getTaskChecklistItems 
-} from '@/lib/actions/projectActions';
+import { getProjectTaskStatuses, updatePhase, deletePhase } from '@/lib/actions/project-actions/projectActions';
+import { updateTaskStatus, reorderTasksInStatus, moveTaskToPhase, updateTaskWithChecklist, getTaskChecklistItems } from '@/lib/actions/project-actions/projectTaskActions';
 import styles from './ProjectDetail.module.css';
 import { Toaster, toast } from 'react-hot-toast';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';

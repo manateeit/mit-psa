@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { IProjectPhase, IProjectTask, ProjectStatus, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
-import { getProjectTaskStatuses } from '@/lib/actions/projectActions';
+import { getProjectTaskStatuses } from '@/lib/actions/project-actions/projectActions';
 import TaskForm from './TaskForm';
 
 interface TaskEditProps {

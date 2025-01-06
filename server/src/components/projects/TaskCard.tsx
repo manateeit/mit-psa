@@ -5,7 +5,7 @@ import { IProjectTask, IProjectTicketLinkWithDetails } from '@/interfaces/projec
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { CheckSquare, Square, Ticket, Users } from 'lucide-react';
 import UserPicker from '@/components/ui/UserPicker';
-import { getTaskTicketLinksAction, getTaskResourcesAction } from '@/lib/actions/projectActions';
+import { getTaskTicketLinksAction, getTaskResourcesAction } from '@/lib/actions/project-actions/projectTaskActions';
 
 interface TaskCardProps {
   task: IProjectTask;

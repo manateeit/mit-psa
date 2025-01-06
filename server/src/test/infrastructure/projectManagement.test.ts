@@ -7,17 +7,20 @@ import { TextEncoder } from 'util';
 import {
     createProject,
     addProjectPhase,
-    addTaskToPhase,
     updateProject,
     updatePhase,
-    updateTaskWithChecklist,
-    moveTaskToPhase,
-    deleteTask,
     deletePhase,
     deleteProject
-} from '../../lib/actions/projectActions';
-import { IProject, IProjectPhase, IProjectTask } from '../../interfaces/project.interfaces';
-import ProjectModel from '../../lib/models/project';
+} from '@/lib/actions/project-actions/projectActions';
+import {
+    addTaskToPhase,
+    updateTaskWithChecklist,
+    moveTaskToPhase,
+    deleteTask
+} from '@/lib/actions/project-actions/projectTaskActions';
+import { IProject, IProjectPhase, IProjectTask } from '@/interfaces/project.interfaces';
+import ProjectModel from '@/lib/models/project';
+import ProjectTaskModel from '@/lib/models/projectTask';
 
 global.TextEncoder = TextEncoder;
 
@@ -746,7 +749,7 @@ describe('Project Management', () => {
 
         it('should delete a task', async () => {
             await deleteTask(taskId);
-            expect(ProjectModel.deleteTask).toHaveBeenCalledWith(taskId);
+            expect(ProjectTaskModel.deleteTask).toHaveBeenCalledWith(taskId);
         });
 
         it('should delete a phase', async () => {

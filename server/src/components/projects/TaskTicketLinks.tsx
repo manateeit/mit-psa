@@ -7,7 +7,7 @@ import {
   addTicketLinkAction,
   deleteTaskTicketLinkAction,
   getTaskTicketLinksAction
-} from '@/lib/actions/projectActions';
+} from '@/lib/actions/project-actions/projectTaskActions';
 import { getTicketsForList, getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
 import { ITicketListFilters } from '@/interfaces/ticket.interfaces';
 import { useDrawer } from '@/context/DrawerContext';

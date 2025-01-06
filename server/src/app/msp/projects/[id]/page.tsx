@@ -1,4 +1,4 @@
-import { getProjectDetails } from '@/lib/actions/projectActions';
+import { getProjectDetails } from '@/lib/actions/project-actions/projectActions';
 import ProjectDetail from '@/components/projects/ProjectDetail';
 import BackNav from '@/components/ui/BackNav';
 import ProjectActiveToggle from '@/components/projects/ProjectActiveToggle';
