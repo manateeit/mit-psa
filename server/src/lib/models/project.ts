@@ -28,8 +28,22 @@ const ProjectModel = {
     try {
       const {knex: db} = await createTenantKnex();
       let query = db<IProject>('projects')
-        .select('projects.*', 'companies.company_name as client_name')
-        .leftJoin('companies', 'projects.company_id', 'companies.company_id');
+        .select(
+          'projects.*', 
+          'companies.company_name as client_name',
+          'users.first_name as assigned_to_first_name',
+          'users.last_name as assigned_to_last_name',
+          'contacts.full_name as contact_name'
+        )
+        .leftJoin('companies', 'projects.company_id', 'companies.company_id')
+        .leftJoin('users', function() {
+          this.on('projects.assigned_to', 'users.user_id')
+             .andOn('projects.tenant', 'users.tenant')
+        })
+        .leftJoin('contacts', function() {
+          this.on('projects.contact_name_id', 'contacts.contact_name_id')
+             .andOn('projects.tenant', 'contacts.tenant')
+        });
       
       if (!includeInactive) {
         query = query.where('projects.is_inactive', false);
@@ -47,8 +61,22 @@ const ProjectModel = {
     try {
       const {knex: db} = await createTenantKnex();
       const project = await db<IProject>('projects')
-        .select('projects.*', 'companies.company_name as client_name')
+        .select(
+          'projects.*', 
+          'companies.company_name as client_name',
+          'users.first_name as assigned_to_first_name',
+          'users.last_name as assigned_to_last_name',
+          'contacts.full_name as contact_name'
+        )
         .leftJoin('companies', 'projects.company_id', 'companies.company_id')
+        .leftJoin('users', function() {
+          this.on('projects.assigned_to', 'users.user_id')
+             .andOn('projects.tenant', 'users.tenant')
+        })
+        .leftJoin('contacts', function() {
+          this.on('projects.contact_name_id', 'contacts.contact_name_id')
+             .andOn('projects.tenant', 'contacts.tenant')
+        })
         .where('projects.project_id', projectId)
         .first();
 
@@ -80,7 +108,9 @@ const ProjectModel = {
           ...projectData,
           project_id: uuidv4(),
           is_inactive: false,
-          tenant: tenant!
+          tenant: tenant!,
+          assigned_to: projectData.assigned_to || null,
+          contact_name_id: projectData.contact_name_id || null
         })
         .returning('*');
 

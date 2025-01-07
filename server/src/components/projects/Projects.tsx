@@ -11,7 +11,8 @@ import CustomSelect from '@/components/ui/CustomSelect';
 import ProjectQuickAdd from './ProjectQuickAdd';
 import { deleteProject } from '@/lib/actions/project-actions/projectActions';
 import { toast } from 'react-hot-toast';
-import { Search } from 'lucide-react';
+import { Search, MoreVertical, Pen, Trash2 } from 'lucide-react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 interface ProjectsProps {
   initialProjects: IProject[];
@@ -34,6 +35,11 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
        (filterStatus === 'inactive' && project.is_inactive))
     );
   }, [projects, searchTerm, filterStatus]);
+
+  const handleEditProject = (project: IProject) => {
+    // TODO: Implement edit functionality
+    console.log('Edit project:', project);
+  };
 
   const handleDelete = async (project: IProject) => {
     setProjectToDelete(project);
@@ -71,23 +77,54 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
       dataIndex: 'client_name',
     },
     {
+      title: 'Contact',
+      dataIndex: 'contact_name',
+      render: (name: string | null) => name || 'No Contact',
+    },
+    {
       title: 'Deadline',
       dataIndex: 'end_date',
       render: (value: string | null) => value ? new Date(value).toLocaleDateString() : 'N/A',
     },
     {
+      title: 'Assigned To',
+      dataIndex: 'assigned_to',
+      render: (_: unknown, record: IProject) => 
+        record.assigned_to_first_name && record.assigned_to_last_name 
+          ? `${record.assigned_to_first_name} ${record.assigned_to_last_name}`
+          : 'Unassigned',
+    },
+    {
       title: 'Actions',
       dataIndex: 'actions',
       render: (_: unknown, record: IProject) => (
-        <Button 
-          variant="destructive" 
-          onClick={(e) => {
-            e.preventDefault();
-            handleDelete(record);
-          }}
-        >
-          Delete
-        </Button>
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <div
+              role="button"
+              tabIndex={0}
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 w-9 p-0"
+            >
+              <MoreVertical size={16} />
+            </div>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content className="bg-white rounded-md shadow-lg p-1">
+            <DropdownMenu.Item 
+              className="px-2 py-1 text-sm cursor-pointer hover:bg-gray-100 flex items-center"
+              onSelect={() => handleEditProject(record)}
+            >
+              <Pen size={14} className="mr-2" />
+              Edit
+            </DropdownMenu.Item>
+            <DropdownMenu.Item 
+              className="px-2 py-1 text-sm cursor-pointer hover:bg-gray-100 flex items-center text-red-600"
+              onSelect={() => handleDelete(record)}
+            >
+              <Trash2 size={14} className="mr-2" />
+              Delete
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
       ),
     },
   ];

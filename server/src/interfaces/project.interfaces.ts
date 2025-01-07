@@ -44,6 +44,8 @@ export interface IProject extends TenantEntity {
   wbs_code: string;
   is_inactive: boolean;
   status: string;
+  assigned_to?: string | null;
+  contact_name_id?: string | null;
 }
 
 export interface IProjectPhase extends TenantEntity {
