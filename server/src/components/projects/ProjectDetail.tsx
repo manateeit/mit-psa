@@ -7,16 +7,8 @@ import { useDrawer } from '@/context/DrawerContext';
 import TaskQuickAdd from './TaskQuickAdd';
 import TaskEdit from './TaskEdit';
 import PhaseQuickAdd from './PhaseQuickAdd';
-import { 
-  updateTaskStatus, 
-  getProjectTaskStatuses, 
-  reorderTasksInStatus,
-  updatePhase, 
-  moveTaskToPhase, 
-  updateTaskWithChecklist, 
-  deletePhase,
-  getTaskChecklistItems 
-} from '@/lib/actions/projectActions';
+import { getProjectTaskStatuses, updatePhase, deletePhase } from '@/lib/actions/project-actions/projectActions';
+import { updateTaskStatus, reorderTasksInStatus, moveTaskToPhase, updateTaskWithChecklist, getTaskChecklistItems } from '@/lib/actions/project-actions/projectTaskActions';
 import styles from './ProjectDetail.module.css';
 import { Toaster, toast } from 'react-hot-toast';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
@@ -109,22 +101,131 @@ export default function ProjectDetail({
     }
   };
 
-  const handleDrop = async (e: React.DragEvent, projectStatusMappingId: string) => {
+  const handleDrop = async (e: React.DragEvent, targetStatusId: string, position: 'before' | 'after' | 'end', relativeTaskId: string | null) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData('text');
-    try {
-      const updatedTask = await updateTaskStatus(taskId, projectStatusMappingId);
-      const checklistItems = await getTaskChecklistItems(taskId);
-      const taskWithChecklist = { ...updatedTask, checklist_items: checklistItems };
-      
-      setProjectTasks(prevTasks =>
-        prevTasks.map((task): IProjectTask => 
-          task.task_id === taskId ? taskWithChecklist : task
-        )
-      );
-    } catch (error) {
-      console.error('Error updating task status:', error);
+    const task = projectTasks.find(t => t.task_id === taskId);
+    
+    if (!task) {
+      console.error('Task not found');
+      return;
     }
+
+    try {
+      // Check if this is a status change or reorder
+      if (task.project_status_mapping_id !== targetStatusId) {
+        // Get tasks in target status for position calculation
+        const tasksInTargetStatus = projectTasks.filter(t => 
+          t.project_status_mapping_id === targetStatusId &&
+          t.phase_id === task.phase_id
+        ).sort((a, b) => a.wbs_code.localeCompare(b.wbs_code));
+
+        // Calculate position index based on relative task and position
+        let positionIndex: number;
+        if (position === 'end' || !relativeTaskId) {
+          positionIndex = tasksInTargetStatus.length;
+        } else {
+          const relativeTaskIndex = tasksInTargetStatus.findIndex(t => t.task_id === relativeTaskId);
+          positionIndex = position === 'before' ? relativeTaskIndex : relativeTaskIndex + 1;
+        }
+
+        // Status change with position
+        const updatedTask = await updateTaskStatus(taskId, targetStatusId, positionIndex);
+        const checklistItems = await getTaskChecklistItems(taskId);
+        const taskWithChecklist = { ...updatedTask, checklist_items: checklistItems };
+        
+        // Remove from current status and add to new status
+        setProjectTasks(prevTasks => {
+          const newTasks = prevTasks.filter(t => t.task_id !== taskId);
+          return [...newTasks, taskWithChecklist];
+        });
+        
+        toast.success(`Task moved to new status`);
+      } else {
+        // Reorder within same status
+        const targetIndex = e.currentTarget.getAttribute('data-index');
+        if (targetIndex !== null) {
+          const newWbsCode = generateNewWbsCode(
+            filteredTasks,
+            parseInt(targetIndex, 10)
+          );
+          
+          if (newWbsCode) {
+            await reorderTasksInStatus([{
+              taskId,
+              newWbsCode
+            }]);
+            
+            // Update local state
+            setProjectTasks(prevTasks =>
+              prevTasks.map((t): IProjectTask =>
+                t.task_id === taskId ? { ...t, wbs_code: newWbsCode } : t
+              )
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error handling drop:', error);
+      toast.error('Failed to move task');
+    }
+  };
+
+  const generateNewWbsCode = (tasks: IProjectTask[], targetIndex: number): string | null => {
+    if (tasks.length === 0) return null;
+    
+    // Get the tasks in the same status
+    const statusTasks = tasks.filter(t => 
+      t.project_status_mapping_id === tasks[0].project_status_mapping_id
+    ).sort((a, b) => a.wbs_code.localeCompare(b.wbs_code));
+    
+    if (targetIndex === 0) {
+      // Insert at beginning
+      const nextCode = incrementWbsCode(statusTasks[0].wbs_code, -1);
+      return nextCode;
+    } else if (targetIndex >= statusTasks.length) {
+      // Insert at end
+      const prevCode = statusTasks[statusTasks.length - 1].wbs_code;
+      return incrementWbsCode(prevCode, 1);
+    } else {
+      // Insert between two tasks
+      const prevCode = statusTasks[targetIndex - 1].wbs_code;
+      const nextCode = statusTasks[targetIndex].wbs_code;
+      return calculateMiddleWbsCode(prevCode, nextCode);
+    }
+  };
+
+  const incrementWbsCode = (wbsCode: string, increment: number): string => {
+    const parts = wbsCode.split('.');
+    const lastPart = parts[parts.length - 1];
+    const newLastPart = String(Number(lastPart) + increment).padStart(lastPart.length, '0');
+    return [...parts.slice(0, -1), newLastPart].join('.');
+  };
+
+  const calculateMiddleWbsCode = (prevCode: string, nextCode: string): string => {
+    const prevParts = prevCode.split('.');
+    const nextParts = nextCode.split('.');
+    
+    // Find the first differing part
+    let diffIndex = 0;
+    while (diffIndex < prevParts.length && 
+           diffIndex < nextParts.length &&
+           prevParts[diffIndex] === nextParts[diffIndex]) {
+      diffIndex++;
+    }
+    
+    // Calculate middle value
+    const prevValue = Number(prevParts[diffIndex]);
+    const nextValue = Number(nextParts[diffIndex]);
+    const middleValue = Math.floor((prevValue + nextValue) / 2);
+    
+    // If middle value equals prevValue, we need to add another level
+    if (middleValue === prevValue) {
+      return [...prevParts.slice(0, diffIndex + 1), '1'].join('.');
+    }
+    
+    // Otherwise use the middle value
+    return [...prevParts.slice(0, diffIndex), String(middleValue)].join('.');
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -186,13 +287,6 @@ export default function ProjectDetail({
     const task = projectTasks.find(t => t.task_id === taskId);
     const sourcePhase = projectPhases.find(p => p.phase_id === task?.phase_id);
     
-    console.log('Drop zone data:', {
-      taskId,
-      task,
-      sourcePhase,
-      targetPhase
-    });
-    
     if (task && sourcePhase && targetPhase.phase_id !== sourcePhase.phase_id) {
       setMoveConfirmation({
         taskId,
@@ -212,12 +306,6 @@ export default function ProjectDetail({
       if (!task) {
         throw new Error('Task not found');
       }
-
-      console.log('Moving task:', {
-        taskId: moveConfirmation.taskId,
-        targetPhaseId: moveConfirmation.targetPhase.phase_id,
-        currentStatusMappingId: task.project_status_mapping_id
-      });
 
       const updatedTask = await moveTaskToPhase(
         moveConfirmation.taskId,
@@ -423,35 +511,35 @@ export default function ProjectDetail({
     setSelectedPhase(phase);
     setCurrentPhase(phase);
   };
-const handleDeletePhaseClick = (phase: IProjectPhase) => {
-  setDeletePhaseConfirmation({
-    phaseId: phase.phase_id,
-    phaseName: phase.phase_name
-  });
-};
 
-const handleReorderTasks = async (updates: { taskId: string, newWbsCode: string }[]) => {
-  try {
-    await reorderTasksInStatus(updates);
-    // Update local state to reflect the new order
-    const updatedTasks = [...projectTasks];
-    updates.forEach(({taskId, newWbsCode}) => {
-      const taskIndex = updatedTasks.findIndex(t => t.task_id === taskId);
-      if (taskIndex !== -1) {
-        updatedTasks[taskIndex] = {
-          ...updatedTasks[taskIndex],
-          wbs_code: newWbsCode
-        };
-      }
+  const handleDeletePhaseClick = (phase: IProjectPhase) => {
+    setDeletePhaseConfirmation({
+      phaseId: phase.phase_id,
+      phaseName: phase.phase_name
     });
-    setProjectTasks(updatedTasks);
-    toast.success('Tasks reordered successfully');
-  } catch (error) {
-    console.error('Error reordering tasks:', error);
-    toast.error('Failed to reorder tasks');
-  }
-};
+  };
 
+  const handleReorderTasks = async (updates: { taskId: string, newWbsCode: string }[]) => {
+    try {
+      await reorderTasksInStatus(updates);
+      // Update local state to reflect the new order
+      const updatedTasks = [...projectTasks];
+      updates.forEach(({taskId, newWbsCode}) => {
+        const taskIndex = updatedTasks.findIndex(t => t.task_id === taskId);
+        if (taskIndex !== -1) {
+          updatedTasks[taskIndex] = {
+            ...updatedTasks[taskIndex],
+            wbs_code: newWbsCode
+          };
+        }
+      });
+      setProjectTasks(updatedTasks);
+      toast.success('Tasks reordered successfully');
+    } catch (error) {
+      console.error('Error reordering tasks:', error);
+      toast.error('Failed to reorder tasks');
+    }
+  };
 
   const renderContent = () => {
     if (!selectedPhase) {
@@ -477,7 +565,8 @@ const handleReorderTasks = async (updates: { taskId: string, newWbsCode: string 
         </div>
         <div className={styles.kanbanWrapper}>
           <KanbanBoard
-            tasks={filteredTasks}
+            tasks={projectTasks} // Pass all tasks for cross-status moves
+            phaseTasks={filteredTasks} // Tasks for the current phase
             users={users}
             statuses={projectStatuses}
             isAddingTask={isAddingTask}

@@ -1,7 +1,7 @@
 'use client';
 
 import { Switch } from '@/components/ui/Switch';
-import { updateProject } from '@/lib/actions/projectActions';
+import { updateProject } from '@/lib/actions/project-actions/projectActions';
 import { useState } from 'react';
 
 interface ProjectActiveToggleProps {

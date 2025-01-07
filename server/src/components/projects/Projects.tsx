@@ -9,7 +9,7 @@ import { IProject, ICompany } from '@/interfaces';
 import { Button } from '@/components/ui/Button';
 import CustomSelect from '@/components/ui/CustomSelect';
 import ProjectQuickAdd from './ProjectQuickAdd';
-import { deleteProject } from '@/lib/actions/projectActions';
+import { deleteProject } from '@/lib/actions/project-actions/projectActions';
 import { toast } from 'react-hot-toast';
 import { Search } from 'lucide-react';
 

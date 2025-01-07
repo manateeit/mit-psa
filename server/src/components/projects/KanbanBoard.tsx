@@ -8,11 +8,12 @@ import { Circle, Clipboard, PlayCircle, PauseCircle, CheckCircle, XCircle } from
 
 interface KanbanBoardProps {
   tasks: IProjectTask[];
+  phaseTasks: IProjectTask[];
   users: IUserWithRoles[];
   statuses: ProjectStatus[];
   isAddingTask: boolean;
   selectedPhase: boolean;
-  onDrop: (e: React.DragEvent, statusId: string) => void;
+  onDrop: (e: React.DragEvent, statusId: string, position: 'before' | 'after' | 'end', relativeTaskId: string | null) => void;
   onDragOver: (e: React.DragEvent) => void;
   onAddCard: (status: ProjectStatus) => void;
   onTaskSelected: (task: IProjectTask) => void;
@@ -36,6 +37,7 @@ const darkCycleColors = ['bg-gray-200', 'bg-indigo-200', 'bg-green-200', 'bg-yel
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   tasks,
+  phaseTasks,
   users,
   statuses,
   isAddingTask,
@@ -55,13 +57,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         const backgroundColor = cycleColors[index % cycleColors.length];
         const darkBackgroundColor = darkCycleColors[index % darkCycleColors.length];
         const borderColor = borderColors[index % borderColors.length];
-        const statusTasks = tasks.filter(task => task.project_status_mapping_id === status.project_status_mapping_id);
+        const statusTasks = phaseTasks.filter((task: IProjectTask) => task.project_status_mapping_id === status.project_status_mapping_id);
         
         return (
           <StatusColumn
             key={status.project_status_mapping_id}
             status={status}
-            tasks={statusTasks}
+            tasks={tasks}
+            displayTasks={statusTasks}
             users={users}
             statusIcon={statusIcons[status.name] || <Circle className="w-4 h-4" />}
             backgroundColor={backgroundColor}

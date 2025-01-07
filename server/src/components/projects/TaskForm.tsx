@@ -4,18 +4,18 @@ import React, { useState, useEffect } from 'react';
 import { IProjectPhase, IProjectTask, ITaskChecklistItem, ProjectStatus, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import AvatarIcon from '@/components/ui/AvatarIcon';
+import { getProjectTreeData } from '@/lib/actions/project-actions/projectActions';
 import {
   updateTaskWithChecklist,
   addTaskToPhase,
   getTaskChecklistItems,
   moveTaskToPhase,
   deleteTask,
-  getProjectTreeData,
   addTaskResourceAction,
   removeTaskResourceAction,
   getTaskResourcesAction,
   addTicketLinkAction
-} from '@/lib/actions/projectActions';
+} from '@/lib/actions/project-actions/projectTaskActions';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
@@ -736,9 +736,9 @@ export default function TaskForm({
         isOpen={showCancelConfirm}
         onClose={handleCancelDismiss}
         onConfirm={handleCancelConfirm}
-        title="Cancel Task"
+        title="Cancel Edit"
         message="Are you sure you want to cancel? Any unsaved changes will be lost."
-        confirmLabel="Cancel"
+        confirmLabel="Discard changes"
         cancelLabel="Continue editing"
       />
 

@@ -1,5 +1,5 @@
 import Projects from '@/components/projects/Projects';
-import { getProjects } from '@/lib/actions/projectActions';
+import { getProjects } from '@/lib/actions/project-actions/projectActions';
 import { getAllCompanies } from '@/lib/actions/companyActions';
 import { IProject } from '@/interfaces/project.interfaces';
 import { ICompany } from '@/interfaces';

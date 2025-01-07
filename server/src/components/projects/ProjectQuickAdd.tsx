@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
 import EditableText from '@/components/ui/EditableText';
 import { IProject, ICompany } from '@/interfaces';
-import { createProject } from '@/lib/actions/projectActions';
+import { createProject } from '@/lib/actions/project-actions/projectActions';
 import { CompanyPicker } from '@/components/companies/CompanyPicker';
 
 interface ProjectQuickAddProps {

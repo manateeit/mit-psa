@@ -11,6 +11,7 @@ import { useState, useRef } from 'react';
 interface StatusColumnProps {
   status: ProjectStatus;
   tasks: IProjectTask[];
+  displayTasks: IProjectTask[];
   users: IUserWithRoles[];
   statusIcon: React.ReactNode;
   backgroundColor: string;
@@ -18,7 +19,7 @@ interface StatusColumnProps {
   borderColor: string;
   isAddingTask: boolean;
   selectedPhase: boolean;
-  onDrop: (e: React.DragEvent, statusId: string) => void;
+  onDrop: (e: React.DragEvent, statusId: string, position: 'before' | 'after' | 'end', relativeTaskId: string | null) => void;
   onDragOver: (e: React.DragEvent) => void;
   onAddCard: (status: ProjectStatus) => void;
   onTaskSelected: (task: IProjectTask) => void;
@@ -31,6 +32,7 @@ interface StatusColumnProps {
 export const StatusColumn: React.FC<StatusColumnProps> = ({
   status,
   tasks,
+  displayTasks,
   users,
   statusIcon,
   backgroundColor,
@@ -109,57 +111,80 @@ export const StatusColumn: React.FC<StatusColumnProps> = ({
     setDragOverTaskId(null);
     setDropPosition(null);
 
-    const draggedTaskId = e.dataTransfer.getData('text');
+    const draggedTaskId = e.dataTransfer.getData('text/plain');
     const draggedTask = tasks.find(t => t.task_id === draggedTaskId);
     
-    if (!draggedTask) return;
-
-    // If the task is from a different status, handle status change
-    if (draggedTask.project_status_mapping_id !== status.project_status_mapping_id) {
-      onDrop(e, status.project_status_mapping_id);
+    if (!draggedTask) {
       return;
     }
 
-    // Handle reordering within the same status
+    // If the task is from a different status, handle status change
+    if (draggedTask.project_status_mapping_id !== status.project_status_mapping_id) {
+      // Ensure we have the correct status mapping ID
+      const targetStatusId = status.project_status_mapping_id;
+      if (!targetStatusId) {
+        console.error('Invalid target status');
+        return;
+      }
+      
+      // Get position information
+      const taskElement = findClosestTask(e);
+      let position: 'before' | 'after' | 'end' = 'end';
+      let relativeTaskId: string | null = null;
+
+      if (taskElement) {
+        position = e.clientY < taskElement.getBoundingClientRect().top + taskElement.getBoundingClientRect().height / 2
+          ? 'before'
+          : 'after';
+        relativeTaskId = taskElement.getAttribute('data-task-id');
+      }
+      
+      // Call parent handler with task ID, new status, and position
+      onDrop(e, targetStatusId, position, relativeTaskId);
+      return;
+    }
+
+    // Only handle reordering if we have a valid target task
     const taskElement = findClosestTask(e);
-    if (!taskElement) return;
+    if (taskElement) {
+      const targetTaskId = taskElement.getAttribute('data-task-id');
+      
+      if (targetTaskId && targetTaskId !== draggedTaskId) {
+        const targetTask = tasks.find(t => t.task_id === targetTaskId);
+        if (!targetTask) return;
 
-    const targetTaskId = taskElement.getAttribute('data-task-id');
-    if (!targetTaskId || targetTaskId === draggedTaskId) return;
+        // Calculate new WBS codes for reordering
+        const orderedTasks = [...displayTasks].sort((a, b) =>
+          a.wbs_code.localeCompare(b.wbs_code)
+        );
 
-    const targetTask = tasks.find(t => t.task_id === targetTaskId);
-    if (!targetTask) return;
+        const draggedIndex = orderedTasks.findIndex(t => t.task_id === draggedTaskId);
+        const targetIndex = orderedTasks.findIndex(t => t.task_id === targetTaskId);
+        
+        // Remove dragged task
+        orderedTasks.splice(draggedIndex, 1);
+        
+        // Insert at new position
+        const insertIndex = e.clientY < taskElement.getBoundingClientRect().top + taskElement.getBoundingClientRect().height / 2
+          ? targetIndex
+          : targetIndex + 1;
+        
+        orderedTasks.splice(insertIndex, 0, draggedTask);
 
-    // Calculate new WBS codes for reordering
-    const orderedTasks = [...tasks].sort((a, b) =>
-      a.wbs_code.localeCompare(b.wbs_code)
-    );
+        // Update WBS codes
+        const updates = orderedTasks.map((task, index) => ({
+          taskId: task.task_id,
+          newWbsCode: task.wbs_code.split('.').slice(0, -1).concat(String(index + 1)).join('.')
+        }));
 
-    const draggedIndex = orderedTasks.findIndex(t => t.task_id === draggedTaskId);
-    const targetIndex = orderedTasks.findIndex(t => t.task_id === targetTaskId);
-    
-    // Remove dragged task
-    orderedTasks.splice(draggedIndex, 1);
-    
-    // Insert at new position
-    const insertIndex = e.clientY < taskElement.getBoundingClientRect().top + taskElement.getBoundingClientRect().height / 2
-      ? targetIndex
-      : targetIndex + 1;
-    
-    orderedTasks.splice(insertIndex, 0, draggedTask);
-
-    // Update WBS codes
-    const updates = orderedTasks.map((task, index) => ({
-      taskId: task.task_id,
-      newWbsCode: task.wbs_code.split('.').slice(0, -1).concat(String(index + 1)).join('.')
-    }));
-
-    // Call parent handler to update WBS codes
-    onReorderTasks(updates);
+        // Call parent handler to update WBS codes
+        onReorderTasks(updates);
+      }
+    }
   };
 
-  // Sort tasks by WBS code
-  const sortedTasks = [...tasks].sort((a, b) => a.wbs_code.localeCompare(b.wbs_code));
+  // Sort display tasks by WBS code
+  const sortedTasks = [...displayTasks].sort((a, b) => a.wbs_code.localeCompare(b.wbs_code));
 
   return (
     <div
@@ -188,7 +213,7 @@ export const StatusColumn: React.FC<StatusColumnProps> = ({
             <Plus className="w-4 h-4 text-white" />
           </Button>
           <div className={styles.taskCount}>
-            {tasks.length}
+            {displayTasks.length}
           </div>
         </div>
       </div>
