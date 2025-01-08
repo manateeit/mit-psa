@@ -9,11 +9,30 @@ import { IUser, IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { hasPermission } from '@/lib/auth/rbac';
 import { validateData, validateArray } from '../../utils/validation';
 import { createTenantKnex } from '@/lib/db';
+import { z } from 'zod';
 import { 
     createProjectSchema, 
     updateProjectSchema, 
-    projectPhaseSchema 
+    projectPhaseSchema
 } from '../../schemas/project.schemas';
+
+const extendedCreateProjectSchema = createProjectSchema.extend({
+  assigned_to: z.string().nullable().optional(),
+  contact_name_id: z.string().nullable().optional()
+}).transform((data) => ({
+  ...data,
+  assigned_to: data.assigned_to || null,
+  contact_name_id: data.contact_name_id || null
+}));
+
+const extendedUpdateProjectSchema = updateProjectSchema.extend({
+  assigned_to: z.string().nullable().optional(),
+  contact_name_id: z.string().nullable().optional()
+}).transform((data) => ({
+  ...data,
+  assigned_to: data.assigned_to || null,
+  contact_name_id: data.contact_name_id || null
+}));
 
 async function checkPermission(user: IUser, resource: string, action: string): Promise<void> {
     const hasPermissionResult = await hasPermission(user, resource, action);
@@ -203,12 +222,25 @@ export async function addProjectPhase(phaseData: Omit<IProjectPhase, 'phase_id' 
             tenant: true
         }), phaseData);
 
+        // Get the project first to get its WBS code
+        const project = await ProjectModel.getById(phaseData.project_id);
+        if (!project) {
+            throw new Error('Project not found');
+        }
+
         const phases = await ProjectModel.getPhases(phaseData.project_id);
         const nextOrderNumber = phases.length + 1;
 
-        const existingWbsCodes = phases.map((phase): number => parseInt(phase.wbs_code));
-        const maxWbsCode = existingWbsCodes.length > 0 ? Math.max(...existingWbsCodes) : 0;
-        const newWbsCode = (maxWbsCode + 1).toString();
+        // Get next phase number
+        const phaseNumbers = phases
+            .map(phase => {
+                const parts = phase.wbs_code.split('.');
+                return parseInt(parts[parts.length - 1]);
+            })
+            .filter(num => !isNaN(num));
+
+        const maxPhaseNumber = phaseNumbers.length > 0 ? Math.max(...phaseNumbers) : 0;
+        const newWbsCode = `${project.wbs_code}.${maxPhaseNumber + 1}`;
 
         const phaseWithDefaults = {
             ...validatedData,
@@ -255,7 +287,19 @@ async function getProjectStatuses(): Promise<IStatus[]> {
   }
 }
 
-export async function createProject(projectData: Omit<IProject, 'project_id' | 'created_at' | 'updated_at'>): Promise<IProject> {
+export async function generateNextWbsCode(): Promise<string> {
+    try {
+        return await ProjectModel.generateNextWbsCode('');
+    } catch (error) {
+        console.error('Error generating WBS code:', error);
+        throw error;
+    }
+}
+
+export async function createProject(projectData: Omit<IProject, 'project_id' | 'created_at' | 'updated_at' | 'wbs_code'> & {
+  assigned_to?: string | null;
+  contact_name_id?: string | null;
+}): Promise<IProject> {
     try {
         const [standardTaskStatuses, projectStatuses] = await Promise.all([
             getStandardProjectTaskStatuses(),
@@ -274,12 +318,25 @@ export async function createProject(projectData: Omit<IProject, 'project_id' | '
 
         const validatedData = validateData(createProjectSchema, projectData);
 
+        // Ensure we're passing all fields including assigned_to and contact_name_id
+        const wbsCode = await ProjectModel.generateNextWbsCode('');
         const projectDataWithStatus = {
             ...validatedData,
-            status: projectStatuses[0].status_id
+            status: projectStatuses[0].status_id,
+            assigned_to: validatedData.assigned_to || null,
+            contact_name_id: validatedData.contact_name_id || null,
+            wbs_code: wbsCode
         };
+        console.log('Project data with status:', projectDataWithStatus); // Debug log
+        
+        // Add debug logging before database insert
+        console.log('Creating project with data:', projectDataWithStatus);
 
-        const newProject = await ProjectModel.create(projectDataWithStatus);
+        const newProject = await ProjectModel.create({
+            ...projectDataWithStatus,
+            assigned_to: validatedData.assigned_to || null,
+            contact_name_id: validatedData.contact_name_id || null
+        });
 
         for (const status of standardTaskStatuses) {
             await ProjectModel.addProjectStatusMapping(newProject.project_id, {
@@ -291,7 +348,13 @@ export async function createProject(projectData: Omit<IProject, 'project_id' | '
             });
         }
 
-        return newProject;
+        // Fetch the full project details including contact and assigned user
+        const fullProject = await ProjectModel.getById(newProject.project_id);
+        if (!fullProject) {
+            throw new Error('Failed to fetch created project details');
+        }
+
+        return fullProject;
     } catch (error) {
         console.error('Error creating project:', error);
         throw error;

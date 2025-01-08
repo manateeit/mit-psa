@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/Button';
 import CustomSelect from '@/components/ui/CustomSelect';
 import ProjectQuickAdd from './ProjectQuickAdd';
 import { deleteProject } from '@/lib/actions/project-actions/projectActions';
+import { getContactByContactNameId } from '@/lib/actions/contact-actions/contactActions';
+import { findUserById } from '@/lib/actions/user-actions/userActions';
 import { toast } from 'react-hot-toast';
 import { Search, MoreVertical, Pen, Trash2 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -74,7 +76,11 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
     },
     {
       title: 'Client',
-      dataIndex: 'client_name',
+      dataIndex: 'company_id',
+      render: (value, record) => {
+        const company = companies.find(c => c.company_id === value);
+        return company ? company.company_name : 'No Client';
+      }
     },
     {
       title: 'Contact',
@@ -89,10 +95,11 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
     {
       title: 'Assigned To',
       dataIndex: 'assigned_to',
-      render: (_: unknown, record: IProject) => 
-        record.assigned_to_first_name && record.assigned_to_last_name 
-          ? `${record.assigned_to_first_name} ${record.assigned_to_last_name}`
-          : 'Unassigned',
+      render: (userId: string | null, record: IProject) => {
+        if (!userId) return 'Unassigned';
+        const user = record.assigned_user;
+        return user ? `${user.first_name} ${user.last_name}` : 'Unassigned';
+      }
     },
     {
       title: 'Actions',
@@ -129,8 +136,34 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
     },
   ];
 
-  const handleProjectAdded = (newProject: IProject) => {
-    setProjects([...projects, newProject]);
+  const handleProjectAdded = async (newProject: IProject) => {
+    try {
+      // Create a new object with additional properties
+      const projectWithDetails: IProject = {
+        ...newProject,
+        contact_name: newProject.contact_name || null,
+        assigned_user: null
+      };
+
+      // Fetch contact details if contact_name_id exists
+      if (newProject.contact_name_id) {
+        const contact = await getContactByContactNameId(newProject.contact_name_id);
+        projectWithDetails.contact_name = contact?.full_name || null;
+      }
+
+      // Fetch user details if assigned_to exists
+      if (newProject.assigned_to) {
+        const user = await findUserById(newProject.assigned_to);
+        projectWithDetails.assigned_user = user || null;
+      }
+
+      // Update state with the complete project data
+      setProjects(prevProjects => [...prevProjects, projectWithDetails]);
+    } catch (error) {
+      console.error('Error fetching additional project details:', error);
+      // Add project with basic details if there's an error
+      setProjects(prevProjects => [...prevProjects, newProject]);
+    }
   };
 
   const statusOptions = [

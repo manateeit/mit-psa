@@ -5,7 +5,6 @@ import { IProjectPhase } from '@/interfaces/project.interfaces';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
-import EditableText from '@/components/ui/EditableText';
 import { toast } from 'react-hot-toast';
 import { addProjectPhase } from '@/lib/actions/project-actions/projectActions';
 
@@ -71,11 +70,12 @@ const PhaseQuickAdd: React.FC<PhaseQuickAddProps> = ({
           </Dialog.Title>
           <form onSubmit={handleSubmit} className="flex flex-col">
             <div className="space-y-4">
-              <EditableText
+              <TextArea
                 value={phaseName}
-                onChange={setPhaseName}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPhaseName(e.target.value)}
                 placeholder="Phase name..."
-                className="w-full text-lg font-semibold"
+                className="w-full p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg font-semibold"
+                rows={1}
               />
               <TextArea
                 value={description}

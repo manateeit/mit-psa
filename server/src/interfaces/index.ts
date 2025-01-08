@@ -4,7 +4,7 @@ export interface TenantEntity {
     tenant?: string;
 }
 
-import { IUser } from './auth.interfaces';
+import { IUser, IUserWithRoles } from './auth.interfaces';
 export * from './session.interfaces';
 export * from './general.interfaces';
 export * from './ticket.interfaces';

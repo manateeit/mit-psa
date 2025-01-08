@@ -4,9 +4,8 @@ import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
-import EditableText from '@/components/ui/EditableText';
 import { IProject, ICompany } from '@/interfaces';
-import { createProject } from '@/lib/actions/project-actions/projectActions';
+import { createProject, generateNextWbsCode } from '@/lib/actions/project-actions/projectActions';
 import { CompanyPicker } from '@/components/companies/CompanyPicker';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { getContactsByCompany, getAllContacts } from '@/lib/actions/contact-actions/contactActions';
@@ -71,13 +70,14 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
     setIsSubmitting(true);
 
     try {
+      const wbsCode = await generateNextWbsCode();
       const projectData: Omit<IProject, 'project_id' | 'created_at' | 'updated_at' | 'tenant'> = {
         project_name: projectName,
         description: description || null,
         company_id: selectedCompanyId,
         start_date: startDate ? new Date(startDate) : null,
         end_date: endDate ? new Date(endDate) : null,
-        wbs_code: Date.now().toString(), // Temporary WBS code
+        wbs_code: wbsCode,
         is_inactive: false,
         status: '', // This will be set by the server to the first standard status
         assigned_to: selectedUserId || null,
