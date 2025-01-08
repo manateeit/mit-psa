@@ -154,8 +154,8 @@ export default function ControlPanel() {
     // Remove function call blocks
     const withoutFuncCalls = message.replace(/<func-call[^>]*>[\s\S]*?<\/func-call>/g, '');
     
-    // Remove any duplicate content that might follow the function call
-    const withoutDuplicates = withoutFuncCalls.replace(/(.+?)(?:\1)+/g, '$1');
+    // Remove duplicate content that follows function calls
+    const withoutDuplicates = withoutFuncCalls.replace(/(<func-call[^>]*>[\s\S]*?<\/func-call>)\s*\1+/g, '$1');
     
     // Trim whitespace and newlines
     return withoutDuplicates.trim();
