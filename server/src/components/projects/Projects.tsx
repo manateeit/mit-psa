@@ -1,4 +1,3 @@
-// server/src/components/projects/Projects.tsx
 'use client'
 
 import React, { useState, useMemo } from 'react';
@@ -15,6 +14,8 @@ import { findUserById } from '@/lib/actions/user-actions/userActions';
 import { toast } from 'react-hot-toast';
 import { Search, MoreVertical, Pen, Trash2 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { useDrawer } from '@/context/DrawerContext';
+import ProjectDetailsEdit from './ProjectDetailsEdit';
 
 interface ProjectsProps {
   initialProjects: IProject[];
@@ -28,6 +29,7 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<IProject | null>(null);
+  const { openDrawer } = useDrawer();
 
   const filteredProjects = useMemo(() => {
     return projects.filter(project =>
@@ -39,8 +41,23 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
   }, [projects, searchTerm, filterStatus]);
 
   const handleEditProject = (project: IProject) => {
-    // TODO: Implement edit functionality
-    console.log('Edit project:', project);
+    openDrawer(
+      <ProjectDetailsEdit
+        initialProject={project}
+        companies={companies}
+        onSave={(updatedProject) => {
+          setProjects(prevProjects =>
+            prevProjects.map(p =>
+              p.project_id === updatedProject.project_id ? updatedProject : p
+            )
+          );
+          openDrawer(null);
+        }}
+        onCancel={() => {
+          openDrawer(null);
+        }}
+      />
+    );
   };
 
   const handleDelete = async (project: IProject) => {
