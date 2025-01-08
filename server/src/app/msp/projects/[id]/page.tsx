@@ -1,22 +1,75 @@
-import { getProjectDetails } from '@/lib/actions/project-actions/projectActions';
-import ProjectDetail from '@/components/projects/ProjectDetail';
-import BackNav from '@/components/ui/BackNav';
-import ProjectActiveToggle from '@/components/projects/ProjectActiveToggle';
+'use client';
 
-export default async function ProjectPage({ params }: { params: { id: string } }) {
+import { getProjectDetails, updateProject } from '@/lib/actions/project-actions/projectActions';
+import ProjectInfo from '@/components/projects/ProjectInfo';
+import ProjectDetail from '@/components/projects/ProjectDetail';
+import { useEffect, useState } from 'react';
+import { IProject, IProjectPhase, IProjectTask, IProjectTicketLinkWithDetails, ProjectStatus } from '@/interfaces/project.interfaces';
+import { IUserWithRoles } from '@/interfaces/auth.interfaces';
+
+interface ProjectDetails {
+  project: IProject;
+  phases: IProjectPhase[];
+  tasks: IProjectTask[];
+  ticketLinks: IProjectTicketLinkWithDetails[];
+  statuses: ProjectStatus[];
+  users: IUserWithRoles[];
+  contact?: { full_name: string };
+  assignedUser?: IUserWithRoles | null;
+}
+
+export default function ProjectPage({ params }: { params: { id: string } }) {
   const { id } = params;
-  const projectDetails = await getProjectDetails(id);
+  const [projectDetails, setProjectDetails] = useState<ProjectDetails | null>(null);
+
+  useEffect(() => {
+    const fetchProjectDetails = async () => {
+      const details = await getProjectDetails(id);
+      setProjectDetails(details);
+    };
+    fetchProjectDetails();
+  }, [id]);
+
+  const handleAssignedUserChange = async (userId: string | null) => {
+    try {
+      await updateProject(id, {
+        assigned_to: userId
+      });
+      // Refresh project details after update
+      const updatedDetails = await getProjectDetails(id);
+      setProjectDetails(updatedDetails);
+    } catch (error) {
+      console.error('Error updating assigned user:', error);
+    }
+  };
+
+  const handleContactChange = async (contactId: string | null) => {
+    try {
+      await updateProject(id, {
+        contact_name_id: contactId
+      });
+      // Refresh project details after update
+      const updatedDetails = await getProjectDetails(id);
+      setProjectDetails(updatedDetails);
+    } catch (error) {
+      console.error('Error updating contact:', error);
+    }
+  };
+
+  if (!projectDetails) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div>
-      <div className="flex items-center space-x-5 mb-4">
-        <BackNav>Back to Projects</BackNav>
-        <h1 className="text-xl font-bold">{projectDetails.project.project_name}</h1>
-        <ProjectActiveToggle 
-          projectId={projectDetails.project.project_id} 
-          initialIsInactive={projectDetails.project.is_inactive} 
-        />
-      </div>
+      <ProjectInfo
+        project={projectDetails.project}
+        contact={projectDetails.contact}
+        assignedUser={projectDetails.assignedUser || undefined}
+        users={projectDetails.users}
+        onAssignedUserChange={handleAssignedUserChange}
+        onContactChange={handleContactChange}
+      />
       <ProjectDetail
         project={projectDetails.project}
         phases={projectDetails.phases}

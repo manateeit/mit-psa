@@ -2,10 +2,11 @@
 
 import { Knex } from 'knex';
 import ProjectModel from '@/lib/models/project';
-import ProjectTaskModel from '@/lib/models/projectTask'
+import ProjectTaskModel from '@/lib/models/projectTask';
 import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink, IStatus, IProjectStatusMapping, IStandardStatus, ItemType, ITaskChecklistItem, IProjectTicketLinkWithDetails, ProjectStatus } from '@/interfaces/project.interfaces';
-import { getCurrentUser, getAllUsers } from '@/lib/actions/user-actions/userActions';
+import { getCurrentUser, getAllUsers, findUserById } from '@/lib/actions/user-actions/userActions';
 import { IUser, IUserWithRoles } from '@/interfaces/auth.interfaces';
+import { getContactByContactNameId } from '@/lib/actions/contact-actions/contactActions';
 import { hasPermission } from '@/lib/auth/rbac';
 import { validateData, validateArray } from '../../utils/validation';
 import { createTenantKnex } from '@/lib/db';
@@ -48,7 +49,21 @@ export async function getProjects(): Promise<IProject[]> {
             throw new Error("user not found");
         }
         await checkPermission(currentUser, 'project', 'read');
-        return await ProjectModel.getAll(true);
+        const projects = await ProjectModel.getAll(true);
+        
+        // Fetch assigned user details for each project
+        const projectsWithUsers = await Promise.all(projects.map(async (project) => {
+            if (project.assigned_to) {
+                const user = await findUserById(project.assigned_to);
+                return {
+                    ...project,
+                    assigned_user: user || null
+                };
+            }
+            return project;
+        }));
+        
+        return projectsWithUsers;
     } catch (error) {
         console.error('Error fetching projects:', error);
         throw error;
@@ -373,6 +388,27 @@ export async function updateProject(projectId: string, projectData: Partial<IPro
         const validatedData = validateData(updateProjectSchema, projectData);
         
         const updatedProject = await ProjectModel.update(projectId, validatedData);
+
+        // If assigned_to was updated, fetch the full user details
+        if ('assigned_to' in projectData) {
+            if (updatedProject.assigned_to) {
+                const user = await findUserById(updatedProject.assigned_to);
+                updatedProject.assigned_user = user || null;
+            } else {
+                updatedProject.assigned_user = null;
+            }
+        }
+
+        // If contact_name_id was updated, fetch the full contact details
+        if ('contact_name_id' in projectData) {
+            if (updatedProject.contact_name_id) {
+                const contact = await getContactByContactNameId(updatedProject.contact_name_id);
+                updatedProject.contact_name = contact?.full_name || null;
+            } else {
+                updatedProject.contact_name = null;
+            }
+        }
+
         return updatedProject;
     } catch (error) {
         console.error('Error updating project:', error);
@@ -402,6 +438,8 @@ export async function getProjectDetails(projectId: string): Promise<{
     ticketLinks: IProjectTicketLinkWithDetails[];
     statuses: ProjectStatus[];
     users: IUserWithRoles[];
+    contact?: { full_name: string };
+    assignedUser: IUserWithRoles | null;
 }> {
     try {
         const currentUser = await getCurrentUser();
@@ -425,6 +463,12 @@ export async function getProjectDetails(projectId: string): Promise<{
             throw new Error('Project not found');
         }
 
+        // Fetch assigned user details if assigned_to exists
+        if (project.assigned_to) {
+            const user = await findUserById(project.assigned_to);
+            project.assigned_user = user || null;
+        }
+
         const tasks = rawTasks.map((task): IProjectTask & { checklist_items: ITaskChecklistItem[] } => ({
             ...task,
             checklist_items: checklistItemsMap[task.task_id] || []
@@ -432,7 +476,20 @@ export async function getProjectDetails(projectId: string): Promise<{
 
         const ticketLinks = Object.values(ticketLinksMap).flat();
 
-        return { project, phases, tasks, ticketLinks, statuses, users };
+        const contact = project.contact_name ? {
+            full_name: project.contact_name
+        } : undefined;
+
+        return { 
+            project, 
+            phases, 
+            tasks, 
+            ticketLinks, 
+            statuses, 
+            users,
+            contact,
+            assignedUser: project.assigned_user || null
+        };
     } catch (error) {
         console.error('Error fetching project details:', error);
         throw error;
