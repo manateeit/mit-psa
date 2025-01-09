@@ -14,10 +14,34 @@ import InteractionTypesSettings from './InteractionTypeSettings';
 import TimePeriodSettings from '../billing/TimePeriodSettings';
 import NotificationsTab from './NotificationsTab';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 const SettingsPage = (): JSX.Element =>  {
   const router = useRouter();
   const [companyName, setCompanyName] = React.useState('Your MSP Company');
+  const searchParams = useSearchParams();
+  const tabParam = searchParams?.get('tab');
+  
+  const tabMap: Record<string, string> = {
+    'teams': 'Teams',
+    'users': 'Users'
+  };
+
+  // Initialize with URL param or default to General
+  const [activeTab, setActiveTab] = React.useState<string>(() => {
+    if (tabParam) {
+      const mappedTab = tabMap[tabParam.toLowerCase()];
+      return mappedTab || 'General';
+    }
+    return 'General';
+  });
+
+  // Force update active tab when URL params change
+  React.useEffect(() => {
+    const mappedTab = tabParam ? tabMap[tabParam.toLowerCase()] : 'General';
+    setActiveTab(mappedTab || 'General');
+  }, [tabParam]);
+
 
   const tabContent: TabContent[] = [
     {
@@ -130,7 +154,22 @@ const SettingsPage = (): JSX.Element =>  {
       <h1 className="text-3xl font-bold mb-6">Admin Settings</h1>
       <CustomTabs 
         tabs={tabContent}
-        defaultTab="General"
+        defaultTab={activeTab}
+        onTabChange={(tab) => {
+          const reverseTabMap: Record<string, string> = {
+            'Teams': 'teams',
+            'Users': 'users'
+          };
+          setActiveTab(tab);
+          
+          // Update URL without triggering a navigation
+          const urlParam = reverseTabMap[tab];
+          const newUrl = urlParam 
+            ? `/msp/settings?tab=${urlParam}` 
+            : '/msp/settings';
+          
+          window.history.pushState({}, '', newUrl);
+        }}
         tabStyles={tabStyles}
       />
     </div>
