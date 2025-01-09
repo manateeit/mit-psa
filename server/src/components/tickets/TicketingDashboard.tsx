@@ -392,16 +392,20 @@ const createTicketColumns = (categories: ITicketCategory[]): ColumnDefinition<IT
             onFilterStateChange={setChannelFilterState}
           />
           </div>
-          <CompanyPicker
-            companies={companies}
-            onSelect={handleCompanySelect}
-            selectedCompanyId={selectedCompany}
-            filterState={companyFilterState}
-            onFilterStateChange={handleCompanyFilterStateChange}
-            clientTypeFilter={clientTypeFilter}
-            onClientTypeFilterChange={handleClientTypeFilterChange}
-            fitContent={true}
-          />
+          <div className="relative w-fit">
+            <div className="[&>div>button]:max-w-[300px] [&>div>button>span]:truncate [&>div>div[class*='absolute']]:!w-[330px] [&>div>div[class*='absolute']]:!min-w-0 [&>div>div[class*='absolute']>div:last-child>button]:w-full [&>div>div[class*='absolute']>div:last-child>button>span]:truncate [&>div>div[class*='absolute']>div>div>div>button]:!w-auto">
+              <CompanyPicker
+                companies={companies}
+                onSelect={handleCompanySelect}
+                selectedCompanyId={selectedCompany}
+                filterState={companyFilterState}
+                onFilterStateChange={handleCompanyFilterStateChange}
+                clientTypeFilter={clientTypeFilter}
+                onClientTypeFilterChange={handleClientTypeFilterChange}
+                fitContent={true}
+              />
+            </div>
+          </div>
           <CustomSelect
             options={statusOptions}
             value={selectedStatus}

@@ -107,10 +107,19 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setProject(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    
+    // Convert date strings to Date objects for date fields
+    if (name === 'start_date' || name === 'end_date') {
+      setProject(prev => ({
+        ...prev,
+        [name]: value ? new Date(value) : null,
+      }));
+    } else {
+      setProject(prev => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
     setHasChanges(true);
   };
 
