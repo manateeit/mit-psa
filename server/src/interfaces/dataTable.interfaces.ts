@@ -3,6 +3,7 @@ import { ReactNode } from 'react';
 export interface BaseColumnDefinition<T> {
   title: string | ReactNode;
   dataIndex: string | string[];
+  width?: string;
 }
 
 export interface RenderColumnDefinition<T, V> extends BaseColumnDefinition<T> {

@@ -348,6 +348,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
     {
       title: 'Name',
       dataIndex: 'full_name',
+      width: '25%',
       render: (value, record) => (
         <div className="flex items-center">
           <img 
@@ -376,16 +377,19 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
     {
       title: 'Email',
       dataIndex: 'email',
+      width: '20%',
       render: (value, record) => record.email || 'N/A',
     },
     {
       title: 'Phone Number',
       dataIndex: 'phone_number',
+      width: '20%',
       render: (value, record) => record.phone_number || 'N/A',
     },
     {
       title: 'Company',
       dataIndex: 'company_id',
+      width: '17%',
       render: (value, record) => {
         const companyId = record.company_id;
         if (typeof companyId !== 'string' || !companyId) {
@@ -432,6 +436,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
     {
       title: 'Tags',
       dataIndex: 'tags',
+      width: '15%',
       render: (value, record) => {
         if (!record.contact_name_id) return null;
         
@@ -449,6 +454,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
     {
       title: 'Actions',
       dataIndex: 'actions',
+      width: '3%',
       render: (value, record) => (
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>

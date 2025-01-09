@@ -85,8 +85,9 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
     {
       title: 'Project Name',
       dataIndex: 'project_name',
+      width: '25%',
       render: (text: string, record: IProject) => (
-        <Link href={`/msp/projects/${record.project_id}`} className="text-blue-600 hover:text-blue-800">
+        <Link href={`/msp/projects/${record.project_id}`} className="text-blue-600 hover:text-blue-800 block truncate">
           {text}
         </Link>
       ),
@@ -94,6 +95,7 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
     {
       title: 'Client',
       dataIndex: 'company_id',
+      width: '20%',
       render: (value, record) => {
         const company = companies.find(c => c.company_id === value);
         return company ? company.company_name : 'No Client';
@@ -102,16 +104,19 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
     {
       title: 'Contact',
       dataIndex: 'contact_name',
+      width: '20%',
       render: (name: string | null) => name || 'No Contact',
     },
     {
       title: 'Deadline',
       dataIndex: 'end_date',
+      width: '15%',
       render: (value: string | null) => value ? new Date(value).toLocaleDateString() : 'N/A',
     },
     {
       title: 'Assigned To',
       dataIndex: 'assigned_to',
+      width: '15%',
       render: (userId: string | null, record: IProject) => {
         if (!userId) return 'Unassigned';
         const user = record.assigned_user;
@@ -121,6 +126,7 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
     {
       title: 'Actions',
       dataIndex: 'actions',
+      width: '5%',
       render: (_: unknown, record: IProject) => (
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
