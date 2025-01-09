@@ -2,18 +2,40 @@
 
 import { Knex } from 'knex';
 import ProjectModel from '@/lib/models/project';
-import ProjectTaskModel from '@/lib/models/projectTask'
+import ProjectTaskModel from '@/lib/models/projectTask';
 import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink, IStatus, IProjectStatusMapping, IStandardStatus, ItemType, ITaskChecklistItem, IProjectTicketLinkWithDetails, ProjectStatus } from '@/interfaces/project.interfaces';
-import { getCurrentUser, getAllUsers } from '@/lib/actions/user-actions/userActions';
+import { getCurrentUser, getAllUsers, findUserById } from '@/lib/actions/user-actions/userActions';
 import { IUser, IUserWithRoles } from '@/interfaces/auth.interfaces';
+import { getContactByContactNameId } from '@/lib/actions/contact-actions/contactActions';
 import { hasPermission } from '@/lib/auth/rbac';
 import { validateData, validateArray } from '../../utils/validation';
 import { createTenantKnex } from '@/lib/db';
+import { z } from 'zod';
+import { ICompany } from '@/interfaces/company.interfaces';
+import { getAllCompanies } from '@/lib/actions/companyActions';
 import { 
     createProjectSchema, 
     updateProjectSchema, 
-    projectPhaseSchema 
+    projectPhaseSchema
 } from '../../schemas/project.schemas';
+
+const extendedCreateProjectSchema = createProjectSchema.extend({
+  assigned_to: z.string().nullable().optional(),
+  contact_name_id: z.string().nullable().optional()
+}).transform((data) => ({
+  ...data,
+  assigned_to: data.assigned_to || null,
+  contact_name_id: data.contact_name_id || null
+}));
+
+const extendedUpdateProjectSchema = updateProjectSchema.extend({
+  assigned_to: z.string().nullable().optional(),
+  contact_name_id: z.string().nullable().optional()
+}).transform((data) => ({
+  ...data,
+  assigned_to: data.assigned_to || null,
+  contact_name_id: data.contact_name_id || null
+}));
 
 async function checkPermission(user: IUser, resource: string, action: string): Promise<void> {
     const hasPermissionResult = await hasPermission(user, resource, action);
@@ -29,7 +51,21 @@ export async function getProjects(): Promise<IProject[]> {
             throw new Error("user not found");
         }
         await checkPermission(currentUser, 'project', 'read');
-        return await ProjectModel.getAll(true);
+        const projects = await ProjectModel.getAll(true);
+        
+        // Fetch assigned user details for each project
+        const projectsWithUsers = await Promise.all(projects.map(async (project) => {
+            if (project.assigned_to) {
+                const user = await findUserById(project.assigned_to);
+                return {
+                    ...project,
+                    assigned_user: user || null
+                };
+            }
+            return project;
+        }));
+        
+        return projectsWithUsers;
     } catch (error) {
         console.error('Error fetching projects:', error);
         throw error;
@@ -203,12 +239,25 @@ export async function addProjectPhase(phaseData: Omit<IProjectPhase, 'phase_id' 
             tenant: true
         }), phaseData);
 
+        // Get the project first to get its WBS code
+        const project = await ProjectModel.getById(phaseData.project_id);
+        if (!project) {
+            throw new Error('Project not found');
+        }
+
         const phases = await ProjectModel.getPhases(phaseData.project_id);
         const nextOrderNumber = phases.length + 1;
 
-        const existingWbsCodes = phases.map((phase): number => parseInt(phase.wbs_code));
-        const maxWbsCode = existingWbsCodes.length > 0 ? Math.max(...existingWbsCodes) : 0;
-        const newWbsCode = (maxWbsCode + 1).toString();
+        // Get next phase number
+        const phaseNumbers = phases
+            .map(phase => {
+                const parts = phase.wbs_code.split('.');
+                return parseInt(parts[parts.length - 1]);
+            })
+            .filter(num => !isNaN(num));
+
+        const maxPhaseNumber = phaseNumbers.length > 0 ? Math.max(...phaseNumbers) : 0;
+        const newWbsCode = `${project.wbs_code}.${maxPhaseNumber + 1}`;
 
         const phaseWithDefaults = {
             ...validatedData,
@@ -255,7 +304,19 @@ async function getProjectStatuses(): Promise<IStatus[]> {
   }
 }
 
-export async function createProject(projectData: Omit<IProject, 'project_id' | 'created_at' | 'updated_at'>): Promise<IProject> {
+export async function generateNextWbsCode(): Promise<string> {
+    try {
+        return await ProjectModel.generateNextWbsCode('');
+    } catch (error) {
+        console.error('Error generating WBS code:', error);
+        throw error;
+    }
+}
+
+export async function createProject(projectData: Omit<IProject, 'project_id' | 'created_at' | 'updated_at' | 'wbs_code'> & {
+  assigned_to?: string | null;
+  contact_name_id?: string | null;
+}): Promise<IProject> {
     try {
         const [standardTaskStatuses, projectStatuses] = await Promise.all([
             getStandardProjectTaskStatuses(),
@@ -274,12 +335,25 @@ export async function createProject(projectData: Omit<IProject, 'project_id' | '
 
         const validatedData = validateData(createProjectSchema, projectData);
 
+        // Ensure we're passing all fields including assigned_to and contact_name_id
+        const wbsCode = await ProjectModel.generateNextWbsCode('');
         const projectDataWithStatus = {
             ...validatedData,
-            status: projectStatuses[0].status_id
+            status: projectStatuses[0].status_id,
+            assigned_to: validatedData.assigned_to || null,
+            contact_name_id: validatedData.contact_name_id || null,
+            wbs_code: wbsCode
         };
+        console.log('Project data with status:', projectDataWithStatus); // Debug log
+        
+        // Add debug logging before database insert
+        console.log('Creating project with data:', projectDataWithStatus);
 
-        const newProject = await ProjectModel.create(projectDataWithStatus);
+        const newProject = await ProjectModel.create({
+            ...projectDataWithStatus,
+            assigned_to: validatedData.assigned_to || null,
+            contact_name_id: validatedData.contact_name_id || null
+        });
 
         for (const status of standardTaskStatuses) {
             await ProjectModel.addProjectStatusMapping(newProject.project_id, {
@@ -291,7 +365,13 @@ export async function createProject(projectData: Omit<IProject, 'project_id' | '
             });
         }
 
-        return newProject;
+        // Fetch the full project details including contact and assigned user
+        const fullProject = await ProjectModel.getById(newProject.project_id);
+        if (!fullProject) {
+            throw new Error('Failed to fetch created project details');
+        }
+
+        return fullProject;
     } catch (error) {
         console.error('Error creating project:', error);
         throw error;
@@ -310,6 +390,27 @@ export async function updateProject(projectId: string, projectData: Partial<IPro
         const validatedData = validateData(updateProjectSchema, projectData);
         
         const updatedProject = await ProjectModel.update(projectId, validatedData);
+
+        // If assigned_to was updated, fetch the full user details
+        if ('assigned_to' in projectData) {
+            if (updatedProject.assigned_to) {
+                const user = await findUserById(updatedProject.assigned_to);
+                updatedProject.assigned_user = user || null;
+            } else {
+                updatedProject.assigned_user = null;
+            }
+        }
+
+        // If contact_name_id was updated, fetch the full contact details
+        if ('contact_name_id' in projectData) {
+            if (updatedProject.contact_name_id) {
+                const contact = await getContactByContactNameId(updatedProject.contact_name_id);
+                updatedProject.contact_name = contact?.full_name || null;
+            } else {
+                updatedProject.contact_name = null;
+            }
+        }
+
         return updatedProject;
     } catch (error) {
         console.error('Error updating project:', error);
@@ -339,6 +440,9 @@ export async function getProjectDetails(projectId: string): Promise<{
     ticketLinks: IProjectTicketLinkWithDetails[];
     statuses: ProjectStatus[];
     users: IUserWithRoles[];
+    contact?: { full_name: string };
+    assignedUser: IUserWithRoles | null;
+    companies: ICompany[];
 }> {
     try {
         const currentUser = await getCurrentUser();
@@ -348,18 +452,25 @@ export async function getProjectDetails(projectId: string): Promise<{
 
         await checkPermission(currentUser, 'project', 'read');
         
-        const [project, phases, rawTasks, statuses, users, checklistItemsMap, ticketLinksMap] = await Promise.all([
+        const [project, phases, rawTasks, statuses, users, checklistItemsMap, ticketLinksMap, companies] = await Promise.all([
             ProjectModel.getById(projectId),
             ProjectModel.getPhases(projectId),
             ProjectTaskModel.getTasks(projectId),
             getProjectTaskStatuses(projectId),
             getAllUsers(),
             ProjectTaskModel.getAllTaskChecklistItems(projectId),
-            ProjectTaskModel.getAllTaskTicketLinks(projectId)
+            ProjectTaskModel.getAllTaskTicketLinks(projectId),
+            getAllCompanies()
         ]);
 
         if (!project) {
             throw new Error('Project not found');
+        }
+
+        // Fetch assigned user details if assigned_to exists
+        if (project.assigned_to) {
+            const user = await findUserById(project.assigned_to);
+            project.assigned_user = user || null;
         }
 
         const tasks = rawTasks.map((task): IProjectTask & { checklist_items: ITaskChecklistItem[] } => ({
@@ -369,7 +480,21 @@ export async function getProjectDetails(projectId: string): Promise<{
 
         const ticketLinks = Object.values(ticketLinksMap).flat();
 
-        return { project, phases, tasks, ticketLinks, statuses, users };
+        const contact = project.contact_name ? {
+            full_name: project.contact_name
+        } : undefined;
+
+        return { 
+            project, 
+            phases, 
+            tasks, 
+            ticketLinks, 
+            statuses, 
+            users,
+            contact,
+            assignedUser: project.assigned_user || null,
+            companies
+        };
     } catch (error) {
         console.error('Error fetching project details:', error);
         throw error;

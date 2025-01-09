@@ -1,6 +1,6 @@
 // server/src/context/DrawerContext.tsx
 import Drawer from '@/components/ui/Drawer';
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 
 interface DrawerContentProps {
   content: ReactNode;
@@ -45,7 +45,11 @@ export const DrawerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   return (
     <DrawerContext.Provider value={{ openDrawer, replaceDrawer, closeDrawer, goBack }}>
       {children}
-      <Drawer isOpen={isOpen} onClose={closeDrawer} isInDrawer={contentStack.length > 1}>
+      <Drawer 
+        isOpen={isOpen}
+        onClose={closeDrawer}
+        isInDrawer={contentStack.length > 1}
+      >
         {contentStack.length > 0 && (
           <DrawerContent {...contentStack[contentStack.length - 1]} />
         )}

@@ -28,8 +28,22 @@ const ProjectModel = {
     try {
       const {knex: db} = await createTenantKnex();
       let query = db<IProject>('projects')
-        .select('projects.*', 'companies.company_name as client_name')
-        .leftJoin('companies', 'projects.company_id', 'companies.company_id');
+        .select(
+          'projects.*', 
+          'companies.company_name as client_name',
+          'users.first_name as assigned_to_first_name',
+          'users.last_name as assigned_to_last_name',
+          'contacts.full_name as contact_name'
+        )
+        .leftJoin('companies', 'projects.company_id', 'companies.company_id')
+        .leftJoin('users', function() {
+          this.on('projects.assigned_to', 'users.user_id')
+             .andOn('projects.tenant', 'users.tenant')
+        })
+        .leftJoin('contacts', function() {
+          this.on('projects.contact_name_id', 'contacts.contact_name_id')
+             .andOn('projects.tenant', 'contacts.tenant')
+        });
       
       if (!includeInactive) {
         query = query.where('projects.is_inactive', false);
@@ -47,8 +61,22 @@ const ProjectModel = {
     try {
       const {knex: db} = await createTenantKnex();
       const project = await db<IProject>('projects')
-        .select('projects.*', 'companies.company_name as client_name')
+        .select(
+          'projects.*', 
+          'companies.company_name as client_name',
+          'users.first_name as assigned_to_first_name',
+          'users.last_name as assigned_to_last_name',
+          'contacts.full_name as contact_name'
+        )
         .leftJoin('companies', 'projects.company_id', 'companies.company_id')
+        .leftJoin('users', function() {
+          this.on('projects.assigned_to', 'users.user_id')
+             .andOn('projects.tenant', 'users.tenant')
+        })
+        .leftJoin('contacts', function() {
+          this.on('projects.contact_name_id', 'contacts.contact_name_id')
+             .andOn('projects.tenant', 'contacts.tenant')
+        })
         .where('projects.project_id', projectId)
         .first();
 
@@ -80,7 +108,10 @@ const ProjectModel = {
           ...projectData,
           project_id: uuidv4(),
           is_inactive: false,
-          tenant: tenant!
+          tenant: tenant!,
+          assigned_to: projectData.assigned_to || null,
+          contact_name_id: projectData.contact_name_id || null,
+          status: projectData.status || ''
         })
         .returning('*');
 
@@ -359,13 +390,18 @@ const ProjectModel = {
       const phases = await db<IProjectPhase>('project_phases')
         .where('project_id', projectId)
         .orderBy('wbs_code');
+      // Sort phases by numeric values in WBS code
       return phases.sort((a, b) => {
-        const aParts = a.wbs_code.split('.').map(Number);
-        const bParts = b.wbs_code.split('.').map(Number);
-        for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-          if (aParts[i] === undefined) return -1;
-          if (bParts[i] === undefined) return 1;
-          if (aParts[i] !== bParts[i]) return aParts[i] - bParts[i];
+        const aNumbers = a.wbs_code.split('.').map((n: string) => parseInt(n));
+        const bNumbers = b.wbs_code.split('.').map((n: string) => parseInt(n));
+        
+        // Compare each part numerically
+        for (let i = 0; i < Math.max(aNumbers.length, bNumbers.length); i++) {
+          const aNum = aNumbers[i] || 0;
+          const bNum = bNumbers[i] || 0;
+          if (aNum !== bNum) {
+            return aNum - bNum;
+          }
         }
         return 0;
       });
@@ -430,22 +466,85 @@ const ProjectModel = {
   generateNextWbsCode: async (parentWbsCode: string): Promise<string> => {
     try {
       const {knex: db} = await createTenantKnex();
-      const tasks = await db<IProjectTask>('project_tasks')
-        .where('wbs_code', 'like', `${parentWbsCode}.%`);
-
-      if (!tasks || tasks.length === 0) {
-        return `${parentWbsCode}.1`;
+      
+      // If no parent code, get next project number
+      if (!parentWbsCode) {
+        const projects = await db('projects')
+          .whereNot('wbs_code', '')
+          .select('wbs_code');
+        
+        if (projects.length === 0) return '1';
+        
+        const numbers = projects.map((p) => parseInt(p.wbs_code))
+                .filter((n: number) => !isNaN(n))
+                .sort((a: number, b: number) => b - a);
+        
+        return String(numbers[0] + 1);
       }
 
-      // Get all the numeric parts after the parent WBS code
-      const childNumbers = tasks.map((task): number => {
-        const lastPart = task.wbs_code.split('.').pop();
-        return parseInt(lastPart || '0');
-      });
+      // If parent code is a project ID, get phases for that project
+      if (parentWbsCode.includes('-')) {  // UUID format contains hyphens
+        const project = await db('projects')
+          .where('project_id', parentWbsCode)
+          .first();
 
-      // Find the highest number
-      const maxNumber = Math.max(...childNumbers);
-      return `${parentWbsCode}.${maxNumber + 1}`;
+        if (!project) {
+          throw new Error('Project not found');
+        }
+
+        const phases = await db('project_phases')
+          .where('project_id', parentWbsCode)
+          .orderBy('wbs_code', 'desc')
+          .limit(1);
+
+        if (phases.length === 0) {
+          return `${project.wbs_code}.1`;
+        }
+
+        const lastPhase = phases[0].wbs_code;
+        const lastNumber = parseInt(lastPhase.split('.').pop() || '0');
+        return `${project.wbs_code}.${lastNumber + 1}`;
+      }
+
+      // Split parent code to check depth
+      const parentParts = parentWbsCode.split('.');
+      if (parentParts.length >= 3) {
+        throw new Error('Maximum WBS code depth of 3 levels reached');
+      }
+
+      // For phases (level 1), get all phases and find next number
+      if (parentParts.length === 1) {
+        const phases = await db('project_phases')
+          .where('project_id', parentWbsCode)
+          .select('wbs_code');
+
+        if (phases.length === 0) return `${parentWbsCode}.1`;
+
+        const numbers = phases.map((phase) => {
+          const parts = phase.wbs_code.split('.');
+          return parseInt(parts[parts.length - 1]);
+        })
+        .filter((n: number) => !isNaN(n))
+        .sort((a: number, b: number) => b - a);
+
+        return `${parentWbsCode}.${numbers[0] + 1}`;
+      }
+
+      // For tasks (level 2), check project_tasks
+      const tasks = await db('project_tasks')
+        .where('wbs_code', 'like', `${parentWbsCode}.%`)
+        .select('wbs_code');
+
+      if (tasks.length === 0) return `${parentWbsCode}.1`;
+
+      const numbers = tasks.map((task) => {
+        const parts = task.wbs_code.split('.');
+        return parseInt(parts[parts.length - 1]);
+      })
+      .filter((n: number) => !isNaN(n))
+      .sort((a: number, b: number) => b - a);
+
+      return `${parentWbsCode}.${numbers[0] + 1}`;
     } catch (error) {
       console.error('Error generating next WBS code:', error);
       throw error;

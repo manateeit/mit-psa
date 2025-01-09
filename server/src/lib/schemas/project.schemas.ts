@@ -44,7 +44,9 @@ export const projectSchema = tenantSchema.extend({
   client_name: z.string().optional(),
   wbs_code: z.string(),
   is_inactive: z.boolean(),
-  status: z.string()
+  status: z.string(),
+  assigned_to: z.string().nullable().optional(),
+  contact_name_id: z.string().nullable().optional()
 });
 
 export const projectPhaseSchema = tenantSchema.extend({

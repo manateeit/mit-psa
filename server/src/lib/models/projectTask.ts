@@ -24,7 +24,7 @@ const ProjectTaskModel = {
         throw new Error('Phase not found');
       }
   
-      const newWbsCode = await ProjectTaskModel.generateNextWbsCode(phase.wbs_code);
+      const newWbsCode = await ProjectModel.generateNextWbsCode(phase.wbs_code);
   
       const [newTask] = await db<IProjectTask>('project_tasks')
         .insert({
@@ -82,7 +82,7 @@ const ProjectTaskModel = {
 
       // Generate new WBS code for the task in its current phase
       const parentWbs = task.wbs_code.split('.').slice(0, -1).join('.');
-      const newWbsCode = await ProjectTaskModel.generateNextWbsCode(parentWbs);
+      const newWbsCode = await ProjectModel.generateNextWbsCode(parentWbs);
 
       const [updatedTask] = await db<IProjectTask>('project_tasks')
         .where('task_id', taskId)
@@ -126,29 +126,6 @@ const ProjectTaskModel = {
     }
   },
 
-  generateNextWbsCode: async (parentWbsCode: string): Promise<string> => {
-    try {
-      const {knex: db} = await createTenantKnex();
-      const tasks = await db<IProjectTask>('project_tasks')
-        .where('wbs_code', 'like', `${parentWbsCode}.%`);
-
-      if (!tasks || tasks.length === 0) {
-        return `${parentWbsCode}.1`;
-      }
-
-      const childNumbers = tasks.map((task): number => {
-        const lastPart = task.wbs_code.split('.').pop();
-        return parseInt(lastPart || '0');
-      });
-
-      const maxNumber = Math.max(...childNumbers);
-      return `${parentWbsCode}.${maxNumber + 1}`;
-    } catch (error) {
-      console.error('Error generating next WBS code:', error);
-      throw error;
-    }
-  },
-
   getTasks: async (projectId: string): Promise<IProjectTaskCardInfo[]> => {
     try {
       const {knex: db} = await createTenantKnex();
@@ -163,12 +140,16 @@ const ProjectTaskModel = {
         )
         .orderBy('project_tasks.wbs_code');
       return tasks.sort((a, b) => {
-        const aparts = a.wbs_code.split('.').map(Number);
-        const bParts = b.wbs_code.split('.').map(Number);
-        for (let i = 0; i < Math.max(aparts.length, bParts.length); i++) {
-          if (aparts[i] === undefined) return -1;
-          if (bParts[i] === undefined) return 1;
-          if (aparts[i] !== bParts[i]) return aparts[i] - bParts[i];
+        const aNumbers = a.wbs_code.split('.').map((n: string) => parseInt(n));
+        const bNumbers = b.wbs_code.split('.').map((n: string) => parseInt(n));
+        
+        // Compare each part numerically
+        for (let i = 0; i < Math.max(aNumbers.length, bNumbers.length); i++) {
+          const aNum = aNumbers[i] || 0;
+          const bNum = bNumbers[i] || 0;
+          if (aNum !== bNum) {
+            return aNum - bNum;
+          }
         }
         return 0;
       });

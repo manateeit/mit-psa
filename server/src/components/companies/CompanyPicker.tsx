@@ -1,6 +1,6 @@
 // server/src/components/CompanyPicker.tsx
 
-import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Input } from '../ui/Input';
 import CustomSelect from '../ui/CustomSelect';
 import { ICompany } from '@/interfaces/company.interfaces';
@@ -29,11 +29,33 @@ export const CompanyPicker: React.FC<CompanyPickerProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredCompanies, setFilteredCompanies] = useState<ICompany[]>(companies);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const filterCompanies = useCallback(() => {
-    return companies.filter(company => {
+  // Debug logs
+  useEffect(() => {
+    console.log('CompanyPicker props:', {
+      companies: companies.length,
+      selectedCompanyId,
+      filterState,
+      clientTypeFilter
+    });
+  }, [companies, selectedCompanyId, filterState, clientTypeFilter]);
+
+  const selectedCompany = useMemo(() => 
+    companies.find((c) => c.company_id === selectedCompanyId),
+    [companies, selectedCompanyId]
+  );
+
+  const filteredCompanies = useMemo(() => {
+    console.log('Filtering companies:', {
+      total: companies.length,
+      searchTerm,
+      filterState,
+      clientTypeFilter,
+      selectedCompanyId
+    });
+
+    const filtered = companies.filter(company => {
       const matchesSearch = company.company_name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesState = 
         filterState === 'all' ? true :
@@ -45,13 +67,36 @@ export const CompanyPicker: React.FC<CompanyPickerProps> = ({
         clientTypeFilter === 'company' ? company.client_type === 'company' :
         clientTypeFilter === 'individual' ? company.client_type === 'individual' :
         true;
-      return matchesSearch && matchesState && matchesClientType;
-    });
-  }, [companies, filterState, clientTypeFilter, searchTerm]);
 
-  useEffect(() => {
-    setFilteredCompanies(filterCompanies());
-  }, [filterCompanies]);
+      const matches = matchesSearch && matchesState && matchesClientType;
+      console.log('Company filter result:', {
+        name: company.company_name,
+        matches,
+        matchesSearch,
+        matchesState,
+        matchesClientType
+      });
+
+      console.log('Company filter details:', {
+        companyName: company.company_name,
+        companyId: company.company_id,
+        matchesSearch,
+        matchesState,
+        matchesClientType,
+        matches
+      });
+
+      return matches;
+    });
+
+    console.log('Filtered results:', {
+      totalCompanies: companies.length,
+      filteredCount: filtered.length,
+      selectedCompanyFound: filtered.some(c => c.company_id === selectedCompanyId)
+    });
+
+    return filtered;
+  }, [companies, filterState, clientTypeFilter, searchTerm]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -81,10 +126,6 @@ export const CompanyPicker: React.FC<CompanyPickerProps> = ({
     onClientTypeFilterChange(value as 'all' | 'company' | 'individual');
   };
 
-  const selectedCompany = selectedCompanyId
-    ? companies.find((c) => c.company_id === selectedCompanyId)
-    : null;
-
   return (
     <div className={`${fitContent ? 'w-fit' : 'w-full'} rounded-md relative`} ref={dropdownRef}>
       <button 
@@ -109,26 +150,26 @@ export const CompanyPicker: React.FC<CompanyPickerProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <div className="w-full">
                 <CustomSelect
-                value={filterState}
-                onValueChange={handleFilterStateChange}
-                options={[
-                  { value: 'active', label: 'Active Clients' },
-                  { value: 'inactive', label: 'Inactive Clients' },
-                  { value: 'all', label: 'All Clients' },
-                ]}
-                placeholder="Filter by status"
-              />
+                  value={filterState}
+                  onValueChange={handleFilterStateChange}
+                  options={[
+                    { value: 'active', label: 'Active Clients' },
+                    { value: 'inactive', label: 'Inactive Clients' },
+                    { value: 'all', label: 'All Clients' },
+                  ]}
+                  placeholder="Filter by status"
+                />
               </div>
               <div className="w-full">
                 <CustomSelect
-                value={clientTypeFilter}
-                onValueChange={handleClientTypeFilterChange}
-                options={[
-                  { value: 'all', label: 'All Types' },
-                  { value: 'company', label: 'Companies' },
-                  { value: 'individual', label: 'Individuals' },
-                ]}
-                placeholder="Filter by client type"
+                  value={clientTypeFilter}
+                  onValueChange={handleClientTypeFilterChange}
+                  options={[
+                    { value: 'all', label: 'All Types' },
+                    { value: 'company', label: 'Companies' },
+                    { value: 'individual', label: 'Individuals' },
+                  ]}
+                  placeholder="Filter by client type"
                 />
               </div>
             </div>
@@ -144,22 +185,26 @@ export const CompanyPicker: React.FC<CompanyPickerProps> = ({
             </div>
           </div>
           <div className="max-h-60 overflow-y-auto border-t bg-white">
-            {filteredCompanies.map((company):JSX.Element => (
-              <button
-                type="button"
-                key={company.company_id}
-                onClick={(e) => handleSelect(company.company_id, e)}
-                className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${
-                  company.company_id === selectedCompanyId ? 'bg-blue-100' : ''
-                }`}
-              >
-                {company.company_name}
-                {company.is_inactive && <span className="ml-2 text-gray-500">(Inactive)</span>}
-                <span className="ml-2 text-gray-500">
-                  ({company.client_type === 'company' ? 'Company' : 'Individual'})
-                </span>
-              </button>
-            ))}
+            {filteredCompanies.length === 0 ? (
+              <div className="px-4 py-2 text-gray-500">No clients found</div>
+            ) : (
+              filteredCompanies.map((company): JSX.Element => (
+                <button
+                  type="button"
+                  key={company.company_id}
+                  onClick={(e) => handleSelect(company.company_id, e)}
+                  className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${
+                    company.company_id === selectedCompanyId ? 'bg-blue-100' : ''
+                  }`}
+                >
+                  {company.company_name}
+                  {company.is_inactive && <span className="ml-2 text-gray-500">(Inactive)</span>}
+                  <span className="ml-2 text-gray-500">
+                    ({company.client_type === 'company' ? 'Company' : 'Individual'})
+                  </span>
+                </button>
+              ))
+            )}
           </div>
         </div>
       )}

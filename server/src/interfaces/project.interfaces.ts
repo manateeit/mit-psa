@@ -1,5 +1,6 @@
 // server/src/interfaces/project.interfaces.ts
 import { TenantEntity } from ".";
+import { IUserWithRoles } from "./auth.interfaces";
 
 export type ItemType = 'project' | 'project_task' | 'ticket';
 
@@ -31,6 +32,7 @@ export interface IProjectStatusMapping extends TenantEntity {
   is_visible: boolean;
 }
 
+
 export interface IProject extends TenantEntity {
   project_id: string;
   company_id: string;
@@ -44,6 +46,10 @@ export interface IProject extends TenantEntity {
   wbs_code: string;
   is_inactive: boolean;
   status: string;
+  assigned_to?: string | null;
+  assigned_user?: IUserWithRoles | null;
+  contact_name?: string | null;
+  contact_name_id?: string | null;
 }
 
 export interface IProjectPhase extends TenantEntity {

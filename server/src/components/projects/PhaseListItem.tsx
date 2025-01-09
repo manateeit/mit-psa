@@ -86,7 +86,7 @@ export const PhaseListItem: React.FC<PhaseListItemProps> = ({
         </div>
       ) : (
         <>
-          <span>{phase.wbs_code} {phase.phase_name}</span>
+          <span>{phase.wbs_code.split('.').pop()} {phase.phase_name}</span>
           <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={(e) => {

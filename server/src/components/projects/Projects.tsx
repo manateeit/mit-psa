@@ -1,4 +1,3 @@
-// server/src/components/projects/Projects.tsx
 'use client'
 
 import React, { useState, useMemo } from 'react';
@@ -10,8 +9,13 @@ import { Button } from '@/components/ui/Button';
 import CustomSelect from '@/components/ui/CustomSelect';
 import ProjectQuickAdd from './ProjectQuickAdd';
 import { deleteProject } from '@/lib/actions/project-actions/projectActions';
+import { getContactByContactNameId } from '@/lib/actions/contact-actions/contactActions';
+import { findUserById } from '@/lib/actions/user-actions/userActions';
 import { toast } from 'react-hot-toast';
-import { Search } from 'lucide-react';
+import { Search, MoreVertical, Pen, Trash2 } from 'lucide-react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { useDrawer } from '@/context/DrawerContext';
+import ProjectDetailsEdit from './ProjectDetailsEdit';
 
 interface ProjectsProps {
   initialProjects: IProject[];
@@ -25,6 +29,7 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<IProject | null>(null);
+  const { openDrawer, closeDrawer } = useDrawer();
 
   const filteredProjects = useMemo(() => {
     return projects.filter(project =>
@@ -34,6 +39,26 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
        (filterStatus === 'inactive' && project.is_inactive))
     );
   }, [projects, searchTerm, filterStatus]);
+
+  const handleEditProject = (project: IProject) => {
+    openDrawer(
+      <ProjectDetailsEdit
+        initialProject={project}
+        companies={companies}
+        onSave={(updatedProject) => {
+          setProjects(prevProjects =>
+            prevProjects.map(p =>
+              p.project_id === updatedProject.project_id ? updatedProject : p
+            )
+          );
+          closeDrawer();
+        }}
+        onCancel={() => {
+          closeDrawer();
+        }}
+      />
+    );
+  };
 
   const handleDelete = async (project: IProject) => {
     setProjectToDelete(project);
@@ -60,40 +85,108 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
     {
       title: 'Project Name',
       dataIndex: 'project_name',
+      width: '25%',
       render: (text: string, record: IProject) => (
-        <Link href={`/msp/projects/${record.project_id}`} className="text-blue-600 hover:text-blue-800">
+        <Link href={`/msp/projects/${record.project_id}`} className="text-blue-600 hover:text-blue-800 block truncate">
           {text}
         </Link>
       ),
     },
     {
       title: 'Client',
-      dataIndex: 'client_name',
+      dataIndex: 'company_id',
+      width: '20%',
+      render: (value, record) => {
+        const company = companies.find(c => c.company_id === value);
+        return company ? company.company_name : 'No Client';
+      }
+    },
+    {
+      title: 'Contact',
+      dataIndex: 'contact_name',
+      width: '20%',
+      render: (name: string | null) => name || 'No Contact',
     },
     {
       title: 'Deadline',
       dataIndex: 'end_date',
+      width: '15%',
       render: (value: string | null) => value ? new Date(value).toLocaleDateString() : 'N/A',
+    },
+    {
+      title: 'Assigned To',
+      dataIndex: 'assigned_to',
+      width: '15%',
+      render: (userId: string | null, record: IProject) => {
+        if (!userId) return 'Unassigned';
+        const user = record.assigned_user;
+        return user ? `${user.first_name} ${user.last_name}` : 'Unassigned';
+      }
     },
     {
       title: 'Actions',
       dataIndex: 'actions',
+      width: '5%',
       render: (_: unknown, record: IProject) => (
-        <Button 
-          variant="destructive" 
-          onClick={(e) => {
-            e.preventDefault();
-            handleDelete(record);
-          }}
-        >
-          Delete
-        </Button>
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <div
+              role="button"
+              tabIndex={0}
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 w-9 p-0"
+            >
+              <MoreVertical size={16} />
+            </div>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content className="bg-white rounded-md shadow-lg p-1">
+            <DropdownMenu.Item 
+              className="px-2 py-1 text-sm cursor-pointer hover:bg-gray-100 flex items-center"
+              onSelect={() => handleEditProject(record)}
+            >
+              <Pen size={14} className="mr-2" />
+              Edit
+            </DropdownMenu.Item>
+            <DropdownMenu.Item 
+              className="px-2 py-1 text-sm cursor-pointer hover:bg-gray-100 flex items-center text-red-600"
+              onSelect={() => handleDelete(record)}
+            >
+              <Trash2 size={14} className="mr-2" />
+              Delete
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
       ),
     },
   ];
 
-  const handleProjectAdded = (newProject: IProject) => {
-    setProjects([...projects, newProject]);
+  const handleProjectAdded = async (newProject: IProject) => {
+    try {
+      // Create a new object with additional properties
+      const projectWithDetails: IProject = {
+        ...newProject,
+        contact_name: newProject.contact_name || null,
+        assigned_user: null
+      };
+
+      // Fetch contact details if contact_name_id exists
+      if (newProject.contact_name_id) {
+        const contact = await getContactByContactNameId(newProject.contact_name_id);
+        projectWithDetails.contact_name = contact?.full_name || null;
+      }
+
+      // Fetch user details if assigned_to exists
+      if (newProject.assigned_to) {
+        const user = await findUserById(newProject.assigned_to);
+        projectWithDetails.assigned_user = user || null;
+      }
+
+      // Update state with the complete project data
+      setProjects(prevProjects => [...prevProjects, projectWithDetails]);
+    } catch (error) {
+      console.error('Error fetching additional project details:', error);
+      // Add project with basic details if there's an error
+      setProjects(prevProjects => [...prevProjects, newProject]);
+    }
   };
 
   const statusOptions = [

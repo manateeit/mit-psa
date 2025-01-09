@@ -1,13 +1,16 @@
 'use client'
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
-import EditableText from '@/components/ui/EditableText';
 import { IProject, ICompany } from '@/interfaces';
-import { createProject } from '@/lib/actions/project-actions/projectActions';
+import { createProject, generateNextWbsCode } from '@/lib/actions/project-actions/projectActions';
 import { CompanyPicker } from '@/components/companies/CompanyPicker';
+import CustomSelect from '@/components/ui/CustomSelect';
+import { getContactsByCompany, getAllContacts } from '@/lib/actions/contact-actions/contactActions';
+import { getCurrentUser, getAllUsers } from '@/lib/actions/user-actions/userActions';
+import { IUser } from '@/interfaces/auth.interfaces';
 
 interface ProjectQuickAddProps {
   onClose: () => void;
@@ -19,11 +22,45 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
   const [projectName, setProjectName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [contacts, setContacts] = useState<{ value: string; label: string }[]>([]);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [users, setUsers] = useState<IUser[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filterState, setFilterState] = useState<'all' | 'active' | 'inactive'>('active');
   const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const allUsers = await getAllUsers();
+        setUsers(allUsers);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    const fetchContacts = async () => {
+      try {
+        const contactsData = selectedCompanyId 
+          ? await getContactsByCompany(selectedCompanyId)
+          : await getAllContacts();
+        setContacts(contactsData.map(contact => ({
+          value: contact.contact_name_id,
+          label: contact.full_name
+        })));
+      } catch (error) {
+        console.error('Error fetching contacts:', error);
+        setContacts([]);
+      }
+    };
+    fetchContacts();
+  }, [selectedCompanyId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,15 +70,18 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
     setIsSubmitting(true);
 
     try {
+      const wbsCode = await generateNextWbsCode();
       const projectData: Omit<IProject, 'project_id' | 'created_at' | 'updated_at' | 'tenant'> = {
         project_name: projectName,
         description: description || null,
         company_id: selectedCompanyId,
         start_date: startDate ? new Date(startDate) : null,
         end_date: endDate ? new Date(endDate) : null,
-        wbs_code: Date.now().toString(), // Temporary WBS code
+        wbs_code: wbsCode,
         is_inactive: false,
-        status: '' // This will be set by the server to the first standard status
+        status: '', // This will be set by the server to the first standard status
+        assigned_to: selectedUserId || null,
+        contact_name_id: selectedContactId || null
       };
 
       const newProject = await createProject(projectData);
@@ -64,11 +104,13 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
           </Dialog.Title>
           <form onSubmit={handleSubmit} className="flex flex-col">
             <div className="space-y-4">
-              <EditableText
+              <TextArea
                 value={projectName}
-                onChange={setProjectName}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setProjectName(e.target.value)}
                 placeholder="Project Name..."
-                className="w-full text-lg font-semibold"
+                className="w-full text-lg font-semibold p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+                rows={1}
+                autoFocus
               />
               <TextArea
                 value={description}
@@ -87,6 +129,27 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
                   onFilterStateChange={setFilterState}
                   clientTypeFilter={clientTypeFilter}
                   onClientTypeFilterChange={setClientTypeFilter}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contact</label>
+                <CustomSelect
+                  value={selectedContactId || ''}
+                  onValueChange={setSelectedContactId}
+                  options={contacts}
+                  placeholder="Select Contact"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
+                <CustomSelect
+                  value={selectedUserId || ''}
+                  onValueChange={setSelectedUserId}
+                  options={users.map(user => ({
+                    value: user.user_id,
+                    label: `${user.first_name} ${user.last_name}`
+                  }))}
+                  placeholder="Select Assignee"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">

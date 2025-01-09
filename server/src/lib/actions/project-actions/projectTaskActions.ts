@@ -485,7 +485,7 @@ export async function moveTaskToPhase(taskId: string, newPhaseId: string, newSta
         }
 
         // Generate new WBS code for the task
-        const newWbsCode = await ProjectTaskModel.generateNextWbsCode(newPhase.wbs_code);
+        const newWbsCode = await ProjectModel.generateNextWbsCode(newPhase.wbs_code);
 
         // Update task with new phase, project, and WBS code
         const updatedTask = await ProjectTaskModel.updateTask(taskId, {
