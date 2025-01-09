@@ -49,7 +49,7 @@ const ProjectModel = {
         query = query.where('projects.is_inactive', false);
       }
       
-      const projects = await query;
+      const projects = await query.orderBy('projects.end_date', 'asc');
       return projects;
     } catch (error) {
       console.error('Error getting all projects:', error);
