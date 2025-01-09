@@ -6,6 +6,7 @@ import ProjectDetail from '@/components/projects/ProjectDetail';
 import { useEffect, useState } from 'react';
 import { IProject, IProjectPhase, IProjectTask, IProjectTicketLinkWithDetails, ProjectStatus } from '@/interfaces/project.interfaces';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
+import { ICompany } from '@/interfaces/company.interfaces';
 
 interface ProjectDetails {
   project: IProject;
@@ -16,6 +17,7 @@ interface ProjectDetails {
   users: IUserWithRoles[];
   contact?: { full_name: string };
   assignedUser?: IUserWithRoles | null;
+  companies: ICompany[];
 }
 
 export default function ProjectPage({ params }: { params: { id: string } }) {
@@ -56,6 +58,17 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     }
   };
 
+  const handleProjectUpdate = async (updatedProject: IProject) => {
+    try {
+      await updateProject(id, updatedProject);
+      // Refresh project details after update
+      const updatedDetails = await getProjectDetails(id);
+      setProjectDetails(updatedDetails);
+    } catch (error) {
+      console.error('Error updating project:', error);
+    }
+  };
+
   if (!projectDetails) {
     return <div>Loading...</div>;
   }
@@ -67,8 +80,10 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         contact={projectDetails.contact}
         assignedUser={projectDetails.assignedUser || undefined}
         users={projectDetails.users}
+        companies={projectDetails.companies}
         onAssignedUserChange={handleAssignedUserChange}
         onContactChange={handleContactChange}
+        onProjectUpdate={handleProjectUpdate}
       />
       <ProjectDetail
         project={projectDetails.project}
@@ -77,6 +92,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         ticketLinks={projectDetails.ticketLinks}
         statuses={projectDetails.statuses}
         users={projectDetails.users}
+        companies={projectDetails.companies}
       />
     </div>
   );

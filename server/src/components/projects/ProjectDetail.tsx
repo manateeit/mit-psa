@@ -15,6 +15,7 @@ import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import ProjectPhases from './ProjectPhases';
 import KanbanBoard from './KanbanBoard';
 import DonutChart from './DonutChart';
+import { ICompany } from '@/interfaces/company.interfaces';
 
 interface ProjectDetailProps {
   project: IProject;
@@ -23,6 +24,9 @@ interface ProjectDetailProps {
   ticketLinks: IProjectTicketLink[];
   statuses: ProjectStatus[];
   users: IUserWithRoles[];
+  companies: ICompany[];
+  contact?: { full_name: string };
+  assignedUser?: IUserWithRoles;
 }
 
 export default function ProjectDetail({ 
@@ -31,7 +35,10 @@ export default function ProjectDetail({
   tasks: initialTasks, 
   ticketLinks: _ticketLinks, 
   statuses: initialStatuses, 
-  users
+  users,
+  companies,
+  contact,
+  assignedUser
 }: ProjectDetailProps) {
   const [selectedTask, setSelectedTask] = useState<IProjectTask | null>(null);
   const [showQuickAdd, setShowQuickAdd] = useState(false);

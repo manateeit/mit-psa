@@ -11,6 +11,8 @@ import { hasPermission } from '@/lib/auth/rbac';
 import { validateData, validateArray } from '../../utils/validation';
 import { createTenantKnex } from '@/lib/db';
 import { z } from 'zod';
+import { ICompany } from '@/interfaces/company.interfaces';
+import { getAllCompanies } from '@/lib/actions/companyActions';
 import { 
     createProjectSchema, 
     updateProjectSchema, 
@@ -440,6 +442,7 @@ export async function getProjectDetails(projectId: string): Promise<{
     users: IUserWithRoles[];
     contact?: { full_name: string };
     assignedUser: IUserWithRoles | null;
+    companies: ICompany[];
 }> {
     try {
         const currentUser = await getCurrentUser();
@@ -449,14 +452,15 @@ export async function getProjectDetails(projectId: string): Promise<{
 
         await checkPermission(currentUser, 'project', 'read');
         
-        const [project, phases, rawTasks, statuses, users, checklistItemsMap, ticketLinksMap] = await Promise.all([
+        const [project, phases, rawTasks, statuses, users, checklistItemsMap, ticketLinksMap, companies] = await Promise.all([
             ProjectModel.getById(projectId),
             ProjectModel.getPhases(projectId),
             ProjectTaskModel.getTasks(projectId),
             getProjectTaskStatuses(projectId),
             getAllUsers(),
             ProjectTaskModel.getAllTaskChecklistItems(projectId),
-            ProjectTaskModel.getAllTaskTicketLinks(projectId)
+            ProjectTaskModel.getAllTaskTicketLinks(projectId),
+            getAllCompanies()
         ]);
 
         if (!project) {
@@ -488,7 +492,8 @@ export async function getProjectDetails(projectId: string): Promise<{
             statuses, 
             users,
             contact,
-            assignedUser: project.assigned_user || null
+            assignedUser: project.assigned_user || null,
+            companies
         };
     } catch (error) {
         console.error('Error fetching project details:', error);

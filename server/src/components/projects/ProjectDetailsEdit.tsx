@@ -28,15 +28,26 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
   onSave,
   onCancel,
 }) => {
+  // Debug logs
+  useEffect(() => {
+    console.log('ProjectDetailsEdit:', {
+      initialProject,
+      companiesLength: companies?.length,
+      companies
+    });
+  }, [initialProject, companies]);
+
   const [project, setProject] = useState<IProject>(initialProject);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
-  const [filterState, setFilterState] = useState<'all' | 'active' | 'inactive'>('active');
   const [contacts, setContacts] = useState<{ value: string; label: string }[]>([]);
   const [users, setUsers] = useState<IUser[]>([]);
+
+  // Move these to component state to prevent re-renders
+  const [filterState] = useState<'all' | 'active' | 'inactive'>('active');
+  const [clientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -160,10 +171,10 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
               companies={companies}
               selectedCompanyId={project.company_id}
               onSelect={handleCompanySelect}
-              filterState={filterState}
-              onFilterStateChange={setFilterState}
-              clientTypeFilter={clientTypeFilter}
-              onClientTypeFilterChange={setClientTypeFilter}
+              filterState="all"
+              onFilterStateChange={() => {}}
+              clientTypeFilter="all"
+              onClientTypeFilterChange={() => {}}
             />
           </div>
 
@@ -171,7 +182,10 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1">Contact</label>
             <CustomSelect
               value={project.contact_name_id || ''}
-              onValueChange={(value) => setProject(prev => ({ ...prev, contact_name_id: value }))}
+              onValueChange={(value) => {
+                setProject(prev => ({ ...prev, contact_name_id: value }));
+                setHasChanges(true);
+              }}
               options={contacts}
               placeholder="Select Contact"
             />
@@ -181,7 +195,10 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
             <CustomSelect
               value={project.assigned_to || ''}
-              onValueChange={(value) => setProject(prev => ({ ...prev, assigned_to: value }))}
+              onValueChange={(value) => {
+                setProject(prev => ({ ...prev, assigned_to: value }));
+                setHasChanges(true);
+              }}
               options={users.map(user => ({
                 value: user.user_id,
                 label: `${user.first_name} ${user.last_name}`
@@ -227,7 +244,10 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
             <Switch
               id="is_inactive"
               checked={!project.is_inactive}
-              onCheckedChange={(checked) => setProject(prev => ({ ...prev, is_inactive: !checked }))}
+              onCheckedChange={(checked) => {
+                setProject(prev => ({ ...prev, is_inactive: !checked }));
+                setHasChanges(true);
+              }}
             />
           </div>
         </div>
