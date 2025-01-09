@@ -6,6 +6,7 @@ import { ICompany } from '@/interfaces/company.interfaces';
 import { IUser } from '@/interfaces/auth.interfaces';
 import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/Switch';
+import { TextArea } from '@/components/ui/TextArea';
 import { CompanyPicker } from '@/components/companies/CompanyPicker';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { updateProject } from '@/lib/actions/project-actions/projectActions';
@@ -18,6 +19,7 @@ interface ProjectDetailsEditProps {
   companies: ICompany[];
   onSave: (updatedProject: IProject) => void;
   onCancel: () => void;
+  onChange?: () => void;
 }
 
 const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
@@ -28,6 +30,9 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
 }) => {
   const [project, setProject] = useState<IProject>(initialProject);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
   const [filterState, setFilterState] = useState<'all' | 'active' | 'inactive'>('active');
   const [contacts, setContacts] = useState<{ value: string; label: string }[]>([]);
@@ -95,6 +100,7 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
       ...prev,
       [name]: value,
     }));
+    setHasChanges(true);
   };
 
   const handleCompanySelect = (companyId: string) => {
@@ -105,41 +111,44 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
       contact_name_id: null,
       contact_name: null,
     }));
+    setHasChanges(true);
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Edit Project</h2>
+    <div className="p-4 w-full max-w-[480px] mx-auto">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold">Edit Project</h2>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-3">
           <div>
-            <label htmlFor="project_name" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="project_name" className="block text-sm font-medium text-gray-700 mb-1">
               Project Name
             </label>
-            <input
-              type="text"
+            <TextArea
               id="project_name"
               name="project_name"
               value={project.project_name}
               onChange={handleInputChange}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none"
+              placeholder="Enter project name..."
+              className="w-full text-base font-medium p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+              rows={1}
               required
             />
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
               Description
             </label>
-            <textarea
+            <TextArea
               id="description"
               name="description"
               value={project.description || ''}
               onChange={handleInputChange}
+              placeholder="Enter project description..."
+              className="w-full p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
               rows={4}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none"
             />
           </div>
 
@@ -181,7 +190,7 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">
                 Start Date
@@ -211,29 +220,90 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <label htmlFor="is_inactive" className="text-sm font-medium text-gray-700">
-              Inactive
-            </label>
+          <div className="flex items-center space-x-2">
+            <span className={`px-2 py-1 rounded text-sm ${project.is_inactive ? 'text-gray-800' : 'text-gray-800'}`}>
+              {project.is_inactive ? 'Inactive' : 'Active'}
+            </span>
             <Switch
               id="is_inactive"
-              checked={project.is_inactive}
-              onCheckedChange={(checked) => setProject(prev => ({ ...prev, is_inactive: checked }))}
+              checked={!project.is_inactive}
+              onCheckedChange={(checked) => setProject(prev => ({ ...prev, is_inactive: !checked }))}
             />
           </div>
         </div>
 
-        <div className="flex justify-end space-x-4 mt-6">
+        <div className="flex justify-end space-x-3 mt-4">
+          {showCancelConfirm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white p-6 rounded-lg">
+                <h3 className="text-lg font-bold mb-4">Unsaved Changes</h3>
+                <p className="mb-4">You have unsaved changes. Are you sure you want to cancel?</p>
+                <div className="flex justify-end space-x-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowCancelConfirm(false)}
+                  >
+                    Continue Editing
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setShowCancelConfirm(false);
+                      onCancel();
+                    }}
+                  >
+                    Discard Changes
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showSaveConfirm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white p-6 rounded-lg">
+                <h3 className="text-lg font-bold mb-4">Save Changes</h3>
+                <p className="mb-4">Are you sure you want to save your changes and close the drawer?</p>
+                <div className="flex justify-end space-x-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowSaveConfirm(false)}
+                  >
+                    Continue Editing
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={(e) => {
+                      setShowSaveConfirm(false);
+                      handleSubmit(e);
+                    }}
+                  >
+                    Save and Close
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <Button
             type="button"
             variant="outline"
-            onClick={onCancel}
+            onClick={() => {
+              if (hasChanges) {
+                setShowCancelConfirm(true);
+              } else {
+                onCancel();
+              }
+            }}
             disabled={isSubmitting}
           >
             Cancel
           </Button>
           <Button
-            type="submit"
+            type="button"
+            onClick={() => setShowSaveConfirm(true)}
             disabled={isSubmitting}
           >
             {isSubmitting ? 'Saving...' : 'Save Changes'}

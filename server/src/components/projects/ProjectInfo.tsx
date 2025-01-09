@@ -176,11 +176,6 @@ export default function ProjectInfo({
             )}
           </div>
         </div>
-
-        <ProjectActiveToggle 
-          projectId={project.project_id} 
-          initialIsInactive={project.is_inactive} 
-        />
       </div>
     </div>
   );

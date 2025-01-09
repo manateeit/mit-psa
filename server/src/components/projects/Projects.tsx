@@ -29,7 +29,7 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<IProject | null>(null);
-  const { openDrawer } = useDrawer();
+  const { openDrawer, closeDrawer } = useDrawer();
 
   const filteredProjects = useMemo(() => {
     return projects.filter(project =>
@@ -51,10 +51,10 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
               p.project_id === updatedProject.project_id ? updatedProject : p
             )
           );
-          openDrawer(null);
+          closeDrawer();
         }}
         onCancel={() => {
-          openDrawer(null);
+          closeDrawer();
         }}
       />
     );
