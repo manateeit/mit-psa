@@ -3,8 +3,11 @@ import React, { ReactNode, useEffect } from 'react';
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { Cross2Icon } from '@radix-ui/react-icons';
 import { useRegisterUIComponent } from '../../types/ui-reflection/useRegisterUIComponent';
-import { DialogComponent, UIComponent } from '../../types/ui-reflection/types';
+import { ReflectionParentContext } from '../../types/ui-reflection/ReflectionParentContext';
+import { DialogComponent } from '../../types/ui-reflection/types';
 import { withDataAutomationId } from '../../types/ui-reflection/withDataAutomationId';
+import { ReflectionContainer } from '@/types/ui-reflection/ReflectionContainer';
+import { useAutomationIdAndRegister } from '@/types/ui-reflection/useAutomationIdAndRegister';
 
 interface DialogProps {
   isOpen: boolean;
@@ -14,46 +17,42 @@ interface DialogProps {
   title?: string;
   /** Unique identifier for UI reflection system */
   id?: string;
-  /** Child components for UI reflection */
-  reflectionChildren?: UIComponent[];
 }
 
-export const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, children, className, title, id, reflectionChildren }) => {
-  // Register with UI reflection system if id is provided
-  const updateMetadata = id ? useRegisterUIComponent<DialogComponent>({
+export const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, children, className, title = '', id = 'dialog' }) => {
+  const { automationIdProps: updateDialog, updateMetadata } = useAutomationIdAndRegister<DialogComponent>({
+    id: `${id}-dialog`,
     type: 'dialog',
-    id,
-    title: title || '',
+    title,
     open: isOpen,
-    children: reflectionChildren,
     actions: ['submit', 'cancel']
-  }) : undefined;
+  });
 
-  // Update metadata when open state changes
+  // Update dialog metadata when props change
   useEffect(() => {
-    if (updateMetadata) {
-      updateMetadata({ open: isOpen });
-    }
-  }, [isOpen, updateMetadata]);
+    updateMetadata({ open: isOpen, title });
+  }, [ isOpen, title ]);
 
   return (
-    <RadixDialog.Root open={isOpen} onOpenChange={onClose} {...withDataAutomationId({ id })}>
-      <RadixDialog.Portal>
-        <RadixDialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
-        <RadixDialog.Content className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg p-6 w-full max-w-3xl z-50 ${className || ''}`}>
-          {title && <RadixDialog.Title className="text-xl font-semibold mb-4">{title}</RadixDialog.Title>}
-          {children}
-          <RadixDialog.Close asChild>
-            <button
-              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
-              aria-label="Close"
-            >
-              <Cross2Icon />
-            </button>
-          </RadixDialog.Close>
-        </RadixDialog.Content>
-      </RadixDialog.Portal>
-    </RadixDialog.Root>
+    <ReflectionContainer {...updateDialog}>
+      <RadixDialog.Root open={isOpen} onOpenChange={onClose}>
+        <RadixDialog.Portal>
+          <RadixDialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
+          <RadixDialog.Content className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg p-6 w-full max-w-3xl z-50 ${className || ''}`}>
+              {title && <RadixDialog.Title className="text-xl font-semibold mb-4">{title}</RadixDialog.Title>}
+              {children}
+            <RadixDialog.Close asChild>
+              <button
+                className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+                aria-label="Close"
+              >
+                <Cross2Icon />
+              </button>
+            </RadixDialog.Close>
+          </RadixDialog.Content>
+        </RadixDialog.Portal>
+      </RadixDialog.Root>
+    </ReflectionContainer>
   );
 };
 

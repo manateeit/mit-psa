@@ -1,22 +1,27 @@
+'use client';
 
-// server/src/components/tickets/TicketProperties.tsx
 import React, { useState } from 'react';
-import { ITicket, ITimeSheet, ITimePeriod, ITimeEntry } from '@/interfaces';
-import { IUserWithRoles, ITeam } from '@/interfaces/auth.interfaces';
-import { ITicketResource } from '@/interfaces/ticketResource.interfaces';
-import { Button } from '@/components/ui/Button';
-import { Label } from '@/components/ui/Label';
-import { Input } from '@/components/ui/Input';
+import { ITicket, ITimeSheet, ITimePeriod, ITimeEntry } from '../../interfaces';
+import { IUserWithRoles, ITeam } from '../../interfaces/auth.interfaces';
+import { ITicketResource } from '../../interfaces/ticketResource.interfaces';
+import { Button } from '../ui/Button';
+import { Label } from '../ui/Label';
+import { Input } from '../ui/Input';
 import { Clock, Edit2, Play, Pause, StopCircle, UserPlus, X } from 'lucide-react';
 import styles from './TicketDetails.module.css';
-import UserPicker from '@/components/ui/UserPicker';
-import AvatarIcon from '@/components/ui/AvatarIcon';
-import { TimeEntryDialog } from '@/components/time-management/TimeEntryDialog';
-import { CompanyPicker } from '@/components/companies/CompanyPicker';
-import CustomSelect from '@/components/ui/CustomSelect';
+import UserPicker from '../ui/UserPicker';
+import AvatarIcon from '../ui/AvatarIcon';
+import { TimeEntryDialog } from '../time-management/TimeEntryDialog';
+import { CompanyPicker } from '../companies/CompanyPicker';
+import CustomSelect from '../ui/CustomSelect';
 import { toast } from 'react-hot-toast';
+import { useAutomationIdAndRegister } from '../../types/ui-reflection/useAutomationIdAndRegister';
+import { ReflectionContainer } from '../../types/ui-reflection/ReflectionContainer';
+import { ContainerComponent, FormFieldComponent, ButtonComponent } from '../../types/ui-reflection/types';
+import { withDataAutomationId } from '@/types/ui-reflection/withDataAutomationId';
 
 interface TicketPropertiesProps {
+  id?: string;
   ticket: ITicket;
   company: any;
   contactInfo: any;
@@ -53,6 +58,7 @@ interface TicketPropertiesProps {
 }
 
 const TicketProperties: React.FC<TicketPropertiesProps> = ({
+  id = 'ticket-properties',
   ticket,
   company,
   contactInfo,
@@ -102,7 +108,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
 
   return (
     <div className="flex-shrink-0 space-y-6">
-      <div className={`${styles['card']} p-6 space-y-4`}>
+      <div {...withDataAutomationId({ id: `${id}-time-entry` })} className={`${styles['card']} p-6 space-y-4`}>
         <h2 className={`${styles['panel-header']}`}>Time Entry</h2>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -119,21 +125,22 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
           </div>
           <div className="flex justify-center space-x-2">
             {!isRunning ? (
-              <Button onClick={onStart} className={`w-24`} variant='soft'>
+              <Button {...withDataAutomationId({ id: `${id}-start-btn` })} onClick={onStart} className={`w-24`} variant='soft'>
                 <Play className="mr-2 h-4 w-4" /> Start
               </Button>
             ) : (
-              <Button onClick={onPause} className={`w-24`} variant='soft'>
+              <Button {...withDataAutomationId({ id: `${id}-pause-btn` })} onClick={onPause} className={`w-24`} variant='soft'>
                 <Pause className="mr-2 h-4 w-4" /> Pause
               </Button>
             )}
-            <Button onClick={onStop} className={`w-24`} variant='soft'>
+            <Button {...withDataAutomationId({ id: `${id}-reset-btn` })} onClick={onStop} className={`w-24`} variant='soft'>
               <StopCircle className="mr-2 h-4 w-4" /> Reset
             </Button>
           </div>
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Input
+              {...withDataAutomationId({ id: `${id}-description-input` })}
               id="description"
               value={timeDescription}
               onChange={(e) => onTimeDescriptionChange(e.target.value)}
@@ -142,6 +149,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
             />
           </div>
           <Button
+            {...withDataAutomationId({ id: `${id}-add-time-btn` })}
             type="button"
             className={`w-full mt-4 flex items-center justify-center`}
             onClick={onAddTimeEntry}
@@ -154,7 +162,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
         </div>
       </div>
 
-      <div className={`${styles['card']} p-6 space-y-4`}>
+      <div {...withDataAutomationId({ id: `${id}-contact-info` })} className={`${styles['card']} p-6 space-y-4`}>
         <h2 className={`${styles['panel-header']}`}>Contact Info</h2>
         <div className="space-y-2">
           <div>
@@ -163,15 +171,17 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <p
+                    {...withDataAutomationId({ id: `${id}-contact-name` })}
                     className="text-sm text-blue-500 cursor-pointer hover:underline"
-                    onClick={onContactClick}
+                    onClick={onCompanyClick}
                   >
-                    {contactInfo?.full_name || 'N/A'}
+                    {company?.company_name || 'N/A'}
                   </p>
                   <Button
+                    {...withDataAutomationId({ id: `${id}-edit-contact-btn` })}
                     variant="ghost"
                     size="sm"
-                    onClick={() => setShowContactPicker(!showContactPicker)}
+                    onClick={() => setShowCompanyPicker(!showCompanyPicker)}
                     className="p-1 h-auto"
                   >
                     <Edit2 className="h-3 w-3" />
@@ -179,6 +189,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
                 </div>
                 {contactInfo && showContactPicker && (
                   <Button
+                    {...withDataAutomationId({ id: `${id}-remove-contact-btn` })}
                     variant="ghost"
                     size="sm"
                     onClick={() => onChangeContact(null)}
@@ -192,6 +203,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
                 <div className="space-y-2">
                   <div className="flex items-center group">
                     <CustomSelect
+                      {...withDataAutomationId({ id: `${id}-contact-select` })}
                       value={selectedContactId || contactInfo?.contact_name_id || ''}
                       onValueChange={(value) => {
                         setSelectedContactId(value);
@@ -205,6 +217,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
                   </div>
                   <div className="flex justify-end space-x-2">
                     <Button
+                      {...withDataAutomationId({ id: `${id}-cancel-contact-btn` })}
                       variant="outline"
                       size="sm"
                       onClick={() => {
@@ -215,6 +228,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
                       Cancel
                     </Button>
                     <Button
+                      {...withDataAutomationId({ id: `${id}-save-contact-btn` })}
                       variant="default"
                       size="sm"
                       onClick={() => {
@@ -231,7 +245,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
           </div>
           <div>
             <h5 className="font-bold">Created By</h5>
-            <p className="text-sm">
+            <p {...withDataAutomationId({ id: `${id}-created-by` })} className="text-sm">
               {createdByUser ? `${createdByUser.first_name} ${createdByUser.last_name}` : 'N/A'}
             </p>
           </div>
@@ -240,18 +254,53 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
                 <p
+                  {...withDataAutomationId({ id: `${id}-company-name` })}
                   className="text-sm text-blue-500 cursor-pointer hover:underline"
                   onClick={onCompanyClick}
                 >
-                  {company?.company_name || 'N/A'}
+                  <AvatarIcon
+                    userId={ticket.assigned_to!}
+                    firstName={availableAgents.find(a => a.user_id === ticket.assigned_to)?.first_name || ''}
+                    lastName={availableAgents.find(a => a.user_id === ticket.assigned_to)?.last_name || ''}
+                    size="sm"
+                  />
+                  <span className="text-sm">
+                    {availableAgents.find(a => a.user_id === ticket.assigned_to)?.first_name || 'Unknown'}{' '}
+                    {availableAgents.find(a => a.user_id === ticket.assigned_to)?.last_name || 'Agent'}
+                  </span>
                 </p>
+              </div>
+              ) : (
+              <p className="text-sm text-gray-500">No primary agent assigned</p>
+              )
+            </div>
+
+            {/* Team */}
+            <div>
+              <h5 className="font-bold mb-2">Team</h5>
+              {team ? (
+                <div className="text-sm">
+                  <p>{team.team_name}</p>
+                  <p className="text-gray-500">
+                    Manager: {team.members.find(m => m.user_id === team.manager_id)?.first_name || 'Unknown Manager'}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No team assigned</p>
+              )}
+            </div>
+
+            {/* Additional Agents */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h5 className="font-bold">Additional Agents</h5>
                 <Button
+                  {...withDataAutomationId({ id: `${id}-edit-company-btn` })}
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowCompanyPicker(!showCompanyPicker)}
-                  className="p-1 h-auto"
+                  onClick={() => setShowAgentPicker(!showAgentPicker)}
                 >
-                  <Edit2 className="h-3 w-3" />
+                  <UserPlus className="h-4 w-4" />
                 </Button>
               </div>
               {showCompanyPicker && (
@@ -259,6 +308,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
                   <div className="flex items-center group relative">
                     <div className="w-full">
                       <CompanyPicker
+                        {...withDataAutomationId({ id: `${id}-company-picker` })}
                         companies={companies}
                         onSelect={setSelectedCompanyId}
                         selectedCompanyId={selectedCompanyId || company?.company_id || ''}
@@ -272,6 +322,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
                   </div>
                   <div className="flex justify-end space-x-2">
                     <Button
+                      {...withDataAutomationId({ id: `${id}-cancel-company-btn` })}
                       variant="outline"
                       size="sm"
                       onClick={() => {
@@ -282,6 +333,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
                       Cancel
                     </Button>
                     <Button
+                      {...withDataAutomationId({ id: `${id}-save-company-btn` })}
                       variant="default"
                       size="sm"
                       onClick={() => {
@@ -300,27 +352,33 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
           </div>
           <div>
             <h5 className="font-bold">{contactInfo ? 'Contact Phone' : 'Company Phone'}</h5>
-            <p className="text-sm">{contactInfo?.phone_number || company?.phone_no || 'N/A'}</p>
+            <p {...withDataAutomationId({ id: `${id}-phone` })} className="text-sm">
+              {contactInfo?.phone_number || company?.phone_no || 'N/A'}
+            </p>
           </div>
           <div>
             <h5 className="font-bold">{contactInfo ? 'Contact Email' : 'Company Email'}</h5>
-            <p className="text-sm">{contactInfo?.email || company?.email || 'N/A'}</p>
+            <p {...withDataAutomationId({ id: `${id}-email` })} className="text-sm">
+              {contactInfo?.email || company?.email || 'N/A'}
+            </p>
           </div>
         </div>
       </div>
 
-      <div className={`${styles['card']} p-6 space-y-4`}>
+      <div {...withDataAutomationId({ id: `${id}-agent-team` })} className={`${styles['card']} p-6 space-y-4`}>
         <h2 className={`${styles['panel-header']}`}>Agent team</h2>
         <div className="space-y-4">
           {/* Primary Agent */}
           <div>
             <h5 className="font-bold mb-2">Primary Agent</h5>
             {ticket.assigned_to ? (
-              <div 
+              <div
+                {...withDataAutomationId({ id: `${id}-primary-agent` })}
                 className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
                 onClick={() => onAgentClick(ticket.assigned_to!)}
               >
                 <AvatarIcon
+                  {...withDataAutomationId({ id: `${id}-primary-agent-avatar` })}
                   userId={ticket.assigned_to}
                   firstName={availableAgents.find(a => a.user_id === ticket.assigned_to)?.first_name || ''}
                   lastName={availableAgents.find(a => a.user_id === ticket.assigned_to)?.last_name || ''}
@@ -340,7 +398,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
           <div>
             <h5 className="font-bold mb-2">Team</h5>
             {team ? (
-              <div className="text-sm">
+              <div {...withDataAutomationId({ id: `${id}-team-info` })} className="text-sm">
                 <p>{team.team_name}</p>
                 <p className="text-gray-500">
                   Manager: {team.members.find(m => m.user_id === team.manager_id)?.first_name || 'Unknown Manager'}
@@ -356,6 +414,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
             <div className="flex items-center justify-between mb-2">
               <h5 className="font-bold">Additional Agents</h5>
               <Button
+                {...withDataAutomationId({ id: `${id}-add-agent-btn` })}
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowAgentPicker(!showAgentPicker)}
@@ -367,6 +426,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
             {showAgentPicker && (
               <div className="mb-4">
                 <UserPicker
+                  {...withDataAutomationId({ id: `${id}-agent-picker` })}
                   label="Add Agent"
                   value=""
                   onValueChange={(userId) => {
@@ -384,13 +444,13 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
               {additionalAgents.map((agent) => {
                 const agentUser = availableAgents.find(u => u.user_id === agent.additional_user_id);
                 return (
-                  <div 
+                  <div
                     key={agent.assignment_id}
                     className="flex items-center justify-between group hover:bg-gray-50 p-2 rounded"
                   >
-                    <div 
-                      className="flex items-center space-x-2 cursor-pointer"
-                      onClick={() => onAgentClick(agent.additional_user_id!)}
+                    <div
+                      key={agent.assignment_id}
+                      className="flex items-center justify-between group hover:bg-gray-50 p-2 rounded"
                     >
                       <AvatarIcon
                         userId={agent.additional_user_id!}
@@ -401,6 +461,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
                       <span className="text-sm">
                         {agentUser?.first_name || 'Unknown'} {agentUser?.last_name || 'Agent'}
                       </span>
+
                     </div>
                     <Button
                       variant="ghost"

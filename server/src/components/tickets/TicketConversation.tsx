@@ -1,25 +1,29 @@
-// server/src/components/tickets/TicketConversation.tsx
+'use client';
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Block, BlockNoteEditor, PartialBlock } from '@blocknote/core';
-import { IComment, ITicket } from '@/interfaces';
-import { IContact } from '@/interfaces/contact.interfaces';
-import TextEditor from '@/components/editor/TextEditor';
-import CommentItem from '@/components/tickets/CommentItem';
-import CustomTabs from '@/components/ui/CustomTabs';
-import Documents from '@/components/documents/Documents';
+import { IComment, ITicket } from '../../interfaces';
+import { IContact } from '../../interfaces/contact.interfaces';
+import TextEditor from '../editor/TextEditor';
+import CommentItem from './CommentItem';
+import CustomTabs from '../ui/CustomTabs';
+import Documents from '../documents/Documents';
 import styles from './TicketDetails.module.css';
 import { Button } from '@/components/ui/Button';
 import AvatarIcon from '@/components/ui/AvatarIcon';
 import { getContactByContactNameId, getAllContacts } from '@/lib/actions/contact-actions/contactActions';
+import { withDataAutomationId } from '@/types/ui-reflection/withDataAutomationId';
+import { useRegisterUIComponent } from '@/types/ui-reflection/useRegisterUIComponent';
+import { ButtonComponent, ContainerComponent } from '@/types/ui-reflection/types';
+import { ReflectionContainer } from '@/types/ui-reflection/ReflectionContainer';
+import { useAutomationIdAndRegister } from '@/types/ui-reflection/useAutomationIdAndRegister';
 
-// Default block for empty content using proper BlockNote types
 const DEFAULT_BLOCK: PartialBlock[] = [{
   id: "1",
   type: "paragraph",
   content: "Enter your comment here...",
 }];
 
-// Match the exact type expected by CommentItem
 type UserInfo = {
   user_id: string;
   first_name: string;
@@ -29,6 +33,7 @@ type UserInfo = {
 };
 
 interface TicketConversationProps {
+  id?: string;
   ticket: ITicket;
   conversations: IComment[];
   documents: any[];
@@ -50,6 +55,7 @@ interface TicketConversationProps {
 }
 
 const TicketConversation: React.FC<TicketConversationProps> = ({
+  id,
   ticket,
   conversations,
   documents,
@@ -91,7 +97,7 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
     const fetchContactsForComments = async () => {
       const contactIds = conversations
         .filter(conv => conv.author_type === 'contact' && conv.contact_id)
-        .map((conv):string => conv.contact_id!)
+        .map((conv): string => conv.contact_id!)
         .filter((id, index, self) => self.indexOf(id) === index);
 
       for (const contactId of contactIds) {
@@ -118,9 +124,10 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
     const buttons = ['Comments', 'Internal', 'Resolution'];
     return (
       <div className={styles.buttonBar}>
-        {buttons.map((button):JSX.Element => (
+        {buttons.map((button): JSX.Element => (
           <button
             key={button}
+            {...withDataAutomationId({ id: `${id}-${button.toLowerCase()}-tab` })}
             className={`${styles.button} ${activeTab === button ? styles.activeButton : styles.inactiveButton}`}
             onClick={() => onTabChange(button)}
           >
@@ -154,21 +161,21 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
   };
 
   const isLoadingContact = (conversation: IComment): boolean => {
-    return conversation.author_type === 'contact' && 
-           conversation.contact_id !== undefined && 
-           loadingContacts[conversation.contact_id] === true;
+    return conversation.author_type === 'contact' &&
+      conversation.contact_id !== undefined &&
+      loadingContacts[conversation.contact_id] === true;
   };
 
   const handleNewCommentContentChange = (blocks: Block[]) => {
-    // Convert blocks to string representation for storage
     const content = blocks.map(block => block.content).join('\n');
     onNewCommentContentChange(content);
   };
 
   const renderComments = (comments: IComment[]) => {
-    return comments.map((conversation):JSX.Element => (
+    return comments.map((conversation): JSX.Element => (
       <CommentItem
         key={conversation.comment_id}
+        id={`${id}-comment-${conversation.comment_id}`}
         conversation={conversation}
         user={getAuthorInfo(conversation)}
         contact={getContactInfo(conversation)}
@@ -192,40 +199,43 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
     {
       label: "All Comments",
       content: (
-        <>
+        <ReflectionContainer id={`${id}-all-comments`} label="All Comments">
           {renderComments(conversations)}
-        </>
+        </ReflectionContainer>
       )
     },
     {
       label: "Internal",
       content: (
-        <>
+        <ReflectionContainer id={`${id}-internal-comments`} label="Internal Comments">
           <h3 className="text-lg font-medium mb-4">Internal Comments</h3>
           {renderComments(conversations.filter(conversation => conversation.is_internal))}
-        </>
+        </ReflectionContainer>
       )
     },
     {
       label: "Resolution",
       content: (
-        <>
+        <ReflectionContainer id={`${id}-resolution-comments`} label="Resolution Comments">
           <h3 className="text-lg font-medium mb-4">Resolution Comments</h3>
           {renderComments(conversations.filter(conversation => conversation.is_resolution))}
-        </>
+        </ReflectionContainer>
       )
     },
     {
       label: "Documents",
       content: (
-        <div className="mx-8">
-          <Documents 
-            documents={documents} 
-            userId={`${currentUser?.id}`}
-            entityId={ticket.ticket_id}
-            entityType="ticket"
-          />
-        </div>
+        <ReflectionContainer id={`${id}-documents`} label="Documents">
+          <div className="mx-8">
+            <Documents
+              id={`${id}-documents-list`}
+              documents={documents}
+              userId={`${currentUser?.id}`}
+              entityId={ticket.ticket_id}
+              entityType="ticket"
+            />
+          </div>
+        </ReflectionContainer>
       )
     }
   ];
@@ -236,13 +246,14 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
   };
 
   return (
-    <div className={`${styles['card']}`}>
+    <div {...withDataAutomationId({ id })} className={`${styles['card']}`}>
       <div className="p-6">
         <h2 className="text-xl font-bold mb-4">Comments</h2>
         <div className='mb-6'>
           <div className='flex items-start'>
             <div className="mr-3">
               <AvatarIcon
+                {...withDataAutomationId({ id: `${id}-current-user-avatar` })}
                 userId={currentUser?.id || ''}
                 firstName={currentUser?.name?.split(' ')[0] || ''}
                 lastName={currentUser?.name?.split(' ')[1] || ''}
@@ -251,6 +262,7 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
             </div>
             <div className='flex-grow'>
               <TextEditor
+                {...withDataAutomationId({ id: `${id}-editor` })}
                 key={editorKey}
                 roomName={`ticket-${ticket.ticket_id}`}
                 initialContent=""
@@ -270,8 +282,23 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
             </div>
           </div>
         </div>
-        <CustomTabs tabs={tabContent} defaultTab="All Comments" tabStyles={tabStyles} />
+        <CustomTabs
+          {...useAutomationIdAndRegister<ContainerComponent>({
+            id: `${id}-tabs`,
+            type: 'container',
+            label: 'Comment Tabs'
+          }).automationIdProps}
+          tabs={tabContent}
+          defaultTab="All Comments"
+          tabStyles={tabStyles}
+        />
       </div>
+      <CustomTabs
+        {...withDataAutomationId({ id: `${id}-tabs` })}
+        tabs={tabContent}
+        defaultTab="All Comments"
+        tabStyles={tabStyles}
+      />
     </div>
   );
 };

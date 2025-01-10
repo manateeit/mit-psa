@@ -40,47 +40,6 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
     }
   };
 
-  // Register dialog with UI reflection system if id is provided
-  const updateDialog = id ? useRegisterUIComponent<DialogComponent>({
-    type: 'dialog',
-    id,
-    title,
-    open: isOpen
-  }) : undefined;
-
-  // Register confirm button as child of dialog
-  const updateConfirmButton = id ? useRegisterUIComponent<ButtonComponent>({
-    type: 'button',
-    id: `${id}-confirm`,
-    label: confirmLabel,
-    disabled: isConfirming || isProcessing,
-    actions: ['click'],
-    parentId: id
-  }) : undefined;
-
-  // Register cancel button as child of dialog
-  const updateCancelButton = id ? useRegisterUIComponent<ButtonComponent>({
-    type: 'button',
-    id: `${id}-cancel`,
-    label: cancelLabel,
-    disabled: isProcessing,
-    actions: ['click'],
-    parentId: id
-  }) : undefined;
-
-  // Update metadata when dialog state changes
-  useEffect(() => {
-    if (updateDialog) {
-      updateDialog({ open: isOpen });
-    }
-    if (updateConfirmButton) {
-      updateConfirmButton({ disabled: isConfirming || isProcessing });
-    }
-    if (updateCancelButton) {
-      updateCancelButton({ disabled: isProcessing });
-    }
-  }, [isOpen, isConfirming, isProcessing, updateDialog, updateConfirmButton, updateCancelButton]);
-
   return (
     <Dialog 
       isOpen={isOpen} 
