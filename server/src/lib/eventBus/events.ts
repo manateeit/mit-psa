@@ -5,6 +5,8 @@ export const EventTypeEnum = z.enum([
   'TICKET_CREATED',
   'TICKET_UPDATED',
   'TICKET_CLOSED',
+  'TICKET_ASSIGNED',
+  'TICKET_COMMENT_ADDED',
   'TICKET_DELETED',
   'PROJECT_CREATED',
   'PROJECT_UPDATED',
@@ -35,6 +37,12 @@ export const TicketEventPayloadSchema = BasePayloadSchema.extend({
   ticketId: z.string().uuid(),
   userId: z.string().uuid(),
   changes: z.record(z.unknown()).optional(),
+  comment: z.object({
+    id: z.string().uuid(),
+    content: z.string(),
+    author: z.string(),
+    isInternal: z.boolean().optional(),
+  }).optional(),
 });
 
 // Project event payload schema
@@ -66,6 +74,8 @@ export const EventPayloadSchemas = {
   TICKET_UPDATED: TicketEventPayloadSchema,
   TICKET_CLOSED: TicketEventPayloadSchema,
   TICKET_DELETED: TicketEventPayloadSchema,
+  TICKET_ASSIGNED: TicketEventPayloadSchema,
+  TICKET_COMMENT_ADDED: TicketEventPayloadSchema,
   PROJECT_CREATED: ProjectEventPayloadSchema,
   PROJECT_UPDATED: ProjectEventPayloadSchema,
   PROJECT_CLOSED: ProjectEventPayloadSchema,
@@ -100,12 +110,15 @@ export type TimeEntrySubmittedEvent = z.infer<typeof EventSchemas.TIME_ENTRY_SUB
 export type TimeEntryApprovedEvent = z.infer<typeof EventSchemas.TIME_ENTRY_APPROVED>;
 export type InvoiceGeneratedEvent = z.infer<typeof EventSchemas.INVOICE_GENERATED>;
 export type InvoiceFinalizedEvent = z.infer<typeof EventSchemas.INVOICE_FINALIZED>;
+export type TicketAssignedEvent = z.infer<typeof EventSchemas.TICKET_ASSIGNED>;
+export type TicketCommentAddedEvent = z.infer<typeof EventSchemas.TICKET_COMMENT_ADDED>;
 
-// Union type of all events
 export type Event =
   | TicketCreatedEvent
   | TicketUpdatedEvent
   | TicketClosedEvent
+  | TicketAssignedEvent
+  | TicketCommentAddedEvent
   | ProjectCreatedEvent
   | ProjectUpdatedEvent
   | ProjectClosedEvent

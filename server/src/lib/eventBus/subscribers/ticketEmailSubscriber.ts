@@ -5,7 +5,9 @@ import {
   EventSchemas,
   TicketCreatedEvent,
   TicketUpdatedEvent,
-  TicketClosedEvent
+  TicketClosedEvent,
+  TicketAssignedEvent,
+  TicketCommentAddedEvent
 } from '../events';
 import { getEmailService } from '../../notifications/emailService';
 import { sendEventEmail } from '../../notifications/sendEventEmail';
@@ -291,6 +293,162 @@ async function handleTicketUpdated(event: TicketUpdatedEvent): Promise<void> {
 /**
  * Handle ticket closed events
  */
+async function handleTicketAssigned(event: TicketAssignedEvent): Promise<void> {
+  const { payload } = event;
+  const { tenantId } = payload;
+  
+  try {
+    const { knex: db } = await createTenantKnex();
+    
+    // Get ticket details
+    const ticket = await db('tickets as t')
+      .select(
+        't.*',
+        'c.email as company_email',
+        'p.priority_name',
+        's.name as status_name',
+        'u.email as assigned_to_email',
+        'u2.email as additional_resource_email'
+      )
+      .leftJoin('companies as c', 't.company_id', 'c.company_id')
+      .leftJoin('priorities as p', 't.priority_id', 'p.priority_id')
+      .leftJoin('statuses as s', 't.status_id', 's.status_id')
+      .leftJoin('users as u', 't.assigned_to', 'u.user_id')
+      .leftJoin('users as u2', 't.additional_resource', 'u2.user_id')
+      .where('t.ticket_id', payload.ticketId)
+      .first();
+
+    if (!ticket) {
+      logger.warn('Could not send ticket assigned email - missing ticket:', {
+        eventId: event.id,
+        ticketId: payload.ticketId
+      });
+      return;
+    }
+
+    // Send to assigned user
+    if (ticket.assigned_to_email) {
+      await sendEventEmail({
+        tenantId,
+        to: ticket.assigned_to_email,
+        subject: `You have been assigned to ticket: ${ticket.title}`,
+        template: 'ticket-assigned',
+        context: {
+          ticket: {
+            id: ticket.ticket_number,
+            title: ticket.title,
+            priority: ticket.priority_name || 'Unknown',
+            status: ticket.status_name || 'Unknown',
+            assignedBy: payload.userId,
+            url: `/tickets/${ticket.ticket_number}`
+          }
+        }
+      });
+    }
+
+    // Send to additional resource if exists
+    if (ticket.additional_resource_email) {
+      await sendEventEmail({
+        tenantId,
+        to: ticket.additional_resource_email,
+        subject: `You have been added as additional resource to ticket: ${ticket.title}`,
+        template: 'ticket-assigned',
+        context: {
+          ticket: {
+            id: ticket.ticket_number,
+            title: ticket.title,
+            priority: ticket.priority_name || 'Unknown',
+            status: ticket.status_name || 'Unknown',
+            assignedBy: payload.userId,
+            url: `/tickets/${ticket.ticket_number}`
+          }
+        }
+      });
+    }
+
+  } catch (error) {
+    logger.error('Error handling ticket assigned event:', {
+      error,
+      eventId: event.id,
+      ticketId: payload.ticketId
+    });
+    throw error;
+  }
+}
+
+async function handleTicketCommentAdded(event: TicketCommentAddedEvent): Promise<void> {
+  const { payload } = event;
+  const { tenantId } = payload;
+  
+  try {
+    const { knex: db } = await createTenantKnex();
+    
+    // Get ticket details
+    const ticket = await db('tickets as t')
+      .select(
+        't.*',
+        'u.email as assigned_to_email',
+        'u2.email as additional_resource_email'
+      )
+      .leftJoin('users as u', 't.assigned_to', 'u.user_id')
+      .leftJoin('users as u2', 't.additional_resource', 'u2.user_id')
+      .where('t.ticket_id', payload.ticketId)
+      .first();
+
+    if (!ticket) {
+      logger.warn('Could not send ticket comment email - missing ticket:', {
+        eventId: event.id,
+        ticketId: payload.ticketId
+      });
+      return;
+    }
+
+    // Send to assigned user
+    if (ticket.assigned_to_email) {
+      await sendEventEmail({
+        tenantId,
+        to: ticket.assigned_to_email,
+        subject: `New Comment on Ticket: ${ticket.title}`,
+        template: 'ticket-comment-added',
+        context: {
+          ticket: {
+            id: ticket.ticket_number,
+            title: ticket.title,
+            url: `/tickets/${ticket.ticket_number}`
+          },
+          comment: payload.comment
+        }
+      });
+    }
+
+    // Send to additional resource if exists
+    if (ticket.additional_resource_email) {
+      await sendEventEmail({
+        tenantId,
+        to: ticket.additional_resource_email,
+        subject: `New Comment on Ticket: ${ticket.title}`,
+        template: 'ticket-comment-added',
+        context: {
+          ticket: {
+            id: ticket.ticket_number,
+            title: ticket.title,
+            url: `/tickets/${ticket.ticket_number}`
+          },
+          comment: payload.comment
+        }
+      });
+    }
+
+  } catch (error) {
+    logger.error('Error handling ticket comment added event:', {
+      error,
+      eventId: event.id,
+      ticketId: payload.ticketId
+    });
+    throw error;
+  }
+}
+
 async function handleTicketClosed(event: TicketClosedEvent): Promise<void> {
   const { payload } = event;
   const { tenantId } = payload;
@@ -380,6 +538,12 @@ async function handleTicketEvent(event: BaseEvent): Promise<void> {
     case 'TICKET_CLOSED':
       await handleTicketClosed(validatedEvent as TicketClosedEvent);
       break;
+    case 'TICKET_ASSIGNED':
+      await handleTicketAssigned(validatedEvent as TicketAssignedEvent);
+      break;
+    case 'TICKET_COMMENT_ADDED':
+      await handleTicketCommentAdded(validatedEvent as TicketCommentAddedEvent);
+      break;
     default:
       logger.warn('[TicketEmailSubscriber] Unhandled ticket event type:', {
         eventType: event.eventType,
@@ -399,7 +563,9 @@ export async function registerTicketEmailSubscriber(): Promise<void> {
     const ticketEventTypes: EventType[] = [
       'TICKET_CREATED',
       'TICKET_UPDATED',
-      'TICKET_CLOSED'
+      'TICKET_CLOSED',
+      'TICKET_ASSIGNED',
+      'TICKET_COMMENT_ADDED'
     ];
 
     for (const eventType of ticketEventTypes) {

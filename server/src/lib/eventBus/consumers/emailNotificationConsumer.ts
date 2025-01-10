@@ -7,8 +7,11 @@ import { getRedisConfig, getEventStream } from '../../../config/redisConfig';
 import { getSecret } from '../../utils/getSecret';
 import { getConnection } from '../../db/db';
 
-const CONSUMER_GROUP = 'emailNotificationGroup';
 const PROCESSED_EVENTS_TTL = 60 * 60 * 24 * 3; // 3 days in seconds
+
+// Get consumer group from config
+const config = getRedisConfig();
+const CONSUMER_GROUP = config.eventBus.consumerGroup;
 
 export async function initializeEmailNotificationConsumer(tenantId: string) {
   const config = getRedisConfig();
@@ -40,11 +43,21 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
   for (const eventType of Object.keys(EventSchemas)) {
     const streamKey = getEventStream(eventType);
     try {
+      // Check if stream exists
+      const streamInfo = await client.xInfoStream(streamKey).catch(() => null);
+      
+      // If stream doesn't exist, create it with initial message
+      if (!streamInfo) {
+        await client.xAdd(streamKey, '*', { event: JSON.stringify({ init: true }) });
+      }
+
+      // Create consumer group
       await client.xGroupCreate(streamKey, CONSUMER_GROUP, '0', { MKSTREAM: true });
       logger.info(`[EmailNotificationConsumer] Created consumer group for stream: ${streamKey}`);
     } catch (error) {
       // Ignore if group already exists
       if (!(error instanceof Error && error.message.includes('BUSYGROUP'))) {
+        logger.error(`[EmailNotificationConsumer] Error creating consumer group for ${streamKey}:`, error);
         throw error;
       }
     }
@@ -56,7 +69,8 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
     switch (event.eventType) {
       case 'TICKET_CREATED':
       case 'TICKET_UPDATED':
-      case 'TICKET_CLOSED': {
+      case 'TICKET_CLOSED':
+      case 'TICKET_ASSIGNED': {
         const ticket = await knex('tickets as t')
           .select(
             't.assigned_user_id',
@@ -149,6 +163,8 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
         return 'ticket-updated';
       case 'TICKET_CLOSED':
         return 'ticket-closed';
+      case 'TICKET_ASSIGNED':
+        return 'ticket-assigned';
       case 'TIME_ENTRY_SUBMITTED':
         return 'time-entry-submitted';
       case 'TIME_ENTRY_APPROVED':
@@ -176,6 +192,8 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
         return 'Ticket Updated';
       case 'TICKET_CLOSED':
         return 'Ticket Closed';
+      case 'TICKET_ASSIGNED':
+        return 'Ticket Assignment Changed';
       case 'TIME_ENTRY_SUBMITTED':
         return 'Time Entry Submitted for Approval';
       case 'TIME_ENTRY_APPROVED':

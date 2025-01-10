@@ -13,12 +13,16 @@ exports.seed = async function(knex) {
   const subtypes = await knex('notification_subtypes')
     .select('id', 'name')
     .whereIn('name', [
+      'Ticket Assigned',
       'Ticket Created',
       'Ticket Updated',
       'Ticket Closed',
+      'Ticket Comment Added',
       'Invoice Generated',
       'Payment Received',
       'Payment Overdue',
+      'Project Assigned',
+      'Project Task Assigned',
       'Project Created',
       'Task Updated',
       'Milestone Completed',
@@ -38,6 +42,36 @@ exports.seed = async function(knex) {
   // Insert system-wide default templates
   const systemTemplates = await knex('system_email_templates').insert([
     // Ticket templates
+    {
+      name: 'ticket-assigned',
+      subject: 'You have been assigned to ticket: {{ticket.title}}',
+      notification_subtype_id: subtypes.find(s => s.name === 'Ticket Assigned')?.id,
+      html_content: `
+        <h2>Ticket Assigned</h2>
+        <p>You have been assigned to a ticket:</p>
+        <div class="details">
+          <p><strong>Ticket ID:</strong> {{ticket.id}}</p>
+          <p><strong>Title:</strong> {{ticket.title}}</p>
+          <p><strong>Priority:</strong> {{ticket.priority}}</p>
+          <p><strong>Status:</strong> {{ticket.status}}</p>
+          <p><strong>Assigned By:</strong> {{ticket.assignedBy}}</p>
+        </div>
+        <a href="{{ticket.url}}" class="button">View Ticket</a>
+      `,
+      text_content: `
+Ticket Assigned
+
+You have been assigned to a ticket:
+
+Ticket ID: {{ticket.id}}
+Title: {{ticket.title}}
+Priority: {{ticket.priority}}
+Status: {{ticket.status}}
+Assigned By: {{ticket.assignedBy}}
+
+View ticket at: {{ticket.url}}
+      `
+    },
     {
       name: 'ticket-created',
       subject: 'New Ticket: {{ticket.title}}',
@@ -124,7 +158,39 @@ Closed By: {{ticket.closedBy}}
 View ticket at: {{ticket.url}}
       `
     },
+  {
+    name: 'ticket-comment-added',
+    subject: 'New Comment on Ticket: {{ticket.title}}',
+    notification_subtype_id: subtypes.find(s => s.name === 'Ticket Comment Added')?.id,
+    html_content: `
+      <h2>New Comment Added</h2>
+      <p>A new comment has been added to ticket:</p>
+      <div class="details">
+        <p><strong>Ticket ID:</strong> {{ticket.id}}</p>
+        <p><strong>Title:</strong> {{ticket.title}}</p>
+        <p><strong>Comment By:</strong> {{comment.author}}</p>
+        <p><strong>Comment:</strong></p>
+        <div class="comment-content">
+          {{comment.content}}
+        </div>
+      </div>
+      <a href="{{ticket.url}}" class="button">View Ticket</a>
+    `,
+    text_content: `
+New Comment Added
 
+A new comment has been added to ticket:
+
+Ticket ID: {{ticket.id}}
+Title: {{ticket.title}}
+Comment By: {{comment.author}}
+
+Comment:
+{{comment.content}}
+
+View ticket at: {{ticket.url}}
+    `
+  },
     // Invoice templates
     {
       name: 'invoice-generated',
@@ -212,6 +278,62 @@ View invoice at: {{invoice.url}}
     },
 
     // Project templates
+    {
+      name: 'project-assigned',
+      subject: 'You have been assigned to project: {{project.name}}',
+      notification_subtype_id: subtypes.find(s => s.name === 'Project Assigned')?.id,
+      html_content: `
+        <h2>Project Assigned</h2>
+        <p>You have been assigned to a project:</p>
+        <div class="details">
+          <p><strong>Project Name:</strong> {{project.name}}</p>
+          <p><strong>Description:</strong> {{project.description}}</p>
+          <p><strong>Start Date:</strong> {{project.startDate}}</p>
+          <p><strong>Assigned By:</strong> {{project.assignedBy}}</p>
+        </div>
+        <a href="{{project.url}}" class="button">View Project</a>
+      `,
+      text_content: `
+Project Assigned
+
+You have been assigned to a project:
+
+Project Name: {{project.name}}
+Description: {{project.description}}
+Start Date: {{project.startDate}}
+Assigned By: {{project.assignedBy}}
+
+View project at: {{project.url}}
+      `
+    },
+    {
+      name: 'project-task-assigned',
+      subject: 'You have been assigned to task: {{task.name}}',
+      notification_subtype_id: subtypes.find(s => s.name === 'Project Task Assigned')?.id,
+      html_content: `
+        <h2>Task Assigned</h2>
+        <p>You have been assigned to a task:</p>
+        <div class="details">
+          <p><strong>Task Name:</strong> {{task.name}}</p>
+          <p><strong>Project:</strong> {{task.project}}</p>
+          <p><strong>Due Date:</strong> {{task.dueDate}}</p>
+          <p><strong>Assigned By:</strong> {{task.assignedBy}}</p>
+        </div>
+        <a href="{{task.url}}" class="button">View Task</a>
+      `,
+      text_content: `
+Task Assigned
+
+You have been assigned to a task:
+
+Task Name: {{task.name}}
+Project: {{task.project}}
+Due Date: {{task.dueDate}}
+Assigned By: {{task.assignedBy}}
+
+View task at: {{task.url}}
+      `
+    },
     {
       name: 'project-created',
       subject: 'New Project Created: {{project.name}}',
@@ -362,7 +484,7 @@ View time entry at: {{timeEntry.url}}
       name: 'time-entry-rejected',
       subject: 'Time Entry Rejected',
       notification_subtype_id: subtypes.find(s => s.name === 'Time Entry Rejected')?.id,
-      html_content: `
+       html_content: `
         <h2>Time Entry Rejected</h2>
         <p>Your time entry has been rejected:</p>
         <div class="details">
