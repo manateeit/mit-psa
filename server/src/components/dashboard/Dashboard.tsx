@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { Card } from '@radix-ui/themes';
+import Link from 'next/link';
 import { 
   Ticket, 
   BarChart3, 
@@ -16,7 +17,8 @@ import {
   Building2
 } from 'lucide-react';
 
-const FeatureCard = ({ icon: Icon, title, description }: { icon: any, title: string, description: string }) => (
+const FeatureCard = ({ icon: Icon, title, description }: { icon: any, title: string, description: string }) => {
+  return (
   <div className="rounded-lg border border-[rgb(var(--color-border-200))] bg-white hover:shadow-lg transition-shadow p-4">
     <div className="flex items-start space-x-4">
       <div className="p-2 rounded-lg" style={{ background: 'rgb(var(--color-primary-50))' }}>
@@ -28,10 +30,11 @@ const FeatureCard = ({ icon: Icon, title, description }: { icon: any, title: str
       </div>
     </div>
   </div>
-);
+  );
+}
 
-const QuickStartCard = ({ icon: Icon, step, title, description }: { icon: any, step: string, title: string, description: string }) => (
-  <div className="rounded-lg border border-[rgb(var(--color-border-200))] bg-white p-4">
+const QuickStartCard = ({ icon: Icon, step, title, description, href }: { icon: any, step: string, title: string, description: string, href?: string }) => (
+  <Link href={href || ''} className="block rounded-lg border border-[rgb(var(--color-border-200))] bg-white p-4 hover:shadow-lg transition-shadow">
     <div className="text-center">
       <div className="p-3 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4"
            style={{ background: 'rgb(var(--color-primary-50))' }}>
@@ -40,7 +43,7 @@ const QuickStartCard = ({ icon: Icon, step, title, description }: { icon: any, s
       <h3 className="font-semibold mb-2" style={{ color: 'rgb(var(--color-text-900))' }}>{step}. {title}</h3>
       <p className="text-sm" style={{ color: 'rgb(var(--color-text-500))' }}>{description}</p>
     </div>
-  </div>
+  </Link>
 );
 
 const WelcomeDashboard = () => {
@@ -67,18 +70,21 @@ const WelcomeDashboard = () => {
             step="1"
             title="Add Your First Client"
             description="Start by setting up your client profiles and their IT infrastructure details."
+            href="/msp/companies?create=true"
           />
           <QuickStartCard
             icon={Server}
             step="2"
             title="Configure Assets"
             description="Add and organize your managed devices, servers, and network equipment."
+            href="/msp/assets"
           />
           <QuickStartCard
             icon={Users}
             step="3"
             title="Invite Team Members"
             description="Bring in your team and assign roles to start collaborating."
+            href="/msp/settings?tab=users"
           />
         </div>
       </div>
@@ -86,36 +92,44 @@ const WelcomeDashboard = () => {
       {/* Features Grid */}
       <h2 className="text-xl font-semibold mb-4" style={{ color: 'rgb(var(--color-text-900))' }}>Platform Features</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <FeatureCard 
-          icon={Ticket}
-          title="Ticket Management"
-          description="Streamline support with our advanced ticketing system. Track, assign, and resolve issues efficiently."
-        />
+        <Link href="/msp/tickets">
+          <FeatureCard 
+            icon={Ticket}
+            title="Ticket Management"
+            description="Streamline support with our advanced ticketing system. Track, assign, and resolve issues efficiently."
+          />
+        </Link>
         <FeatureCard 
           icon={HeartPulse}
           title="System Monitoring"
           description="Keep track of system health, performance metrics, and critical alerts in real-time."
         />
-        <FeatureCard 
-          icon={Shield}
-          title="Security Management"
-          description="Manage security policies, updates, and compliance requirements across your client base."
-        />
-        <FeatureCard 
-          icon={FileSpreadsheet}
-          title="Asset Management"
-          description="Track hardware, software, and license information in one centralized location."
-        />
+        <Link href="/msp/security-settings">
+          <FeatureCard 
+            icon={Shield}
+            title="Security Management"
+            description="Manage security policies, updates, and compliance requirements across your client base."
+          />
+        </Link>
+        <Link href="/msp/assets">
+          <FeatureCard 
+            icon={FileSpreadsheet}
+            title="Asset Management"
+            description="Track hardware, software, and license information in one centralized location."
+          />
+        </Link>
         <FeatureCard 
           icon={BarChart3}
           title="Reporting & Analytics"
           description="Generate comprehensive reports on performance, SLAs, and business metrics."
         />
-        <FeatureCard 
-          icon={Calendar}
-          title="Schedule Management"
-          description="Plan maintenance windows, schedule technician visits, and manage project timelines."
-        />
+        <Link href="/msp/schedule">
+          <FeatureCard 
+            icon={Calendar}
+            title="Schedule Management"
+            description="Plan maintenance windows, schedule technician visits, and manage project timelines."
+          />
+        </Link>
       </div>
 
       {/* Getting Started Footer */}

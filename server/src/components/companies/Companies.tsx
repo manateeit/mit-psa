@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import CompanyForm from './CompanyForm';
 import { createCompany, getAllCompanies, deleteCompany, importCompaniesFromCSV, exportCompaniesToCSV } from '@/lib/actions/companyActions';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import CompaniesGrid from './CompaniesGrid';
 import CompaniesList from './CompaniesList';
 import { TrashIcon, MoreVertical, CloudDownload, Upload, LayoutGrid, LayoutList, Search } from 'lucide-react';
@@ -18,6 +19,17 @@ const COMPANY_VIEW_MODE_SETTING = 'company_list_view_mode';
 
 const Companies: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams) {
+      const create = searchParams.get('create');
+      if (create === 'true') {
+        setIsDialogOpen(true);
+      }
+    }
+  }, [searchParams]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState<ICompany | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,8 +44,6 @@ const Companies: React.FC = () => {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [multiDeleteError, setMultiDeleteError] = useState<string | null>(null);
-
-  const router = useRouter();
   
   useEffect(() => {
     const initializeComponent = async () => {

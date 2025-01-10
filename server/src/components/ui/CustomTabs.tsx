@@ -26,11 +26,22 @@ export const CustomTabs: React.FC<CustomTabsProps> = ({
   onTabChange,
   tabStyles 
 }) => {
+  const [value, setValue] = React.useState(defaultTab || tabs[0].label);
+
+  React.useEffect(() => {
+    if (defaultTab) {
+      setValue(defaultTab);
+    }
+  }, [defaultTab]);
+
   return (
     <Tabs.Root 
       className={tabStyles?.root || ''} 
-      defaultValue={defaultTab || tabs[0].label}
-      onValueChange={onTabChange}
+      value={value}
+      onValueChange={(newValue) => {
+        setValue(newValue);
+        onTabChange?.(newValue);
+      }}
     >
       <Tabs.List className={`flex border-b border-gray-200 mb-4 ${tabStyles?.list || ''}`}>
         {tabs.map((tab): JSX.Element => (
