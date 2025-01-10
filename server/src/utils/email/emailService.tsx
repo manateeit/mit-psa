@@ -3,14 +3,14 @@ import ejs from 'ejs';
 import path from 'path';
 import fs from 'fs';
 
-import logger from '../logger'; 
-
+import logger from '../logger';
+import { getSecret } from '../../lib/utils/getSecret';
 
 const EMAIL_FROM = process.env.EMAIL_FROM as string;
 const EMAIL_HOST = process.env.EMAIL_HOST as string;
 const EMAIL_PORT = parseInt(process.env.EMAIL_PORT as string, 10);
 const EMAIL_USERNAME = process.env.EMAIL_USERNAME as string;
-const EMAIL_PASSWORD = process.env.EMAIL_PASSWORD as string;
+const EMAIL_PASSWORD = getSecret('email_password', 'EMAIL_PASSWORD');
 const APP_HOST = process.env.HOST as string;
 
 type EmailTemplateData = { [key: string]: string }
@@ -26,7 +26,7 @@ interface SendEmailParams {
 const transporter = nodemailer.createTransport({
   host: EMAIL_HOST,
   port: EMAIL_PORT,
-  secure: true,
+  secure: EMAIL_PORT === 465, // Only use secure for port 465
   auth: {
     user: EMAIL_USERNAME,
     pass: EMAIL_PASSWORD,

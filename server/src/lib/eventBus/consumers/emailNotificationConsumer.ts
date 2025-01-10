@@ -113,6 +113,29 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
           .first();
         return company?.billing_email || null;
       }
+
+      case 'PROJECT_CREATED':
+      case 'PROJECT_UPDATED':
+      case 'PROJECT_CLOSED': {
+        const project = await knex('projects as p')
+          .select(
+            'p.*',
+            'c.email as company_email',
+            's.name as status_name'
+          )
+          .leftJoin('companies as c', 'p.company_id', 'c.company_id')
+          .leftJoin('statuses as s', 'p.status', 's.status_id')
+          .where('p.project_id', event.payload.projectId)
+          .first();
+
+        if (project) {
+          event.payload.projectNumber = project.project_number;
+          event.payload.name = project.project_name;
+          event.payload.status = project.status_name || 'Unknown';
+        }
+
+        return project?.company_email || null;
+      }
     }
     
     return null;
@@ -134,6 +157,12 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
         return 'invoice-generated';
       case 'INVOICE_FINALIZED':
         return 'invoice-finalized';
+      case 'PROJECT_CREATED':
+        return 'project-created';
+      case 'PROJECT_UPDATED':
+        return 'project-updated';
+      case 'PROJECT_CLOSED':
+        return 'project-closed';
       default:
         throw new Error(`No email template defined for event type: ${eventType}`);
     }
@@ -155,6 +184,12 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
         return 'New Invoice Generated';
       case 'INVOICE_FINALIZED':
         return 'Invoice Finalized';
+      case 'PROJECT_CREATED':
+        return `New Project: ${event.payload.name}`;
+      case 'PROJECT_UPDATED':
+        return `Project Updated: ${event.payload.name}`;
+      case 'PROJECT_CLOSED':
+        return `Project Closed: ${event.payload.name}`;
       default:
         return `${event.eventType} Notification`;
     }
@@ -239,7 +274,14 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
                 to: recipientEmail,
                 subject: await getEmailSubject(event),
                 template: await getEmailTemplate(event.eventType),
-                context: {
+                context: event.eventType.startsWith('PROJECT_') ? {
+                  project: {
+                    id: event.payload.projectNumber || event.payload.projectId,
+                    name: event.payload.name,
+                    status: event.payload.status,
+                    url: `/projects/${event.payload.projectNumber || event.payload.projectId}`
+                  }
+                } : {
                   ticket: {
                     id: event.payload.ticketNumber || event.payload.ticketId,
                     title: event.payload.title,
@@ -362,7 +404,14 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
                   to: recipientEmail,
                   subject: await getEmailSubject(event),
                   template: await getEmailTemplate(event.eventType),
-                  context: {
+                  context: event.eventType.startsWith('PROJECT_') ? {
+                    project: {
+                      id: event.payload.projectNumber || event.payload.projectId,
+                      name: event.payload.name,
+                      status: event.payload.status,
+                      url: `/projects/${event.payload.projectNumber || event.payload.projectId}`
+                    }
+                  } : {
                     ticket: {
                       id: event.payload.ticketNumber || event.payload.ticketId,
                       title: event.payload.title,
