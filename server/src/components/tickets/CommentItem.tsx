@@ -66,6 +66,11 @@ const CommentItem: React.FC<CommentItemProps> = ({
   const [isContactPickerOpen, setIsContactPickerOpen] = useState(false);
   const [editedContent, setEditedContent] = useState(conversation.note || '');
 
+  const commentId = useMemo(() => 
+    conversation.comment_id || currentComment?.comment_id || id || 'unknown',
+    [conversation.comment_id, currentComment?.comment_id, id]
+  );
+
   const getAuthorName = () => {
     switch (conversation.author_type) {
       case 'user':
@@ -134,9 +139,8 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
   const selectedContact = contacts.find(c => c.contact_name_id === selectedContactId);
 
-  const renderEditor = () => {
-    if (!currentComment) return null;
-    let commentId = currentComment.comment_id;
+  const editorContent = useMemo(() => {
+    if (!currentComment || !isEditing) return null;
 
     return (
       <div>
@@ -232,15 +236,29 @@ const CommentItem: React.FC<CommentItemProps> = ({
         </div>
       </div>
     );
-  };
+  }, [
+    currentComment,
+    isEditing,
+    authorType,
+    selectedUserId,
+    selectedContact,
+    commentId,
+    ticketId,
+    editedContent,
+    userMap,
+    handleAuthorTypeChange,
+    handleContentChange,
+    handleSave,
+    onClose
+  ]);
 
   return (
     <>
-      <div {...withDataAutomationId({ id: currentComment!.comment_id })} className="bg-gray-50 rounded-lg p-4 mb-4 shadow-sm">
+      <div {...withDataAutomationId({ id: commentId })} className="bg-gray-50 rounded-lg p-4 mb-4 shadow-sm">
         <div className="flex items-start mb-2">
           <div className="mr-3">
             <AvatarIcon 
-              {...withDataAutomationId({ id: `${currentComment!.comment_id }-avatar` })}
+              {...withDataAutomationId({ id: `${commentId}-avatar` })}
               userId={conversation.author_type === 'user' ? conversation.user_id || '' : ''}
               firstName={user?.first_name || contact?.full_name?.split(' ')[0] || ''}
               lastName={user?.last_name || contact?.full_name?.split(' ')[1] || ''}
@@ -250,18 +268,17 @@ const CommentItem: React.FC<CommentItemProps> = ({
           <div className="flex-grow">
             <div className="flex justify-between items-start">
               <div>
-                <p {...withDataAutomationId({ id: `${currentComment!.comment_id }-author-name` })} className="font-semibold text-gray-800">
+                <p {...withDataAutomationId({ id: `${commentId}-author-name` })} className="font-semibold text-gray-800">
                   {getAuthorName()}
                 </p>
                 {getAuthorEmail() && (
-                  <p {...withDataAutomationId({ id: `${currentComment!.comment_id }-author-email` })} className="text-sm text-gray-600">
+                  <p {...withDataAutomationId({ id: `${commentId}-author-email` })} className="text-sm text-gray-600">
                     <a href={`mailto:${getAuthorEmail()}`} className="hover:text-indigo-600">
                       {getAuthorEmail()}
                     </a>
                   </p>
                 )}
-                <p {...withDataAutomationId({ id: `${currentComment!.comment_id }-author-name` })} className="font-semibold text-gray-800"></p>
-                </div>
+              </div>
               {canEdit && (
                 <div className="space-x-2">
                   <button
@@ -272,7 +289,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
                     <Pencil2Icon className="w-5 h-5" />
                   </button>
                   <Button
-                    onClick={() => onDelete(conversation.comment_id!)}
+                    onClick={() => onDelete(conversation.comment_id || '')}
                     className="text-red-600 hover:text-red-800 font-medium p-1 rounded-full hover:bg-red-100 transition duration-150 ease-in-out"
                     aria-label="Delete comment"
                   >
@@ -282,9 +299,9 @@ const CommentItem: React.FC<CommentItemProps> = ({
               )}
             </div>
             {isEditing && currentComment?.comment_id === conversation.comment_id ? (
-              renderEditor()
+              editorContent
             ) : (
-              <div {...withDataAutomationId({ id: `${currentComment!.comment_id }-content` })} className="prose max-w-none mt-2">
+              <div {...withDataAutomationId({ id: `${commentId}-content` })} className="prose max-w-none mt-2">
                 <ReactMarkdown>{conversation.note || ''}</ReactMarkdown>
               </div>
             )}
@@ -293,7 +310,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
       </div>
 
       <ContactPickerDialog
-        {...withDataAutomationId({ id: `${currentComment!.comment_id }-contact-picker` })}
+        {...withDataAutomationId({ id: `${commentId}-contact-picker` })}
         isOpen={isContactPickerOpen}
         onClose={() => setIsContactPickerOpen(false)}
         onSelect={(contact) => {
