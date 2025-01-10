@@ -77,7 +77,7 @@ const SettingsPage = (): JSX.Element =>  {
             <CardDescription>Manage your personal profile and preferences</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => router.push('/profile')}>
+            <Button onClick={() => router.push('/msp/profile')}>
               Go to Profile Settings
             </Button>
           </CardContent>
