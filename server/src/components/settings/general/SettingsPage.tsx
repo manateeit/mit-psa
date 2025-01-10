@@ -69,22 +69,6 @@ const SettingsPage = (): JSX.Element =>  {
       ),
     },
     {
-      label: "Profile",
-      content: (
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile Settings</CardTitle>
-            <CardDescription>Manage your personal profile and preferences</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => router.push('/msp/profile')}>
-              Go to Profile Settings
-            </Button>
-          </CardContent>
-        </Card>
-      ),
-    },
-    {
       label: "Users",
       content: <UserManagement />,
     },
