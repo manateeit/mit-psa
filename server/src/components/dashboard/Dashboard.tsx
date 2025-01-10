@@ -92,36 +92,44 @@ const WelcomeDashboard = () => {
       {/* Features Grid */}
       <h2 className="text-xl font-semibold mb-4" style={{ color: 'rgb(var(--color-text-900))' }}>Platform Features</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <FeatureCard 
-          icon={Ticket}
-          title="Ticket Management"
-          description="Streamline support with our advanced ticketing system. Track, assign, and resolve issues efficiently."
-        />
+        <Link href="/msp/tickets">
+          <FeatureCard 
+            icon={Ticket}
+            title="Ticket Management"
+            description="Streamline support with our advanced ticketing system. Track, assign, and resolve issues efficiently."
+          />
+        </Link>
         <FeatureCard 
           icon={HeartPulse}
           title="System Monitoring"
           description="Keep track of system health, performance metrics, and critical alerts in real-time."
         />
-        <FeatureCard 
-          icon={Shield}
-          title="Security Management"
-          description="Manage security policies, updates, and compliance requirements across your client base."
-        />
-        <FeatureCard 
-          icon={FileSpreadsheet}
-          title="Asset Management"
-          description="Track hardware, software, and license information in one centralized location."
-        />
+        <Link href="/msp/security-settings">
+          <FeatureCard 
+            icon={Shield}
+            title="Security Management"
+            description="Manage security policies, updates, and compliance requirements across your client base."
+          />
+        </Link>
+        <Link href="/msp/assets">
+          <FeatureCard 
+            icon={FileSpreadsheet}
+            title="Asset Management"
+            description="Track hardware, software, and license information in one centralized location."
+          />
+        </Link>
         <FeatureCard 
           icon={BarChart3}
           title="Reporting & Analytics"
           description="Generate comprehensive reports on performance, SLAs, and business metrics."
         />
-        <FeatureCard 
-          icon={Calendar}
-          title="Schedule Management"
-          description="Plan maintenance windows, schedule technician visits, and manage project timelines."
-        />
+        <Link href="/msp/schedule">
+          <FeatureCard 
+            icon={Calendar}
+            title="Schedule Management"
+            description="Plan maintenance windows, schedule technician visits, and manage project timelines."
+          />
+        </Link>
       </div>
 
       {/* Getting Started Footer */}
