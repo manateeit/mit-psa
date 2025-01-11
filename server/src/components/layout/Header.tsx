@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { signOut } from "next-auth/react";
+import Link from 'next/link';
 import { QuestionMarkCircledIcon, SunIcon, MoonIcon, ExitIcon, ChevronRightIcon, HomeIcon, PersonIcon } from '@radix-ui/react-icons';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import AvatarIcon from '@/components/ui/AvatarIcon';
@@ -9,7 +10,6 @@ import type { IUserWithRoles } from '@/types';
 import { usePathname } from 'next/navigation';
 import { menuItems, bottomMenuItems, MenuItem } from '@/config/menuConfig';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
-import { Link } from '@radix-ui/themes';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
@@ -137,12 +137,15 @@ const Header: React.FC<HeaderProps> = ({
         </ol>
       </nav>
       <div className="flex items-center">
-        <button
+        <Link
+          href="https://nineminds.com/resources"
+          target="_blank"
+          rel="noopener noreferrer"
           className="text-main-500 hover:text-gray-700 mr-2"
           aria-label="Help"
         >
           <QuestionMarkCircledIcon className="w-5 h-5" />
-        </button>
+        </Link>
         <button
           className="text-main-500 hover:text-gray-700 mr-3"
           aria-label="Toggle theme"

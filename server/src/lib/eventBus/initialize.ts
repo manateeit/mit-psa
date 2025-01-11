@@ -1,5 +1,5 @@
 import { initializeEmailNotificationConsumer } from './consumers/emailNotificationConsumer';
-import { registerTicketEmailSubscriber } from './subscribers/ticketEmailSubscriber';
+import { registerAllSubscribers } from './subscribers';
 import logger from '../../utils/logger';
 import { getConnection } from '../db/db';
 
@@ -10,8 +10,8 @@ export async function initializeEventBus(): Promise<void> {
   try {
     logger.info('Initializing event bus and subscribers');
 
-    // Register ticket email subscriber
-    await registerTicketEmailSubscriber();
+    // Register all subscribers
+    await registerAllSubscribers();
 
     // Get all tenants
     const systemDb = await getConnection('system');

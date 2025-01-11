@@ -7,8 +7,11 @@ import { getRedisConfig, getEventStream } from '../../../config/redisConfig';
 import { getSecret } from '../../utils/getSecret';
 import { getConnection } from '../../db/db';
 
-const CONSUMER_GROUP = 'emailNotificationGroup';
 const PROCESSED_EVENTS_TTL = 60 * 60 * 24 * 3; // 3 days in seconds
+
+// Get consumer group from config
+const config = getRedisConfig();
+const CONSUMER_GROUP = config.eventBus.consumerGroup;
 
 export async function initializeEmailNotificationConsumer(tenantId: string) {
   const config = getRedisConfig();
@@ -40,11 +43,21 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
   for (const eventType of Object.keys(EventSchemas)) {
     const streamKey = getEventStream(eventType);
     try {
+      // Check if stream exists
+      const streamInfo = await client.xInfoStream(streamKey).catch(() => null);
+      
+      // If stream doesn't exist, create it with initial message
+      if (!streamInfo) {
+        await client.xAdd(streamKey, '*', { event: JSON.stringify({ init: true }) });
+      }
+
+      // Create consumer group
       await client.xGroupCreate(streamKey, CONSUMER_GROUP, '0', { MKSTREAM: true });
       logger.info(`[EmailNotificationConsumer] Created consumer group for stream: ${streamKey}`);
     } catch (error) {
       // Ignore if group already exists
       if (!(error instanceof Error && error.message.includes('BUSYGROUP'))) {
+        logger.error(`[EmailNotificationConsumer] Error creating consumer group for ${streamKey}:`, error);
         throw error;
       }
     }
@@ -56,7 +69,8 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
     switch (event.eventType) {
       case 'TICKET_CREATED':
       case 'TICKET_UPDATED':
-      case 'TICKET_CLOSED': {
+      case 'TICKET_CLOSED':
+      case 'TICKET_ASSIGNED': {
         const ticket = await knex('tickets as t')
           .select(
             't.assigned_user_id',
@@ -66,9 +80,18 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
             'p.priority_name',
             's.name as status_name'
           )
-          .leftJoin('companies as c', 't.company_id', 'c.company_id')
-          .leftJoin('priorities as p', 't.priority_id', 'p.priority_id')
-          .leftJoin('statuses as s', 't.status_id', 's.status_id')
+          .leftJoin('companies as c', function() {
+            this.on('t.company_id', 'c.company_id')
+                .andOn('t.tenant', 'c.tenant');
+          })
+          .leftJoin('priorities as p', function() {
+            this.on('t.priority_id', 'p.priority_id')
+                .andOn('t.tenant', 'p.tenant');
+          })
+          .leftJoin('statuses as s', function() {
+            this.on('t.status_id', 's.status_id')
+                .andOn('t.tenant', 's.tenant');
+          })
           .where('t.ticket_id', event.payload.ticketId)
           .first();
 
@@ -113,6 +136,35 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
           .first();
         return company?.billing_email || null;
       }
+
+      case 'PROJECT_CREATED':
+      case 'PROJECT_UPDATED':
+      case 'PROJECT_CLOSED': {
+        const project = await knex('projects as p')
+          .select(
+            'p.*',
+            'c.email as company_email',
+            's.name as status_name'
+          )
+          .leftJoin('companies as c', function() {
+            this.on('p.company_id', 'c.company_id')
+                .andOn('p.tenant', 'c.tenant');
+          })
+          .leftJoin('statuses as s', function() {
+            this.on('p.status', 's.status_id')
+                .andOn('p.tenant', 's.tenant');
+          })
+          .where('p.project_id', event.payload.projectId)
+          .first();
+
+        if (project) {
+          event.payload.projectNumber = project.project_number;
+          event.payload.name = project.project_name;
+          event.payload.status = project.status_name || 'Unknown';
+        }
+
+        return project?.company_email || null;
+      }
     }
     
     return null;
@@ -126,6 +178,8 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
         return 'ticket-updated';
       case 'TICKET_CLOSED':
         return 'ticket-closed';
+      case 'TICKET_ASSIGNED':
+        return 'ticket-assigned';
       case 'TIME_ENTRY_SUBMITTED':
         return 'time-entry-submitted';
       case 'TIME_ENTRY_APPROVED':
@@ -134,6 +188,12 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
         return 'invoice-generated';
       case 'INVOICE_FINALIZED':
         return 'invoice-finalized';
+      case 'PROJECT_CREATED':
+        return 'project-created';
+      case 'PROJECT_UPDATED':
+        return 'project-updated';
+      case 'PROJECT_CLOSED':
+        return 'project-closed';
       default:
         throw new Error(`No email template defined for event type: ${eventType}`);
     }
@@ -147,6 +207,8 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
         return 'Ticket Updated';
       case 'TICKET_CLOSED':
         return 'Ticket Closed';
+      case 'TICKET_ASSIGNED':
+        return 'Ticket Assignment Changed';
       case 'TIME_ENTRY_SUBMITTED':
         return 'Time Entry Submitted for Approval';
       case 'TIME_ENTRY_APPROVED':
@@ -155,6 +217,12 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
         return 'New Invoice Generated';
       case 'INVOICE_FINALIZED':
         return 'Invoice Finalized';
+      case 'PROJECT_CREATED':
+        return `New Project: ${event.payload.name}`;
+      case 'PROJECT_UPDATED':
+        return `Project Updated: ${event.payload.name}`;
+      case 'PROJECT_CLOSED':
+        return `Project Closed: ${event.payload.name}`;
       default:
         return `${event.eventType} Notification`;
     }
@@ -239,7 +307,14 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
                 to: recipientEmail,
                 subject: await getEmailSubject(event),
                 template: await getEmailTemplate(event.eventType),
-                context: {
+                context: event.eventType.startsWith('PROJECT_') ? {
+                  project: {
+                    id: event.payload.projectNumber || event.payload.projectId,
+                    name: event.payload.name,
+                    status: event.payload.status,
+                    url: `/projects/${event.payload.projectNumber || event.payload.projectId}`
+                  }
+                } : {
                   ticket: {
                     id: event.payload.ticketNumber || event.payload.ticketId,
                     title: event.payload.title,
@@ -362,7 +437,14 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
                   to: recipientEmail,
                   subject: await getEmailSubject(event),
                   template: await getEmailTemplate(event.eventType),
-                  context: {
+                  context: event.eventType.startsWith('PROJECT_') ? {
+                    project: {
+                      id: event.payload.projectNumber || event.payload.projectId,
+                      name: event.payload.name,
+                      status: event.payload.status,
+                      url: `/projects/${event.payload.projectNumber || event.payload.projectId}`
+                    }
+                  } : {
                     ticket: {
                       id: event.payload.ticketNumber || event.payload.ticketId,
                       title: event.payload.title,

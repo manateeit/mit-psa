@@ -27,6 +27,12 @@ exports.seed = async function(knex) {
       is_default_enabled: true
     },
     {
+      name: 'Ticket Comments',
+      description: 'Notifications related to ticket comments',
+      is_enabled: true,
+      is_default_enabled: true
+    },
+    {
       name: 'Invoices',
       description: 'Notifications related to billing and invoices',
       is_enabled: true,
@@ -55,6 +61,13 @@ exports.seed = async function(knex) {
   // Insert subtypes (system-wide)
   await knex('notification_subtypes').insert([
     // Ticket notifications
+    {
+      category_id: categoryMap.Tickets.id,
+      name: 'Ticket Assigned',
+      description: 'When a ticket is assigned to a user',
+      is_enabled: true,
+      is_default_enabled: true
+    },
     {
       category_id: categoryMap.Tickets.id,
       name: 'Ticket Created',
@@ -103,6 +116,34 @@ exports.seed = async function(knex) {
     // Project notifications
     {
       category_id: categoryMap.Projects.id,
+      name: 'Project Updated',
+      description: 'When a project is modified',
+      is_enabled: true,
+      is_default_enabled: true
+    },
+    {
+      category_id: categoryMap.Projects.id,
+      name: 'Project Closed',
+      description: 'When a project is closed',
+      is_enabled: true,
+      is_default_enabled: true
+    },
+    {
+      category_id: categoryMap.Projects.id,
+      name: 'Project Assigned',
+      description: 'When a project is assigned to a user',
+      is_enabled: true,
+      is_default_enabled: true
+    },
+    {
+      category_id: categoryMap.Projects.id,
+      name: 'Project Task Assigned',
+      description: 'When a project task is assigned to a user',
+      is_enabled: true,
+      is_default_enabled: true
+    },
+    {
+      category_id: categoryMap.Projects.id,
       name: 'Project Created',
       description: 'When a new project is created',
       is_enabled: true,
@@ -142,6 +183,13 @@ exports.seed = async function(knex) {
       category_id: categoryMap['Time Entries'].id,
       name: 'Time Entry Rejected',
       description: 'When time entries are rejected',
+      is_enabled: true,
+      is_default_enabled: true
+    },
+    {
+      category_id: categoryMap['Ticket Comments'].id,
+      name: 'Ticket Comment Added',
+      description: 'When a comment is added to a ticket',
       is_enabled: true,
       is_default_enabled: true
     }

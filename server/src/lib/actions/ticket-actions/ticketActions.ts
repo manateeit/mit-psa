@@ -243,6 +243,15 @@ export async function addTicket(data: FormData, user: IUser): Promise<ITicket|un
         userId: user.user_id,
       });
 
+      // If ticket has assigned_to, publish assigned event
+      if (newTicket.assigned_to) {
+        await safePublishEvent('TICKET_ASSIGNED', {
+          tenantId: tenant,
+          ticketId: newTicket.ticket_id,
+          userId: user.user_id,
+        });
+      }
+
       return convertDates(newTicket);
     });
 
@@ -364,6 +373,14 @@ export async function updateTicket(id: string, data: Partial<ITicket>, user: IUs
       if (newStatus?.is_closed && !oldStatus?.is_closed) {
         // Ticket was closed
         await safePublishEvent('TICKET_CLOSED', {
+          tenantId: tenant,
+          ticketId: id,
+          userId: user.user_id,
+          changes: updateData
+        });
+      } else if (updateData.assigned_to && updateData.assigned_to !== currentTicket.assigned_to) {
+        // Ticket was assigned
+        await safePublishEvent('TICKET_ASSIGNED', {
           tenantId: tenant,
           ticketId: id,
           userId: user.user_id,
@@ -503,6 +520,57 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
   } catch (error) {
     console.error('Failed to fetch tickets:', error);
     throw new Error('Failed to fetch tickets');
+  }
+}
+
+export async function addTicketComment(ticketId: string, comment: string, isInternal: boolean, user: IUser): Promise<void> {
+  if (!await hasPermission(user, 'ticket', 'update')) {
+    throw new Error('Permission denied: Cannot add comment');
+  }
+
+  try {
+    const {knex: db, tenant} = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    // Verify ticket exists
+    const ticket = await db('tickets')
+      .where({ ticket_id: ticketId, tenant })
+      .first();
+
+    if (!ticket) {
+      throw new Error('Ticket not found');
+    }
+
+    // Insert comment
+    const [newComment] = await db('comments').insert({
+      tenant,
+      ticket_id: ticketId,
+      user_id: user.user_id,
+      author_type: 'user',
+      note: comment,
+      is_internal: isInternal,
+      is_resolution: false,
+      is_initial_description: false
+    }).returning('*');
+
+    // Publish comment added event
+    await safePublishEvent('TICKET_COMMENT_ADDED', {
+      tenantId: tenant,
+      ticketId: ticketId,
+      userId: user.user_id,
+      comment: {
+        id: newComment.id,
+        content: comment,
+        author: `${user.first_name} ${user.last_name}`,
+        isInternal
+      }
+    });
+
+  } catch (error) {
+    console.error('Failed to add ticket comment:', error);
+    throw new Error('Failed to add ticket comment');
   }
 }
 

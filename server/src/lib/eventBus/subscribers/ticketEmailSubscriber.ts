@@ -5,7 +5,9 @@ import {
   EventSchemas,
   TicketCreatedEvent,
   TicketUpdatedEvent,
-  TicketClosedEvent
+  TicketClosedEvent,
+  TicketAssignedEvent,
+  TicketCommentAddedEvent
 } from '../events';
 import { getEmailService } from '../../notifications/emailService';
 import { sendEventEmail } from '../../notifications/sendEventEmail';
@@ -16,19 +18,19 @@ import { getSecret } from '../../utils/getSecret';
 /**
  * Format changes record into a readable string
  */
-async function formatChanges(db: any, changes: Record<string, unknown>): Promise<string> {
+async function formatChanges(db: any, changes: Record<string, unknown>, tenantId: string): Promise<string> {
   const formattedChanges = await Promise.all(
     Object.entries(changes).map(async ([field, value]) => {
       // Handle different types of values
       if (typeof value === 'object' && value !== null) {
         const { from, to } = value as { from?: unknown; to?: unknown };
         if (from !== undefined && to !== undefined) {
-          const fromValue = await resolveValue(db, field, from);
-          const toValue = await resolveValue(db, field, to);
+          const fromValue = await resolveValue(db, field, from, tenantId);
+          const toValue = await resolveValue(db, field, to, tenantId);
           return `${formatFieldName(field)}: ${fromValue} → ${toValue}`;
         }
       }
-      const resolvedValue = await resolveValue(db, field, value);
+      const resolvedValue = await resolveValue(db, field, value, tenantId);
       return `${formatFieldName(field)}: ${resolvedValue}`;
     })
   );
@@ -38,7 +40,7 @@ async function formatChanges(db: any, changes: Record<string, unknown>): Promise
 /**
  * Resolve field values to human-readable names
  */
-async function resolveValue(db: any, field: string, value: unknown): Promise<string> {
+async function resolveValue(db: any, field: string, value: unknown, tenantId: string): Promise<string> {
   if (value === null || value === undefined) {
     return 'None';
   }
@@ -47,7 +49,7 @@ async function resolveValue(db: any, field: string, value: unknown): Promise<str
   switch (field) {
     case 'status_id':
       const status = await db('statuses')
-        .where('status_id', value)
+        .where({ status_id: value, tenant: tenantId })
         .first();
       return status?.name || String(value);
 
@@ -55,13 +57,13 @@ async function resolveValue(db: any, field: string, value: unknown): Promise<str
     case 'assigned_to':
     case 'closed_by':
       const user = await db('users')
-        .where('user_id', value)
+        .where({ user_id: value, tenant: tenantId })
         .first();
       return user ? `${user.first_name} ${user.last_name}` : String(value);
 
     case 'priority_id':
       const priority = await db('priorities')
-        .where('priority_id', value)
+        .where({ priority_id: value, tenant: tenantId })
         .first();
       return priority?.priority_name || String(value);
 
@@ -124,10 +126,22 @@ async function handleTicketCreated(event: TicketCreatedEvent): Promise<void> {
         'u.first_name as updated_by_first_name',
         'u.last_name as updated_by_last_name'
       )
-      .leftJoin('companies as c', 't.company_id', 'c.company_id')
-      .leftJoin('priorities as p', 't.priority_id', 'p.priority_id')
-      .leftJoin('statuses as s', 't.status_id', 's.status_id')
-      .leftJoin('users as u', 't.updated_by', 'u.user_id')
+      .leftJoin('companies as c', function() {
+        this.on('t.company_id', 'c.company_id')
+            .andOn('t.tenant', 'c.tenant');
+      })
+      .leftJoin('priorities as p', function() {
+        this.on('t.priority_id', 'p.priority_id')
+            .andOn('t.tenant', 'p.tenant');
+      })
+      .leftJoin('statuses as s', function() {
+        this.on('t.status_id', 's.status_id')
+            .andOn('t.tenant', 's.tenant');
+      })
+      .leftJoin('users as u', function() {
+        this.on('t.updated_by', 'u.user_id')
+            .andOn('t.tenant', 'u.tenant');
+      })
       .where('t.ticket_id', payload.ticketId)
       .first();
 
@@ -199,9 +213,18 @@ async function handleTicketUpdated(event: TicketUpdatedEvent): Promise<void> {
         'p.priority_name',
         's.name as status_name'
       )
-      .leftJoin('companies as c', 't.company_id', 'c.company_id')
-      .leftJoin('priorities as p', 't.priority_id', 'p.priority_id')
-      .leftJoin('statuses as s', 't.status_id', 's.status_id')
+      .leftJoin('companies as c', function() {
+        this.on('t.company_id', 'c.company_id')
+            .andOn('t.tenant', 'c.tenant');
+      })
+      .leftJoin('priorities as p', function() {
+        this.on('t.priority_id', 'p.priority_id')
+            .andOn('t.tenant', 'p.tenant');
+      })
+      .leftJoin('statuses as s', function() {
+        this.on('t.status_id', 's.status_id')
+            .andOn('t.tenant', 's.tenant');
+      })
       .where('t.ticket_id', payload.ticketId)
       .first();
 
@@ -230,29 +253,12 @@ async function handleTicketUpdated(event: TicketUpdatedEvent): Promise<void> {
       status: ticket.status_name
     });
 
-    console.log('[EmailSubscriber] Executing SQL query:', {
-      ticketId: payload.ticketId,
-      query: db('tickets as t')
-        .select(
-          't.*',
-          'c.email as company_email',
-          'p.priority_name',
-          's.name as status_name'
-        )
-        .leftJoin('companies as c', 't.company_id', 'c.company_id')
-        .leftJoin('priorities as p', 't.priority_id', 'p.priority_id')
-        .leftJoin('statuses as s', 't.status_id', 's.status_id')
-        .where('t.ticket_id', payload.ticketId)
-        .toSQL()
-        .sql
-    });
-
     // Format changes with database lookups
-    const formattedChanges = await formatChanges(db, payload.changes || {});
+    const formattedChanges = await formatChanges(db, payload.changes || {}, tenantId);
 
     // Get updater's name
     const updater = await db('users')
-      .where('user_id', payload.userId)
+      .where({ user_id: payload.userId, tenant: tenantId })
       .first();
 
     console.log('[EmailSubscriber] Sending update notification email:', {
@@ -260,23 +266,51 @@ async function handleTicketUpdated(event: TicketUpdatedEvent): Promise<void> {
       subject: `Ticket Updated: ${ticket.title}`,
       template: 'ticket-updated'
     });
+    const emailContext = {
+      ticket: {
+        id: ticket.ticket_number,
+        title: ticket.title,
+        priority: ticket.priority_name || 'Unknown',
+        status: ticket.status_name || 'Unknown',
+        changes: formattedChanges,
+        updatedBy: updater ? `${updater.first_name} ${updater.last_name}` : payload.userId,
+        url: `/tickets/${ticket.ticket_number}`
+      }
+    };
+
+    // Send to company email
     await sendEventEmail({
       tenantId,
       to: ticket.company_email,
       subject: `Ticket Updated: ${ticket.title}`,
       template: 'ticket-updated',
-      context: {
-        ticket: {
-          id: ticket.ticket_number,
-          title: ticket.title,
-          priority: ticket.priority_name || 'Unknown',
-          status: ticket.status_name || 'Unknown',
-          changes: formattedChanges,
-          updatedBy: updater ? `${updater.first_name} ${updater.last_name}` : payload.userId,
-          url: `/tickets/${ticket.ticket_number}`
-        }
-      }
+      context: emailContext
     });
+
+    // Get and notify all additional resources
+    const additionalResources = await db('ticket_resources as tr')
+      .select('u.email as email')
+      .leftJoin('users as u', function() {
+        this.on('tr.additional_user_id', 'u.user_id')
+            .andOn('tr.tenant', 'u.tenant');
+      })
+      .where({
+        'tr.ticket_id': payload.ticketId,
+        'tr.tenant': tenantId
+      });
+
+    // Send to all additional resources
+    for (const resource of additionalResources) {
+      if (resource.email) {
+        await sendEventEmail({
+          tenantId,
+          to: resource.email,
+          subject: `Ticket Updated: ${ticket.title}`,
+          template: 'ticket-updated',
+          context: emailContext
+        });
+      }
+    }
 
   } catch (error) {
     logger.error('Error handling ticket updated event:', {
@@ -291,6 +325,201 @@ async function handleTicketUpdated(event: TicketUpdatedEvent): Promise<void> {
 /**
  * Handle ticket closed events
  */
+async function handleTicketAssigned(event: TicketAssignedEvent): Promise<void> {
+  const { payload } = event;
+  const { tenantId } = payload;
+  
+  try {
+    const { knex: db } = await createTenantKnex();
+    
+    // Get ticket details
+    const ticket = await db('tickets as t')
+      .select(
+        't.*',
+        'c.email as company_email',
+        'p.priority_name',
+        's.name as status_name',
+        'u.email as assigned_to_email'
+      )
+      .leftJoin('companies as c', function() {
+        this.on('t.company_id', 'c.company_id')
+            .andOn('t.tenant', 'c.tenant');
+      })
+      .leftJoin('priorities as p', function() {
+        this.on('t.priority_id', 'p.priority_id')
+            .andOn('t.tenant', 'p.tenant');
+      })
+      .leftJoin('statuses as s', function() {
+        this.on('t.status_id', 's.status_id')
+            .andOn('t.tenant', 's.tenant');
+      })
+      .leftJoin('users as u', function() {
+        this.on('t.assigned_to', 'u.user_id')
+            .andOn('t.tenant', 'u.tenant');
+      })
+      .where('t.ticket_id', payload.ticketId)
+      .first();
+
+    if (!ticket) {
+      logger.warn('Could not send ticket assigned email - missing ticket:', {
+        eventId: event.id,
+        ticketId: payload.ticketId
+      });
+      return;
+    }
+
+    // Send to assigned user
+    if (ticket.assigned_to_email) {
+      await sendEventEmail({
+        tenantId,
+        to: ticket.assigned_to_email,
+        subject: `You have been assigned to ticket: ${ticket.title}`,
+        template: 'ticket-assigned',
+        context: {
+          ticket: {
+            id: ticket.ticket_number,
+            title: ticket.title,
+            priority: ticket.priority_name || 'Unknown',
+            status: ticket.status_name || 'Unknown',
+            assignedBy: payload.userId,
+            url: `/tickets/${ticket.ticket_number}`
+          }
+        }
+      });
+    }
+
+    // Get all additional resources
+    const additionalResources = await db('ticket_resources as tr')
+      .select('u.email as email')
+      .leftJoin('users as u', function() {
+        this.on('tr.additional_user_id', 'u.user_id')
+            .andOn('tr.tenant', 'u.tenant');
+      })
+      .where({
+        'tr.ticket_id': payload.ticketId,
+        'tr.tenant': tenantId
+      });
+
+    // Send to all additional resources
+    for (const resource of additionalResources) {
+      if (resource.email) {
+        await sendEventEmail({
+          tenantId,
+          to: resource.email,
+          subject: `You have been added as additional resource to ticket: ${ticket.title}`,
+          template: 'ticket-assigned',
+          context: {
+            ticket: {
+              id: ticket.ticket_number,
+              title: ticket.title,
+              priority: ticket.priority_name || 'Unknown',
+              status: ticket.status_name || 'Unknown',
+              assignedBy: payload.userId,
+              url: `/tickets/${ticket.ticket_number}`
+            }
+          }
+        });
+      }
+    }
+
+  } catch (error) {
+    logger.error('Error handling ticket assigned event:', {
+      error,
+      eventId: event.id,
+      ticketId: payload.ticketId
+    });
+    throw error;
+  }
+}
+
+async function handleTicketCommentAdded(event: TicketCommentAddedEvent): Promise<void> {
+  const { payload } = event;
+  const { tenantId } = payload;
+  
+  try {
+    const { knex: db } = await createTenantKnex();
+    
+    // Get ticket details with assigned user
+    const ticket = await db('tickets as t')
+      .select(
+        't.*',
+        'u.email as assigned_to_email'
+      )
+      .leftJoin('users as u', function() {
+        this.on('t.assigned_to', 'u.user_id')
+            .andOn('t.tenant', 'u.tenant');
+      })
+      .where('t.ticket_id', payload.ticketId)
+      .first();
+
+    if (!ticket) {
+      logger.warn('Could not send ticket comment email - missing ticket:', {
+        eventId: event.id,
+        ticketId: payload.ticketId
+      });
+      return;
+    }
+
+    // Get all additional resources
+    const additionalResources = await db('ticket_resources as tr')
+      .select('u.email as email')
+      .leftJoin('users as u', function() {
+        this.on('tr.additional_user_id', 'u.user_id')
+            .andOn('tr.tenant', 'u.tenant');
+      })
+      .where({
+        'tr.ticket_id': payload.ticketId,
+        'tr.tenant': tenantId
+      });
+
+    // Send to assigned user
+    if (ticket.assigned_to_email) {
+      await sendEventEmail({
+        tenantId,
+        to: ticket.assigned_to_email,
+        subject: `New Comment on Ticket: ${ticket.title}`,
+        template: 'ticket-comment-added',
+        context: {
+          ticket: {
+            id: ticket.ticket_number,
+            title: ticket.title,
+            url: `/tickets/${ticket.ticket_number}`
+          },
+          comment: payload.comment
+        }
+      });
+    }
+
+    // Send to all additional resources
+    for (const resource of additionalResources) {
+      if (resource.email) {
+        await sendEventEmail({
+          tenantId,
+          to: resource.email,
+          subject: `New Comment on Ticket: ${ticket.title}`,
+          template: 'ticket-comment-added',
+          context: {
+            ticket: {
+              id: ticket.ticket_number,
+              title: ticket.title,
+              url: `/tickets/${ticket.ticket_number}`
+            },
+            comment: payload.comment
+          }
+        });
+      }
+    }
+
+  } catch (error) {
+    logger.error('Error handling ticket comment added event:', {
+      error,
+      eventId: event.id,
+      ticketId: payload.ticketId
+    });
+    throw error;
+  }
+}
+
 async function handleTicketClosed(event: TicketClosedEvent): Promise<void> {
   const { payload } = event;
   const { tenantId } = payload;
@@ -306,9 +535,18 @@ async function handleTicketClosed(event: TicketClosedEvent): Promise<void> {
         'p.priority_name',
         's.name as status_name'
       )
-      .leftJoin('companies as c', 't.company_id', 'c.company_id')
-      .leftJoin('priorities as p', 't.priority_id', 'p.priority_id')
-      .leftJoin('statuses as s', 't.status_id', 's.status_id')
+      .leftJoin('companies as c', function() {
+        this.on('t.company_id', 'c.company_id')
+            .andOn('t.tenant', 'c.tenant');
+      })
+      .leftJoin('priorities as p', function() {
+        this.on('t.priority_id', 'p.priority_id')
+            .andOn('t.tenant', 'p.tenant');
+      })
+      .leftJoin('statuses as s', function() {
+        this.on('t.status_id', 's.status_id')
+            .andOn('t.tenant', 's.tenant');
+      })
       .where('t.ticket_id', payload.ticketId)
       .first();
 
@@ -320,24 +558,52 @@ async function handleTicketClosed(event: TicketClosedEvent): Promise<void> {
       return;
     }
 
+    const emailContext = {
+      ticket: {
+        id: ticket.ticket_number,
+        title: ticket.title,
+        priority: ticket.priority_name || 'Unknown',
+        status: ticket.status_name || 'Unknown',
+        changes: await formatChanges(db, payload.changes || {}, tenantId),
+        closedBy: payload.userId,
+        resolution: ticket.resolution || '',
+        url: `/tickets/${ticket.ticket_number}`
+      }
+    };
+
+    // Send to company email
     await sendEventEmail({
       tenantId,
       to: ticket.company_email,
       subject: `Ticket Closed: ${ticket.title}`,
       template: 'ticket-closed',
-      context: {
-        ticket: {
-          id: ticket.ticket_number,
-          title: ticket.title,
-          priority: ticket.priority_name || 'Unknown',
-          status: ticket.status_name || 'Unknown',
-          changes: await formatChanges(db, payload.changes || {}),
-          closedBy: payload.userId,
-          resolution: ticket.resolution || '',
-          url: `/tickets/${ticket.ticket_number}`
-        }
-      }
+      context: emailContext
     });
+
+    // Get and notify all additional resources
+    const additionalResources = await db('ticket_resources as tr')
+      .select('u.email as email')
+      .leftJoin('users as u', function() {
+        this.on('tr.additional_user_id', 'u.user_id')
+            .andOn('tr.tenant', 'u.tenant');
+      })
+      .where({
+        'tr.ticket_id': payload.ticketId,
+        'tr.tenant': tenantId
+      });
+
+    // Send to all additional resources
+    for (const resource of additionalResources) {
+      if (resource.email) {
+        await sendEventEmail({
+          tenantId,
+          to: resource.email,
+          subject: `Ticket Closed: ${ticket.title}`,
+          template: 'ticket-closed',
+          context: emailContext
+        });
+      }
+    }
 
   } catch (error) {
     logger.error('Error handling ticket closed event:', {
@@ -380,6 +646,12 @@ async function handleTicketEvent(event: BaseEvent): Promise<void> {
     case 'TICKET_CLOSED':
       await handleTicketClosed(validatedEvent as TicketClosedEvent);
       break;
+    case 'TICKET_ASSIGNED':
+      await handleTicketAssigned(validatedEvent as TicketAssignedEvent);
+      break;
+    case 'TICKET_COMMENT_ADDED':
+      await handleTicketCommentAdded(validatedEvent as TicketCommentAddedEvent);
+      break;
     default:
       logger.warn('[TicketEmailSubscriber] Unhandled ticket event type:', {
         eventType: event.eventType,
@@ -399,7 +671,9 @@ export async function registerTicketEmailSubscriber(): Promise<void> {
     const ticketEventTypes: EventType[] = [
       'TICKET_CREATED',
       'TICKET_UPDATED',
-      'TICKET_CLOSED'
+      'TICKET_CLOSED',
+      'TICKET_ASSIGNED',
+      'TICKET_COMMENT_ADDED'
     ];
 
     for (const eventType of ticketEventTypes) {

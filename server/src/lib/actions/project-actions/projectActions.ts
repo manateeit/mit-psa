@@ -11,6 +11,7 @@ import { hasPermission } from '@/lib/auth/rbac';
 import { validateData, validateArray } from '../../utils/validation';
 import { createTenantKnex } from '@/lib/db';
 import { z } from 'zod';
+import { publishEvent } from '@/lib/eventBus/publishers';
 import { ICompany } from '@/interfaces/company.interfaces';
 import { getAllCompanies } from '@/lib/actions/companyActions';
 import { 
@@ -371,6 +372,16 @@ export async function createProject(projectData: Omit<IProject, 'project_id' | '
             throw new Error('Failed to fetch created project details');
         }
 
+        // Publish project created event
+        await publishEvent({
+            eventType: 'PROJECT_CREATED',
+            payload: {
+                tenantId: currentUser.tenant,
+                projectId: fullProject.project_id,
+                userId: currentUser.user_id
+            }
+        });
+
         return fullProject;
     } catch (error) {
         console.error('Error creating project:', error);
@@ -391,11 +402,22 @@ export async function updateProject(projectId: string, projectData: Partial<IPro
         
         const updatedProject = await ProjectModel.update(projectId, validatedData);
 
-        // If assigned_to was updated, fetch the full user details
+        // If assigned_to was updated, fetch the full user details and publish event
         if ('assigned_to' in projectData) {
             if (updatedProject.assigned_to) {
                 const user = await findUserById(updatedProject.assigned_to);
                 updatedProject.assigned_user = user || null;
+
+                // Publish project assigned event
+                await publishEvent({
+                    eventType: 'PROJECT_ASSIGNED',
+                    payload: {
+                        tenantId: currentUser.tenant,
+                        projectId: projectId,
+                        userId: currentUser.user_id,
+                        assignedTo: updatedProject.assigned_to
+                    }
+                });
             } else {
                 updatedProject.assigned_user = null;
             }
@@ -410,6 +432,17 @@ export async function updateProject(projectId: string, projectData: Partial<IPro
                 updatedProject.contact_name = null;
             }
         }
+
+        // Publish project updated event
+        await publishEvent({
+            eventType: 'PROJECT_UPDATED',
+            payload: {
+                tenantId: currentUser.tenant,
+                projectId: projectId,
+                userId: currentUser.user_id,
+                changes: validatedData
+            }
+        });
 
         return updatedProject;
     } catch (error) {
@@ -600,6 +633,7 @@ export async function addStatusToProject(
 }
 
 export async function updateProjectStatus(
+    projectId: string,
     statusId: string,
     statusData: Partial<IStatus>,
     mappingData: Partial<IProjectStatusMapping>
@@ -611,7 +645,22 @@ export async function updateProjectStatus(
         }
 
         await checkPermission(currentUser, 'project', 'update');
-        return await ProjectModel.updateProjectStatus(statusId, statusData, mappingData);
+        const updatedStatus = await ProjectModel.updateProjectStatus(statusId, statusData, mappingData);
+
+        // If the status is closed, publish project closed event
+        if (statusData.is_closed) {
+            await publishEvent({
+                eventType: 'PROJECT_CLOSED',
+                payload: {
+                    tenantId: currentUser.tenant,
+                    projectId: projectId,
+                    userId: currentUser.user_id,
+                    changes: statusData
+                }
+            });
+        }
+
+        return updatedStatus;
     } catch (error) {
         console.error('Error updating project status:', error);
         throw new Error('Failed to update project status');
