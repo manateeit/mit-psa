@@ -116,6 +116,20 @@ exports.seed = async function(knex) {
     // Project notifications
     {
       category_id: categoryMap.Projects.id,
+      name: 'Project Updated',
+      description: 'When a project is modified',
+      is_enabled: true,
+      is_default_enabled: true
+    },
+    {
+      category_id: categoryMap.Projects.id,
+      name: 'Project Closed',
+      description: 'When a project is closed',
+      is_enabled: true,
+      is_default_enabled: true
+    },
+    {
+      category_id: categoryMap.Projects.id,
       name: 'Project Assigned',
       description: 'When a project is assigned to a user',
       is_enabled: true,

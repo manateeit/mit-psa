@@ -11,6 +11,8 @@ export const EventTypeEnum = z.enum([
   'PROJECT_CREATED',
   'PROJECT_UPDATED',
   'PROJECT_CLOSED',
+  'PROJECT_ASSIGNED',
+  'PROJECT_TASK_ASSIGNED',
   'TIME_ENTRY_SUBMITTED',
   'TIME_ENTRY_APPROVED',
   'INVOICE_GENERATED',
@@ -50,6 +52,16 @@ export const ProjectEventPayloadSchema = BasePayloadSchema.extend({
   projectId: z.string().uuid(),
   userId: z.string().uuid(),
   changes: z.record(z.unknown()).optional(),
+  assignedTo: z.string().uuid().optional(),
+});
+
+// Project task event payload schema
+export const ProjectTaskEventPayloadSchema = BasePayloadSchema.extend({
+  projectId: z.string().uuid(),
+  taskId: z.string().uuid(),
+  userId: z.string().uuid(),
+  assignedTo: z.string().uuid(),
+  additionalUsers: z.array(z.string().uuid()).optional(),
 });
 
 // Time entry event payload schema
@@ -79,6 +91,8 @@ export const EventPayloadSchemas = {
   PROJECT_CREATED: ProjectEventPayloadSchema,
   PROJECT_UPDATED: ProjectEventPayloadSchema,
   PROJECT_CLOSED: ProjectEventPayloadSchema,
+  PROJECT_ASSIGNED: ProjectEventPayloadSchema,
+  PROJECT_TASK_ASSIGNED: ProjectTaskEventPayloadSchema,
   TIME_ENTRY_SUBMITTED: TimeEntryEventPayloadSchema,
   TIME_ENTRY_APPROVED: TimeEntryEventPayloadSchema,
   INVOICE_GENERATED: InvoiceEventPayloadSchema,
@@ -113,6 +127,10 @@ export type InvoiceFinalizedEvent = z.infer<typeof EventSchemas.INVOICE_FINALIZE
 export type TicketAssignedEvent = z.infer<typeof EventSchemas.TICKET_ASSIGNED>;
 export type TicketCommentAddedEvent = z.infer<typeof EventSchemas.TICKET_COMMENT_ADDED>;
 
+// TypeScript types for new events
+export type ProjectAssignedEvent = z.infer<typeof EventSchemas.PROJECT_ASSIGNED>;
+export type ProjectTaskAssignedEvent = z.infer<typeof EventSchemas.PROJECT_TASK_ASSIGNED>;
+
 export type Event =
   | TicketCreatedEvent
   | TicketUpdatedEvent
@@ -122,6 +140,8 @@ export type Event =
   | ProjectCreatedEvent
   | ProjectUpdatedEvent
   | ProjectClosedEvent
+  | ProjectAssignedEvent
+  | ProjectTaskAssignedEvent
   | TimeEntrySubmittedEvent
   | TimeEntryApprovedEvent
   | InvoiceGeneratedEvent

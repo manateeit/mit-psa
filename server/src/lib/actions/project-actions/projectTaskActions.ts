@@ -3,6 +3,7 @@
 import { Knex } from 'knex';
 import ProjectTaskModel from '@/lib/models/projectTask';
 import ProjectModel from '@/lib/models/project';
+import { publishEvent } from '@/lib/eventBus/publishers';
 import { IProjectTask, IProjectTicketLink, IProjectStatusMapping, ITaskChecklistItem, IProjectTicketLinkWithDetails } from '@/interfaces/project.interfaces';
 import { IUser, IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
@@ -45,6 +46,24 @@ export async function updateTaskWithChecklist(
 
         const updatedTask = await ProjectTaskModel.updateTask(taskId, validatedTaskData);
 
+        // If assigned_to was updated, publish event
+        if ('assigned_to' in taskData && updatedTask.assigned_to) {
+            const phase = await ProjectModel.getPhaseById(updatedTask.phase_id);
+            if (phase) {
+                await publishEvent({
+                    eventType: 'PROJECT_TASK_ASSIGNED',
+                    payload: {
+                        tenantId: currentUser.tenant,
+                        projectId: phase.project_id,
+                        taskId: taskId,
+                        userId: currentUser.user_id,
+                        assignedTo: updatedTask.assigned_to,
+                        additionalUsers: [] // No additional users in this case
+                    }
+                });
+            }
+        }
+
         if (checklist_items) {
             await ProjectTaskModel.deleteChecklistItems(taskId);
             
@@ -78,6 +97,24 @@ export async function addTaskToPhase(
         await checkPermission(currentUser, 'project', 'update');
 
         const newTask = await ProjectTaskModel.addTask(phaseId, taskData);
+
+        // If task is assigned to someone, publish event
+        if (taskData.assigned_to) {
+            const phase = await ProjectModel.getPhaseById(phaseId);
+            if (phase) {
+                await publishEvent({
+                    eventType: 'PROJECT_TASK_ASSIGNED',
+                    payload: {
+                        tenantId: currentUser.tenant,
+                        projectId: phase.project_id,
+                        taskId: newTask.task_id,
+                        userId: currentUser.user_id,
+                        assignedTo: taskData.assigned_to,
+                        additionalUsers: [] // No additional users in initial creation
+                    }
+                });
+            }
+        }
 
         for (const item of checklistItems) {
             await ProjectTaskModel.addChecklistItem(newTask.task_id, item);
@@ -343,6 +380,25 @@ export async function addTaskResourceAction(taskId: string, userId: string, role
 
         await checkPermission(currentUser, 'project', 'update');
         await ProjectTaskModel.addTaskResource(taskId, userId, role);
+
+        // When adding additional resource, publish task assigned event
+        const task = await ProjectTaskModel.getTaskById(taskId);
+        if (task) {
+            const phase = await ProjectModel.getPhaseById(task.phase_id);
+            if (phase) {
+                await publishEvent({
+                    eventType: 'PROJECT_TASK_ASSIGNED',
+                    payload: {
+                        tenantId: currentUser.tenant,
+                        projectId: phase.project_id,
+                        taskId: taskId,
+                        userId: currentUser.user_id,
+                        assignedTo: userId,
+                        additionalUsers: [] // This user is being added as a primary resource
+                    }
+                });
+            }
+        }
     } catch (error) {
         console.error('Error adding task resource:', error);
         throw error;

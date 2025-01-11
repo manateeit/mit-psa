@@ -80,9 +80,18 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
             'p.priority_name',
             's.name as status_name'
           )
-          .leftJoin('companies as c', 't.company_id', 'c.company_id')
-          .leftJoin('priorities as p', 't.priority_id', 'p.priority_id')
-          .leftJoin('statuses as s', 't.status_id', 's.status_id')
+          .leftJoin('companies as c', function() {
+            this.on('t.company_id', 'c.company_id')
+                .andOn('t.tenant', 'c.tenant');
+          })
+          .leftJoin('priorities as p', function() {
+            this.on('t.priority_id', 'p.priority_id')
+                .andOn('t.tenant', 'p.tenant');
+          })
+          .leftJoin('statuses as s', function() {
+            this.on('t.status_id', 's.status_id')
+                .andOn('t.tenant', 's.tenant');
+          })
           .where('t.ticket_id', event.payload.ticketId)
           .first();
 
@@ -137,8 +146,14 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
             'c.email as company_email',
             's.name as status_name'
           )
-          .leftJoin('companies as c', 'p.company_id', 'c.company_id')
-          .leftJoin('statuses as s', 'p.status', 's.status_id')
+          .leftJoin('companies as c', function() {
+            this.on('p.company_id', 'c.company_id')
+                .andOn('p.tenant', 'c.tenant');
+          })
+          .leftJoin('statuses as s', function() {
+            this.on('p.status', 's.status_id')
+                .andOn('p.tenant', 's.tenant');
+          })
           .where('p.project_id', event.payload.projectId)
           .first();
 

@@ -5,7 +5,9 @@ import {
   EventSchemas,
   ProjectCreatedEvent,
   ProjectUpdatedEvent,
-  ProjectClosedEvent
+  ProjectClosedEvent,
+  ProjectAssignedEvent,
+  ProjectTaskAssignedEvent
 } from '../events';
 import { sendEventEmail } from '../../notifications/sendEventEmail';
 import logger from '../../../utils/logger';
@@ -47,11 +49,14 @@ async function resolveValue(db: any, field: string, value: unknown): Promise<str
         .first();
       return status?.name || String(value);
 
-    case 'manager_id':
+    case 'assigned_to':
     case 'updated_by':
     case 'closed_by':
       const user = await db('users')
-        .where('user_id', value)
+        .where({
+          user_id: value,
+          is_inactive: false
+        })
         .first();
       return user ? `${user.first_name} ${user.last_name}` : String(value);
 
@@ -103,9 +108,19 @@ async function handleProjectCreated(event: ProjectCreatedEvent): Promise<void> {
         'u.first_name as manager_first_name',
         'u.last_name as manager_last_name'
       )
-      .leftJoin('companies as c', 'p.company_id', 'c.company_id')
-      .leftJoin('statuses as s', 'p.status', 's.status_id')
-      .leftJoin('users as u', 'p.assigned_to', 'u.user_id')
+      .leftJoin('companies as c', function() {
+        this.on('c.company_id', '=', 'p.company_id')
+            .andOn('c.tenant', '=', 'p.tenant');
+      })
+      .leftJoin('statuses as s', function() {
+        this.on('s.status_id', '=', 'p.status')
+            .andOn('s.tenant', '=', 'p.tenant');
+      })
+      .leftJoin('users as u', function() {
+        this.on('u.user_id', '=', 'p.assigned_to')
+            .andOn('u.tenant', '=', 'p.tenant')
+            .andOn('u.is_inactive', '=', db.raw('false'));
+      })
       .where('p.project_id', payload.projectId)
       .first();
 
@@ -189,9 +204,19 @@ async function handleProjectUpdated(event: ProjectUpdatedEvent): Promise<void> {
         'u.first_name as manager_first_name',
         'u.last_name as manager_last_name'
       )
-      .leftJoin('companies as c', 'p.company_id', 'c.company_id')
-      .leftJoin('statuses as s', 'p.status', 's.status_id')
-      .leftJoin('users as u', 'p.manager_id', 'u.user_id')
+      .leftJoin('companies as c', function() {
+        this.on('c.company_id', '=', 'p.company_id')
+            .andOn('c.tenant', '=', 'p.tenant');
+      })
+      .leftJoin('statuses as s', function() {
+        this.on('s.status_id', '=', 'p.status')
+            .andOn('s.tenant', '=', 'p.tenant');
+      })
+      .leftJoin('users as u', function() {
+        this.on('u.user_id', '=', 'p.assigned_to')
+            .andOn('u.tenant', '=', 'p.tenant')
+            .andOn('u.is_inactive', '=', db.raw('false'));
+      })
       .where('p.project_id', payload.projectId)
       .first();
 
@@ -208,7 +233,10 @@ async function handleProjectUpdated(event: ProjectUpdatedEvent): Promise<void> {
 
     // Get updater's name
     const updater = await db('users')
-      .where('user_id', payload.userId)
+      .where({
+        user_id: payload.userId,
+        is_inactive: false
+      })
       .first();
 
     await sendEventEmail({
@@ -259,9 +287,18 @@ async function handleProjectClosed(event: ProjectClosedEvent): Promise<void> {
         'u.first_name as manager_first_name',
         'u.last_name as manager_last_name'
       )
-      .leftJoin('companies as c', 'p.company_id', 'c.company_id')
-      .leftJoin('statuses as s', 'p.status', 's.status_id')
-      .leftJoin('users as u', 'p.manager_id', 'u.user_id')
+      .leftJoin('companies as c', function() {
+        this.on('c.company_id', '=', 'p.company_id')
+            .andOn('c.tenant', '=', 'p.tenant');
+      })
+      .leftJoin('statuses as s', function() {
+        this.on('s.status_id', '=', 'p.status')
+            .andOn('s.tenant', '=', 'p.tenant');
+      })
+      .leftJoin('users as u', function() {
+        this.on('u.user_id', '=', 'p.assigned_to')
+            .andOn('u.tenant', '=', 'p.tenant');
+      })
       .where('p.project_id', payload.projectId)
       .first();
 
@@ -303,6 +340,196 @@ async function handleProjectClosed(event: ProjectClosedEvent): Promise<void> {
 }
 
 /**
+ * Handle project assigned events
+ */
+async function handleProjectAssigned(event: ProjectAssignedEvent): Promise<void> {
+  const { payload } = event;
+  const { tenantId, assignedTo } = payload;
+  
+  try {
+    const { knex: db } = await createTenantKnex();
+    
+    // Get project and user details
+    const project = await db('projects as p')
+      .select(
+        'p.*',
+        'u.email as user_email',
+        'u.first_name as user_first_name',
+        'u.last_name as user_last_name',
+        'au.first_name as assigner_first_name',
+        'au.last_name as assigner_last_name'
+      )
+      .leftJoin('users as u', function() {
+        this.on('u.user_id', '=', assignedTo)
+            .andOn('u.tenant', '=', 'p.tenant')
+            .andOn('u.is_inactive', '=', db.raw('false'));
+      })
+      .leftJoin('users as au', function() {
+        this.on('au.user_id', '=', db.raw('?', [payload.userId]))
+            .andOn('au.tenant', '=', 'p.tenant')
+            .andOn('au.is_inactive', '=', db.raw('false'));
+      })
+      .where('p.project_id', payload.projectId)
+      .first();
+
+    if (!project || !project.user_email) {
+      logger.warn('Could not send project assigned email - missing project or user email:', {
+        eventId: event.id,
+        projectId: payload.projectId,
+        userId: assignedTo
+      });
+      return;
+    }
+
+    await sendEventEmail({
+      tenantId,
+      to: project.user_email,
+      subject: `You have been assigned to project: ${project.project_name}`,
+      template: 'project-assigned',
+      context: {
+        project: {
+          name: project.project_name,
+          description: project.description || '',
+          startDate: project.start_date,
+          assignedBy: `${project.assigner_first_name} ${project.assigner_last_name}`,
+          url: `/projects/${project.project_number}`
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error handling project assigned event:', {
+      error,
+      eventId: event.id,
+      projectId: payload.projectId
+    });
+    throw error;
+  }
+}
+
+/**
+ * Handle project task assigned events
+ */
+async function handleProjectTaskAssigned(event: ProjectTaskAssignedEvent): Promise<void> {
+  const { payload } = event;
+  const { tenantId, assignedTo, additionalUsers = [] } = payload;
+  
+  try {
+    const { knex: db } = await createTenantKnex();
+    
+    // Get task, project and user details
+    const query = db('project_tasks as t')
+      .select(
+        't.task_id',
+        't.task_name',
+        't.description',
+        't.due_date',
+        'p.project_name',
+        'p.project_id',
+        'p.wbs_code as project_number',
+        'u.email as user_email',
+        'u.first_name as user_first_name',
+        'u.last_name as user_last_name',
+        'au.first_name as assigner_first_name',
+        'au.last_name as assigner_last_name'
+      )
+      .leftJoin('project_phases as ph', function() {
+        this.on('ph.phase_id', '=', 't.phase_id')
+            .andOn('ph.tenant', '=', 't.tenant');
+      })
+      .leftJoin('projects as p', function() {
+        this.on('p.project_id', '=', 'ph.project_id')
+            .andOn('p.tenant', '=', 'ph.tenant');
+      })
+      .leftJoin('users as u', function() {
+        this.on('u.user_id', '=', 't.assigned_to')
+            .andOn('u.tenant', '=', 't.tenant')
+            .andOn('u.is_inactive', '=', db.raw('false'));
+      })
+      .leftJoin('users as au', function() {
+        this.on('au.user_id', '=', db.raw('?', [payload.userId]))
+            .andOn('au.tenant', '=', 't.tenant')
+            .andOn('au.is_inactive', '=', db.raw('false'));
+      })
+      .where({
+        't.task_id': payload.taskId,
+        't.tenant': tenantId
+      });
+
+    logger.debug('[ProjectEmailSubscriber] Task query:', {
+      sql: query.toString(),
+      bindings: query.toSQL().bindings
+    });
+
+    const task = await query
+      .first();
+
+    if (!task) {
+      logger.warn('Could not send task assigned email - task not found:', {
+        eventId: event.id,
+        taskId: payload.taskId
+      });
+      return;
+    }
+
+    // Get additional users' emails
+    const additionalUserEmails = await db('users')
+      .select('email', 'user_id')
+      .where({
+        tenant: tenantId,
+        is_inactive: false
+      })
+      .whereIn('user_id', additionalUsers);
+
+    // Send email to primary assignee
+    if (task.user_email) {
+      await sendEventEmail({
+        tenantId,
+        to: task.user_email,
+        subject: `You have been assigned to task: ${task.task_name}`,
+        template: 'project-task-assigned',
+        context: {
+          task: {
+            name: task.task_name,
+            project: task.project_name,
+            dueDate: task.due_date,
+            assignedBy: `${task.assigner_first_name} ${task.assigner_last_name}`,
+            url: `/projects/${task.project_number}/tasks/${task.task_id}`
+          }
+        }
+      });
+    }
+
+    // Send emails to additional users
+    for (const user of additionalUserEmails) {
+      await sendEventEmail({
+        tenantId,
+        to: user.email,
+        subject: `You have been added to task: ${task.task_name}`,
+        template: 'project-task-assigned',
+        context: {
+          task: {
+            name: task.task_name,
+            project: task.project_name,
+            dueDate: task.due_date,
+            assignedBy: `${task.assigner_first_name} ${task.assigner_last_name}`,
+            url: `/projects/${task.project_number}/tasks/${task.task_id}`
+          }
+        }
+      });
+    }
+
+  } catch (error) {
+    logger.error('Error handling project task assigned event:', {
+      error,
+      eventId: event.id,
+      taskId: payload.taskId
+    });
+    throw error;
+  }
+}
+
+/**
  * Handle all project events
  */
 async function handleProjectEvent(event: BaseEvent): Promise<void> {
@@ -333,6 +560,12 @@ async function handleProjectEvent(event: BaseEvent): Promise<void> {
     case 'PROJECT_CLOSED':
       await handleProjectClosed(validatedEvent as ProjectClosedEvent);
       break;
+    case 'PROJECT_ASSIGNED':
+      await handleProjectAssigned(validatedEvent as ProjectAssignedEvent);
+      break;
+    case 'PROJECT_TASK_ASSIGNED':
+      await handleProjectTaskAssigned(validatedEvent as ProjectTaskAssignedEvent);
+      break;
     default:
       logger.warn('[ProjectEmailSubscriber] Unhandled project event type:', {
         eventType: event.eventType,
@@ -351,7 +584,9 @@ export async function registerProjectEmailSubscriber(): Promise<void> {
     const projectEventTypes: EventType[] = [
       'PROJECT_CREATED',
       'PROJECT_UPDATED',
-      'PROJECT_CLOSED'
+      'PROJECT_CLOSED',
+      'PROJECT_ASSIGNED',
+      'PROJECT_TASK_ASSIGNED'
     ];
 
     for (const eventType of projectEventTypes) {
@@ -373,7 +608,9 @@ export async function unregisterProjectEmailSubscriber(): Promise<void> {
     const projectEventTypes: EventType[] = [
       'PROJECT_CREATED',
       'PROJECT_UPDATED',
-      'PROJECT_CLOSED'
+      'PROJECT_CLOSED',
+      'PROJECT_ASSIGNED',
+      'PROJECT_TASK_ASSIGNED'
     ];
 
     for (const eventType of projectEventTypes) {

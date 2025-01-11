@@ -402,11 +402,22 @@ export async function updateProject(projectId: string, projectData: Partial<IPro
         
         const updatedProject = await ProjectModel.update(projectId, validatedData);
 
-        // If assigned_to was updated, fetch the full user details
+        // If assigned_to was updated, fetch the full user details and publish event
         if ('assigned_to' in projectData) {
             if (updatedProject.assigned_to) {
                 const user = await findUserById(updatedProject.assigned_to);
                 updatedProject.assigned_user = user || null;
+
+                // Publish project assigned event
+                await publishEvent({
+                    eventType: 'PROJECT_ASSIGNED',
+                    payload: {
+                        tenantId: currentUser.tenant,
+                        projectId: projectId,
+                        userId: currentUser.user_id,
+                        assignedTo: updatedProject.assigned_to
+                    }
+                });
             } else {
                 updatedProject.assigned_user = null;
             }
