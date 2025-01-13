@@ -382,29 +382,61 @@ exports.seed = async function(knex) {
         `
       },
       {
-        name: 'project-task-assigned',
+        name: 'project-task-assigned-primary',
         subject: 'You have been assigned to task: {{task.name}}',
         notification_subtype_id: getSubtypeId('Project Task Assigned'),
         html_content: `
-          <h2>Task Assigned</h2>
-          <p>You have been assigned to a task:</p>
+          <h2>Task Assignment</h2>
+          <p>You have been assigned as the <strong>Primary Assignee</strong> for this task:</p>
           <div class="details">
             <p><strong>Task Name:</strong> {{task.name}}</p>
             <p><strong>Project:</strong> {{task.project}}</p>
             <p><strong>Due Date:</strong> {{task.dueDate}}</p>
             <p><strong>Assigned By:</strong> {{task.assignedBy}}</p>
+            <p><strong>Role:</strong> {{task.role}}</p>
           </div>
           <a href="{{task.url}}" class="button">View Task</a>
         `,
         text_content: `
-  Task Assigned
+  Task Assignment
   
-  You have been assigned to a task:
+  You have been assigned as the Primary Assignee for this task:
   
   Task Name: {{task.name}}
   Project: {{task.project}}
   Due Date: {{task.dueDate}}
   Assigned By: {{task.assignedBy}}
+  Role: {{task.role}}
+  
+  View task at: {{task.url}}
+        `
+      },
+      {
+        name: 'project-task-assigned-additional',
+        subject: 'You have been added as additional agent to task: {{task.name}}',
+        notification_subtype_id: getSubtypeId('Project Task Assigned'),
+        html_content: `
+          <h2>Task Assignment</h2>
+          <p>You have been added as an <strong>Additional Agent</strong> to this task:</p>
+          <div class="details">
+            <p><strong>Task Name:</strong> {{task.name}}</p>
+            <p><strong>Project:</strong> {{task.project}}</p>
+            <p><strong>Due Date:</strong> {{task.dueDate}}</p>
+            <p><strong>Assigned By:</strong> {{task.assignedBy}}</p>
+            <p><strong>Role:</strong> {{task.role}}</p>
+          </div>
+          <a href="{{task.url}}" class="button">View Task</a>
+        `,
+        text_content: `
+  Task Assignment
+  
+  You have been added as an Additional Agent to this task:
+  
+  Task Name: {{task.name}}
+  Project: {{task.project}}
+  Due Date: {{task.dueDate}}
+  Assigned By: {{task.assignedBy}}
+  Role: {{task.role}}
   
   View task at: {{task.url}}
         `
@@ -591,4 +623,3 @@ exports.seed = async function(knex) {
   
     // No need to create tenant templates by default - users will customize them as needed
   };
-  

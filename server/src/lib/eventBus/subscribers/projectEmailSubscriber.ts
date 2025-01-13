@@ -491,14 +491,19 @@ async function handleProjectTaskAssigned(event: ProjectTaskAssignedEvent): Promi
       return;
     }
 
-    // Get additional users' emails
-    const additionalUserEmails = await db('users')
-      .select('email', 'user_id')
-      .where({
-        tenant: tenantId,
-        is_inactive: false
+    // Get additional users' emails from task_resources
+    const additionalUserEmails = await db('task_resources as tr')
+      .select('u.email', 'u.user_id')
+      .leftJoin('users as u', function() {
+        this.on('u.user_id', '=', 'tr.additional_user_id')
+            .andOn('u.tenant', '=', 'tr.tenant')
+            .andOn('u.is_inactive', '=', db.raw('false'));
       })
-      .whereIn('user_id', additionalUsers);
+      .where({
+        'tr.task_id': payload.taskId,
+        'tr.tenant': tenantId
+      })
+      .whereNotNull('tr.additional_user_id');
 
     // Send email to primary assignee
     if (task.user_email) {
@@ -506,33 +511,38 @@ async function handleProjectTaskAssigned(event: ProjectTaskAssignedEvent): Promi
         tenantId,
         to: task.user_email,
         subject: `You have been assigned to task: ${task.task_name}`,
-        template: 'project-task-assigned',
+        template: 'project-task-assigned-primary',
         context: {
           task: {
             name: task.task_name,
             project: task.project_name,
             dueDate: task.due_date,
             assignedBy: `${task.assigner_first_name} ${task.assigner_last_name}`,
-            url: `/projects/${task.project_number}/tasks/${task.task_id}`
+            url: `/projects/${task.project_number}/tasks/${task.task_id}`,
+            role: 'Primary Assignee'
           }
         }
       });
     }
 
+    // Get unique additional user emails (prevent duplicates)
+    const uniqueAdditionalEmails = [...new Set(additionalUserEmails.map(u => u.email))];
+
     // Send emails to additional users
-    for (const user of additionalUserEmails) {
+    for (const email of uniqueAdditionalEmails) {
       await sendEventEmail({
         tenantId,
-        to: user.email,
-        subject: `You have been added to task: ${task.task_name}`,
-        template: 'project-task-assigned',
+        to: email,
+        subject: `You have been added as additional agent to task: ${task.task_name}`,
+        template: 'project-task-assigned-additional',
         context: {
           task: {
             name: task.task_name,
             project: task.project_name,
             dueDate: task.due_date,
             assignedBy: `${task.assigner_first_name} ${task.assigner_last_name}`,
-            url: `/projects/${task.project_number}/tasks/${task.task_id}`
+            url: `/projects/${task.project_number}/tasks/${task.task_id}`,
+            role: 'Additional Agent'
           }
         }
       });
