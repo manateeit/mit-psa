@@ -31,7 +31,9 @@ const ProjectModel = {
           'companies.company_name as client_name',
           'users.first_name as assigned_to_first_name',
           'users.last_name as assigned_to_last_name',
-          'contacts.full_name as contact_name'
+          'contacts.full_name as contact_name',
+          's.name as status_name',
+          's.is_closed'
         )
         .leftJoin('companies', 'projects.company_id', 'companies.company_id')
         .leftJoin('users', function() {
@@ -41,6 +43,10 @@ const ProjectModel = {
         .leftJoin('contacts', function() {
           this.on('projects.contact_name_id', 'contacts.contact_name_id')
              .andOn('projects.tenant', 'contacts.tenant')
+        })
+        .leftJoin('statuses as s', function() {
+          this.on('projects.status', 's.status_id')
+             .andOn('projects.tenant', 's.tenant')
         });
       
       if (!includeInactive) {
@@ -64,7 +70,9 @@ const ProjectModel = {
           'companies.company_name as client_name',
           'users.first_name as assigned_to_first_name',
           'users.last_name as assigned_to_last_name',
-          'contacts.full_name as contact_name'
+          'contacts.full_name as contact_name',
+          's.name as status_name',
+          's.is_closed'
         )
         .leftJoin('companies', 'projects.company_id', 'companies.company_id')
         .leftJoin('users', function() {
@@ -74,6 +82,10 @@ const ProjectModel = {
         .leftJoin('contacts', function() {
           this.on('projects.contact_name_id', 'contacts.contact_name_id')
              .andOn('projects.tenant', 'contacts.tenant')
+        })
+        .leftJoin('statuses as s', function() {
+          this.on('projects.status', 's.status_id')
+             .andOn('projects.tenant', 's.tenant')
         })
         .where('projects.project_id', projectId)
         .first();
@@ -101,36 +113,104 @@ const ProjectModel = {
   create: async (projectData: Omit<IProject, 'project_id' | 'created_at' | 'updated_at' | 'tenant'>): Promise<IProject> => {
     try {
       const {knex: db, tenant} = await createTenantKnex();
+      // Remove derived fields before insert
+      const { status_name, is_closed, ...insertData } = projectData as any;
+      
       const [newProject] = await db<IProject>('projects')
         .insert({
-          ...projectData,
+          ...insertData,
           project_id: uuidv4(),
           is_inactive: false,
           tenant: tenant!,
-          assigned_to: projectData.assigned_to || null,
-          contact_name_id: projectData.contact_name_id || null,
-          status: projectData.status || ''
+          assigned_to: insertData.assigned_to || null,
+          contact_name_id: insertData.contact_name_id || null,
+          status: insertData.status || ''
         })
         .returning('*');
 
-      return newProject;
+      // Fetch the full project details including status info
+      const projectWithStatus = await db<IProject>('projects')
+        .select(
+          'projects.*',
+          'companies.company_name as client_name',
+          'users.first_name as assigned_to_first_name',
+          'users.last_name as assigned_to_last_name',
+          'contacts.full_name as contact_name',
+          's.name as status_name',
+          's.is_closed'
+        )
+        .leftJoin('companies', 'projects.company_id', 'companies.company_id')
+        .leftJoin('users', function() {
+          this.on('projects.assigned_to', 'users.user_id')
+             .andOn('projects.tenant', 'users.tenant')
+        })
+        .leftJoin('contacts', function() {
+          this.on('projects.contact_name_id', 'contacts.contact_name_id')
+             .andOn('projects.tenant', 'contacts.tenant')
+        })
+        .leftJoin('statuses as s', function() {
+          this.on('projects.status', 's.status_id')
+             .andOn('projects.tenant', 's.tenant')
+        })
+        .where('projects.project_id', newProject.project_id)
+        .first();
+
+      return projectWithStatus || newProject;
     } catch (error) {
       console.error('Error creating project:', error);
       throw error;
     }
   },
 
-  update: async (projectId: string, projectData: Partial<IProject>): Promise<IProject> => {
+  update: async (projectId: string, projectData: Partial<IProject> & Record<string, any>): Promise<IProject> => {
     try {
       const {knex: db} = await createTenantKnex();
+      // Remove derived and joined fields before update
+      const { 
+        status_name, 
+        is_closed, 
+        client_name,
+        assigned_to_first_name,
+        assigned_to_last_name,
+        contact_name,
+        ...updateData 
+      } = projectData;
+      
       const [updatedProject] = await db<IProject>('projects')
         .where('project_id', projectId)
         .update({
-          ...projectData,
+          ...updateData,
           updated_at: db.fn.now()
         })
         .returning('*');
-      return updatedProject;
+
+      // Fetch the full project details including status info
+      const projectWithStatus = await db<IProject>('projects')
+        .select(
+          'projects.*',
+          'companies.company_name as client_name',
+          'users.first_name as assigned_to_first_name',
+          'users.last_name as assigned_to_last_name',
+          'contacts.full_name as contact_name',
+          's.name as status_name',
+          's.is_closed'
+        )
+        .leftJoin('companies', 'projects.company_id', 'companies.company_id')
+        .leftJoin('users', function() {
+          this.on('projects.assigned_to', 'users.user_id')
+             .andOn('projects.tenant', 'users.tenant')
+        })
+        .leftJoin('contacts', function() {
+          this.on('projects.contact_name_id', 'contacts.contact_name_id')
+             .andOn('projects.tenant', 'contacts.tenant')
+        })
+        .leftJoin('statuses as s', function() {
+          this.on('s.status_id', '=', 'projects.status')
+             .andOn('s.tenant', '=', 'projects.tenant')
+        })
+        .where('projects.project_id', projectId)
+        .first();
+      return projectWithStatus || updatedProject;
     } catch (error) {
       console.error('Error updating project:', error);
       throw error;

@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
-import { IProject, ICompany } from '@/interfaces';
-import { createProject, generateNextWbsCode } from '@/lib/actions/project-actions/projectActions';
+import { IProject, ICompany, IStatus } from '@/interfaces';
+import { createProject, generateNextWbsCode, getProjectStatuses } from '@/lib/actions/project-actions/projectActions';
 import { CompanyPicker } from '@/components/companies/CompanyPicker';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { getContactsByCompany, getAllContacts } from '@/lib/actions/contact-actions/contactActions';
@@ -31,17 +31,26 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filterState, setFilterState] = useState<'all' | 'active' | 'inactive'>('active');
   const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
+  const [statuses, setStatuses] = useState<IStatus[]>([]);
+  const [selectedStatusId, setSelectedStatusId] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchData = async () => {
       try {
-        const allUsers = await getAllUsers();
+        const [allUsers, projectStatuses] = await Promise.all([
+          getAllUsers(),
+          getProjectStatuses()
+        ]);
         setUsers(allUsers);
+        setStatuses(projectStatuses);
+        if (projectStatuses.length > 0) {
+          setSelectedStatusId(projectStatuses[0].status_id);
+        }
       } catch (error) {
-        console.error('Error fetching users:', error);
+        console.error('Error fetching data:', error);
       }
     };
-    fetchUsers();
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -65,7 +74,7 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (projectName.trim() === '') return;
-    if (!selectedCompanyId) return;
+    if (!selectedCompanyId || !selectedStatusId) return;
 
     setIsSubmitting(true);
 
@@ -79,7 +88,7 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
         end_date: endDate ? new Date(endDate) : null,
         wbs_code: wbsCode,
         is_inactive: false,
-        status: '', // This will be set by the server to the first standard status
+        status: selectedStatusId,
         assigned_to: selectedUserId || null,
         contact_name_id: selectedContactId || null
       };
@@ -119,6 +128,18 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
                 className="w-full p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
                 rows={3}
               />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <CustomSelect
+                  value={selectedStatusId || ''}
+                  onValueChange={setSelectedStatusId}
+                  options={statuses.map((status): { value: string; label: string } => ({
+                    value: status.status_id,
+                    label: status.name
+                  }))}
+                  placeholder="Select Status"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
                 <CompanyPicker
@@ -177,7 +198,7 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
                 <Button id='cancel-button' variant="ghost" onClick={onClose} disabled={isSubmitting}>
                   Cancel
                 </Button>
-                <Button id='create-button' type="submit" disabled={isSubmitting || !selectedCompanyId}>
+                <Button id='create-button' type="submit" disabled={isSubmitting || !selectedCompanyId || !selectedStatusId}>
                   {isSubmitting ? 'Creating...' : 'Create Project'}
                 </Button>
               </div>

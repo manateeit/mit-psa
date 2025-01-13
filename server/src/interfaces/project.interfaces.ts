@@ -46,6 +46,8 @@ export interface IProject extends TenantEntity {
   wbs_code: string;
   is_inactive: boolean;
   status: string;
+  status_name?: string;
+  is_closed?: boolean;
   assigned_to?: string | null;
   assigned_user?: IUserWithRoles | null;
   contact_name?: string | null;

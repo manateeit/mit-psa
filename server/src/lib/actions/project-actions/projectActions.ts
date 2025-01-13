@@ -296,7 +296,7 @@ async function getStandardProjectTaskStatuses(): Promise<IStandardStatus[]> {
     }
 }
 
-async function getProjectStatuses(): Promise<IStatus[]> {
+export async function getProjectStatuses(): Promise<IStatus[]> {
   try {
     return await ProjectModel.getStatusesByType('project');
   } catch (error) {
@@ -338,9 +338,12 @@ export async function createProject(projectData: Omit<IProject, 'project_id' | '
 
         // Ensure we're passing all fields including assigned_to and contact_name_id
         const wbsCode = await ProjectModel.generateNextWbsCode('');
+        const defaultStatus = projectStatuses[0];
         const projectDataWithStatus = {
             ...validatedData,
-            status: projectStatuses[0].status_id,
+            status: defaultStatus.status_id,
+            status_name: defaultStatus.name,
+            is_closed: defaultStatus.is_closed,
             assigned_to: validatedData.assigned_to || null,
             contact_name_id: validatedData.contact_name_id || null,
             wbs_code: wbsCode
@@ -400,15 +403,27 @@ export async function updateProject(projectId: string, projectData: Partial<IPro
 
         const validatedData = validateData(updateProjectSchema, projectData);
         
-        const updatedProject = await ProjectModel.update(projectId, validatedData);
+        let updatedProject = await ProjectModel.update(projectId, validatedData);
+
+        // If status was updated, fetch the status details
+        if ('status' in projectData && projectData.status) {
+            const status = await ProjectModel.getCustomStatus(projectData.status);
+            if (status) {
+                updatedProject = await ProjectModel.update(projectId, {
+                    ...updatedProject,
+                    status_name: status.name,
+                    is_closed: status.is_closed
+                });
+            }
+        }
 
         // If assigned_to was updated, fetch the full user details and publish event
-        if ('assigned_to' in projectData) {
+        if ('assigned_to' in projectData && projectData.assigned_to !== updatedProject.assigned_to) {
             if (updatedProject.assigned_to) {
                 const user = await findUserById(updatedProject.assigned_to);
                 updatedProject.assigned_user = user || null;
 
-                // Publish project assigned event
+                // Publish project assigned event only if assigned_to actually changed
                 await publishEvent({
                     eventType: 'PROJECT_ASSIGNED',
                     payload: {

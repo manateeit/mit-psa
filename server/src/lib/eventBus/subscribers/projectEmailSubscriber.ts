@@ -60,6 +60,18 @@ async function resolveValue(db: any, field: string, value: unknown): Promise<str
         .first();
       return user ? `${user.first_name} ${user.last_name}` : String(value);
 
+    case 'company_id':
+      const company = await db('companies')
+        .where('company_id', value)
+        .first();
+      return company ? company.company_name : String(value);
+
+      case 'contact_name_id':
+        const contact_name = await db('contacts')
+          .where('contact_name_id', value)
+          .first();
+        return contact_name ? contact_name.full_name : String(value);
+
     default:
       if (typeof value === 'boolean') {
         return value ? 'Yes' : 'No';
@@ -75,7 +87,19 @@ async function resolveValue(db: any, field: string, value: unknown): Promise<str
  * Format field names to be more readable
  */
 function formatFieldName(field: string): string {
-  return field
+  const specialCases: Record<string, string> = {
+    company_id: 'Company',
+    project_name: 'Project Name',
+    description: 'Description',
+    start_date: 'Start Date',
+    end_date: 'End Date',
+    is_inactive: 'Is Inactive',
+    status: 'Status',
+    assigned_to: 'Assigned To',
+    contact_name_id: 'Contact'
+  };
+
+  return specialCases[field] || field
     .split('_')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
@@ -100,10 +124,11 @@ async function handleProjectCreated(event: ProjectCreatedEvent): Promise<void> {
     logger.info('[ProjectEmailSubscriber] Fetching project details');
     
     // Get project details with debug logging
-    const project = await db('projects as p')
+    const query = db('projects as p')
       .select(
         'p.*',
         'c.email as company_email',
+        'c.company_name',
         's.name as status_name',
         'u.first_name as manager_first_name',
         'u.last_name as manager_last_name',
@@ -125,11 +150,40 @@ async function handleProjectCreated(event: ProjectCreatedEvent): Promise<void> {
       })
       .leftJoin('contacts as ct', function() {
         this.on('ct.contact_name_id', '=', 'p.contact_name_id')
-          .andOn('ct.tenant', '=', 'p.tenant')
-          .andOn('ct.is_inactive', '=', db.raw('false'));
+          .andOn('ct.tenant', '=', 'p.tenant');
       })
-      .where('p.project_id', payload.projectId)
-      .first();
+      .where('p.project_id', payload.projectId);
+
+    // Log the query for debugging
+    logger.info('[ProjectEmailSubscriber] Project query:', {
+      sql: query.toString(),
+      bindings: query.toSQL().bindings
+    });
+
+    const project = await query.first();
+
+    // Log the project details for debugging
+    logger.info('[ProjectEmailSubscriber] Project details:', {
+      projectId: payload.projectId,
+      tenantId,
+      contactNameId: project?.contact_name_id,
+      contactEmail: project?.contact_email,
+      project
+    });
+
+    // If contact exists but email is missing, check the contact directly
+    if (project?.contact_name_id && !project.contact_email) {
+      const contact = await db('contacts')
+        .where({
+          contact_name_id: project.contact_name_id,
+          tenant: tenantId
+        })
+        .first();
+      logger.info('[ProjectEmailSubscriber] Direct contact lookup:', {
+        contactNameId: project.contact_name_id,
+        contact
+      });
+    }
     
     if (!project){
       logger.warn('[ProjectEmailSubscriber] Project not found:',{
@@ -189,7 +243,8 @@ async function handleProjectCreated(event: ProjectCreatedEvent): Promise<void> {
           startDate: project.start_date,
           endDate: project.end_date,
           createdBy: payload.userId,
-          url: `/projects/${project.project_number}`
+          url: `/projects/${project.project_number}`,
+          company: project.company_name || 'No Company'
         }
       }
     });
@@ -209,19 +264,43 @@ async function handleProjectCreated(event: ProjectCreatedEvent): Promise<void> {
  */
 async function handleProjectUpdated(event: ProjectUpdatedEvent): Promise<void> {
   const { payload } = event;
-  const { tenantId } = payload;
-  
+  const { tenantId, changes } = payload;
+
+  // Check if the status change indicates the project is being closed
+  if (changes?.status) {
+    const { knex: db } = await createTenantKnex();
+    const status = await db('statuses')
+      .where('status_id', changes.status)
+      .first();
+    
+    if (status?.is_closed) {
+      // Convert this to a ProjectClosedEvent
+      const closedEvent: ProjectClosedEvent = {
+        ...event,
+        eventType: 'PROJECT_CLOSED',
+        payload: {
+          ...payload,
+          changes,
+        },
+      };
+      return handleProjectClosed(closedEvent);
+    }
+  }
+
   try {
     const { knex: db } = await createTenantKnex();
     
-    // Get project details
-    const project = await db('projects as p')
+    // Get project details with debug logging
+    const query = db('projects as p')
       .select(
         'p.*',
         'c.email as company_email',
+        'c.company_name',
         's.name as status_name',
         'u.first_name as manager_first_name',
-        'u.last_name as manager_last_name'
+        'u.last_name as manager_last_name',
+        'u.email as assigned_user_email',
+        'ct.email as contact_email'
       )
       .leftJoin('companies as c', function() {
         this.on('c.company_id', '=', 'p.company_id')
@@ -236,19 +315,113 @@ async function handleProjectUpdated(event: ProjectUpdatedEvent): Promise<void> {
             .andOn('u.tenant', '=', 'p.tenant')
             .andOn('u.is_inactive', '=', db.raw('false'));
       })
-      .where('p.project_id', payload.projectId)
-      .first();
+      .leftJoin('contacts as ct', function() {
+        this.on('ct.contact_name_id', '=', 'p.contact_name_id')
+          .andOn('ct.tenant', '=', 'p.tenant');
+      })
+      .where('p.project_id', payload.projectId);
 
-    if (!project || !project.company_email) {
-      logger.warn('Could not send project updated email - missing project or company email:', {
+    // Log the query for debugging
+    logger.info('[ProjectEmailSubscriber] Project query:', {
+      sql: query.toString(),
+      bindings: query.toSQL().bindings
+    });
+
+    const project = await query.first();
+
+    // Log the project details for debugging
+    logger.info('[ProjectEmailSubscriber] Project details:', {
+      projectId: payload.projectId,
+      tenantId,
+      contactNameId: project?.contact_name_id,
+      contactEmail: project?.contact_email,
+      project
+    });
+
+    // If contact exists but email is missing, check the contact directly
+    if (project?.contact_name_id && !project.contact_email) {
+      const contact = await db('contacts')
+        .where({
+          contact_name_id: project.contact_name_id,
+          tenant: tenantId
+        })
+        .first();
+      logger.info('[ProjectEmailSubscriber] Direct contact lookup:', {
+        contactNameId: project.contact_name_id,
+        contact
+      });
+
+      // Use the contact email if found
+      if (contact?.email) {
+        project.contact_email = contact.email;
+      }
+    }
+
+    if (!project) {
+      logger.warn('[ProjectEmailSubscriber] Project not found:', {
         eventId: event.id,
         projectId: payload.projectId
       });
       return;
     }
 
+    // Collect all recipient emails
+    const recipients: string[] = [];
+
+    // Add contact or company email
+    if (project.contact_email) {
+      recipients.push(project.contact_email);
+      logger.info('[ProjectEmailSubscriber] Adding contact email as recipient', {
+        contactEmail: project.contact_email
+      });
+    } else if (project.company_email) {
+      recipients.push(project.company_email);
+      logger.info('[ProjectEmailSubscriber] Adding company email as recipient', {
+        companyEmail: project.company_email
+      });
+    }
+
+    // Always add assigned user email if available
+    if (project.assigned_user_email) {
+      recipients.push(project.assigned_user_email);
+      logger.info('[ProjectEmailSubscriber] Adding assigned user email as recipient', {
+        assignedUserEmail: project.assigned_user_email
+      });
+    }
+
+    // Debug log all potential email sources
+    logger.info('[ProjectEmailSubscriber] Available email addresses:', {
+      projectId: payload.projectId,
+      contactEmail: project.contact_email,
+      companyEmail: project.company_email,
+      assignedUserEmail: project.assigned_user_email
+    });
+
+    if (recipients.length === 0) {
+      logger.warn('[ProjectEmailSubscriber] No valid recipients found for project updated notification', {
+        projectId: payload.projectId,
+        hasContactEmail: !!project.contact_email,
+        hasAssignedUserEmail: !!project.assigned_user_email,
+        hasCompanyEmail: !!project.company_email,
+        project: project // Log the full project object for debugging
+      });
+      return;
+    }
+
+    // Log the changes being made
+    logger.info('[ProjectEmailSubscriber] Project changes:', {
+      projectId: payload.projectId,
+      changes: payload.changes || {}
+    });
+
     // Format changes with database lookups
     const formattedChanges = await formatChanges(db, payload.changes || {});
+
+    // Log the formatted changes
+    logger.info('[ProjectEmailSubscriber] Formatted changes:', {
+      projectId: payload.projectId,
+      formattedChanges
+    });
 
     // Get updater's name
     const updater = await db('users')
@@ -260,7 +433,7 @@ async function handleProjectUpdated(event: ProjectUpdatedEvent): Promise<void> {
 
     await sendEventEmail({
       tenantId,
-      to: project.company_email,
+      to: recipients.join(','),
       subject: `Project Updated: ${project.project_name}`,
       template: 'project-updated',
       context: {
@@ -272,7 +445,8 @@ async function handleProjectUpdated(event: ProjectUpdatedEvent): Promise<void> {
             `${project.manager_first_name} ${project.manager_last_name}` : 'Unassigned',
           changes: formattedChanges,
           updatedBy: updater ? `${updater.first_name} ${updater.last_name}` : payload.userId,
-          url: `/projects/${project.project_number}`
+          url: `/projects/${project.project_number}`,
+          company: project.company_name || 'No Company'
         }
       }
     });
@@ -297,14 +471,17 @@ async function handleProjectClosed(event: ProjectClosedEvent): Promise<void> {
   try {
     const { knex: db } = await createTenantKnex();
     
-    // Get project details
-    const project = await db('projects as p')
+    // Get project details with debug logging
+    const query = db('projects as p')
       .select(
         'p.*',
         'c.email as company_email',
+        'c.company_name',
         's.name as status_name',
         'u.first_name as manager_first_name',
-        'u.last_name as manager_last_name'
+        'u.last_name as manager_last_name',
+        'u.email as assigned_user_email',
+        'ct.email as contact_email'
       )
       .leftJoin('companies as c', function() {
         this.on('c.company_id', '=', 'p.company_id')
@@ -316,22 +493,96 @@ async function handleProjectClosed(event: ProjectClosedEvent): Promise<void> {
       })
       .leftJoin('users as u', function() {
         this.on('u.user_id', '=', 'p.assigned_to')
-            .andOn('u.tenant', '=', 'p.tenant');
+            .andOn('u.tenant', '=', 'p.tenant')
+            .andOn('u.is_inactive', '=', db.raw('false'));
       })
-      .where('p.project_id', payload.projectId)
-      .first();
+      .leftJoin('contacts as ct', function() {
+        this.on('ct.contact_name_id', '=', 'p.contact_name_id')
+          .andOn('ct.tenant', '=', 'p.tenant');
+      })
+      .where('p.project_id', payload.projectId);
 
-    if (!project || !project.company_email) {
-      logger.warn('Could not send project closed email - missing project or company email:', {
+    // Log the query for debugging
+    logger.info('[ProjectEmailSubscriber] Project query:', {
+      sql: query.toString(),
+      bindings: query.toSQL().bindings
+    });
+
+    const project = await query.first();
+
+    // Log the project details for debugging
+    logger.info('[ProjectEmailSubscriber] Project details:', {
+      projectId: payload.projectId,
+      tenantId,
+      contactNameId: project?.contact_name_id,
+      contactEmail: project?.contact_email,
+      project
+    });
+
+    // If contact exists but email is missing, check the contact directly
+    if (project?.contact_name_id && !project.contact_email) {
+      const contact = await db('contacts')
+        .where({
+          contact_name_id: project.contact_name_id,
+          tenant: tenantId
+        })
+        .first();
+      logger.info('[ProjectEmailSubscriber] Direct contact lookup:', {
+        contactNameId: project.contact_name_id,
+        contact
+      });
+
+      // Use the contact email if found
+      if (contact?.email) {
+        project.contact_email = contact.email;
+      }
+    }
+
+    if (!project) {
+      logger.warn('[ProjectEmailSubscriber] Project not found:', {
         eventId: event.id,
         projectId: payload.projectId
       });
       return;
     }
 
+    // Collect all recipient emails
+    const recipients: string[] = [];
+
+    // Add contact or company email
+    if (project.contact_email) {
+      recipients.push(project.contact_email);
+      logger.info('[ProjectEmailSubscriber] Adding contact email as recipient', {
+        contactEmail: project.contact_email
+      });
+    } else if (project.company_email) {
+      recipients.push(project.company_email);
+      logger.info('[ProjectEmailSubscriber] Adding company email as recipient', {
+        companyEmail: project.company_email
+      });
+    }
+
+    // Always add assigned user email if available
+    if (project.assigned_user_email) {
+      recipients.push(project.assigned_user_email);
+      logger.info('[ProjectEmailSubscriber] Adding assigned user email as recipient', {
+        assignedUserEmail: project.assigned_user_email
+      });
+    }
+
+    if (recipients.length === 0) {
+      logger.warn('[ProjectEmailSubscriber] No valid recipients found for project closed notification', {
+        projectId: payload.projectId,
+        hasContactEmail: !!project.contact_email,
+        hasAssignedUserEmail: !!project.assigned_user_email,
+        hasCompanyEmail: !!project.company_email
+      });
+      return;
+    }
+
     await sendEventEmail({
       tenantId,
-      to: project.company_email,
+      to: recipients.join(','),
       subject: `Project Closed: ${project.project_name}`,
       template: 'project-closed',
       context: {
@@ -341,9 +592,14 @@ async function handleProjectClosed(event: ProjectClosedEvent): Promise<void> {
           status: project.status_name || 'Unknown',
           manager: project.manager_first_name && project.manager_last_name ? 
             `${project.manager_first_name} ${project.manager_last_name}` : 'Unassigned',
+          description: project.description || '',
+          startDate: project.start_date,
+          endDate: project.end_date,
           changes: await formatChanges(db, payload.changes || {}),
-          closedBy: payload.userId,
-          url: `/projects/${project.project_number}`
+          closedBy: await resolveValue(db, 'closed_by', payload.userId),
+          closedAt: new Date().toISOString(),
+          url: `/projects/${project.project_number}`,
+          company: project.company_name || 'No Company'
         }
       }
     });
@@ -369,15 +625,21 @@ async function handleProjectAssigned(event: ProjectAssignedEvent): Promise<void>
     const { knex: db } = await createTenantKnex();
     
     // Get project and user details
-    const project = await db('projects as p')
+    const query = db('projects as p')
       .select(
         'p.*',
+        'c.company_name',
+        'c.email as company_email',
         'u.email as user_email',
         'u.first_name as user_first_name',
         'u.last_name as user_last_name',
         'au.first_name as assigner_first_name',
         'au.last_name as assigner_last_name'
       )
+      .leftJoin('companies as c', function() {
+        this.on('c.company_id', '=', 'p.company_id')
+            .andOn('c.tenant', '=', 'p.tenant');
+      })
       .leftJoin('users as u', function() {
         this.on('u.user_id', '=', assignedTo)
             .andOn('u.tenant', '=', 'p.tenant')
@@ -388,14 +650,39 @@ async function handleProjectAssigned(event: ProjectAssignedEvent): Promise<void>
             .andOn('au.tenant', '=', 'p.tenant')
             .andOn('au.is_inactive', '=', db.raw('false'));
       })
-      .where('p.project_id', payload.projectId)
-      .first();
+      .where('p.project_id', payload.projectId);
 
-    if (!project || !project.user_email) {
-      logger.warn('Could not send project assigned email - missing project or user email:', {
+    // Log the query for debugging
+    logger.info('[ProjectEmailSubscriber] Project query:', {
+      sql: query.toString(),
+      bindings: query.toSQL().bindings
+    });
+
+    const project = await query.first();
+
+    // Log the project details for debugging
+    logger.info('[ProjectEmailSubscriber] Project details:', {
+      projectId: payload.projectId,
+      tenantId,
+      assignedTo,
+      project
+    });
+
+    if (!project) {
+      logger.warn('Could not send project assigned email - project not found:', {
         eventId: event.id,
         projectId: payload.projectId,
         userId: assignedTo
+      });
+      return;
+    }
+
+    if (!project.user_email) {
+      logger.warn('Could not send project assigned email - user email not found:', {
+        eventId: event.id,
+        projectId: payload.projectId,
+        userId: assignedTo,
+        project
       });
       return;
     }
@@ -411,7 +698,8 @@ async function handleProjectAssigned(event: ProjectAssignedEvent): Promise<void>
           description: project.description || '',
           startDate: project.start_date,
           assignedBy: `${project.assigner_first_name} ${project.assigner_last_name}`,
-          url: `/projects/${project.project_number}`
+          url: `/projects/${project.project_number}`,
+          company: project.company_name || 'No Company'
         }
       }
     });

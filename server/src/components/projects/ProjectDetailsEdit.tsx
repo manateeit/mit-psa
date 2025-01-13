@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { IProject } from '@/interfaces/project.interfaces';
+import { IProject, IStatus } from '@/interfaces/project.interfaces';
 import { ICompany } from '@/interfaces/company.interfaces';
 import { IUser } from '@/interfaces/auth.interfaces';
 import { Button } from '@/components/ui/Button';
@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/Switch';
 import { TextArea } from '@/components/ui/TextArea';
 import { CompanyPicker } from '@/components/companies/CompanyPicker';
 import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
-import { updateProject } from '@/lib/actions/project-actions/projectActions';
+import { updateProject, getProjectStatuses } from '@/lib/actions/project-actions/projectActions';
 import { getContactsByCompany, getAllContacts } from '@/lib/actions/contact-actions/contactActions';
 import { getAllUsers } from '@/lib/actions/user-actions/userActions';
 import { toast } from 'react-hot-toast';
@@ -44,21 +44,26 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [contacts, setContacts] = useState<{ value: string; label: string }[]>([]);
   const [users, setUsers] = useState<IUser[]>([]);
+  const [statuses, setStatuses] = useState<IStatus[]>([]);
 
   // Move these to component state to prevent re-renders
   const [filterState] = useState<'all' | 'active' | 'inactive'>('active');
   const [clientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
 
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchData = async () => {
       try {
-        const allUsers = await getAllUsers();
+        const [allUsers, projectStatuses] = await Promise.all([
+          getAllUsers(),
+          getProjectStatuses()
+        ]);
         setUsers(allUsers);
+        setStatuses(projectStatuses);
       } catch (error) {
-        console.error('Error fetching users:', error);
+        console.error('Error fetching data:', error);
       }
     };
-    fetchUsers();
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -93,6 +98,7 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
         assigned_to: project.assigned_to,
         contact_name_id: project.contact_name_id,
         is_inactive: project.is_inactive,
+        status: project.status,
       });
 
       toast.success('Project updated successfully');
@@ -169,6 +175,22 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
               placeholder="Enter project description..."
               className="w-full p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
               rows={4}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <CustomSelect
+              value={project.status}
+              onValueChange={(value) => {
+                setProject(prev => ({ ...prev, status: value }));
+                setHasChanges(true);
+              }}
+              options={statuses.map((status): SelectOption => ({
+                value: status.status_id,
+                label: status.name
+              }))}
+              placeholder="Select Status"
             />
           </div>
 

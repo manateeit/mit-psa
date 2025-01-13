@@ -450,6 +450,7 @@ exports.seed = async function(knex) {
           <p>A new project has been created:</p>
           <div class="details">
             <p><strong>Project Name:</strong> {{project.name}}</p>
+            <p><strong>Company:</strong> {{project.company}}</p>
             <p><strong>Description:</strong> {{project.description}}</p>
             <p><strong>Start Date:</strong> {{project.startDate}}</p>
             <p><strong>Project Manager:</strong> {{project.manager}}</p>
@@ -462,6 +463,7 @@ exports.seed = async function(knex) {
   A new project has been created:
   
   Project Name: {{project.name}}
+  Company: {{project.company}}
   Description: {{project.description}}
   Start Date: {{project.startDate}}
   Project Manager: {{project.manager}}
