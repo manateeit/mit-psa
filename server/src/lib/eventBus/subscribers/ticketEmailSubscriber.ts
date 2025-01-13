@@ -124,14 +124,24 @@ async function handleTicketCreated(event: TicketCreatedEvent): Promise<void> {
       .select(
         't.*',
         'c.email as company_email',
+        'co.email as contact_email',
         'p.priority_name',
         's.name as status_name',
         'u.first_name as updated_by_first_name',
-        'u.last_name as updated_by_last_name'
+        'u.last_name as updated_by_last_name',
+        'au.email as assigned_to_email'
       )
       .leftJoin('companies as c', function() {
         this.on('t.company_id', 'c.company_id')
             .andOn('t.tenant', 'c.tenant');
+      })
+      .leftJoin('contacts as co', function() {
+        this.on('t.contact_name_id', 'co.contact_id')
+            .andOn('t.tenant', 'co.tenant');
+      })
+      .leftJoin('users as au', function() {
+        this.on('t.assigned_to', 'au.user_id')
+            .andOn('t.tenant', 'au.tenant');
       })
       .leftJoin('priorities as p', function() {
         this.on('t.priority_id', 'p.priority_id')
@@ -148,31 +158,55 @@ async function handleTicketCreated(event: TicketCreatedEvent): Promise<void> {
       .where('t.ticket_id', payload.ticketId)
       .first();
 
-    if (!ticket || !ticket.company_email) {
-      logger.warn('Could not send ticket created email - missing ticket or company email:', {
+    if (!ticket) {
+      logger.warn('Could not send ticket created email - missing ticket:', {
         eventId: event.id,
         ticketId: payload.ticketId
       });
       return;
     }
 
+    // Send to contact email if available, otherwise company email
+    const primaryEmail = ticket.contact_email || ticket.company_email;
+    if (!primaryEmail) {
+      logger.warn('Could not send ticket created email - missing both contact and company email:', {
+        eventId: event.id,
+        ticketId: payload.ticketId
+      });
+      return;
+    }
+
+    const emailContext = {
+      ticket: {
+        id: ticket.ticket_number,
+        title: ticket.title,
+        description: ticket.attributes?.description || '',
+        priority: ticket.priority_name || 'Unknown',
+        status: ticket.status_name || 'Unknown',
+        createdBy: payload.userId,
+        url: `/tickets/${ticket.ticket_number}`
+      }
+    };
+
+    // Send to primary recipient (contact or company)
     await sendEventEmail({
       tenantId,
-      to: ticket.company_email,
+      to: primaryEmail,
       subject: `Ticket Created: ${ticket.title}`,
       template: 'ticket-created',
-      context: {
-        ticket: {
-          id: ticket.ticket_number,
-          title: ticket.title,
-          description: ticket.attributes?.description || '',
-          priority: ticket.priority_name || 'Unknown',
-          status: ticket.status_name || 'Unknown',
-          createdBy: payload.userId,
-          url: `/tickets/${ticket.ticket_number}`
-        }
-      }
+      context: emailContext
     });
+
+    // Send to assigned user if different from primary recipient
+    if (ticket.assigned_to_email && ticket.assigned_to_email !== primaryEmail) {
+      await sendEventEmail({
+        tenantId,
+        to: ticket.assigned_to_email,
+        subject: `Ticket Created: ${ticket.title}`,
+        template: 'ticket-created',
+        context: emailContext
+      });
+    }
 
   } catch (error) {
     logger.error('Error handling ticket created event:', {
@@ -239,8 +273,10 @@ async function handleTicketUpdated(event: TicketUpdatedEvent): Promise<void> {
       return;
     }
 
-    if (!ticket.company_email) {
-      console.warn('[EmailSubscriber] Ticket found but missing company email:', {
+    // Send to contact email if available, otherwise company email
+    const primaryEmail = ticket.contact_email || ticket.company_email;
+    if (!primaryEmail) {
+      console.warn('[EmailSubscriber] Ticket found but missing both contact and company email:', {
         eventId: event.id,
         ticketId: payload.ticketId,
         companyId: ticket.company_id
@@ -252,7 +288,7 @@ async function handleTicketUpdated(event: TicketUpdatedEvent): Promise<void> {
       ticketId: ticket.ticket_id,
       title: ticket.title,
       companyId: ticket.company_id,
-      companyEmail: ticket.company_email,
+      primaryEmail,
       status: ticket.status_name
     });
 
@@ -264,11 +300,6 @@ async function handleTicketUpdated(event: TicketUpdatedEvent): Promise<void> {
       .where({ user_id: payload.userId, tenant: tenantId })
       .first();
 
-    console.log('[EmailSubscriber] Sending update notification email:', {
-      to: ticket.company_email,
-      subject: `Ticket Updated: ${ticket.title}`,
-      template: 'ticket-updated'
-    });
     const emailContext = {
       ticket: {
         id: ticket.ticket_number,
@@ -281,14 +312,25 @@ async function handleTicketUpdated(event: TicketUpdatedEvent): Promise<void> {
       }
     };
 
-    // Send to company email
+    // Send to primary recipient (contact or company)
     await sendEventEmail({
       tenantId,
-      to: ticket.company_email,
+      to: primaryEmail,
       subject: `Ticket Updated: ${ticket.title}`,
       template: 'ticket-updated',
       context: emailContext
     });
+
+    // Send to assigned user if different from primary recipient
+    if (ticket.assigned_to_email && ticket.assigned_to_email !== primaryEmail) {
+      await sendEventEmail({
+        tenantId,
+        to: ticket.assigned_to_email,
+        subject: `Ticket Updated: ${ticket.title}`,
+        template: 'ticket-updated',
+        context: emailContext
+      });
+    }
 
     // Get and notify all additional resources
     const additionalResources = await db('ticket_resources as tr')
@@ -442,15 +484,25 @@ async function handleTicketCommentAdded(event: TicketCommentAddedEvent): Promise
   try {
     const { knex: db } = await createTenantKnex();
     
-    // Get ticket details with assigned user
+    // Get ticket details with assigned user, company and contact emails
     const ticket = await db('tickets as t')
       .select(
         't.*',
-        'u.email as assigned_to_email'
+        'u.email as assigned_to_email',
+        'c.email as company_email',
+        'co.email as contact_email'
       )
       .leftJoin('users as u', function() {
         this.on('t.assigned_to', 'u.user_id')
             .andOn('t.tenant', 'u.tenant');
+      })
+      .leftJoin('companies as c', function() {
+        this.on('t.company_id', 'c.company_id')
+            .andOn('t.tenant', 'c.tenant');
+      })
+      .leftJoin('contacts as co', function() {
+        this.on('t.contact_name_id', 'co.contact_id')
+            .andOn('t.tenant', 'co.tenant');
       })
       .where('t.ticket_id', payload.ticketId)
       .first();
@@ -475,8 +527,29 @@ async function handleTicketCommentAdded(event: TicketCommentAddedEvent): Promise
         'tr.tenant': tenantId
       });
 
-    // Send to assigned user
-    if (ticket.assigned_to_email) {
+    // Determine primary email (contact first, then company)
+    const primaryEmail = ticket.contact_email || ticket.company_email;
+
+    // Send to primary email if available
+    if (primaryEmail) {
+      await sendEventEmail({
+        tenantId,
+        to: primaryEmail,
+        subject: `New Comment on Ticket: ${ticket.title}`,
+        template: 'ticket-comment-added',
+        context: {
+          ticket: {
+            id: ticket.ticket_number,
+            title: ticket.title,
+            url: `/tickets/${ticket.ticket_number}`
+          },
+          comment: payload.comment
+        }
+      });
+    }
+
+    // Send to assigned user if different from primary email
+    if (ticket.assigned_to_email && ticket.assigned_to_email !== primaryEmail) {
       await sendEventEmail({
         tenantId,
         to: ticket.assigned_to_email,

@@ -45,6 +45,8 @@ export const projectSchema = tenantSchema.extend({
   wbs_code: z.string(),
   is_inactive: z.boolean(),
   status: z.string(),
+  status_name: z.string().optional(),
+  is_closed: z.boolean().optional(),
   assigned_to: z.string().nullable().optional(),
   contact_name_id: z.string().nullable().optional()
 });

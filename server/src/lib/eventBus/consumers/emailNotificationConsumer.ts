@@ -70,16 +70,22 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
       case 'TICKET_CREATED':
       case 'TICKET_UPDATED':
       case 'TICKET_CLOSED':
-      case 'TICKET_ASSIGNED': {
+      case 'TICKET_ASSIGNED':
+      case 'TICKET_COMMENT_ADDED': {
         const ticket = await knex('tickets as t')
           .select(
             't.assigned_user_id',
             't.ticket_number',
             't.title',
             'c.email as company_email',
+            'co.email as contact_email',
             'p.priority_name',
             's.name as status_name'
           )
+          .leftJoin('contacts as co', function() {
+            this.on('t.contact_name_id', 'co.contact_id')
+                .andOn('t.tenant', 'co.tenant');
+          })
           .leftJoin('companies as c', function() {
             this.on('t.company_id', 'c.company_id')
                 .andOn('t.tenant', 'c.tenant');
@@ -144,15 +150,27 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
           .select(
             'p.*',
             'c.email as company_email',
-            's.name as status_name'
+            'ct.email as contact_email',
+            's.name as status_name',
+            'u.email as assigned_user_email'
           )
           .leftJoin('companies as c', function() {
-            this.on('p.company_id', 'c.company_id')
-                .andOn('p.tenant', 'c.tenant');
+            this.on('c.company_id', '=', 'p.company_id')
+                .andOn('c.tenant', '=', 'p.tenant');
+          })
+          .leftJoin('contacts as ct', function() {
+            this.on('ct.contact_name_id', '=', 'p.contact_name_id')
+                .andOn('ct.tenant', '=', 'p.tenant')
+                .andOn('ct.is_inactive', '=', knex.raw('false'));
+          })
+          .leftJoin('users as u', function() {
+            this.on('u.user_id', '=', 'p.assigned_to')
+                .andOn('u.tenant', '=', 'p.tenant')
+                .andOn('u.is_inactive', '=', knex.raw('false'));
           })
           .leftJoin('statuses as s', function() {
-            this.on('p.status', 's.status_id')
-                .andOn('p.tenant', 's.tenant');
+            this.on('s.status_id', '=', 'p.status')
+                .andOn('s.tenant', '=', 'p.tenant');
           })
           .where('p.project_id', event.payload.projectId)
           .first();
@@ -163,7 +181,22 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
           event.payload.status = project.status_name || 'Unknown';
         }
 
-        return project?.company_email || null;
+        // Collect all recipient emails
+        const recipients: string[] = [];
+
+        // Add contact or company email
+        if (project?.contact_email) {
+          recipients.push(project.contact_email);
+        } else if (project?.company_email) {
+          recipients.push(project.company_email);
+        }
+
+        // Always add assigned user email if available
+        if (project?.assigned_user_email) {
+          recipients.push(project.assigned_user_email);
+        }
+
+        return recipients.length > 0 ? recipients.join(',') : null;
       }
     }
     
@@ -180,6 +213,8 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
         return 'ticket-closed';
       case 'TICKET_ASSIGNED':
         return 'ticket-assigned';
+      case 'TICKET_COMMENT_ADDED':
+        return 'ticket-comment-added';
       case 'TIME_ENTRY_SUBMITTED':
         return 'time-entry-submitted';
       case 'TIME_ENTRY_APPROVED':
@@ -209,6 +244,8 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
         return 'Ticket Closed';
       case 'TICKET_ASSIGNED':
         return 'Ticket Assignment Changed';
+      case 'TICKET_COMMENT_ADDED':
+        return `New Comment on Ticket: ${event.payload.ticket.title}`;
       case 'TIME_ENTRY_SUBMITTED':
         return 'Time Entry Submitted for Approval';
       case 'TIME_ENTRY_APPROVED':

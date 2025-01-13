@@ -70,6 +70,11 @@ Tenant isolation is maintained through the event payload rather than channel seg
    ```
 
 2. **Event Handling**
+   Notification recipients are determined through:
+   - The company email (from tickets.company_id foreign key relationship)
+   - The assigned user's email (from tickets.assigned_to)
+   - Additional resources (from ticket_resources table)
+
    Example from [ticketEmailSubscriber.ts](../server/src/lib/eventBus/subscribers/ticketEmailSubscriber.ts):
    ```typescript
    async function handleTicketUpdated(event: TicketUpdatedEvent): Promise<void> {
@@ -77,11 +82,41 @@ Tenant isolation is maintained through the event payload rather than channel seg
      const { tenantId } = payload;
      
      const { knex: db } = await createTenantKnex();
+     
+     // Get ticket details with company email
      const ticket = await db('tickets as t')
-       .select('t.*', 'c.email as company_email')
-       .leftJoin('companies as c', 't.company_id', 'c.company_id')
+       .select(
+         't.*',
+         'c.email as company_email',
+         'u.email as assigned_to_email'
+       )
+       .leftJoin('companies as c', function() {
+         this.on('t.company_id', 'c.company_id')
+             .andOn('t.tenant', 'c.tenant');
+       })
+       .leftJoin('users as u', function() {
+         this.on('t.assigned_to', 'u.user_id')
+             .andOn('t.tenant', 'u.tenant');
+       })
        .where('t.ticket_id', payload.ticketId)
        .first();
+
+     // Get additional resources
+     const additionalResources = await db('ticket_resources as tr')
+       .select('u.email as email')
+       .leftJoin('users as u', function() {
+         this.on('tr.additional_user_id', 'u.user_id')
+             .andOn('tr.tenant', 'u.tenant');
+       })
+       .where({
+         'tr.ticket_id': payload.ticketId,
+         'tr.tenant': tenantId
+       });
+
+     // Send notifications to:
+     // 1. Company email
+     // 2. Assigned user
+     // 3. Additional resources
      // ... handle event
    }
    ```

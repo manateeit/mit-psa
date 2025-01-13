@@ -55,6 +55,14 @@ export const ProjectEventPayloadSchema = BasePayloadSchema.extend({
   assignedTo: z.string().uuid().optional(),
 });
 
+export const ProjectClosedPayloadSchema = ProjectEventPayloadSchema.extend({
+  changes: z.object({
+    status: z.object({
+      is_closed: z.literal(true),
+    }),
+  }),
+});
+
 // Project task event payload schema
 export const ProjectTaskEventPayloadSchema = BasePayloadSchema.extend({
   projectId: z.string().uuid(),
@@ -90,7 +98,7 @@ export const EventPayloadSchemas = {
   TICKET_COMMENT_ADDED: TicketEventPayloadSchema,
   PROJECT_CREATED: ProjectEventPayloadSchema,
   PROJECT_UPDATED: ProjectEventPayloadSchema,
-  PROJECT_CLOSED: ProjectEventPayloadSchema,
+  PROJECT_CLOSED: ProjectClosedPayloadSchema,
   PROJECT_ASSIGNED: ProjectEventPayloadSchema,
   PROJECT_TASK_ASSIGNED: ProjectTaskEventPayloadSchema,
   TIME_ENTRY_SUBMITTED: TimeEntryEventPayloadSchema,
@@ -126,8 +134,6 @@ export type InvoiceGeneratedEvent = z.infer<typeof EventSchemas.INVOICE_GENERATE
 export type InvoiceFinalizedEvent = z.infer<typeof EventSchemas.INVOICE_FINALIZED>;
 export type TicketAssignedEvent = z.infer<typeof EventSchemas.TICKET_ASSIGNED>;
 export type TicketCommentAddedEvent = z.infer<typeof EventSchemas.TICKET_COMMENT_ADDED>;
-
-// TypeScript types for new events
 export type ProjectAssignedEvent = z.infer<typeof EventSchemas.PROJECT_ASSIGNED>;
 export type ProjectTaskAssignedEvent = z.infer<typeof EventSchemas.PROJECT_TASK_ASSIGNED>;
 

@@ -117,10 +117,16 @@ export async function sendEventEmail(params: SendEmailParams): Promise<void> {
     const emailService = getEmailService();
     await emailService.initialize();
 
+    // Compile subject template if it contains handlebars syntax
+    const Handlebars = (await import('handlebars')).default;
+    const compiledSubject = emailSubject.includes('{{') ? 
+      Handlebars.compile(emailSubject)(params.context) : 
+      emailSubject;
+
     // Send email
     const success = await emailService.sendEmail({
       to: params.to,
-      subject: emailSubject, // Use the resolved subject
+      subject: compiledSubject,
       template: templateContent,
       data: params.context,
     });
