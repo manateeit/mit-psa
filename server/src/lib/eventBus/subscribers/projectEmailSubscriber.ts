@@ -100,13 +100,15 @@ async function handleProjectCreated(event: ProjectCreatedEvent): Promise<void> {
     logger.info('[ProjectEmailSubscriber] Fetching project details');
     
     // Get project details with debug logging
-    const query = db('projects as p')
+    const project = await db('projects as p')
       .select(
         'p.*',
         'c.email as company_email',
         's.name as status_name',
         'u.first_name as manager_first_name',
-        'u.last_name as manager_last_name'
+        'u.last_name as manager_last_name',
+        'u.email as assigned_user_email',
+        'ct.email as contact_email'
       )
       .leftJoin('companies as c', function() {
         this.on('c.company_id', '=', 'p.company_id')
@@ -121,42 +123,59 @@ async function handleProjectCreated(event: ProjectCreatedEvent): Promise<void> {
             .andOn('u.tenant', '=', 'p.tenant')
             .andOn('u.is_inactive', '=', db.raw('false'));
       })
+      .leftJoin('contacts as ct', function() {
+        this.on('ct.contact_name_id', '=', 'p.contact_name_id')
+          .andOn('ct.tenant', '=', 'p.tenant')
+          .andOn('ct.is_inactive', '=', db.raw('false'));
+      })
       .where('p.project_id', payload.projectId)
       .first();
-
-    logger.debug('[ProjectEmailSubscriber] Executing query:', {
-      sql: query.toString()
-    });
-
-    const project = await query;
-
-    logger.info('[ProjectEmailSubscriber] Project details:', {
-      projectId: payload.projectId,
-      found: !!project,
-      hasCompanyEmail: !!project?.company_email,
-      companyId: project?.company_id
-    });
-
-    if (!project) {
-      logger.warn('[ProjectEmailSubscriber] Project not found:', {
+    
+    if (!project){
+      logger.warn('[ProjectEmailSubscriber] Project not found:',{
         eventId: event.id,
         projectId: payload.projectId
       });
       return;
     }
 
-    if (!project.company_email) {
-      logger.warn('[ProjectEmailSubscriber] Company email not found:', {
-        eventId: event.id,
+    // Collect all recipient emails
+    const recipients: string[] = [];
+
+    // Add contact or company email
+    if (project.contact_email) {
+      recipients.push(project.contact_email);
+      logger.info('[ProjectEmailSubscriber] Adding contact email as recipient', {
+        contactEmail: project.contact_email
+      });
+    } else if (project.company_email) {
+      recipients.push(project.company_email);
+      logger.info('[ProjectEmailSubscriber] Adding company email as recipient', {
+        companyEmail: project.company_email
+      });
+    }
+
+    // Always add assigned user email if available
+    if (project.assigned_user_email) {
+      recipients.push(project.assigned_user_email);
+      logger.info('[ProjectEmailSubscriber] Adding assigned user email as recipient', {
+        assignedUserEmail: project.assigned_user_email
+      });
+    }
+
+    if (recipients.length === 0) {
+      logger.warn('[ProjectEmailSubscriber] No valid recipients found for project created notification', {
         projectId: payload.projectId,
-        companyId: project.company_id
+        hasContactEmail: !!project.contact_email,
+        hasAssignedUserEmail: !!project.assigned_user_email,
+        hasCompanyEmail: !!project.company_email
       });
       return;
     }
 
     await sendEventEmail({
       tenantId,
-      to: project.company_email,
+      to: recipients.join(','),
       subject: `Project Created: ${project.project_name}`,
       template: 'project-created',
       context: {
