@@ -224,7 +224,7 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Project Manager</label>
             <CustomSelect
               value={project.assigned_to || ''}
               onValueChange={(value) => {

@@ -124,7 +124,7 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
       render: (value: string | null) => value ? new Date(value).toLocaleDateString() : 'N/A',
     },
     {
-      title: 'Assigned To',
+      title: 'Project Manager',
       dataIndex: 'assigned_to',
       width: '15%',
       render: (userId: string | null, record: IProject) => {
