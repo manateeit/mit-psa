@@ -558,47 +558,20 @@ const ProjectModel = {
         return String(numbers[0] + 1);
       }
 
-      // If parent code is a project ID, get phases for that project
-      if (parentWbsCode.includes('-')) {  // UUID format contains hyphens
-        const project = await db('projects')
-          .where('project_id', parentWbsCode)
-          .first();
-
-        if (!project) {
-          throw new Error('Project not found');
-        }
-
+      // Split parent code into parts
+      const parts = parentWbsCode.split('.');
+      
+      // For project level (single number), get next phase number
+      if (parts.length === 1) {
         const phases = await db('project_phases')
-          .where('project_id', parentWbsCode)
-          .orderBy('wbs_code', 'desc')
-          .limit(1);
-
-        if (phases.length === 0) {
-          return `${project.wbs_code}.1`;
-        }
-
-        const lastPhase = phases[0].wbs_code;
-        const lastNumber = parseInt(lastPhase.split('.').pop() || '0');
-        return `${project.wbs_code}.${lastNumber + 1}`;
-      }
-
-      // Split parent code to check depth
-      const parentParts = parentWbsCode.split('.');
-      if (parentParts.length >= 3) {
-        throw new Error('Maximum WBS code depth of 3 levels reached');
-      }
-
-      // For phases (level 1), get all phases and find next number
-      if (parentParts.length === 1) {
-        const phases = await db('project_phases')
-          .where('project_id', parentWbsCode)
+          .where('wbs_code', 'like', `${parentWbsCode}.%`)
           .select('wbs_code');
 
         if (phases.length === 0) return `${parentWbsCode}.1`;
 
         const numbers = phases.map((phase): number => {
-          const parts = phase.wbs_code.split('.');
-          return parseInt(parts[parts.length - 1]);
+          const phaseParts = phase.wbs_code.split('.');
+          return parseInt(phaseParts[1]);
         })
         .filter((n: number): boolean => !isNaN(n))
         .sort((a: number, b: number): number => b - a);
@@ -606,21 +579,25 @@ const ProjectModel = {
         return `${parentWbsCode}.${numbers[0] + 1}`;
       }
 
-      // For tasks (level 2), check project_tasks
-      const tasks = await db('project_tasks')
-        .where('wbs_code', 'like', `${parentWbsCode}.%`)
-        .select('wbs_code');
+      // For phase level (two numbers), get next task number
+      if (parts.length === 2) {
+        const tasks = await db('project_tasks')
+          .where('wbs_code', 'like', `${parentWbsCode}.%`)
+          .select('wbs_code');
 
-      if (tasks.length === 0) return `${parentWbsCode}.1`;
+        if (tasks.length === 0) return `${parentWbsCode}.1`;
 
-      const numbers = tasks.map((task): number => {
-        const parts = task.wbs_code.split('.');
-        return parseInt(parts[parts.length - 1]);
-      })
-      .filter((n: number): boolean => !isNaN(n))
-      .sort((a: number, b: number): number => b - a);
+        const numbers = tasks.map((task): number => {
+          const taskParts = task.wbs_code.split('.');
+          return parseInt(taskParts[2]);
+        })
+        .filter((n: number): boolean => !isNaN(n))
+        .sort((a: number, b: number): number => b - a);
 
-      return `${parentWbsCode}.${numbers[0] + 1}`;
+        return `${parentWbsCode}.${numbers[0] + 1}`;
+      }
+
+      throw new Error('Invalid WBS code format');
     } catch (error) {
       console.error('Error generating next WBS code:', error);
       throw error;
