@@ -163,7 +163,7 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Project Manager</label>
                 <CustomSelect
                   value={selectedUserId || ''}
                   onValueChange={setSelectedUserId}
