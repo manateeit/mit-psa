@@ -257,6 +257,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
                   {company?.company_name || 'N/A'}
                 </p>                  
                 <Button
+                  {...withDataAutomationId({ id: `${id}-show-company-picker-btn` })}  
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowCompanyPicker(!showCompanyPicker)}
