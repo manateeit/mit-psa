@@ -355,7 +355,7 @@ export class EventBus {
       });
     } catch (error) {
       logger.error('Error publishing event:', error);
-      throw error;
+      // throw error;
     }
   }
 
