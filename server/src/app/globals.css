@@ -487,3 +487,61 @@ body,
 .drag-over {
   background-color: rgba(var(--color-primary-100), 0.2);
 }
+
+/* Override react-day-picker default styles */
+.rdp {
+  --rdp-accent-color: rgb(var(--color-primary-100)) !important;
+  --rdp-background-color: rgb(var(--color-primary-50)) !important;
+  margin: 0 !important;
+}
+
+.rdp-button:focus:not([disabled]) {
+  background-color: rgb(var(--color-primary-50)) !important;
+  border: none !important;
+  box-shadow: 0 0 0 2px rgb(var(--color-primary-100)) !important;
+}
+
+.rdp-day_selected:not([disabled]) {
+  background-color: rgb(var(--color-primary-100)) !important;
+  color: rgb(var(--color-text-700)) !important;
+}
+
+.rdp-day_selected:hover:not([disabled]) {
+  background-color: rgb(var(--color-primary-200)) !important;
+}
+
+.rdp-button:hover:not([disabled]):not(.rdp-day_selected) {
+  background-color: rgb(var(--color-primary-50)) !important;
+  color: rgb(var(--color-text-700)) !important;
+}
+
+/* Navigation arrows */
+.rdp-nav_button {
+  color: rgb(var(--color-primary-400)) !important;
+  background: none !important;
+  border: none !important;
+}
+
+.rdp-nav_button:hover {
+  color: rgb(var(--color-primary-600)) !important;
+  background-color: rgb(var(--color-primary-50)) !important;
+}
+
+.rdp-nav_button:focus-visible {
+  color: rgb(var(--color-primary-600)) !important;
+  background-color: rgb(var(--color-primary-50)) !important;
+  box-shadow: 0 0 0 2px rgb(var(--color-primary-100)) !important;
+}
+
+/* Selected date circle */
+.rdp-day_selected {
+  color: rgb(var(--color-text-700)) !important;
+  border: none !important;
+  outline: none !important;
+  background-color: rgb(var(--color-primary-100)) !important;
+}
+
+.rdp-day_today {
+  color: rgb(var(--color-primary-600)) !important;
+  font-weight: 500 !important;
+}
