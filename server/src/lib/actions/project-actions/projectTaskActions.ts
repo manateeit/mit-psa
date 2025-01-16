@@ -544,18 +544,44 @@ export async function moveTaskToPhase(taskId: string, newPhaseId: string, newSta
         const newWbsCode = await ProjectModel.generateNextWbsCode(newPhase.wbs_code);
 
         // Update task with new phase, project, and WBS code
-        const updatedTask = await ProjectTaskModel.updateTask(taskId, {
-            phase_id: newPhaseId,
-            wbs_code: newWbsCode,
-            project_status_mapping_id: finalStatusMappingId,
-            // Preserve other important fields
-            task_name: existingTask.task_name,
-            description: existingTask.description,
-            assigned_to: existingTask.assigned_to,
-            estimated_hours: existingTask.estimated_hours,
-            actual_hours: existingTask.actual_hours,
-            due_date: existingTask.due_date
+        const {knex: db} = await createTenantKnex();
+        const updatedTask = await db.transaction(async (trx) => {
+            const [updatedTask] = await trx<IProjectTask>('project_tasks')
+                .where('task_id', taskId)
+                .update({
+                    phase_id: newPhaseId,
+                    wbs_code: newWbsCode,
+                    project_status_mapping_id: finalStatusMappingId,
+                    // Preserve other important fields
+                    task_name: existingTask.task_name,
+                    description: existingTask.description,
+                    assigned_to: existingTask.assigned_to,
+                    estimated_hours: existingTask.estimated_hours,
+                    actual_hours: existingTask.actual_hours,
+                    due_date: existingTask.due_date,
+                    updated_at: db.fn.now()
+                })
+                .returning('*');
+            
+            // Update all ticket links to point to new project and phase
+            await trx('project_ticket_links')
+                .where('task_id', taskId)
+                .update({
+                    project_id: newPhase.project_id,
+                    phase_id: newPhaseId
+                });
+
+            return updatedTask;
         });
+
+        // Update all ticket links to point to new project and phase
+        const ticketLinks = await ProjectTaskModel.getTaskTicketLinks(taskId);
+        for (const link of ticketLinks) {
+            await ProjectTaskModel.updateTaskTicketLink(link.link_id, {
+                project_id: newPhase.project_id,
+                phase_id: newPhaseId
+            });
+        }
 
         // If this is a cross-project move, update ticket links
         if (currentPhase.project_id !== newPhase.project_id) {

@@ -175,6 +175,7 @@ const ProjectTaskModel = {
         .join('project_phases', 'project_tasks.phase_id', 'project_phases.phase_id')
         .leftJoin('users', 'project_tasks.assigned_to', 'users.user_id')
         .where('project_phases.project_id', projectId)
+        .andWhere('project_tasks.phase_id', db.ref('project_phases.phase_id')) // Ensure phase matches
         .select(
           'project_tasks.*',
           'project_phases.project_id',
