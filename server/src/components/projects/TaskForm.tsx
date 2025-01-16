@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
 import EditableText from '@/components/ui/EditableText';
 import { ListChecks, UserPlus, Trash2 } from 'lucide-react';
-import { CalendarPicker } from '@/components/ui/CalendarPicker';
+import { DatePicker } from '@/components/ui/DatePicker';
 import UserPicker from '@/components/ui/UserPicker';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import { Input } from '@/components/ui/Input';
@@ -554,11 +554,14 @@ export default function TaskForm({
                 <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-                  <CalendarPicker
+                  <DatePicker
                     value={dueDate}
                     onChange={setDueDate}
                     id="task-due-date-picker"
+                    label="Task Due Date"
                     placeholder="Select due date"
+                    required={true}
+                    disabled={isSubmitting}
                   />
                 </div>
                   <div>
