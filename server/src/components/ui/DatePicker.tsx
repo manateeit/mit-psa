@@ -85,8 +85,7 @@ export const DatePicker = React.forwardRef<HTMLDivElement, DatePickerProps>(
                     }
                   }}
                   defaultMonth={value}
-                  fromDate={new Date(1900, 0, 1)}
-                  toDate={new Date(2100, 11, 31)}
+                  fromDate={new Date(new Date().getFullYear(), new Date().getMonth(), 1)}
                 />
               </div>
             </Popover.Content>

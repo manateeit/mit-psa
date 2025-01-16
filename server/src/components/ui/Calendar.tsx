@@ -15,26 +15,25 @@ interface MonthYearSelectProps {
   value: Date;
   onChange: (date: Date) => void;
   fromDate: Date;
-  toDate: Date;
 }
 
-const MonthYearSelect = ({ value, onChange, fromDate, toDate }: MonthYearSelectProps) => {
+const MonthYearSelect = ({ value, onChange, fromDate }: MonthYearSelectProps) => {
   const [isOpen, setIsOpen] = React.useState(false);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   
   // Generate all available month/year combinations
   const options = React.useMemo(() => {
     const start = new Date(fromDate.getFullYear(), fromDate.getMonth(), 1);
-    const end = new Date(toDate.getFullYear(), toDate.getMonth(), 1);
     const options = [];
     
-    while (start <= end) {
+    // Generate options for the next 10 years
+    for (let i = 0; i < 120; i++) {
       options.push(new Date(start));
       start.setMonth(start.getMonth() + 1);
     }
     
     return options;
-  }, [fromDate, toDate]);
+  }, [fromDate]);
 
   const handleSelect = (date: Date) => {
     onChange(date);
@@ -53,8 +52,18 @@ const MonthYearSelect = ({ value, onChange, fromDate, toDate }: MonthYearSelectP
       </button>
       
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg month-year-dropdown">
-          {options.map((date) => (
+        <div 
+          className="absolute z-50 mt-1 w-48 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg month-year-dropdown"
+          onWheel={(e) => {
+            e.currentTarget.scrollBy({
+              top: e.deltaY,
+              behavior: 'smooth'
+            });
+            e.stopPropagation();
+          }}
+        >
+          <div className="scroll-container">
+            {options.map((date) => (
             <button
               key={date.toISOString()}
               onClick={() => handleSelect(date)}
@@ -66,6 +75,7 @@ const MonthYearSelect = ({ value, onChange, fromDate, toDate }: MonthYearSelectP
               {format(date, 'MMMM yyyy')}
             </button>
           ))}
+          </div>
         </div>
       )}
     </div>
@@ -97,38 +107,34 @@ function Calendar({
     );
   };
   const [monthYear, setMonthYear] = React.useState<Date>(selected || new Date());
-  const fromDate = props.fromDate || new Date(1900, 0, 1);
-  const toDate = props.toDate || new Date(2100, 11, 31);
+  const fromDate = props.fromDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+//  const toDate = props.toDate || new Date(2050, 11, 31);
 
   const handleTodayClick = () => {
     const today = new Date();
     setMonthYear(today);
-    if (onSelect) {
-      onSelect(today);
-    }
   };
 
   return (
     <div className="relative">
-      <div className="flex justify-between items-center mb-4 px-1 gap-2">
+      <div className="flex justify-between items-center mb-1 px-3 pt-2 gap-2">
         <MonthYearSelect
           value={monthYear}
           onChange={setMonthYear}
           fromDate={fromDate}
-          toDate={toDate}
         />
         <div className="flex items-center space-x-1">
           <button
             onClick={() => setMonthYear(new Date(monthYear.setMonth(monthYear.getMonth() - 1)))}
-            className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 inline-flex items-center justify-center"
+            className="h-8 w-8 bg-transparent p-0 opacity-50 hover:opacity-100 inline-flex items-center justify-center"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-6 w-6" />
           </button>
           <button
             onClick={() => setMonthYear(new Date(monthYear.setMonth(monthYear.getMonth() + 1)))}
-            className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 inline-flex items-center justify-center"
+            className="h-8 w-8 bg-transparent p-0 opacity-50 hover:opacity-100 inline-flex items-center justify-center"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-6 w-6" />
           </button>
         </div>
       </div>
