@@ -81,6 +81,21 @@ function Calendar({
   mode = 'single',
   ...props
 }: CalendarProps) {
+  const CustomWeekdays = () => {
+    const weekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+    return (
+      <div className="grid grid-cols-7 mb-1">
+        {weekdays.map((weekday, index) => (
+          <div 
+            key={index}
+            className="text-xs font-medium text-gray-500 text-center"
+          >
+            {weekday}
+          </div>
+        ))}
+      </div>
+    );
+  };
   const [monthYear, setMonthYear] = React.useState<Date>(selected || new Date());
   const fromDate = props.fromDate || new Date(1900, 0, 1);
   const toDate = props.toDate || new Date(2100, 11, 31);
@@ -124,11 +139,10 @@ function Calendar({
           months: 'flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0',
           month: 'space-y-4',
           caption: 'hidden',
+          caption_label: 'hidden',
           nav: 'hidden',
           table: 'w-full border-collapse',
-          head_row: 'grid grid-cols-7',
-          head_cell: 'text-muted-foreground font-normal text-[0.8rem] text-center',
-          row: 'grid grid-cols-7 mt-2',
+          row: 'grid grid-cols-7',
           cell: cn(
             'text-center text-sm relative py-0.5',
             '[&:has([aria-selected])]:bg-purple-50',
@@ -162,6 +176,9 @@ function Calendar({
         modifiers={{ today: new Date() }}
         modifiersStyles={{
           today: { fontWeight: 'bold', color: 'rgb(var(--color-primary-600))' }
+        }}
+        components={{
+          Weekdays: CustomWeekdays,
         }}
         footer={
           <div className="mt-3 flex justify-center">
