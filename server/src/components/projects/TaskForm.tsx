@@ -264,7 +264,7 @@ export default function TaskForm({
             assigned_to: finalAssignedTo,
             estimated_hours: estimatedHours,
             actual_hours: actualHours,
-            due_date: task.due_date,
+            due_date: dueDate || null, // Use selected due date or null
             checklist_items: checklistItems,
             project_status_mapping_id: selectedStatusId
           };
@@ -282,7 +282,7 @@ export default function TaskForm({
           assigned_to: finalAssignedTo,
           estimated_hours: estimatedHours,
           actual_hours: actualHours,
-          due_date: new Date(),
+          due_date: dueDate || null, // Use selected due date or null
           phase_id: phase.phase_id
         };
 

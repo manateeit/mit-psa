@@ -86,7 +86,10 @@ const ProjectTaskModel = {
               }
               break;
             case 'due_date':
-              if (value instanceof Date || value === null) {
+              // Convert string to Date if needed
+              if (typeof value === 'string') {
+                finalTaskData[typedKey] = new Date(value);
+              } else if (value instanceof Date || value === null) {
                 finalTaskData[typedKey] = value;
               }
               break;
