@@ -91,7 +91,10 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
         assignedTo: assignedTo || undefined,
         assignedToMe,
         companyId: companyId || undefined,
-        dateRange: startDate && endDate ? { start: startDate, end: endDate } : undefined
+        dateRange: startDate || endDate ? {
+          start: startDate,
+          end: endDate
+        } : undefined
       });
       
       // Filter out items that are already on the timesheet
@@ -289,7 +292,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
               />
               <div className="grid grid-cols-2 gap-4">
                 <DatePicker
-                  label="From"
+                  label="Start date"
                   value={startDate}
                   onChange={(date) => {
                     setStartDate(date);
@@ -299,7 +302,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
                   placeholder="Start date"
                 />
                 <DatePicker
-                  label="To"
+                  label="End date"
                   value={endDate}
                   onChange={(date) => {
                     setEndDate(date);

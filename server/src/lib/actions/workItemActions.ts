@@ -14,8 +14,8 @@ interface SearchOptions {
   assignedToMe?: boolean;
   companyId?: string;
   dateRange?: {
-    start: Date;
-    end: Date;
+    start?: Date;
+    end?: Date;
   };
 }
 
@@ -142,10 +142,13 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
     }
 
     // Filter by date range
-    if (options.dateRange) {
-      const { start, end } = options.dateRange;
-      ticketsQuery = ticketsQuery.whereBetween('t.entered_at', [start, end]);
-      projectTasksQuery = projectTasksQuery.whereBetween('pt.created_at', [start, end]);
+    if (options.dateRange?.start) {
+      ticketsQuery = ticketsQuery.where('t.entered_at', '>=', options.dateRange.start);
+      projectTasksQuery = projectTasksQuery.where('pt.created_at', '>=', options.dateRange.start);
+    }
+    if (options.dateRange?.end) {
+      ticketsQuery = ticketsQuery.where('t.closed_at', '<=', options.dateRange.end);
+      projectTasksQuery = projectTasksQuery.where('pt.due_date', '<=', options.dateRange.end);
     }
 
     // Combine queries
