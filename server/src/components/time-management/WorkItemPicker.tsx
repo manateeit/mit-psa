@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react';
+import { Filter } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { SwitchWithLabel } from '../ui/SwitchWithLabel';
 import { IWorkItem, IExtendedWorkItem, WorkItemType } from '../../interfaces/workItem.interfaces';
@@ -41,6 +42,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
   const [companies, setCompanies] = useState<ICompany[]>([]);
   const [filterState, setFilterState] = useState<'all' | 'active' | 'inactive'>('active');
   const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -200,8 +202,8 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
   };
 
   return (
-    <div className="flex flex-col h-[calc(80vh-8rem)]">
-      <div className="flex-none bg-white dark:bg-[rgb(var(--color-border-50))] pb-4">
+    <div className="flex flex-col h-[calc(80vh-8rem)] overflow-visible">
+      <div className="flex-none bg-white dark:bg-[rgb(var(--color-border-50))] pb-4 overflow-visible">
         <div className="flex justify-between items-center mb-4">
           <Button
             onClick={() => onSelect(null)}
@@ -212,7 +214,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
             Create Ad-hoc Entry
           </Button>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 mb-4">
           <div className="relative flex-1">
             <Input
               value={searchTerm}
@@ -250,29 +252,48 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
             }}
             className="text-sm text-[rgb(var(--color-text-600))]"
           />
+          <Button
+            id="toggle-filters-btn"
+            variant="ghost"
+            onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
+            className="flex items-center gap-2 bg-[rgb(var(--color-primary-100))] hover:bg-[rgb(var(--color-primary-100))]"
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+            <svg
+              className={`h-4 w-4 transition-transform ${isFiltersExpanded ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </Button>
         </div>
-        <div className="mt-2 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center gap-4">
-              <UserPicker
-                label="Assigned to"
-                value={assignedTo}
-                onValueChange={(value) => {
-                  setAssignedTo(value);
-                  setCurrentPage(1);
-                  loadWorkItems(searchTerm, 1);
-                }}
-                disabled={assignedToMe}
-                users={users}
-              />
-              <SwitchWithLabel
-                label="Assigned to me"
-                checked={assignedToMe}
-              onCheckedChange={handleAssignedToMeChange}
-                className="text-sm text-[rgb(var(--color-text-600))]"
-              />
+        <div className="relative">
+          <div className={`space-y-4 transition-all duration-200 ${isFiltersExpanded ? 'block' : 'hidden'}`}>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-4">
+                <UserPicker
+                  label="Assigned to"
+                  value={assignedTo}
+                  onValueChange={(value) => {
+                    setAssignedTo(value);
+                    setCurrentPage(1);
+                    loadWorkItems(searchTerm, 1);
+                  }}
+                  disabled={assignedToMe}
+                  users={users}
+                />
+                <SwitchWithLabel
+                  label="Assigned to me"
+                  checked={assignedToMe}
+                  onCheckedChange={handleAssignedToMeChange}
+                  className="text-sm text-[rgb(var(--color-text-600))]"
+                />
+              </div>
             </div>
-          </div>
 
             <div className="grid grid-cols-2 gap-4">
               <CompanyPicker
@@ -314,6 +335,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
               </div>
             </div>
           </div>
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
@@ -325,7 +347,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
                   {workItems.map((item): JSX.Element => (
                     <li
                       key={item.work_item_id}
-                      className="hover:bg-[rgb(var(--color-border-100))] cursor-pointer transition-colors duration-150"
+                      className="bg-[rgb(var(--color-border-50))] hover:bg-[rgb(var(--color-border-100))] cursor-pointer transition-colors duration-150"
                       onClick={() => onSelect(item)}
                     >
                       <div className="px-4 py-3">
