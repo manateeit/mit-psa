@@ -18,9 +18,10 @@ import { ChannelPicker } from '../settings/general/ChannelPicker';
 import { CompanyPicker } from '../companies/CompanyPicker';
 import { IChannel, ICompany } from '../../interfaces';
 import { DataTable } from '../ui/DataTable';
+import { Input } from '../ui/Input';
 import { ColumnDefinition } from '../../interfaces/dataTable.interfaces';
 import { getTicketsForList, deleteTicket } from '../../lib/actions/ticket-actions/ticketActions';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, XCircle } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ReflectionContainer } from '../../types/ui-reflection/ReflectionContainer';
 import { withDataAutomationId } from '@/types/ui-reflection/withDataAutomationId';
@@ -388,68 +389,73 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({
         <Button id="add-ticket-button" onClick={() => setIsQuickAddOpen(true)}>Add Ticket</Button>
       </div>
       <div className="bg-white shadow rounded-lg p-4">
-        <div className="flex items-center justify-between gap-3">
-          <ReflectionContainer id={`${id}-filters`} label="Ticket DashboardFilters">
-            <div className="flex items-center gap-3">
-              <div className="w-fit">
-                <ChannelPicker
-                  id={`${id}-channel-picker`}
-                  channels={channels}
-                  onSelect={handleChannelSelect}
-                  selectedChannelId={selectedChannel}
-                  filterState={channelFilterState}
-                  onFilterStateChange={setChannelFilterState}
-                />
-              </div>
-              <CompanyPicker
-                id='company-picker'
-                data-automation-id={`${id}-company-picker`}
-                companies={companies}
-                onSelect={handleCompanySelect}
-                selectedCompanyId={selectedCompany}
-                filterState={companyFilterState}
-                onFilterStateChange={handleCompanyFilterStateChange}
-                clientTypeFilter={clientTypeFilter}
-                onClientTypeFilterChange={handleClientTypeFilterChange}
-                fitContent={true}
-              />
-              <CustomSelect
-                data-automation-id={`${id}-status-select`}
-                options={statusOptions}
-                value={selectedStatus}
-                onValueChange={(value) => setSelectedStatus(value)}
-                placeholder="All Statuses"
-              />
-              <CustomSelect
-                data-automation-id={`${id}-priority-select`}
-                options={priorityOptions}
-                value={selectedPriority}
-                onValueChange={(value) => setSelectedPriority(value)}
-                placeholder="All Priorities"
-              />
-              <CategoryPicker
-                id={`${id}-category-picker`}
-                categories={categories}
-                selectedCategories={selectedCategories}
-                excludedCategories={excludedCategories}
-                onSelect={handleCategorySelect}
-                placeholder="Filter by category"
-                multiSelect={true}
-                showExclude={true}
-                showReset={true}
-                allowEmpty={true}
-                className="text-sm min-w-[200px]"
-              />
-              <input
-                type="text"
-                placeholder="Search tickets..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-[38px] border rounded px-3 py-2 text-sm min-w-[200px]"
-              />
-            </div>
-          </ReflectionContainer>
-        </div>
+        <ReflectionContainer id={`${id}-filters`} label="Ticket DashboardFilters">
+          <div className="flex items-center gap-3 flex-nowrap">
+            <ChannelPicker
+              id={`${id}-channel-picker`}
+              channels={channels}
+              onSelect={handleChannelSelect}
+              selectedChannelId={selectedChannel}
+              filterState={channelFilterState}
+              onFilterStateChange={setChannelFilterState}
+            />
+            <CompanyPicker
+              id='company-picker'
+              data-automation-id={`${id}-company-picker`}
+              companies={companies}
+              onSelect={handleCompanySelect}
+              selectedCompanyId={selectedCompany}
+              filterState={companyFilterState}
+              onFilterStateChange={handleCompanyFilterStateChange}
+              clientTypeFilter={clientTypeFilter}
+              onClientTypeFilterChange={handleClientTypeFilterChange}
+              fitContent={true}
+            />
+            <CustomSelect
+              data-automation-id={`${id}-status-select`}
+              options={statusOptions}
+              value={selectedStatus}
+              onValueChange={(value) => setSelectedStatus(value)}
+              placeholder="All Statuses"
+            />
+            <CustomSelect
+              data-automation-id={`${id}-priority-select`}
+              options={priorityOptions}
+              value={selectedPriority}
+              onValueChange={(value) => setSelectedPriority(value)}
+              placeholder="All Priorities"
+            />
+            <CategoryPicker
+              id={`${id}-category-picker`}
+              categories={categories}
+              selectedCategories={selectedCategories}
+              excludedCategories={excludedCategories}
+              onSelect={handleCategorySelect}
+              placeholder="Filter by category"
+              multiSelect={true}
+              showExclude={true}
+              showReset={true}
+              allowEmpty={true}
+              className="text-sm min-w-[200px]"
+            />
+            <input
+              type="text"
+              placeholder="Search tickets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-[38px] border rounded px-3 py-2 text-sm min-w-[200px]"
+            />
+            <Button
+              variant="outline"
+              onClick={handleResetFilters}
+              className="whitespace-nowrap flex items-center gap-2 ml-auto"
+              id='reset-filters'
+            >
+              <XCircle className="h-4 w-4" />
+              Reset Filters
+            </Button>
+          </div>
+        </ReflectionContainer>
         <h2 className="text-xl font-semibold mt-6 mb-2">
           Tickets
         </h2>
