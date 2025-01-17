@@ -53,6 +53,8 @@ export default function ProjectDetail({
   const [defaultStatus, setDefaultStatus] = useState<ProjectStatus | null>(null);
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [editingPhaseName, setEditingPhaseName] = useState('');
+  const [editingStartDate, setEditingStartDate] = useState<Date | undefined>(undefined);
+  const [editingEndDate, setEditingEndDate] = useState<Date | undefined>(undefined);
   const [dragOverPhaseId, setDragOverPhaseId] = useState<string | null>(null);
   const [moveConfirmation, setMoveConfirmation] = useState<{
     taskId: string;
@@ -455,6 +457,9 @@ export default function ProjectDetail({
   const handleEditPhase = (phase: IProjectPhase) => {
     setEditingPhaseId(phase.phase_id);
     setEditingPhaseName(phase.phase_name);
+    // Always create new Date objects from the timestamps to ensure consistent format
+    setEditingStartDate(phase.start_date ? new Date(phase.start_date) : undefined);
+    setEditingEndDate(phase.end_date ? new Date(phase.end_date) : undefined);
   };
 
   const handleSavePhase = async (phase: IProjectPhase) => {
@@ -464,21 +469,30 @@ export default function ProjectDetail({
         return;
       }
   
-      await updatePhase(phase.phase_id, {
-        phase_name: editingPhaseName
+      const updatedPhase = await updatePhase(phase.phase_id, {
+        phase_name: editingPhaseName,
+        start_date: editingStartDate || null,
+        end_date: editingEndDate || null
       });
   
       setProjectPhases(prevPhases =>
         prevPhases.map((p): IProjectPhase =>
           p.phase_id === phase.phase_id
-            ? { ...p, phase_name: editingPhaseName }
+            ? { 
+                ...p, 
+                phase_name: editingPhaseName,
+                start_date: updatedPhase.start_date,
+                end_date: updatedPhase.end_date
+              }
             : p
         )
       );
       
       setEditingPhaseId(null);
       setEditingPhaseName('');
-      toast.success('Phase name updated successfully!');
+      setEditingStartDate(undefined);
+      setEditingEndDate(undefined);
+      toast.success('Phase updated successfully!');
     } catch (error) {
       console.error('Error updating phase name:', error);
       toast.error('Failed to update phase name. Please try again.');
@@ -488,6 +502,8 @@ export default function ProjectDetail({
   const handleCancelEdit = () => {
     setEditingPhaseId(null);
     setEditingPhaseName('');
+    setEditingStartDate(undefined);
+    setEditingEndDate(undefined);
   };
 
   const handleDeletePhase = async () => {
@@ -607,6 +623,8 @@ export default function ProjectDetail({
               isAddingTask={isAddingTask}
               editingPhaseId={editingPhaseId}
               editingPhaseName={editingPhaseName}
+              editingStartDate={editingStartDate}
+              editingEndDate={editingEndDate}
               dragOverPhaseId={dragOverPhaseId}
               onPhaseSelect={handlePhaseSelect}
               onAddTask={() => {
@@ -623,6 +641,8 @@ export default function ProjectDetail({
               onCancelEdit={handleCancelEdit}
               onDeletePhase={handleDeletePhaseClick}
               onEditingPhaseNameChange={setEditingPhaseName}
+              onEditingStartDateChange={setEditingStartDate}
+              onEditingEndDateChange={setEditingEndDate}
               onDragOver={handlePhaseDragOver}
               onDragLeave={handlePhaseDragLeave}
               onDrop={handlePhaseDropZone}

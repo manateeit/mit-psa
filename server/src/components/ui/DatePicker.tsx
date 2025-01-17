@@ -54,10 +54,11 @@ export const DatePicker = React.forwardRef<HTMLDivElement, DatePickerProps>(
             disabled={disabled}
             aria-label={label || placeholder}
             className={`
-              flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background 
+              flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm
               file:border-0 file:bg-transparent file:text-sm file:font-medium 
-              placeholder:text-muted-foreground 
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 
+              placeholder:text-gray-500
+              hover:border-gray-400
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 
               disabled:cursor-not-allowed disabled:opacity-50
               ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
             `}
@@ -80,7 +81,7 @@ export const DatePicker = React.forwardRef<HTMLDivElement, DatePickerProps>(
                   selected={value}
                   onSelect={(date) => {
                     if (date) {
-                      onChange(date);
+                      onChange(new Date(date)); // Ensure we pass a new Date object
                       setOpen(false);
                     }
                   }}

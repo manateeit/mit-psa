@@ -5,6 +5,7 @@ import { IProjectPhase } from '@/interfaces/project.interfaces';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { toast } from 'react-hot-toast';
 import { addProjectPhase } from '@/lib/actions/project-actions/projectActions';
 
@@ -24,6 +25,8 @@ const PhaseQuickAdd: React.FC<PhaseQuickAddProps> = ({
 }) => {
   const [phaseName, setPhaseName] = useState('');
   const [description, setDescription] = useState('');
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,8 +40,8 @@ const PhaseQuickAdd: React.FC<PhaseQuickAddProps> = ({
         project_id: projectId,
         phase_name: phaseName.trim(),
         description: description || null,
-        start_date: null,
-        end_date: null,
+        start_date: startDate || null,
+        end_date: endDate || null,
         status: 'In Progress',
         order_number: 0, // Will be set by server
         wbs_code: '', // Will be set by server
@@ -84,6 +87,24 @@ const PhaseQuickAdd: React.FC<PhaseQuickAddProps> = ({
                 className="w-full p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
                 rows={3}
               />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                  <DatePicker
+                    value={startDate}
+                    onChange={setStartDate}
+                    placeholder="Select start date"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                  <DatePicker
+                    value={endDate}
+                    onChange={setEndDate}
+                    placeholder="Select end date"
+                  />
+                </div>
+              </div>
               <div className="flex justify-between mt-6">
                 <Button id="cancel-phase-button" variant="ghost" onClick={handleCancel} disabled={isSubmitting}>
                   Cancel
