@@ -5,6 +5,11 @@ import { SwitchWithLabel } from '../ui/SwitchWithLabel';
 import { IWorkItem, IExtendedWorkItem, WorkItemType } from '../../interfaces/workItem.interfaces';
 import { searchWorkItems } from '../../lib/actions/workItemActions';
 import { Button } from '../ui/Button';
+import UserPicker from '../ui/UserPicker';
+import { CompanyPicker } from '../companies/CompanyPicker';
+import { DatePicker } from '../ui/DatePicker';
+import { IUserWithRoles } from '@/interfaces/auth.interfaces';
+import { getAllUsers, getCurrentUser } from '@/lib/actions/user-actions/userActions';
 
 interface WorkItemPickerProps {
   onSelect: (workItem: IWorkItem | null) => void;
@@ -25,6 +30,46 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
   const [hasMore, setHasMore] = useState(false);
   const [total, setTotal] = useState(0);
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [assignedTo, setAssignedTo] = useState<string>('');
+  const [assignedToMe, setAssignedToMe] = useState(false);
+  const [companyId, setCompanyId] = useState<string>('');
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [users, setUsers] = useState<IUserWithRoles[]>([]);
+  const [filterState, setFilterState] = useState<'all' | 'active' | 'inactive'>('active');
+  const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
+
+  // Load users
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const fetchedUsers = await getAllUsers();
+        setUsers(fetchedUsers);
+      } catch (error) {
+        console.error('Error loading users:', error);
+      }
+    };
+    loadUsers();
+  }, []);
+
+  // Handle "Assigned to me" toggle
+  const handleAssignedToMeChange = async (checked: boolean) => {
+    setAssignedToMe(checked);
+    if (checked) {
+      try {
+        const currentUser = await getCurrentUser();
+        if (currentUser) {
+          setAssignedTo(currentUser.user_id);
+        }
+      } catch (error) {
+        console.error('Error getting current user:', error);
+      }
+    } else {
+      setAssignedTo('');
+    }
+    setCurrentPage(1);
+    loadWorkItems(searchTerm, 1);
+  };
   const pageSize = 20;
 
   const loadWorkItems = useCallback(async (term: string, page: number) => {
@@ -36,7 +81,11 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
         pageSize,
         sortBy: 'name',
         sortOrder: 'asc',
-        includeInactive
+        includeInactive,
+        assignedTo: assignedTo || undefined,
+        assignedToMe,
+        companyId: companyId || undefined,
+        dateRange: startDate && endDate ? { start: startDate, end: endDate } : undefined
       });
       
       // Filter out items that are already on the timesheet
@@ -62,10 +111,14 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
       setHasMore(result.total > page * pageSize);
     } catch (error) {
       console.error('Error loading work items:', error);
+      // Show error state in the list
+      setWorkItems([]);
+      setTotal(0);
+      setHasMore(false);
     } finally {
       setIsSearching(false);
     }
-  }, [existingWorkItems, includeInactive]);
+  }, [existingWorkItems, includeInactive, assignedTo, assignedToMe, companyId, startDate, endDate]);
 
   // Load initial items when component mounts
   useEffect(() => {
@@ -150,36 +203,36 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
             Create Ad-hoc Entry
           </Button>
         </div>
-        <div className="relative">
-          <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search work items..."
-            className="pl-8 bg-white dark:bg-[rgb(var(--color-border-50))] border-[rgb(var(--color-border-200))]"
-          />
-          <svg
-            className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[rgb(var(--color-text-400))]"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1">
+            <Input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search work items..."
+              className="pl-8 bg-white dark:bg-[rgb(var(--color-border-50))] border-[rgb(var(--color-border-200))]"
             />
-          </svg>
-          {isSearching && (
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[rgb(var(--color-primary-500))]"></div>
-            </div>
-          )}
-        </div>
-        <div className="mt-2 flex items-center">
+            <svg
+              className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[rgb(var(--color-text-400))]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            {isSearching && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[rgb(var(--color-primary-500))]"></div>
+              </div>
+            )}
+          </div>
           <SwitchWithLabel
-            label="Include inactive projects"
+            label="Include inactive"
             checked={includeInactive}
             onCheckedChange={(checked) => {
               setIncludeInactive(checked);
@@ -189,6 +242,68 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
             className="text-sm text-[rgb(var(--color-text-600))]"
           />
         </div>
+        <div className="mt-2 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center gap-4">
+              <UserPicker
+                label="Assigned to"
+                value={assignedTo}
+                onValueChange={(value) => {
+                  setAssignedTo(value);
+                  setCurrentPage(1);
+                  loadWorkItems(searchTerm, 1);
+                }}
+                disabled={assignedToMe}
+                users={users}
+              />
+              <SwitchWithLabel
+                label="Assigned to me"
+                checked={assignedToMe}
+              onCheckedChange={handleAssignedToMeChange}
+                className="text-sm text-[rgb(var(--color-text-600))]"
+              />
+            </div>
+          </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <CompanyPicker
+                id="work-item-company-picker"
+                selectedCompanyId={companyId}
+                onSelect={(value: string) => {
+                  setCompanyId(value);
+                  setCurrentPage(1);
+                  loadWorkItems(searchTerm, 1);
+                }}
+                filterState={filterState}
+                onFilterStateChange={setFilterState}
+                clientTypeFilter={clientTypeFilter}
+                onClientTypeFilterChange={setClientTypeFilter}
+                fitContent
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <DatePicker
+                  label="From"
+                  value={startDate}
+                  onChange={(date) => {
+                    setStartDate(date);
+                    setCurrentPage(1);
+                    loadWorkItems(searchTerm, 1);
+                  }}
+                  placeholder="Start date"
+                />
+                <DatePicker
+                  label="To"
+                  value={endDate}
+                  onChange={(date) => {
+                    setEndDate(date);
+                    setCurrentPage(1);
+                    loadWorkItems(searchTerm, 1);
+                  }}
+                  placeholder="End date"
+                />
+              </div>
+            </div>
+          </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
