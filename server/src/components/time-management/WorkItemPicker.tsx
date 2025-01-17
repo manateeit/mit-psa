@@ -10,6 +10,8 @@ import { CompanyPicker } from '../companies/CompanyPicker';
 import { DatePicker } from '../ui/DatePicker';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { getAllUsers, getCurrentUser } from '@/lib/actions/user-actions/userActions';
+import { getAllCompanies } from '@/lib/actions/companyActions';
+import { ICompany } from '@/interfaces/company.interfaces';
 
 interface WorkItemPickerProps {
   onSelect: (workItem: IWorkItem | null) => void;
@@ -36,20 +38,24 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [users, setUsers] = useState<IUserWithRoles[]>([]);
+  const [companies, setCompanies] = useState<ICompany[]>([]);
   const [filterState, setFilterState] = useState<'all' | 'active' | 'inactive'>('active');
   const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
 
-  // Load users
   useEffect(() => {
-    const loadUsers = async () => {
+    const loadData = async () => {
       try {
-        const fetchedUsers = await getAllUsers();
+        const [fetchedUsers, fetchedCompanies] = await Promise.all([
+          getAllUsers(),
+          getAllCompanies()
+        ]);
         setUsers(fetchedUsers);
+        setCompanies(fetchedCompanies);
       } catch (error) {
-        console.error('Error loading users:', error);
+        console.error('Error loading data:', error);
       }
     };
-    loadUsers();
+    loadData();
   }, []);
 
   // Handle "Assigned to me" toggle
@@ -278,6 +284,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
                 onFilterStateChange={setFilterState}
                 clientTypeFilter={clientTypeFilter}
                 onClientTypeFilterChange={setClientTypeFilter}
+                companies={companies}
                 fitContent
               />
               <div className="grid grid-cols-2 gap-4">
