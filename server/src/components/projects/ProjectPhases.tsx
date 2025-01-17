@@ -10,15 +10,19 @@ interface ProjectPhasesProps {
   isAddingTask: boolean;
   editingPhaseId: string | null;
   editingPhaseName: string;
+  editingStartDate?: Date;
+  editingEndDate?: Date;
   dragOverPhaseId: string | null;
   onPhaseSelect: (phase: IProjectPhase) => void;
+  onEditingPhaseNameChange: (name: string) => void;
+  onEditingStartDateChange?: (date: Date | undefined) => void;
+  onEditingEndDateChange?: (date: Date | undefined) => void;
   onAddTask: () => void;
   onAddPhase: () => void;
   onEditPhase: (phase: IProjectPhase) => void;
   onSavePhase: (phase: IProjectPhase) => void;
   onCancelEdit: () => void;
   onDeletePhase: (phase: IProjectPhase) => void;
-  onEditingPhaseNameChange: (name: string) => void;
   onDragOver: (e: React.DragEvent, phaseId: string) => void;
   onDragLeave: () => void;
   onDrop: (e: React.DragEvent, phase: IProjectPhase) => void;
@@ -30,6 +34,8 @@ export const ProjectPhases: React.FC<ProjectPhasesProps> = ({
   isAddingTask,
   editingPhaseId,
   editingPhaseName,
+  editingStartDate,
+  editingEndDate,
   dragOverPhaseId,
   onPhaseSelect,
   onAddTask,
@@ -39,6 +45,8 @@ export const ProjectPhases: React.FC<ProjectPhasesProps> = ({
   onCancelEdit,
   onDeletePhase,
   onEditingPhaseNameChange,
+  onEditingStartDateChange,
+  onEditingEndDateChange,
   onDragOver,
   onDragLeave,
   onDrop,
@@ -64,7 +72,13 @@ export const ProjectPhases: React.FC<ProjectPhasesProps> = ({
         </Button>
       </div>
       <ul className="space-y-2">
-        {phases.map((phase: IProjectPhase): JSX.Element => (
+        {phases
+          .sort((a, b) => {
+            const aDate = a.end_date ? new Date(a.end_date).getTime() : Infinity;
+            const bDate = b.end_date ? new Date(b.end_date).getTime() : Infinity;
+            return aDate - bDate;
+          })
+          .map((phase: IProjectPhase): JSX.Element => (
           <PhaseListItem
             key={phase.phase_id}
             phase={phase}
@@ -72,12 +86,16 @@ export const ProjectPhases: React.FC<ProjectPhasesProps> = ({
             isEditing={editingPhaseId === phase.phase_id}
             isDragOver={dragOverPhaseId === phase.phase_id}
             editingName={editingPhaseName}
+            editingStartDate={editingStartDate}
+            editingEndDate={editingEndDate}
             onSelect={onPhaseSelect}
             onEdit={onEditPhase}
             onSave={onSavePhase}
             onCancel={onCancelEdit}
             onDelete={onDeletePhase}
             onNameChange={onEditingPhaseNameChange}
+            onStartDateChange={onEditingStartDateChange}
+            onEndDateChange={onEditingEndDateChange}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
             onDrop={onDrop}

@@ -27,7 +27,7 @@ const ProjectTaskModel = {
         .insert({
           ...taskData,
           task_id: uuidv4(),
-          assigned_to: taskData.assigned_to === '' ? null : taskData.assigned_to,
+          assigned_to: taskData.assigned_to === '' || taskData.assigned_to === null ? undefined : taskData.assigned_to,
           phase_id: phaseId,
           project_status_mapping_id: taskData.project_status_mapping_id,
           wbs_code: newWbsCode,
@@ -46,11 +46,56 @@ const ProjectTaskModel = {
     try {
       const {knex: db} = await createTenantKnex();
 
-      const finalTaskData = {
-        ...taskData,
-        assigned_to: taskData.assigned_to === '' ? null : taskData.assigned_to,
-        updated_at: db.fn.now()
+      // Filter out invalid columns and transform data
+      const validColumns = [
+        'task_name',
+        'description',
+        'assigned_to',
+        'estimated_hours',
+        'due_date',
+        'actual_hours',
+        'wbs_code',
+        'project_status_mapping_id'
+      ];
+      
+      const finalTaskData: Partial<IProjectTask> = {
+        updated_at: new Date()
       };
+      
+      for (const key of Object.keys(taskData)) {
+        if (validColumns.includes(key)) {
+          const typedKey = key as keyof IProjectTask;
+          const value = taskData[typedKey];
+          
+          switch(typedKey) {
+            case 'assigned_to':
+              finalTaskData[typedKey] = value === '' ? null : value as string | null;
+              break;
+            case 'task_name':
+            case 'description':
+            case 'wbs_code':
+            case 'project_status_mapping_id':
+              if (typeof value === 'string') {
+                finalTaskData[typedKey] = value;
+              }
+              break;
+            case 'estimated_hours':
+            case 'actual_hours':
+              if (typeof value === 'number') {
+                finalTaskData[typedKey] = value;
+              }
+              break;
+            case 'due_date':
+              // Convert string to Date if needed
+              if (typeof value === 'string') {
+                finalTaskData[typedKey] = new Date(value);
+              } else if (value instanceof Date || value === null) {
+                finalTaskData[typedKey] = value;
+              }
+              break;
+          }
+        }
+      }
 
       const [updatedTask] = await db<IProjectTask>('project_tasks')
         .where('task_id', taskId)
@@ -130,6 +175,7 @@ const ProjectTaskModel = {
         .join('project_phases', 'project_tasks.phase_id', 'project_phases.phase_id')
         .leftJoin('users', 'project_tasks.assigned_to', 'users.user_id')
         .where('project_phases.project_id', projectId)
+        .andWhere('project_tasks.phase_id', db.ref('project_phases.phase_id')) // Ensure phase matches
         .select(
           'project_tasks.*',
           'project_phases.project_id',

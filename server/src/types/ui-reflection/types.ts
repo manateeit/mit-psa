@@ -199,6 +199,25 @@ export interface DrawerComponent extends BaseComponent {
   width?: string;
 }
 
+/**
+ * Date picker component representation.
+ */
+export interface DatePickerComponent extends BaseComponent {
+  type: "datePicker";
+  
+  /** Current selected date in ISO format */
+  value?: string;
+  
+  /** Whether the picker is required */
+  required?: boolean;
+  
+  /** Whether the picker is disabled */
+  disabled?: boolean;
+  
+  /** Available actions */
+  actions: Array<'open' | 'select'>;
+}
+
 export type UIComponent =
   | ButtonComponent
   | DialogComponent
@@ -208,7 +227,8 @@ export type UIComponent =
   | DataTableComponent
   | ContainerComponent
   | CardComponent
-  | DrawerComponent;
+  | DrawerComponent
+  | DatePickerComponent;
 
 /**
  * Top-level page state representation.

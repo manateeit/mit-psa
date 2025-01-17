@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
 import EditableText from '@/components/ui/EditableText';
 import { ListChecks, UserPlus, Trash2 } from 'lucide-react';
+import { DatePicker } from '@/components/ui/DatePicker';
 import UserPicker from '@/components/ui/UserPicker';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import { Input } from '@/components/ui/Input';
@@ -73,6 +74,7 @@ export default function TaskForm({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [estimatedHours, setEstimatedHours] = useState<number>(Number(task?.estimated_hours) || 0);
   const [actualHours, setActualHours] = useState<number>(Number(task?.actual_hours) || 0);
+  const [dueDate, setDueDate] = useState<Date | undefined>(task?.due_date ? new Date(task.due_date) : undefined);
   const [taskResources, setTaskResources] = useState<any[]>(task?.task_id ? [] : []);
   const [tempTaskResources, setTempTaskResources] = useState<any[]>([]);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
@@ -218,7 +220,7 @@ export default function TaskForm({
           assigned_to: assignedUser || null,
           estimated_hours: estimatedHours,
           actual_hours: actualHours,
-          due_date: task.due_date,
+          due_date: dueDate || null,
           checklist_items: checklistItems,
           // Always include these IDs to ensure they're properly updated
           phase_id: selectedPhaseId,
@@ -262,7 +264,7 @@ export default function TaskForm({
             assigned_to: finalAssignedTo,
             estimated_hours: estimatedHours,
             actual_hours: actualHours,
-            due_date: task.due_date,
+            due_date: dueDate || null, // Use selected due date or null
             checklist_items: checklistItems,
             project_status_mapping_id: selectedStatusId
           };
@@ -280,7 +282,7 @@ export default function TaskForm({
           assigned_to: finalAssignedTo,
           estimated_hours: estimatedHours,
           actual_hours: actualHours,
-          due_date: new Date(),
+          due_date: dueDate || null, // Use selected due date or null
           phase_id: phase.phase_id
         };
 
@@ -549,7 +551,19 @@ export default function TaskForm({
                   rows={3}
                 />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                  <DatePicker
+                    value={dueDate}
+                    onChange={setDueDate}
+                    id="task-due-date-picker"
+                    label="Task Due Date"
+                    placeholder="Select due date"
+                    required={true}
+                    disabled={isSubmitting}
+                  />
+                </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Estimated Hours

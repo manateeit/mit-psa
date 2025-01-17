@@ -12,6 +12,44 @@
   .grid-cols-24 {
     grid-template-columns: repeat(24, minmax(0, 1fr));
   }
+
+  /* Month/Year dropdown styles */
+  .month-year-dropdown {
+    max-height: 15rem;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--color-primary-400)) rgb(var(--color-border-100));
+  }
+
+  .month-year-dropdown::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .month-year-dropdown::-webkit-scrollbar-track {
+    background: rgb(var(--color-border-100));
+    border-radius: 3px;
+  }
+
+  .month-year-dropdown::-webkit-scrollbar-thumb {
+    background: rgb(var(--color-primary-400));
+    border-radius: 3px;
+  }
+
+  .month-year-dropdown::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--color-primary-600));
+  }
+
+  .month-year-option {
+    transition: background-color 0.2s ease;
+  }
+
+  .month-year-option:hover {
+    background-color: rgb(var(--color-primary-50)) !important;
+  }
+
+  .month-year-option.selected {
+    background-color: rgb(var(--color-primary-100)) !important;
+  }
 }
 
 html,
@@ -486,4 +524,62 @@ body,
 
 .drag-over {
   background-color: rgba(var(--color-primary-100), 0.2);
+}
+
+/* Override react-day-picker default styles */
+.rdp {
+  --rdp-accent-color: rgb(var(--color-primary-100)) !important;
+  --rdp-background-color: rgb(var(--color-primary-50)) !important;
+  margin: 0 !important;
+}
+
+.rdp-button:focus:not([disabled]) {
+  background-color: rgb(var(--color-primary-50)) !important;
+  border: none !important;
+  box-shadow: 0 0 0 2px rgb(var(--color-primary-100)) !important;
+}
+
+.rdp-day_selected:not([disabled]) {
+  background-color: rgb(var(--color-primary-100)) !important;
+  color: rgb(var(--color-text-700)) !important;
+}
+
+.rdp-day_selected:hover:not([disabled]) {
+  background-color: rgb(var(--color-primary-200)) !important;
+}
+
+.rdp-button:hover:not([disabled]):not(.rdp-day_selected) {
+  background-color: rgb(var(--color-primary-50)) !important;
+  color: rgb(var(--color-text-700)) !important;
+}
+
+/* Navigation arrows */
+.rdp-nav_button {
+  color: rgb(var(--color-primary-400)) !important;
+  background: none !important;
+  border: none !important;
+}
+
+.rdp-nav_button:hover {
+  color: rgb(var(--color-primary-600)) !important;
+  background-color: rgb(var(--color-primary-50)) !important;
+}
+
+.rdp-nav_button:focus-visible {
+  color: rgb(var(--color-primary-600)) !important;
+  background-color: rgb(var(--color-primary-50)) !important;
+  box-shadow: 0 0 0 2px rgb(var(--color-primary-100)) !important;
+}
+
+/* Selected date circle */
+.rdp-day_selected {
+  color: rgb(var(--color-text-700)) !important;
+  border: none !important;
+  outline: none !important;
+  background-color: rgb(var(--color-primary-100)) !important;
+}
+
+.rdp-day_today {
+  color: rgb(var(--color-primary-600)) !important;
+  font-weight: 500 !important;
 }
