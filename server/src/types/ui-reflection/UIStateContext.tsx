@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { PageState, UIComponent } from './types';
+import { PageState, UIComponent, DatePickerComponent } from './types';
 // import { create } from 'jsondiffpatch';
 
 // Create a jsondiffpatch instance
@@ -209,11 +209,18 @@ export function UIStateProvider({ children, initialPageState }: {
         nextOrdinalRef.current++;
       } else {
         // Existing component: preserve its ordinal
+        // Create a new object with the correct type by preserving existing type-specific properties
         dict[component.id] = {
           ...existing,
           ...component,
           ordinal: existing.ordinal,
-        };
+          // Preserve type-specific properties from existing component
+          ...(existing.type === 'datePicker' && {
+            value: typeof (component as DatePickerComponent).value === 'string' 
+              ? (component as DatePickerComponent).value 
+              : (existing as DatePickerComponent).value
+          })
+        } as UIComponent;
       }
 
       // Commit the updated dict
