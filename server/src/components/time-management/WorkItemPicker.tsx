@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react';
-import { Filter } from 'lucide-react';
+import { Filter, XCircle } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { SwitchWithLabel } from '../ui/SwitchWithLabel';
 import { IWorkItem, IExtendedWorkItem, WorkItemType } from '../../interfaces/workItem.interfaces';
@@ -293,8 +293,29 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
                   className="text-sm text-[rgb(var(--color-text-600))]"
                 />
               </div>
-            </div>
 
+            <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setAssignedTo('');
+                    setAssignedToMe(false);
+                    setCompanyId('');
+                    setStartDate(undefined);
+                    setEndDate(undefined);
+                    setFilterState('active');
+                    setClientTypeFilter('all');
+                    setCurrentPage(1);
+                    loadWorkItems(searchTerm, 1);
+                  }}
+                  className="whitespace-nowrap flex items-center gap-2"
+                  id="reset-filters"
+                >
+                  <XCircle className="h-4 w-4" />
+                  Reset Filters
+                </Button>
+              </div>
+              </div>
             <div className="grid grid-cols-2 gap-4">
               <CompanyPicker
                 id="work-item-company-picker"
