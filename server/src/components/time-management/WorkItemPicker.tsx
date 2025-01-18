@@ -1,10 +1,18 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react';
+import { Filter, XCircle } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { SwitchWithLabel } from '../ui/SwitchWithLabel';
 import { IWorkItem, IExtendedWorkItem, WorkItemType } from '../../interfaces/workItem.interfaces';
 import { searchWorkItems } from '../../lib/actions/workItemActions';
 import { Button } from '../ui/Button';
+import UserPicker from '../ui/UserPicker';
+import { CompanyPicker } from '../companies/CompanyPicker';
+import { DatePicker } from '../ui/DatePicker';
+import { IUserWithRoles } from '@/interfaces/auth.interfaces';
+import { getAllUsers, getCurrentUser } from '@/lib/actions/user-actions/userActions';
+import { getAllCompanies } from '@/lib/actions/companyActions';
+import { ICompany } from '@/interfaces/company.interfaces';
 
 interface WorkItemPickerProps {
   onSelect: (workItem: IWorkItem | null) => void;
@@ -25,6 +33,51 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
   const [hasMore, setHasMore] = useState(false);
   const [total, setTotal] = useState(0);
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [assignedTo, setAssignedTo] = useState<string>('');
+  const [assignedToMe, setAssignedToMe] = useState(false);
+  const [companyId, setCompanyId] = useState<string>('');
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [users, setUsers] = useState<IUserWithRoles[]>([]);
+  const [companies, setCompanies] = useState<ICompany[]>([]);
+  const [filterState, setFilterState] = useState<'all' | 'active' | 'inactive'>('active');
+  const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [fetchedUsers, fetchedCompanies] = await Promise.all([
+          getAllUsers(),
+          getAllCompanies()
+        ]);
+        setUsers(fetchedUsers);
+        setCompanies(fetchedCompanies);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    };
+    loadData();
+  }, []);
+
+  // Handle "Assigned to me" toggle
+  const handleAssignedToMeChange = async (checked: boolean) => {
+    setAssignedToMe(checked);
+    if (checked) {
+      try {
+        const currentUser = await getCurrentUser();
+        if (currentUser) {
+          setAssignedTo(currentUser.user_id);
+        }
+      } catch (error) {
+        console.error('Error getting current user:', error);
+      }
+    } else {
+      setAssignedTo('');
+    }
+    setCurrentPage(1);
+    loadWorkItems(searchTerm, 1);
+  };
   const pageSize = 20;
 
   const loadWorkItems = useCallback(async (term: string, page: number) => {
@@ -36,7 +89,14 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
         pageSize,
         sortBy: 'name',
         sortOrder: 'asc',
-        includeInactive
+        includeInactive,
+        assignedTo: assignedTo || undefined,
+        assignedToMe,
+        companyId: companyId || undefined,
+        dateRange: startDate || endDate ? {
+          start: startDate,
+          end: endDate
+        } : undefined
       });
       
       // Filter out items that are already on the timesheet
@@ -62,10 +122,14 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
       setHasMore(result.total > page * pageSize);
     } catch (error) {
       console.error('Error loading work items:', error);
+      // Show error state in the list
+      setWorkItems([]);
+      setTotal(0);
+      setHasMore(false);
     } finally {
       setIsSearching(false);
     }
-  }, [existingWorkItems, includeInactive]);
+  }, [existingWorkItems, includeInactive, assignedTo, assignedToMe, companyId, startDate, endDate]);
 
   // Load initial items when component mounts
   useEffect(() => {
@@ -138,8 +202,8 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
   };
 
   return (
-    <div className="flex flex-col h-[calc(80vh-8rem)]">
-      <div className="flex-none bg-white dark:bg-[rgb(var(--color-border-50))] pb-4">
+    <div className="flex flex-col h-[calc(80vh-8rem)] overflow-visible">
+      <div className="flex-none bg-white dark:bg-[rgb(var(--color-border-50))] pb-4 overflow-visible">
         <div className="flex justify-between items-center mb-4">
           <Button
             onClick={() => onSelect(null)}
@@ -150,36 +214,36 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
             Create Ad-hoc Entry
           </Button>
         </div>
-        <div className="relative">
-          <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search work items..."
-            className="pl-8 bg-white dark:bg-[rgb(var(--color-border-50))] border-[rgb(var(--color-border-200))]"
-          />
-          <svg
-            className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[rgb(var(--color-text-400))]"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+        <div className="flex items-center gap-4 mb-4">
+          <div className="relative flex-1">
+            <Input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search work items..."
+              className="pl-8 bg-white dark:bg-[rgb(var(--color-border-50))] border-[rgb(var(--color-border-200))]"
             />
-          </svg>
-          {isSearching && (
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[rgb(var(--color-primary-500))]"></div>
-            </div>
-          )}
-        </div>
-        <div className="mt-2 flex items-center">
+            <svg
+              className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[rgb(var(--color-text-400))]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            {isSearching && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[rgb(var(--color-primary-500))]"></div>
+              </div>
+            )}
+          </div>
           <SwitchWithLabel
-            label="Include inactive projects"
+            label="Include inactive"
             checked={includeInactive}
             onCheckedChange={(checked) => {
               setIncludeInactive(checked);
@@ -188,6 +252,110 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
             }}
             className="text-sm text-[rgb(var(--color-text-600))]"
           />
+          <Button
+            id="toggle-filters-btn"
+            variant="ghost"
+            onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
+            className="flex items-center gap-2 bg-[rgb(var(--color-primary-100))] hover:bg-[rgb(var(--color-primary-100))]"
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+            <svg
+              className={`h-4 w-4 transition-transform ${isFiltersExpanded ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </Button>
+        </div>
+        <div className="relative">
+          <div className={`space-y-4 transition-all duration-200 ${isFiltersExpanded ? 'block' : 'hidden'}`}>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-4">
+                <UserPicker
+                  label="Assigned to"
+                  value={assignedTo}
+                  onValueChange={(value) => {
+                    setAssignedTo(value);
+                    setCurrentPage(1);
+                    loadWorkItems(searchTerm, 1);
+                  }}
+                  disabled={assignedToMe}
+                  users={users}
+                />
+                <SwitchWithLabel
+                  label="Assigned to me"
+                  checked={assignedToMe}
+                  onCheckedChange={handleAssignedToMeChange}
+                  className="text-sm text-[rgb(var(--color-text-600))]"
+                />
+              </div>
+
+            <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setAssignedTo('');
+                    setAssignedToMe(false);
+                    setCompanyId('');
+                    setStartDate(undefined);
+                    setEndDate(undefined);
+                    setFilterState('active');
+                    setClientTypeFilter('all');
+                    setCurrentPage(1);
+                    loadWorkItems(searchTerm, 1);
+                  }}
+                  className="whitespace-nowrap flex items-center gap-2"
+                  id="reset-filters"
+                >
+                  <XCircle className="h-4 w-4" />
+                  Reset Filters
+                </Button>
+              </div>
+              </div>
+            <div className="grid grid-cols-2 gap-4">
+              <CompanyPicker
+                id="work-item-company-picker"
+                selectedCompanyId={companyId}
+                onSelect={(value: string) => {
+                  setCompanyId(value);
+                  setCurrentPage(1);
+                  loadWorkItems(searchTerm, 1);
+                }}
+                filterState={filterState}
+                onFilterStateChange={setFilterState}
+                clientTypeFilter={clientTypeFilter}
+                onClientTypeFilterChange={setClientTypeFilter}
+                companies={companies}
+                fitContent
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <DatePicker
+                  label="Start date"
+                  value={startDate}
+                  onChange={(date) => {
+                    setStartDate(date);
+                    setCurrentPage(1);
+                    loadWorkItems(searchTerm, 1);
+                  }}
+                  placeholder="Start date"
+                />
+                <DatePicker
+                  label="End date"
+                  value={endDate}
+                  onChange={(date) => {
+                    setEndDate(date);
+                    setCurrentPage(1);
+                    loadWorkItems(searchTerm, 1);
+                  }}
+                  placeholder="End date"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -200,7 +368,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
                   {workItems.map((item): JSX.Element => (
                     <li
                       key={item.work_item_id}
-                      className="hover:bg-[rgb(var(--color-border-100))] cursor-pointer transition-colors duration-150"
+                      className="bg-[rgb(var(--color-border-50))] hover:bg-[rgb(var(--color-border-100))] cursor-pointer transition-colors duration-150"
                       onClick={() => onSelect(item)}
                     >
                       <div className="px-4 py-3">

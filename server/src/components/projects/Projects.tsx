@@ -112,7 +112,7 @@ export default function Projects({ initialProjects, companies }: ProjectsProps) 
       dataIndex: 'status_name',
       width: '10%',
       render: (_: string | null, record: IProject) => (
-        <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm bg-gray-100 text-gray-800">
+        <div className="inline-flex items-center px-2.5 py-0.5 text-sm text-gray-800">
           {record.status_name || 'Unknown'}
         </div>
       ),

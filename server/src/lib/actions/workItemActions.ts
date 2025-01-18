@@ -10,6 +10,13 @@ interface SearchOptions {
   page?: number;
   pageSize?: number;
   includeInactive?: boolean;
+  assignedTo?: string;
+  assignedToMe?: boolean;
+  companyId?: string;
+  dateRange?: {
+    start?: Date;
+    end?: Date;
+  };
 }
 
 interface SearchResult {
@@ -26,23 +33,34 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
     const offset = (page - 1) * pageSize;
 
     // Build base queries using proper parameter binding
-    let ticketsQuery = db('tickets')
-      .whereILike('title', db.raw('?', [`%${searchTerm}%`]))
+    let ticketsQuery = db('tickets as t')
+      .leftJoin('ticket_resources as tr', function() {
+        this.on('t.tenant', 'tr.tenant')
+            .andOn('t.ticket_id', 'tr.ticket_id');
+      })
+      .whereILike('t.title', db.raw('?', [`%${searchTerm}%`]))
       .select(
-        'ticket_id as work_item_id',
-        'title as name',
-        'url as description',
+        't.ticket_id as work_item_id',
+        't.title as name',
+        't.url as description',
         db.raw("'ticket' as type"),
-        'ticket_number',
-        'title',
+        't.ticket_number',
+        't.title',
         db.raw('NULL as project_name'),
         db.raw('NULL as phase_name'),
-        db.raw('NULL as task_name')
+        db.raw('NULL as task_name'),
+        't.company_id',
+        't.assigned_to',
+        'tr.additional_user_id'
       );
 
     let projectTasksQuery = db('project_tasks as pt')
       .join('project_phases as pp', 'pt.phase_id', 'pp.phase_id')
       .join('projects as p', 'pp.project_id', 'p.project_id')
+      .leftJoin('task_resources as tr', function() {
+        this.on('pt.tenant', 'tr.tenant')
+            .andOn('pt.task_id', 'tr.task_id');
+      })
       .whereILike('pt.task_name', db.raw('?', [`%${searchTerm}%`]))
       .modify((queryBuilder) => {
         if (!options.includeInactive) {
@@ -58,16 +76,79 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         db.raw('NULL as title'),
         'p.project_name',
         'pp.phase_name',
-        'pt.task_name'
+        'pt.task_name',
+        'p.company_id',
+        'pt.assigned_to',
+        'tr.additional_user_id'
       );
 
-    // Apply type filter if specified
+    // Apply filters
     if (options.type && options.type !== 'all') {
       if (options.type === 'ticket') {
         projectTasksQuery = projectTasksQuery.whereRaw('1 = 0');
       } else if (options.type === 'project_task') {
         ticketsQuery = ticketsQuery.whereRaw('1 = 0');
       }
+    }
+
+    // Filter by assigned user
+    if (options.assignedToMe && options.assignedTo) {
+      // "Assigned to me" filter
+      ticketsQuery = ticketsQuery.where(function() {
+        this.where('t.assigned_to', options.assignedTo)
+            .orWhere('tr.additional_user_id', options.assignedTo);
+      });
+      projectTasksQuery = projectTasksQuery.where(function() {
+        this.where('pt.assigned_to', options.assignedTo)
+            .orWhere('tr.additional_user_id', options.assignedTo);
+      });
+      
+      // Debug logging
+      console.log('Filtering by assigned to me:', {
+        userId: options.assignedTo,
+        query: ticketsQuery.toString(),
+        projectQuery: projectTasksQuery.toString()
+      });
+    } else if (options.assignedTo) {
+      // Regular "Assigned to" filter
+      ticketsQuery = ticketsQuery.where(function() {
+        this.where('t.assigned_to', options.assignedTo)
+            .orWhere('tr.additional_user_id', options.assignedTo);
+      });
+      projectTasksQuery = projectTasksQuery.where(function() {
+        this.where('pt.assigned_to', options.assignedTo)
+            .orWhere('tr.additional_user_id', options.assignedTo);
+      });
+      
+      // Debug logging
+      console.log('Filtering by assigned user:', {
+        userId: options.assignedTo,
+        query: ticketsQuery.toString(),
+        projectQuery: projectTasksQuery.toString()
+      });
+    }
+
+    // Filter by company
+    if (options.companyId) {
+      ticketsQuery = ticketsQuery.where('t.company_id', options.companyId);
+      projectTasksQuery = projectTasksQuery.where('p.company_id', options.companyId);
+      
+      // Debug logging
+      console.log('Filtering by company:', {
+        companyId: options.companyId,
+        query: ticketsQuery.toString(),
+        projectQuery: projectTasksQuery.toString()
+      });
+    }
+
+    // Filter by date range
+    if (options.dateRange?.start) {
+      ticketsQuery = ticketsQuery.where('t.entered_at', '>=', options.dateRange.start);
+      projectTasksQuery = projectTasksQuery.where('pt.created_at', '>=', options.dateRange.start);
+    }
+    if (options.dateRange?.end) {
+      ticketsQuery = ticketsQuery.where('t.closed_at', '<=', options.dateRange.end);
+      projectTasksQuery = projectTasksQuery.where('pt.due_date', '<=', options.dateRange.end);
     }
 
     // Combine queries

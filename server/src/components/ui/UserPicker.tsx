@@ -12,9 +12,10 @@ interface UserPickerProps {
   onValueChange: (value: string) => void;
   size?: 'sm' | 'lg';
   users: IUserWithRoles[];
+  disabled?: boolean;
 }
 
-const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value, onValueChange, size = 'sm', users }) => {
+const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value, onValueChange, size = 'sm', users, disabled }) => {
   // Filter for internal users only
   const internalUsers = users.filter(user => user.user_type === 'internal');
   
@@ -99,7 +100,7 @@ const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value,
   return (
     <div className="relative inline-block">
       {label && <h5 className="font-bold mb-1">{label}</h5>}
-      <RadixSelect.Root value={value || 'unassigned'} onValueChange={handleValueChange}>
+      <RadixSelect.Root value={value || 'unassigned'} onValueChange={handleValueChange} disabled={disabled}>
         <CustomTrigger />
         <RadixSelect.Portal>
           <RadixSelect.Content

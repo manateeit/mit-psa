@@ -24,7 +24,7 @@ export function AddWorkItemDialog({ isOpen, onClose, onAdd, existingWorkItems }:
           <DialogHeader>
             <DialogTitle>Add Work Item</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-visible">
             <WorkItemPicker 
               onSelect={handleSelect} 
               existingWorkItems={existingWorkItems}
