@@ -1,12 +1,13 @@
 'use client';
 
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { formatISO, parseISO, addMinutes } from 'date-fns';
-import { Input } from '../ui/Input';
-import { Button } from '../ui/Button';
-import { Switch } from '../ui/Switch';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { Switch } from '@/components/ui/Switch';
+import { TimePicker } from '@/components/ui/TimePicker';
 import { MinusCircle, XCircle } from 'lucide-react';
-import CustomSelect from '../ui/CustomSelect';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { TimeEntryFormProps } from './types';
 import { calculateDuration, formatTimeForInput, parseTimeToDate, getDurationParts } from './utils';
 
@@ -27,8 +28,8 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
   lastNoteInputRef
 }: TimeEntryFormProps) {
   const { hours: durationHours, minutes: durationMinutes } = useMemo(
-    () => getDurationParts(totalDuration),
-    [totalDuration]
+    () => getDurationParts(calculateDuration(parseISO(entry.start_time), parseISO(entry.end_time))),
+    [entry.start_time, entry.end_time]
   );
 
   const serviceOptions = useMemo(() => 
@@ -52,64 +53,103 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
     [entry.service_id]
   );
 
+  const [validationErrors, setValidationErrors] = useState<{
+    startTime?: string;
+    endTime?: string;
+    duration?: string;
+  }>({});
+
+  const [showErrors, setShowErrors] = useState(false);
+
+  const validateTimes = useCallback(() => {
+    const startTime = parseISO(entry.start_time);
+    const endTime = parseISO(entry.end_time);
+    const duration = calculateDuration(startTime, endTime);
+    const newErrors: typeof validationErrors = {};
+
+    if (startTime >= endTime) {
+      newErrors.startTime = 'Start time must be earlier than end time';
+      newErrors.endTime = 'End time must be later than start time';
+    }
+
+    if (duration <= 0) {
+      newErrors.duration = 'Duration must be greater than 0';
+    }
+
+    setValidationErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [entry.start_time, entry.end_time]);
+
+  const updateBillableDuration = useCallback((updatedEntry: typeof entry, newDuration: number) => {
+    // If entry is billable, update duration. Otherwise keep it at 0
+    return {
+      ...updatedEntry,
+      billable_duration: updatedEntry.billable_duration > 0 ? Math.max(1, newDuration) : 0
+    };
+  }, []);
+
   const handleTimeChange = useCallback((type: 'start' | 'end', value: string) => {
     if (!isEditable) return;
 
     const currentDate = type === 'start' ? parseISO(entry.start_time) : parseISO(entry.end_time);
     const newTime = parseTimeToDate(value, currentDate);
 
-    if (type === 'start' && newTime >= parseISO(entry.end_time)) {
-      alert('Start time cannot be after end time');
-      onUpdateTimeInputs({ [`${type}-${index}`]: formatTimeForInput(currentDate) });
-      return;
-    }
-
-    if (type === 'end' && newTime <= parseISO(entry.start_time)) {
-      alert('End time cannot be before start time');
-      onUpdateTimeInputs({ [`${type}-${index}`]: formatTimeForInput(currentDate) });
-      return;
-    }
-
-    const updatedEntry = { ...entry };
-    if (type === 'start') {
-      updatedEntry.start_time = formatISO(newTime);
-    } else {
-      updatedEntry.end_time = formatISO(newTime);
-    }
-
-    const duration = calculateDuration(
-      parseISO(updatedEntry.start_time),
-      parseISO(updatedEntry.end_time)
+    const updatedEntry = updateBillableDuration(
+      {
+        ...entry,
+        [type === 'start' ? 'start_time' : 'end_time']: formatISO(newTime)
+      },
+      calculateDuration(
+        type === 'start' ? newTime : parseISO(entry.start_time),
+        type === 'end' ? newTime : parseISO(entry.end_time)
+      )
     );
-
-    if (updatedEntry.billable_duration > 0) {
-      updatedEntry.billable_duration = duration;
-    }
 
     onUpdateEntry(index, updatedEntry);
     onUpdateTimeInputs({ [`${type}-${index}`]: formatTimeForInput(newTime) });
-  }, [isEditable, entry, index, onUpdateEntry, onUpdateTimeInputs]);
+    
+    setValidationErrors({}); // Clear errors on change
+    if (showErrors) {
+      validateTimes();
+    }
+  }, [isEditable, entry, index, onUpdateEntry, onUpdateTimeInputs, validateTimes, updateBillableDuration, showErrors]);
+
+  const handleSave = useCallback((index: number) => {
+    setShowErrors(true);
+    if (!validateTimes()) {
+      return;
+    }
+    onSave(index);
+  }, [onSave, validateTimes]);
 
   const handleDurationChange = useCallback((type: 'hours' | 'minutes', value: number) => {
     const hours = type === 'hours' ? value : durationHours;
     const minutes = type === 'minutes' ? value : durationMinutes;
     
+    if (hours < 0 || minutes < 0) return; // Silently ignore negative values
+    
     const startTime = parseISO(entry.start_time);
     const newEndTime = addMinutes(startTime, hours * 60 + minutes);
-    const updatedEntry = {
-      ...entry,
-      end_time: formatISO(newEndTime),
-    };
+    const totalMinutes = hours * 60 + minutes;
     
-    if (updatedEntry.billable_duration > 0) {
-      updatedEntry.billable_duration = hours * 60 + minutes;
-    }
+    const updatedEntry = updateBillableDuration(
+      {
+        ...entry,
+        end_time: formatISO(newEndTime)
+      },
+      totalMinutes
+    );
     
     onUpdateEntry(index, updatedEntry);
     onUpdateTimeInputs({
       [`end-${index}`]: formatTimeForInput(newEndTime),
     });
-  }, [entry, index, durationHours, durationMinutes, onUpdateEntry, onUpdateTimeInputs]);
+
+    setValidationErrors({}); // Clear errors on change
+    if (showErrors) {
+      validateTimes();
+    }
+  }, [entry, index, durationHours, durationMinutes, onUpdateEntry, onUpdateTimeInputs, validateTimes, updateBillableDuration, showErrors]);
 
   return (
     <div className="border p-4 rounded">
@@ -180,27 +220,31 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div>
+          <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">Start Time</label>
-            <Input
-              id='start-time'
-              type="time"
+            <TimePicker
+              id={`${id}-start-time-${index}`}
               value={timeInputs[`start-${index}`] || formatTimeForInput(parseISO(entry.start_time))}
-              onChange={(e) => handleTimeChange('start', e.target.value)}
+              onChange={(value) => handleTimeChange('start', value)}
               disabled={!isEditable}
               className="mt-1"
             />
+            {showErrors && validationErrors.startTime && (
+              <span className="text-sm text-red-500">{validationErrors.startTime}</span>
+            )}
           </div>
-          <div>
+          <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">End Time</label>
-            <Input
-              id='end-time'
-              type="time"
+            <TimePicker
+              id={`${id}-end-time-${index}`}
               value={timeInputs[`end-${index}`] || formatTimeForInput(parseISO(entry.end_time))}
-              onChange={(e) => handleTimeChange('end', e.target.value)}
+              onChange={(value) => handleTimeChange('end', value)}
               disabled={!isEditable}
               className="mt-1"
             />
+            {showErrors && validationErrors.endTime && (
+              <span className="text-sm text-red-500">{validationErrors.endTime}</span>
+            )}
           </div>
         </div>
 
@@ -245,11 +289,13 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
                     parseISO(entry.start_time),
                     parseISO(entry.end_time)
                   );
-                  const updatedEntry = {
-                    ...entry,
-                    billable_duration: checked ? duration : 0,
-                  };
-                  onUpdateEntry(index, updatedEntry);
+                  
+                  onUpdateEntry(
+                    index,
+                    checked
+                      ? updateBillableDuration({ ...entry, billable_duration: 1 }, duration)
+                      : { ...entry, billable_duration: 0 }
+                  );
                 }}
                 className="data-[state=checked]:bg-primary-500"
               />
@@ -274,15 +320,22 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
         </div>
 
         <div className="flex justify-end mt-4">
-          <Button
-            id={`${id}-save-entry-${index}-btn`}
-            onClick={() => onSave(index)}
-            variant="default"
-            size="default"
-            className="w-32"
-          >
-            Save
-          </Button>
+          <div className="flex flex-col items-end gap-2">
+            {showErrors && validationErrors.duration && (
+              <span className="text-sm text-red-500">
+                {validationErrors.duration}
+              </span>
+            )}
+            <Button
+              id={`${id}-save-entry-${index}-btn`}
+              onClick={() => handleSave(index)}
+              variant="default"
+              size="default"
+              className="w-32"
+            >
+              Save
+            </Button>
+          </div>
         </div>
       </div>
     </div>

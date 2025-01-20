@@ -218,6 +218,25 @@ export interface DatePickerComponent extends BaseComponent {
   actions: Array<'open' | 'select'>;
 }
 
+/**
+ * Time picker component representation.
+ */
+export interface TimePickerComponent extends BaseComponent {
+  type: "timePicker";
+  
+  /** Current selected time in HH:mm format */
+  value?: string;
+  
+  /** Whether the picker is required */
+  required?: boolean;
+  
+  /** Whether the picker is disabled */
+  disabled?: boolean;
+  
+  /** Available actions */
+  actions: Array<'open' | 'select'>;
+}
+
 export type UIComponent =
   | ButtonComponent
   | DialogComponent
@@ -228,7 +247,8 @@ export type UIComponent =
   | ContainerComponent
   | CardComponent
   | DrawerComponent
-  | DatePickerComponent;
+  | DatePickerComponent
+  | TimePickerComponent;
 
 /**
  * Top-level page state representation.
