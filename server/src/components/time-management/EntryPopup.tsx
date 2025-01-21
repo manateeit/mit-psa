@@ -214,170 +214,171 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
   };
 
   return (
-    <DialogContent className="bg-white p-6 rounded-lg shadow-lg fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-full">
-      <DialogTitle className="text-xl font-bold mb-4">
-        {event ? 'Edit Entry' : 'New Entry'}
-      </DialogTitle>
-      <div className="space-y-4">
-        <div>
-          <label htmlFor="work_item" className="block text-sm font-medium text-gray-700 mb-1">
-            Work Item
-          </label>
+    <DialogContent className="bg-white p-4 rounded-lg shadow-lg fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-[90vw] w-[35%] h-auto max-h-[90vh] flex flex-col transition-all duration-300 overflow-y-auto">
+       <div className="shrink-0 pb-4 border-b">
+        <DialogTitle className="text-xl font-bold">
+          {event ? 'Edit Entry' : 'New Entry'}
+        </DialogTitle>
+      </div>
+      <div className="flex-1 overflow-y-auto space-y-4 p-1">
+        <div className="min-w-0">
           {isEditingWorkItem ? (
-            <WorkItemPicker
+            <div className="w-full min-w-[min(100%,400px)]">
+              <WorkItemPicker
               onSelect={handleWorkItemSelect}
               existingWorkItems={[]} // Pass existing work items if needed
               initialWorkItemId={event?.work_item_id}
               initialWorkItemType={event?.work_item_type}
-            />
-          ) : (
-            <SelectedWorkItem
-              workItem={selectedWorkItem}
-              onEdit={() => setIsEditingWorkItem(true)}
-            />
-          )}
-        </div>
-        {canAssignMultipleAgents && (
-          <div>
-            <label htmlFor="assigned_users" className="block text-sm font-medium text-gray-700 mb-1">
-              Assigned Users
-            </label>
-            <MultiUserPicker
-              values={entryData.assigned_user_ids || []}
-              onValuesChange={handleAssignedUsersChange}
-              users={users}
-              loading={loading}
-              error={error}
-            />
+              />
+            </div>
+            ) : (
+              <SelectedWorkItem
+                workItem={selectedWorkItem}
+                onEdit={() => setIsEditingWorkItem(true)}
+              />
+            )}
           </div>
-        )}
-        <div>
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-            Title
-          </label>
-          <input
-            type="text"
-            id="title"
-            name="title"
-            value={entryData.title}
-            onChange={handleInputChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-          />
-        </div>
-        <div>
-          <label htmlFor="scheduled_start" className="block text-sm font-medium text-gray-700">
-            Start
-          </label>
-          <input
-            type="datetime-local"
-            id="scheduled_start"
-            name="scheduled_start"
-            value={format(entryData.scheduled_start, "yyyy-MM-dd'T'HH:mm")}
-            onChange={handleInputChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-          />
-        </div>
-        <div>
-          <label htmlFor="scheduled_end" className="block text-sm font-medium text-gray-700">
-            End
-          </label>
-          <input
-            type="datetime-local"
-            id="scheduled_end"
-            name="scheduled_end"
-            value={format(entryData.scheduled_end, "yyyy-MM-dd'T'HH:mm")}
-            onChange={handleInputChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-          />
-        </div>
-        <div>
-          <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
-            Notes
-          </label>
-          <textarea
-            id="notes"
-            name="notes"
-            value={entryData.notes}
-            onChange={handleInputChange}
-            rows={3}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-          />
-        </div>
-      </div>
-      <div className="space-y-4">
-        <div className="relative z-10">
-          <CustomSelect
-            label="Recurrence"
-            value={recurrencePattern?.frequency || 'none'}
-            onValueChange={handleRecurrenceChange}
-            options={recurrenceOptions}
-          />
-        </div>
-      </div>
-      {recurrencePattern && (
-        <div className="space-y-4">
+          {canAssignMultipleAgents && (
+            <div>
+              <label htmlFor="assigned_users" className="block text-sm font-medium text-gray-700 mb-1">
+                Assigned Users
+              </label>
+              <MultiUserPicker
+                values={entryData.assigned_user_ids || []}
+                onValuesChange={handleAssignedUsersChange}
+                users={users}
+                loading={loading}
+                error={error}
+              />
+            </div>
+          )}
           <div>
-            <label htmlFor="interval" className="block text-sm font-medium text-gray-700">
-              Interval
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+              Title
             </label>
             <input
-              type="number"
-              id="interval"
-              name="interval"
-              value={recurrencePattern.interval}
-              onChange={(e) => setRecurrencePattern(prev => {
-                if (prev === null) return null;
-                return { ...prev, interval: parseInt(e.target.value) };
-              })}
-              min={1}
+              type="text"
+              id="title"
+              name="title"
+              value={entryData.title}
+              onChange={handleInputChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
             />
           </div>
           <div>
-            <CustomSelect
-              label="End"
-              value={recurrencePattern.endDate ? 'date' : recurrencePattern.count ? 'count' : 'never'}
-              onValueChange={handleEndTypeChange}
-              options={endTypeOptions}
+            <label htmlFor="scheduled_start" className="block text-sm font-medium text-gray-700">
+              Start
+            </label>
+            <input
+              type="datetime-local"
+              id="scheduled_start"
+              name="scheduled_start"
+              value={format(entryData.scheduled_start, "yyyy-MM-dd'T'HH:mm")}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
             />
           </div>
-          {recurrencePattern.endDate && (
+          <div>
+            <label htmlFor="scheduled_end" className="block text-sm font-medium text-gray-700">
+              End
+            </label>
+            <input
+              type="datetime-local"
+              id="scheduled_end"
+              name="scheduled_end"
+              value={format(entryData.scheduled_end, "yyyy-MM-dd'T'HH:mm")}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+            />
+          </div>
+          <div>
+            <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
+              Notes
+            </label>
+            <textarea
+              id="notes"
+              name="notes"
+              value={entryData.notes}
+              onChange={handleInputChange}
+              rows={3}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+            />
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="relative z-10">
+            <CustomSelect
+              label="Recurrence"
+              value={recurrencePattern?.frequency || 'none'}
+              onValueChange={handleRecurrenceChange}
+              options={recurrenceOptions}
+            />
+          </div>
+        </div>
+        {recurrencePattern && (
+          <div className="space-y-4">
             <div>
-              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
-                End Date
-              </label>
-              <input
-                type="date"
-                id="endDate"
-                value={format(recurrencePattern.endDate, 'yyyy-MM-dd')}
-                onChange={(e) => setRecurrencePattern(prev => {
-                  if (prev === null) return null;
-                  return { ...prev, endDate: new Date(e.target.value) };
-                })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-              />
-            </div>
-          )}
-          {recurrencePattern.count && (
-            <div>
-              <label htmlFor="count" className="block text-sm font-medium text-gray-700">
-                Occurrences
+              <label htmlFor="interval" className="block text-sm font-medium text-gray-700">
+                Interval
               </label>
               <input
                 type="number"
-                id="count"
-                value={recurrencePattern.count}
+                id="interval"
+                name="interval"
+                value={recurrencePattern.interval}
                 onChange={(e) => setRecurrencePattern(prev => {
                   if (prev === null) return null;
-                  return { ...prev, count: parseInt(e.target.value) };
+                  return { ...prev, interval: parseInt(e.target.value) };
                 })}
                 min={1}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
               />
             </div>
-          )}
-        </div>
-      )}
+            <div>
+              <CustomSelect
+                label="End"
+                value={recurrencePattern.endDate ? 'date' : recurrencePattern.count ? 'count' : 'never'}
+                onValueChange={handleEndTypeChange}
+                options={endTypeOptions}
+              />
+            </div>
+            {recurrencePattern.endDate && (
+              <div>
+                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  id="endDate"
+                  value={format(recurrencePattern.endDate, 'yyyy-MM-dd')}
+                  onChange={(e) => setRecurrencePattern(prev => {
+                    if (prev === null) return null;
+                    return { ...prev, endDate: new Date(e.target.value) };
+                  })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                />
+              </div>
+            )}
+            {recurrencePattern.count && (
+              <div>
+                <label htmlFor="count" className="block text-sm font-medium text-gray-700">
+                  Occurrences
+                </label>
+                <input
+                  type="number"
+                  id="count"
+                  value={recurrencePattern.count}
+                  onChange={(e) => setRecurrencePattern(prev => {
+                    if (prev === null) return null;
+                    return { ...prev, count: parseInt(e.target.value) };
+                  })}
+                  min={1}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                />
+              </div>
+            )}
+          </div>
+        )}
       <div className="mt-6 flex justify-end space-x-3">
         <Button id="cancel-entry-btn" onClick={onClose} variant="outline">
           Cancel

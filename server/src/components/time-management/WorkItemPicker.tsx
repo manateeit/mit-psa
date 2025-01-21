@@ -202,7 +202,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
   };
 
   return (
-    <div className="flex flex-col h-[calc(80vh-8rem)] overflow-visible">
+    <div className="flex flex-col h-auto max-h-[70vh] min-h-[200px] transition-all duration-300 ease-in-out">
       <div className="flex-none bg-white dark:bg-[rgb(var(--color-border-50))] pb-4 overflow-visible">
         <div className="flex justify-between items-center mb-4">
           <Button
@@ -271,7 +271,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
           </Button>
         </div>
         <div className="relative">
-          <div className={`space-y-4 transition-all duration-200 ${isFiltersExpanded ? 'block' : 'hidden'}`}>
+          <div className={`space-y-4 overflow-hidden transition-all duration-300 ease-in-out ${isFiltersExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center gap-4">
@@ -359,7 +359,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="flex-1 min-h-[200px] overflow-auto transition-all duration-300">
         <div className="h-full overflow-y-auto">
           <div className="bg-white dark:bg-[rgb(var(--color-border-50))] rounded-md border border-[rgb(var(--color-border-200))]">
             {workItems.length > 0 ? (
