@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { DialogContent, DialogTitle } from '@radix-ui/react-dialog';
 import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { TextArea } from '@/components/ui/TextArea';
 import { format } from 'date-fns';
 import { IScheduleEntry, IRecurrencePattern } from '../../interfaces/schedule.interfaces';
 import { WorkItemPicker } from './WorkItemPicker';
@@ -239,6 +241,18 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
               />
             )}
           </div>
+          <div>
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+              Title
+            </label>
+            <Input
+              id="title"
+              name="title"
+              value={entryData.title}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+            />
+          </div>
           {canAssignMultipleAgents && (
             <div>
               <label htmlFor="assigned_users" className="block text-sm font-medium text-gray-700 mb-1">
@@ -253,53 +267,42 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
               />
             </div>
           )}
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-              Title
-            </label>
-            <input
-              type="text"
-              id="title"
-              name="title"
-              value={entryData.title}
-              onChange={handleInputChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Start</label>
-            <DateTimePicker
-              id="scheduled_start"
-              value={entryData.scheduled_start}
-              onChange={(date) => {
-                setEntryData(prev => ({
-                  ...prev,
-                  scheduled_start: date
-                }));
-              }}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">End</label>
-            <DateTimePicker
-              id="scheduled_end"
-              value={entryData.scheduled_end}
-              onChange={(date) => {
-                setEntryData(prev => ({
-                  ...prev,
-                  scheduled_end: date
-                }));
-              }}
-              className="mt-1"
-              minDate={entryData.scheduled_start}
-            />
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700">Start</label>
+              <DateTimePicker
+                id="scheduled_start"
+                value={entryData.scheduled_start}
+                onChange={(date) => {
+                  setEntryData(prev => ({
+                    ...prev,
+                    scheduled_start: date
+                  }));
+                }}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700">End</label>
+              <DateTimePicker
+                id="scheduled_end"
+                value={entryData.scheduled_end}
+                onChange={(date) => {
+                  setEntryData(prev => ({
+                    ...prev,
+                    scheduled_end: date
+                  }));
+                }}
+                className="mt-1"
+                minDate={entryData.scheduled_start}
+              />
+            </div>
           </div>
           <div>
             <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
               Notes
             </label>
-            <textarea
+            <TextArea
               id="notes"
               name="notes"
               value={entryData.notes}
@@ -321,30 +324,31 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
         </div>
         {recurrencePattern && (
           <div className="space-y-4">
-            <div>
-              <label htmlFor="interval" className="block text-sm font-medium text-gray-700">
-                Interval
-              </label>
-              <input
-                type="number"
-                id="interval"
-                name="interval"
-                value={recurrencePattern.interval}
-                onChange={(e) => setRecurrencePattern(prev => {
-                  if (prev === null) return null;
-                  return { ...prev, interval: parseInt(e.target.value) };
-                })}
-                min={1}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-              />
-            </div>
-            <div>
-              <CustomSelect
-                label="End"
-                value={recurrencePattern.endDate ? 'date' : recurrencePattern.count ? 'count' : 'never'}
-                onValueChange={handleEndTypeChange}
-                options={endTypeOptions}
-              />
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label htmlFor="interval" className="block text-sm font-medium text-gray-700">
+                  Interval
+                </label>
+                <Input
+                  id="interval"
+                  type="number"
+                  value={recurrencePattern.interval}
+                  onChange={(e) => setRecurrencePattern(prev => {
+                    if (prev === null) return null;
+                    return { ...prev, interval: parseInt(e.target.value) };
+                  })}
+                  min={1}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                />
+              </div>
+              <div className="flex-1">
+                <CustomSelect
+                  label="End"
+                  value={recurrencePattern.endDate ? 'date' : recurrencePattern.count ? 'count' : 'never'}
+                  onValueChange={handleEndTypeChange}
+                  options={endTypeOptions}
+                />
+              </div>
             </div>
             {recurrencePattern.endDate && (
               <div>
@@ -368,9 +372,9 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
                 <label htmlFor="count" className="block text-sm font-medium text-gray-700">
                   Occurrences
                 </label>
-                <input
-                  type="number"
+                <Input
                   id="count"
+                  type="number"
                   value={recurrencePattern.count}
                   onChange={(e) => setRecurrencePattern(prev => {
                     if (prev === null) return null;
