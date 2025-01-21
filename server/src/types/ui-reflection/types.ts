@@ -237,6 +237,25 @@ export interface TimePickerComponent extends BaseComponent {
   actions: Array<'open' | 'select'>;
 }
 
+/**
+ * DateTime picker component representation.
+ */
+export interface DateTimePickerComponent extends BaseComponent {
+  type: "dateTimePicker";
+  
+  /** Current selected date and time in ISO format */
+  value?: string;
+  
+  /** Whether the picker is required */
+  required?: boolean;
+  
+  /** Whether the picker is disabled */
+  disabled?: boolean;
+  
+  /** Available actions */
+  actions: Array<'open' | 'select'>;
+}
+
 export type UIComponent =
   | ButtonComponent
   | DialogComponent
@@ -248,7 +267,8 @@ export type UIComponent =
   | CardComponent
   | DrawerComponent
   | DatePickerComponent
-  | TimePickerComponent;
+  | TimePickerComponent
+  | DateTimePickerComponent;
 
 /**
  * Top-level page state representation.

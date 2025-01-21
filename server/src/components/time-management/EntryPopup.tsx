@@ -11,6 +11,7 @@ import { getWorkItemById } from '../../lib/actions/workItemActions';
 import CustomSelect from '../ui/CustomSelect';
 import SelectedWorkItem from './SelectedWorkItem';
 import MultiUserPicker from '../ui/MultiUserPicker';
+import { DateTimePicker } from '../ui/DateTimePicker';
 import { IUserWithRoles } from '../../interfaces/auth.interfaces';
 
 interface EntryPopupProps {
@@ -266,29 +267,32 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
             />
           </div>
           <div>
-            <label htmlFor="scheduled_start" className="block text-sm font-medium text-gray-700">
-              Start
-            </label>
-            <input
-              type="datetime-local"
+            <label className="block text-sm font-medium text-gray-700">Start</label>
+            <DateTimePicker
               id="scheduled_start"
-              name="scheduled_start"
-              value={format(entryData.scheduled_start, "yyyy-MM-dd'T'HH:mm")}
-              onChange={handleInputChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+              value={entryData.scheduled_start}
+              onChange={(date) => {
+                setEntryData(prev => ({
+                  ...prev,
+                  scheduled_start: date
+                }));
+              }}
+              className="mt-1"
             />
           </div>
           <div>
-            <label htmlFor="scheduled_end" className="block text-sm font-medium text-gray-700">
-              End
-            </label>
-            <input
-              type="datetime-local"
+            <label className="block text-sm font-medium text-gray-700">End</label>
+            <DateTimePicker
               id="scheduled_end"
-              name="scheduled_end"
-              value={format(entryData.scheduled_end, "yyyy-MM-dd'T'HH:mm")}
-              onChange={handleInputChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+              value={entryData.scheduled_end}
+              onChange={(date) => {
+                setEntryData(prev => ({
+                  ...prev,
+                  scheduled_end: date
+                }));
+              }}
+              className="mt-1"
+              minDate={entryData.scheduled_start}
             />
           </div>
           <div>
