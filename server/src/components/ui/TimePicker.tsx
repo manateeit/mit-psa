@@ -116,10 +116,38 @@ export const TimePicker = React.forwardRef<HTMLDivElement, TimePickerProps>(
               <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-500">Hour</label>
-                  <div 
-                    className="h-[160px] overflow-y-auto"
+                  <div
+                    className="h-[160px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover-scroll-container"
+                    style={{ willChange: 'transform' }}
                     onWheel={(e) => {
-                      e.currentTarget.scrollTop += e.deltaY;
+                      const container = e.currentTarget;
+                      const { scrollTop, scrollHeight, clientHeight } = container;
+                      const delta = e.deltaY > 0 ? 1 : -1;
+                      const maxScroll = scrollHeight - clientHeight;
+                      
+                      const itemHeight = 32;
+                      let newScroll = scrollTop + delta * (itemHeight / 2);
+                      let newIndex = hours.indexOf(selectedHour) + delta;
+
+                      if (newScroll > maxScroll) {
+                        newScroll = 0;
+                        newIndex = 0;
+                      } else if (newScroll < 0) {
+                        newScroll = maxScroll;
+                        newIndex = hours.length - 1;
+                      }
+
+                      container.scrollTo({
+                        top: newScroll,
+                        behavior: 'smooth'
+                      });
+
+                      if (newIndex >= 0 && newIndex < hours.length) {
+                        const newHour = hours[newIndex];
+                        setSelectedHour(newHour);
+                        handleTimeChange(newHour, selectedMinute, period);
+                      }
+                      
                       e.preventDefault();
                     }}
                   >
@@ -145,10 +173,47 @@ export const TimePicker = React.forwardRef<HTMLDivElement, TimePickerProps>(
 
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-500">Minute</label>
-                  <div 
-                    className="h-[160px] overflow-y-auto"
+                  <div
+                    className="h-[160px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover-scroll-container"
+                    style={{ willChange: 'transform' }}
                     onWheel={(e) => {
-                      e.currentTarget.scrollTop += e.deltaY;
+                      const container = e.currentTarget;
+                      const { scrollTop, scrollHeight, clientHeight } = container;
+                      const delta = e.deltaY > 0 ? 1 : -1;
+                      const maxScroll = scrollHeight - clientHeight;
+                      
+                      const itemHeight = 32; // Actual measured item height
+                      let newScroll = scrollTop + delta * (itemHeight / 2);
+                      let newIndex = minutes.indexOf(selectedMinute) + delta;
+
+                      if (newScroll > maxScroll) {
+                        newScroll = 0;
+                        newIndex = 0;
+                      } else if (newScroll < 0) {
+                        newScroll = maxScroll;
+                        newIndex = minutes.length - 1;
+                      }
+
+                      // Handle infinite scroll wrapping
+                      if (newIndex >= minutes.length) {
+                        newIndex = 0;
+                        newScroll = 0;
+                      } else if (newIndex < 0) {
+                        newIndex = minutes.length - 1;
+                        newScroll = maxScroll;
+                      }
+
+                      container.scrollTo({
+                        top: newScroll,
+                        behavior: 'smooth'
+                      });
+
+                      if (newIndex >= 0 && newIndex < minutes.length) {
+                        const newMinute = minutes[newIndex];
+                        setSelectedMinute(newMinute);
+                        handleTimeChange(selectedHour, newMinute, period);
+                      }
+                      
                       e.preventDefault();
                     }}
                   >
