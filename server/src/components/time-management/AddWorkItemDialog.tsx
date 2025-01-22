@@ -19,8 +19,8 @@ export function AddWorkItemDialog({ isOpen, onClose, onAdd, existingWorkItems }:
 
   return (
     <Dialog isOpen={isOpen} onClose={onClose}>
-      <DialogContent>
-        <div className="max-w-2xl max-h-[80vh] flex flex-col">
+      <DialogContent className="z-[500]">
+        <div className="max-w-2xl max-h-[80vh] flex flex-col overflow-visible">
           <DialogHeader>
             <DialogTitle>Add Work Item</DialogTitle>
           </DialogHeader>

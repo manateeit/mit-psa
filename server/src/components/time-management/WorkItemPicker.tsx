@@ -271,7 +271,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
           </Button>
         </div>
         <div className="relative">
-          <div className={`space-y-4 overflow-hidden transition-all duration-300 ease-in-out ${isFiltersExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className={`space-y-4 transition-all duration-300 ease-in-out ${isFiltersExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`} style={{ overflow: 'visible', zIndex: 600 }}>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center gap-4">
