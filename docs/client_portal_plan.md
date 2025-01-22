@@ -4,7 +4,7 @@ This portal will allow your MSP clients to log in and manage their accounts, int
 
 ---
 
-## **System Design for Customer Portal**
+## **System Design for Client Portal**
 
 ### **Objectives**
 
@@ -131,7 +131,7 @@ Based on your codebase, integration points are:
   - Update `authorizationMiddleware.ts` to check the `userType` and restrict access accordingly.
   - Ensure that client users cannot access internal MSP routes.
 
-### **Step 2: Develop the Customer Portal UI**
+### **Step 2: Develop the Client Portal UI**
 
 - **Layout and Structure**:
   - Under `app/client-portal/`, create the main layout (`layout.tsx`) and pages.
@@ -195,7 +195,7 @@ Based on your codebase, integration points are:
   - Use separate domains or subdomains if necessary.
 
 - **Continuous Integration/Continuous Deployment (CI/CD)**:
-  - Update your CI/CD pipelines to include the customer portal.
+  - Update your CI/CD pipelines to include the client portal.
   - Ensure proper build and deployment steps.
 
 ---
@@ -305,7 +305,7 @@ Based on your codebase, integration points are:
 
 ## **Conclusion**
 
-By leveraging your existing codebase and adhering to best practices, you can develop a robust customer portal that enhances your service offering. Remember to involve stakeholders throughout the development process to ensure that the portal meets client needs.
+By leveraging your existing codebase and adhering to best practices, you can develop a robust client portal that enhances your service offering. Remember to involve stakeholders throughout the development process to ensure that the portal meets client needs.
 
 ---
 

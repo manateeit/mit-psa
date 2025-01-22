@@ -20,7 +20,7 @@ export default function SignIn() {
   const searchParams = useSearchParams();
 
   const callbackUrl = searchParams?.get('callbackUrl') || '';
-  const isCustomerPortal = callbackUrl.includes('/client-portal');
+  const isClientPortal = callbackUrl.includes('/client-portal');
   const error = searchParams?.get('error');
   const registered = searchParams?.get('registered');
 
@@ -28,7 +28,7 @@ export default function SignIn() {
   const updatePage = useRegisterUIComponent<ContainerComponent>({
     id: 'signin-page',
     type: 'container',
-    label: isCustomerPortal ? 'Client Portal Login' : 'MSP Login'
+    label: isClientPortal ? 'Client Portal Login' : 'MSP Login'
   });
 
   // Register alert dialog
@@ -62,8 +62,8 @@ export default function SignIn() {
   const updateCard = useRegisterUIComponent<CardComponent>({
     id: 'signin-card',
     type: 'card',
-    label: isCustomerPortal ? 
-      (showRegister ? 'Create Account' : 'Customer Portal Login') : 
+    label: isClientPortal ? 
+      (showRegister ? 'Create Account' : 'Client Portal Login') : 
       'MSP Dashboard Login',
     parentId: 'signin-page'
   });
@@ -105,12 +105,12 @@ export default function SignIn() {
     });
 
     updateCard({
-      label: isCustomerPortal ? 
-        (showRegister ? 'Create Account' : 'Customer Portal Login') : 
+      label: isClientPortal ? 
+        (showRegister ? 'Create Account' : 'Client Portal Login') : 
         'MSP Dashboard Login'
     });
   }, [
-    isAlertOpen, alertInfo, isOpen2FA, showRegister, isCustomerPortal,
+    isAlertOpen, alertInfo, isOpen2FA, showRegister, isClientPortal,
     updateAlert, update2FA, update2FACloseButton, updateCard
   ]);
 
@@ -136,10 +136,10 @@ export default function SignIn() {
   // Initialize page state once at component mount
   useEffect(() => {
     updatePage({
-      label: isCustomerPortal ? 'Client Portal Login' : 'MSP Login',
+      label: isClientPortal ? 'Client Portal Login' : 'MSP Login',
       children: []
     });
-  }, [isCustomerPortal, updatePage]);
+  }, [isClientPortal, updatePage]);
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -167,12 +167,12 @@ export default function SignIn() {
           className="rounded-full mr-4"
         />
         <span className="text-lg font-semibold text-gray-800">
-          {isCustomerPortal ? 'Customer Portal' : 'AI-Enhanced PSA Platform for MSPs'}
+          {isClientPortal ? 'Client Portal' : 'AI-Enhanced PSA Platform for MSPs'}
         </span>
       </div>
 
       {/* Left side with testimonial - only show for MSP login */}
-      {!isCustomerPortal && (
+      {!isClientPortal && (
         <div className="hidden lg:flex lg:w-1/2 bg-white p-12 flex-col justify-center items-center">
           <div className="max-w-md text-center">
             <h2 className="text-3xl font-bold mb-6">
@@ -201,28 +201,28 @@ export default function SignIn() {
       )}
 
       {/* Right side with SignIn/Register form */}
-      <div className={`w-full ${isCustomerPortal ? '' : 'lg:w-1/2'} flex items-center justify-center`}>
+      <div className={`w-full ${isClientPortal ? '' : 'lg:w-1/2'} flex items-center justify-center`}>
         <Card className="max-w-md w-full m-8">
           <CardHeader>
             <CardTitle className="text-2xl font-bold">
-              {isCustomerPortal ? (
-                showRegister ? 'Create Account' : 'Customer Portal Login'
+              {isClientPortal ? (
+                showRegister ? 'Create Account' : 'Client Portal Login'
               ) : (
                 'MSP Dashboard Login'
               )}
             </CardTitle>
             <CardDescription>
-              {isCustomerPortal ? (
+              {isClientPortal ? (
                 showRegister ?
-                  'Create your account to access the customer portal.' :
-                  'Please enter your credentials to access the customer portal.'
+                  'Create your account to access the client portal.' :
+                  'Please enter your credentials to access the client portal.'
               ) : (
                 'Welcome back! Please enter your details.'
               )}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isCustomerPortal ? (
+            {isClientPortal ? (
               showRegister ? (
                 <>
                   <RegisterForm />
