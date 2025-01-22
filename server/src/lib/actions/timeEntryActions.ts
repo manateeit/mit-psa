@@ -126,6 +126,19 @@ export async function fetchTimeEntriesForTimeSheet(timeSheetId: string): Promise
           type: 'non_billable_category',
         };
         break;
+      case 'ad_hoc':
+        // For ad_hoc entries, get the title from schedule entries
+        const scheduleEntry = await db('schedule_entries')
+          .where({ entry_id: entry.work_item_id })
+          .first();
+        
+        workItem = {
+          work_item_id: entry.work_item_id,
+          name: scheduleEntry?.title || entry.work_item_id,
+          description: '',
+          type: 'ad_hoc',
+        };
+        break;
       default:
         throw new Error(`Unknown work item type: ${entry.work_item_type}`);
     }
@@ -180,6 +193,7 @@ export async function fetchWorkItemsForTimeSheet(timeSheetId: string): Promise<I
 
   const {knex: db} = await createTenantKnex();
 
+  // Get tickets
   const tickets = await db('tickets')
     .whereIn('ticket_id', function () {
       this.select('work_item_id')
@@ -194,6 +208,7 @@ export async function fetchWorkItemsForTimeSheet(timeSheetId: string): Promise<I
       db.raw("'ticket' as type")
     );
 
+  // Get project tasks
   const projectTasks = await db('project_tasks')
     .whereIn('task_id', function () {
       this.select('work_item_id')
@@ -208,9 +223,24 @@ export async function fetchWorkItemsForTimeSheet(timeSheetId: string): Promise<I
       db.raw("'project_task' as type")
     );
 
-  return [...tickets, ...projectTasks].map((item): IWorkItem => ({
+  // Get ad-hoc entries
+  const adHocEntries = await db('schedule_entries')
+    .whereIn('entry_id', function () {
+      this.select('work_item_id')
+        .from('time_entries')
+        .where('time_entries.work_item_type', 'ad_hoc')
+        .where('time_entries.time_sheet_id', validatedParams.timeSheetId);
+    })
+    .select(
+      'entry_id as work_item_id',
+      'title as name',
+      db.raw("'' as description"),
+      db.raw("'ad_hoc' as type")
+    );
+
+  return [...tickets, ...projectTasks, ...adHocEntries].map((item): IWorkItem => ({
     ...item,
-    is_billable: true, // TODO: reconsider this
+    is_billable: item.type !== 'non_billable_category',
   }));
 }
 
@@ -284,20 +314,25 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
     validatedTimeEntry.entry_id = resultingEntry![0].entry_id;
   }
 
-  // Fetch the work_item_type and service information
-  const [workItem] = await db('service_catalog')
-    .where({ service_id: validatedTimeEntry.service_id })
-    .select('service_type as work_item_type', 'service_name', 'default_rate');
-
   if (!resultingEntry) {
     throw new Error('Failed to save time entry');
   }
 
-  return {
-    ...resultingEntry[0],
-    work_item_type: workItem.work_item_type,
-    service_id: validatedTimeEntry.service_id,
-  };
+  // Return the full time entry with work item details
+  const savedEntry = resultingEntry[0];
+  
+  if (!savedEntry.time_sheet_id) {
+    throw new Error('Saved entry is missing time_sheet_id');
+  }
+
+  const timeEntriesWithWorkItems = await fetchTimeEntriesForTimeSheet(savedEntry.time_sheet_id);
+  const savedEntryWithWorkItem = timeEntriesWithWorkItems.find(entry => entry.entry_id === savedEntry.entry_id);
+
+  if (!savedEntryWithWorkItem) {
+    throw new Error('Failed to fetch saved time entry details');
+  }
+
+  return savedEntryWithWorkItem;
 }
 
 export async function addWorkItem(workItem: Omit<IWorkItem, 'tenant'>): Promise<IWorkItem> {
@@ -521,10 +556,10 @@ export async function deleteTimeEntry(entryId: string): Promise<void> {
   }
 }
 
-export async function fetchServicesForTimeEntry(): Promise<{ id: string; name: string; type: string; is_taxable: boolean }[]> {
+export async function fetchServicesForTimeEntry(workItemType?: string): Promise<{ id: string; name: string; type: string; is_taxable: boolean }[]> {
   const {knex: db} = await createTenantKnex();
 
-  const services = await db('service_catalog')
+  let query = db('service_catalog')
     .select(
       'service_id as id',
       'service_name as name',
@@ -532,5 +567,11 @@ export async function fetchServicesForTimeEntry(): Promise<{ id: string; name: s
       'is_taxable'
     );
 
+  // For ad_hoc entries, only show Time-based services
+  if (workItemType === 'ad_hoc') {
+    query = query.where('service_type', 'Time');
+  }
+
+  const services = await query;
   return services;
 }

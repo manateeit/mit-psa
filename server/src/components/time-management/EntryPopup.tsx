@@ -217,7 +217,7 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
   };
 
   return (
-    <DialogContent className="bg-white p-4 rounded-lg shadow-lg fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-[90vw] w-[35%] h-auto max-h-[90vh] flex flex-col transition-all duration-300 overflow-y-auto">
+    <DialogContent className="bg-white p-4 rounded-lg shadow-lg fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-[90vw] w-[550px] h-auto max-h-[90vh] flex flex-col transition-all duration-300 overflow-y-auto">
        <div className="shrink-0 pb-4 border-b">
         <DialogTitle className="text-xl font-bold">
           {event ? 'Edit Entry' : 'New Entry'}

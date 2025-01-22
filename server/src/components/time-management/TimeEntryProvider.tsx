@@ -127,30 +127,6 @@ const TimeEntryContext = createContext<TimeEntryContextType | undefined>(undefin
 export function TimeEntryProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(timeEntryReducer, initialState);
 
-  useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        dispatch({ type: 'SET_LOADING', payload: true });
-        const [services, taxRegions] = await Promise.all([
-          fetchServicesForTimeEntry(),
-          fetchTaxRegions(),
-        ]);
-        dispatch({
-          type: 'SET_INITIAL_DATA',
-          payload: { services, taxRegions },
-        });
-      } catch (error) {
-        console.error('Error loading initial data:', error);
-        dispatch({
-          type: 'SET_ERROR',
-          payload: 'Failed to load services and tax regions',
-        });
-      }
-    };
-
-    loadInitialData();
-  }, []);
-
   const initializeEntries = async ({
     existingEntries,
     defaultStartTime,
@@ -159,6 +135,26 @@ export function TimeEntryProvider({ children }: { children: React.ReactNode }) {
     workItem,
     date,
   }: InitializeEntriesParams) => {
+    // Load services based on work item type
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      const [services, taxRegions] = await Promise.all([
+        fetchServicesForTimeEntry(workItem.type),
+        fetchTaxRegions(),
+      ]);
+      dispatch({
+        type: 'SET_INITIAL_DATA',
+        payload: { services, taxRegions },
+      });
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+      dispatch({
+        type: 'SET_ERROR',
+        payload: 'Failed to load services and tax regions',
+      });
+      return;
+    }
+
     let defaultTaxRegionFromCompany: string | undefined;
 
     if (workItem.type === 'ticket' || workItem.type === 'project_task') {
@@ -199,7 +195,7 @@ export function TimeEntryProvider({ children }: { children: React.ReactNode }) {
         created_at: formatISO(new Date()),
         updated_at: formatISO(new Date()),
         approval_status: 'DRAFT',
-        service_id: '',
+        service_id: state.services[0]?.id || '',
         tax_region: defaultTaxRegion || defaultTaxRegionFromCompany || '',
         isNew: true,
         tempId: crypto.randomUUID(),
@@ -223,7 +219,7 @@ export function TimeEntryProvider({ children }: { children: React.ReactNode }) {
         created_at: formatISO(new Date()),
         updated_at: formatISO(new Date()),
         approval_status: 'DRAFT',
-        service_id: '',
+        service_id: state.services[0]?.id || '',
         tax_region: defaultTaxRegion || '',
         isNew: true,
         tempId: crypto.randomUUID(),

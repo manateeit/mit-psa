@@ -1,18 +1,20 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react';
 import { Filter, XCircle } from 'lucide-react';
-import { Input } from '../ui/Input';
-import { SwitchWithLabel } from '../ui/SwitchWithLabel';
-import { IWorkItem, IExtendedWorkItem, WorkItemType } from '../../interfaces/workItem.interfaces';
-import { searchWorkItems } from '../../lib/actions/workItemActions';
-import { Button } from '../ui/Button';
-import UserPicker from '../ui/UserPicker';
-import { CompanyPicker } from '../companies/CompanyPicker';
-import { DatePicker } from '../ui/DatePicker';
+import { Input } from '@/components/ui/Input';
+import { SwitchWithLabel } from '@/components/ui/SwitchWithLabel';
+import { IWorkItem, IExtendedWorkItem, WorkItemType } from '@/interfaces/workItem.interfaces';
+import { searchWorkItems, createWorkItem } from '@/lib/actions/workItemActions';
+import { Button } from '@/components/ui/Button';
+import UserPicker from '@/components/ui/UserPicker';
+import { CompanyPicker } from '@/components/companies/CompanyPicker';
+import { DatePicker } from '@/components/ui/DatePicker';
+import { DateTimePicker } from '@/components/ui/DateTimePicker';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { getAllUsers, getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { getAllCompanies } from '@/lib/actions/companyActions';
 import { ICompany } from '@/interfaces/company.interfaces';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface WorkItemPickerProps {
   onSelect: (workItem: IWorkItem | null) => void;
@@ -43,6 +45,15 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
   const [filterState, setFilterState] = useState<'all' | 'active' | 'inactive'>('active');
   const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
+  const [showAdHocForm, setShowAdHocForm] = useState(false);
+  const [adHocTitle, setAdHocTitle] = useState('');
+  const [startTime, setStartTime] = useState<Date>(new Date());
+  const [endTime, setEndTime] = useState<Date>(() => {
+    const date = new Date();
+    date.setHours(date.getHours() + 1); // Default to 1 hour duration
+    return date;
+  });
+  const [searchType, setSearchType] = useState<WorkItemType | 'all'>('all');
 
   useEffect(() => {
     const loadData = async () => {
@@ -93,6 +104,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
         assignedTo: assignedTo || undefined,
         assignedToMe,
         companyId: companyId || undefined,
+        type: searchType,
         dateRange: startDate || endDate ? {
           start: startDate,
           end: endDate
@@ -129,7 +141,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
     } finally {
       setIsSearching(false);
     }
-  }, [existingWorkItems, includeInactive, assignedTo, assignedToMe, companyId, startDate, endDate]);
+  }, [existingWorkItems, includeInactive, assignedTo, assignedToMe, companyId, startDate, endDate, searchType]);
 
   // Load initial items when component mounts
   useEffect(() => {
@@ -162,7 +174,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
       return (
         <>
           <div className="font-medium text-[rgb(var(--color-text-900))]">
-            {item.ticket_number} - {item.title}
+            {item.ticket_number} - {item.title || 'Untitled'}
           </div>
           <div className="flex items-center gap-2 mt-1">
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-900))]">
@@ -197,6 +209,24 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
           </div>
         </>
       );
+    } else if (item.type === 'ad_hoc') {
+      return (
+        <>
+          <div className="font-medium text-[rgb(var(--color-text-900))]">
+            {item.title || item.name}
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-900))]">
+              Ad-hoc Entry
+            </span>
+            {item.is_billable && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-accent-100))] text-[rgb(var(--color-accent-900))]">
+                Billable
+              </span>
+            )}
+          </div>
+        </>
+      );
     }
     return null;
   };
@@ -205,14 +235,88 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
     <div className="flex flex-col h-auto max-h-[70vh] min-h-[200px] transition-all duration-300 ease-in-out">
       <div className="flex-none bg-white dark:bg-[rgb(var(--color-border-50))] pb-4 overflow-visible">
         <div className="flex justify-between items-center mb-4">
-          <Button
-            onClick={() => onSelect(null)}
-            variant="outline"
-            className="text-sm"
-            id="create-adhoc-entry-btn"
-          >
-            Create Ad-hoc Entry
-          </Button>
+          {!showAdHocForm ? (
+            <Button
+              onClick={() => setShowAdHocForm(true)}
+              variant="outline"
+              className="text-sm"
+              id="create-adhoc-entry-btn"
+            >
+              Create Ad-hoc Entry
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 w-full">
+                <Input
+                  value={adHocTitle}
+                  onChange={(e) => setAdHocTitle(e.target.value)}
+                  placeholder="Enter title for ad-hoc entry"
+                  className="flex-1"
+                  autoFocus
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <DateTimePicker
+                    value={startTime}
+                    onChange={setStartTime}
+                    placeholder="Start time"
+                    id="adhoc-start-time"
+                  />
+                  <DateTimePicker
+                    value={endTime}
+                    onChange={setEndTime}
+                    placeholder="End time"
+                    id="adhoc-end-time"
+                    minDate={startTime}
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={async () => {
+                  if (!adHocTitle.trim()) return;
+                  
+                  try {
+                    const newItem = await createWorkItem({
+                      type: 'ad_hoc',
+                      name: adHocTitle,
+                      title: adHocTitle,
+                      is_billable: true,
+                      description: '',
+                      startTime,
+                      endTime
+                    });
+                    
+                    // Add to existing work items to prevent duplicate showing
+                    existingWorkItems.push(newItem);
+                    onSelect(newItem);
+                    
+                    // Reset form
+                    setShowAdHocForm(false);
+                    setAdHocTitle('');
+                  } catch (error) {
+                    console.error('Error creating ad-hoc entry:', error);
+                    // TODO: Show error to user
+                  }
+                }}
+                variant="outline"
+                className="text-sm whitespace-nowrap"
+                disabled={!adHocTitle.trim()}
+                id="save-adhoc-entry-btn"
+              >
+                Save Entry
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowAdHocForm(false);
+                  setAdHocTitle('');
+                }}
+                variant="ghost"
+                className="text-sm"
+                id="cancel-adhoc-entry-btn"
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-4 mb-4">
           <div className="relative flex-1">
@@ -271,7 +375,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
           </Button>
         </div>
         <div className="relative">
-          <div className={`space-y-4 transition-all duration-300 ease-in-out ${isFiltersExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`} style={{ overflow: 'visible', zIndex: 600 }}>
+          <div className={`space-y-4 transition-all duration-300 ease-in-out ${isFiltersExpanded ? 'max-h-[500px] opacity-100 pointer-events-auto' : 'max-h-0 opacity-0 pointer-events-none'}`} style={{ overflow: 'visible', zIndex: 600 }}>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center gap-4">
@@ -305,6 +409,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
                     setEndDate(undefined);
                     setFilterState('active');
                     setClientTypeFilter('all');
+                    setSearchType('all');
                     setCurrentPage(1);
                     loadWorkItems(searchTerm, 1);
                   }}
@@ -316,23 +421,42 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
                 </Button>
               </div>
               </div>
-            <div className="grid grid-cols-2 gap-4">
-              <CompanyPicker
-                id="work-item-company-picker"
-                selectedCompanyId={companyId}
-                onSelect={(value: string) => {
-                  setCompanyId(value);
-                  setCurrentPage(1);
-                  loadWorkItems(searchTerm, 1);
-                }}
-                filterState={filterState}
-                onFilterStateChange={setFilterState}
-                clientTypeFilter={clientTypeFilter}
-                onClientTypeFilterChange={setClientTypeFilter}
-                companies={companies}
-                fitContent
-              />
-              <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-4 gap-4">
+              <div className="flex items-center">
+                <CompanyPicker
+                  id="work-item-company-picker"
+                  selectedCompanyId={companyId}
+                  onSelect={(value: string) => {
+                    setCompanyId(value);
+                    setCurrentPage(1);
+                    loadWorkItems(searchTerm, 1);
+                  }}
+                  filterState={filterState}
+                  onFilterStateChange={setFilterState}
+                  clientTypeFilter={clientTypeFilter}
+                  onClientTypeFilterChange={setClientTypeFilter}
+                  companies={companies}
+                  fitContent
+                />
+              </div>
+              <div className="flex items-center">
+                <CustomSelect
+                  value={searchType}
+                  onValueChange={(value) => {
+                    setSearchType(value as WorkItemType | 'all');
+                    setCurrentPage(1);
+                    loadWorkItems(searchTerm, 1);
+                  }}
+                  options={[
+                    { value: 'all', label: 'All Types' },
+                    { value: 'ticket', label: 'Tickets' },
+                    { value: 'project_task', label: 'Project Tasks' },
+                    { value: 'ad_hoc', label: 'Ad-hoc Entries' }
+                  ]}
+                  className="w-40"
+                />
+              </div>
+              <div className="flex items-center">
                 <DatePicker
                   label="Start date"
                   value={startDate}
@@ -342,7 +466,10 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
                     loadWorkItems(searchTerm, 1);
                   }}
                   placeholder="Start date"
+                  className="w-full"
                 />
+              </div>
+              <div className="flex items-center">
                 <DatePicker
                   label="End date"
                   value={endDate}
@@ -352,6 +479,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
                     loadWorkItems(searchTerm, 1);
                   }}
                   placeholder="End date"
+                  className="w-full"
                 />
               </div>
             </div>
