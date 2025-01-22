@@ -162,13 +162,11 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
       
       if (timeSheetId) {
         const fetchedTimeEntries = await fetchTimeEntriesForTimeSheet(timeSheetId);
-        const updatedEntries = fetchedTimeEntries
-          .filter(entry => entry.work_item_id === workItem.work_item_id)
-          .map(entry => ({
-            ...entry,
-            start_time: typeof entry.start_time === 'string' ? entry.start_time : formatISO(entry.start_time),
-            end_time: typeof entry.end_time === 'string' ? entry.end_time : formatISO(entry.end_time),
-          }));
+        const updatedEntries = fetchedTimeEntries.map(entry => ({
+          ...entry,
+          start_time: typeof entry.start_time === 'string' ? entry.start_time : formatISO(entry.start_time),
+          end_time: typeof entry.end_time === 'string' ? entry.end_time : formatISO(entry.end_time),
+        }));
 
         if (onTimeEntriesUpdate) {
           onTimeEntriesUpdate(updatedEntries);
@@ -197,11 +195,12 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
         
         if (onTimeEntriesUpdate && timeSheetId) {
           const fetchedTimeEntries = await fetchTimeEntriesForTimeSheet(timeSheetId);
-          onTimeEntriesUpdate(fetchedTimeEntries.map(entry => ({
+          const updatedEntries = fetchedTimeEntries.map(entry => ({
             ...entry,
             start_time: typeof entry.start_time === 'string' ? entry.start_time : formatISO(entry.start_time),
             end_time: typeof entry.end_time === 'string' ? entry.end_time : formatISO(entry.end_time),
-          })));
+          }));
+          onTimeEntriesUpdate(updatedEntries);
         }
       } catch (error) {
         console.error('Error deleting time entry:', error);
