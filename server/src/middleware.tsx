@@ -25,7 +25,7 @@ export default withAuth(
 
         // Get user type from token
         const userType = req.nextauth.token?.user_type as string;
-        const isCustomerPortal = pathname.includes('/client-portal');
+        const isClientPortal = pathname.includes('/client-portal');
 
         // Handle unauthenticated requests - always redirect to unified login
         if (!req.nextauth.token) {
@@ -35,15 +35,15 @@ export default withAuth(
         }
 
         // Enforce access rules based on user type
-        if (isCustomerPortal && userType !== 'client') {
-            // Non-client users cannot access customer portal
+        if (isClientPortal && userType !== 'client') {
+            // Non-client users cannot access client portal
             const url = new URL('/auth/signin', req.url);
             url.searchParams.set('error', 'AccessDenied');
             url.searchParams.set('callbackUrl', pathname);
             return NextResponse.redirect(url);
         }
 
-        if (!isCustomerPortal && userType === 'client') {
+        if (!isClientPortal && userType === 'client') {
             // Client users cannot access MSP routes
             const url = new URL('/auth/signin', req.url);
             url.searchParams.set('error', 'AccessDenied');
