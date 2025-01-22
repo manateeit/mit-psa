@@ -6,8 +6,11 @@ export interface IWorkItem extends TenantEntity {
   work_item_id: string;
   type: WorkItemType;
   name: string;
+  title?: string;
   description: string;
   is_billable: boolean;
+  startTime?: Date;
+  endTime?: Date;
 }
 
 export interface IExtendedWorkItem extends IWorkItem {

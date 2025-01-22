@@ -226,10 +226,10 @@ export const CompanyPicker: React.FC<CompanyPickerProps & AutomationProps> = ({
   return (
     <ReflectionContainer id={`${id}`} label="Company Picker">
       <div
-        className={`${fitContent ? 'w-fit' : 'w-full'} rounded-md relative`}
+        className={`${fitContent ? 'inline-flex' : 'w-full'} rounded-md relative`}
         ref={dropdownRef}
         {...withDataAutomationId({ id: `${id}-picker` })}
-        data-automation-type={dataAutomationType} 
+        data-automation-type={dataAutomationType}
       >
         <Button
           id={`${id}-toggle`}
@@ -244,7 +244,7 @@ export const CompanyPicker: React.FC<CompanyPickerProps & AutomationProps> = ({
 
         {isOpen && (
           <div
-            className={`absolute z-[200] bg-white border rounded-md shadow-lg ${fitContent ? 'w-max' : 'w-[350px]'}`}
+            className="absolute z-[200] bg-white border rounded-md shadow-lg w-full min-w-max" 
             style={{
               top: '100%',
               left: 0

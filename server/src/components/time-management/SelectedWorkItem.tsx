@@ -13,7 +13,7 @@ const SelectedWorkItem: React.FC<SelectedWorkItemProps> = ({ workItem, onEdit })
   if (!workItem) {
     return (
       <div className="flex justify-between items-center p-2">
-        <span className="text-gray-500">Ad-hoc entry (no work item)</span>
+        <span className="font-bold text-black">Ad-hoc entry (no work item)</span>
         <Button onClick={onEdit} variant="outline" size="sm" id="select-work-item-btn">
           Select Work Item
         </Button>

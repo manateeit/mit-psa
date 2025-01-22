@@ -1,6 +1,8 @@
 'use server';
 import { createTenantKnex } from '@/lib/db';
+import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { IWorkItem, IExtendedWorkItem, WorkItemType } from '@/interfaces/workItem.interfaces';
+import ScheduleEntry from '@/lib/models/scheduleEntry';
 
 interface SearchOptions {
   searchTerm?: string;
@@ -82,12 +84,35 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         'tr.additional_user_id'
       );
 
+    let adHocQuery = db('schedule_entries as se')
+      .where('work_item_type', 'ad_hoc')
+      .whereILike('title', db.raw('?', [`%${searchTerm}%`]))
+      .select(
+        'se.entry_id as work_item_id',
+        'se.title as name',
+        'se.notes as description',
+        db.raw("'ad_hoc' as type"),
+        db.raw('NULL as ticket_number'),
+        'se.title',
+        db.raw('NULL as project_name'),
+        db.raw('NULL as phase_name'),
+        db.raw('NULL as task_name'),
+        db.raw('NULL as company_id'),
+        db.raw('NULL as assigned_to'),
+        db.raw('NULL as additional_user_id')
+      );
+
     // Apply filters
     if (options.type && options.type !== 'all') {
       if (options.type === 'ticket') {
         projectTasksQuery = projectTasksQuery.whereRaw('1 = 0');
+        adHocQuery = adHocQuery.whereRaw('1 = 0');
       } else if (options.type === 'project_task') {
         ticketsQuery = ticketsQuery.whereRaw('1 = 0');
+        adHocQuery = adHocQuery.whereRaw('1 = 0');
+      } else if (options.type === 'ad_hoc') {
+        ticketsQuery = ticketsQuery.whereRaw('1 = 0');
+        projectTasksQuery = projectTasksQuery.whereRaw('1 = 0');
       }
     }
 
@@ -145,14 +170,16 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
     if (options.dateRange?.start) {
       ticketsQuery = ticketsQuery.where('t.entered_at', '>=', options.dateRange.start);
       projectTasksQuery = projectTasksQuery.where('pt.created_at', '>=', options.dateRange.start);
+      adHocQuery = adHocQuery.where('se.scheduled_start', '>=', options.dateRange.start);
     }
     if (options.dateRange?.end) {
       ticketsQuery = ticketsQuery.where('t.closed_at', '<=', options.dateRange.end);
       projectTasksQuery = projectTasksQuery.where('pt.due_date', '<=', options.dateRange.end);
+      adHocQuery = adHocQuery.where('se.scheduled_end', '<=', options.dateRange.end);
     }
 
     // Combine queries
-    let query = db.union([ticketsQuery, projectTasksQuery]);
+    let query = db.union([ticketsQuery, projectTasksQuery, adHocQuery]);
 
     // Get total count before applying pagination
     const countResult = await db.from(query.as('combined')).count('* as count').first();
@@ -195,6 +222,52 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
   }
 }
 
+export async function createWorkItem(item: Omit<IWorkItem, "work_item_id">): Promise<Omit<IExtendedWorkItem, "tenant">> {
+  try {
+    const {tenant} = await createTenantKnex();
+    const currentUser = await getCurrentUser();
+    
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    if (!item.startTime || !item.endTime) {
+      throw new Error('Start time and end time are required for ad-hoc entries');
+    }
+
+    // Create schedule entry with current user assigned
+    const scheduleEntry = await ScheduleEntry.create({
+      title: item.title || 'Ad-hoc Entry',
+      notes: item.description,
+      scheduled_start: item.startTime,
+      scheduled_end: item.endTime,
+      status: 'scheduled',
+      work_item_type: 'ad_hoc',
+      work_item_id: null,
+      assigned_user_ids: []  // This will be populated by the model
+    }, {
+      assignedUserIds: [currentUser.user_id]
+    });
+
+    // For ad-hoc entries, use title as name if provided, otherwise use a default name
+    const name = item.title || 'Ad-hoc Entry';
+    
+    return {
+      work_item_id: scheduleEntry.entry_id,
+      type: 'ad_hoc',
+      name: name,
+      title: item.title,
+      description: item.description,
+      is_billable: item.is_billable,
+      startTime: item.startTime,
+      endTime: item.endTime
+    };
+  } catch (error) {
+    console.error('Error creating work item:', error);
+    throw new Error('Failed to create work item');
+  }
+}
+
 export async function getWorkItemById(workItemId: string, workItemType: WorkItemType): Promise<Omit<IExtendedWorkItem, "tenant"> | null> {
   try {
     const {knex: db} = await createTenantKnex();
@@ -230,6 +303,21 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
           'p.project_name',
           'pp.phase_name',
           'pt.task_name'
+        )
+        .first();
+    } else if (workItemType === 'ad_hoc') {
+      workItem = await db('schedule_entries')
+        .where('entry_id', workItemId)
+        .select(
+          'entry_id as work_item_id',
+          'title as name',
+          'notes as description',
+          db.raw("'ad_hoc' as type"),
+          db.raw('NULL as ticket_number'),
+          'title',
+          db.raw('NULL as project_name'),
+          db.raw('NULL as phase_name'),
+          db.raw('NULL as task_name')
         )
         .first();
     }
