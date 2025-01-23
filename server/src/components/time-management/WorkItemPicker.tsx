@@ -453,7 +453,6 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
                     { value: 'project_task', label: 'Project Tasks' },
                     { value: 'ad_hoc', label: 'Ad-hoc Entries' }
                   ]}
-                  className="w-40"
                 />
               </div>
               <div className="flex items-center">
