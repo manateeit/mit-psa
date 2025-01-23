@@ -19,6 +19,7 @@ interface SearchOptions {
     start?: Date;
     end?: Date;
   };
+  existingWorkItemIds?: string[];
 }
 
 interface SearchResult {
@@ -36,6 +37,7 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
 
     // Build base queries using proper parameter binding
     let ticketsQuery = db('tickets as t')
+      .whereNotIn('t.ticket_id', options.existingWorkItemIds || [])
       .leftJoin('ticket_resources as tr', function() {
         this.on('t.tenant', 'tr.tenant')
             .andOn('t.ticket_id', 'tr.ticket_id');
@@ -57,6 +59,7 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
       );
 
     let projectTasksQuery = db('project_tasks as pt')
+      .whereNotIn('pt.task_id', options.existingWorkItemIds || [])
       .join('project_phases as pp', 'pt.phase_id', 'pp.phase_id')
       .join('projects as p', 'pp.project_id', 'p.project_id')
       .leftJoin('task_resources as tr', function() {
@@ -85,6 +88,7 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
       );
 
     let adHocQuery = db('schedule_entries as se')
+      .whereNotIn('se.entry_id', options.existingWorkItemIds || [])
       .where('work_item_type', 'ad_hoc')
       .whereILike('title', db.raw('?', [`%${searchTerm}%`]))
       .select(

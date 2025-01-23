@@ -1,9 +1,10 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react';
+import { WorkItemList } from './WorkItemList';
 import { Filter, XCircle } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { SwitchWithLabel } from '@/components/ui/SwitchWithLabel';
-import { IWorkItem, IExtendedWorkItem, WorkItemType } from '@/interfaces/workItem.interfaces';
+import { IWorkItem, IExtendedWorkItem, WorkItemWithStatus, WorkItemType } from '@/interfaces/workItem.interfaces';
 import { searchWorkItems, createWorkItem } from '@/lib/actions/workItemActions';
 import { Button } from '@/components/ui/Button';
 import UserPicker from '@/components/ui/UserPicker';
@@ -21,10 +22,6 @@ interface WorkItemPickerProps {
   existingWorkItems: IWorkItem[];
   initialWorkItemId?: string | null;
   initialWorkItemType?: WorkItemType;
-}
-
-interface WorkItemWithStatus extends Omit<IExtendedWorkItem, "tenant"> {
-  status: string;
 }
 
 export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerProps) {
@@ -89,7 +86,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
     setCurrentPage(1);
     loadWorkItems(searchTerm, 1);
   };
-  const pageSize = 20;
+  const pageSize = 10;
 
   const loadWorkItems = useCallback(async (term: string, page: number) => {
     setIsSearching(true);
@@ -108,14 +105,11 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
         dateRange: startDate || endDate ? {
           start: startDate,
           end: endDate
-        } : undefined
+        } : undefined,
+        existingWorkItemIds: existingWorkItems.map(item => item.work_item_id)
       });
       
-      // Filter out items that are already on the timesheet
-      const existingIds = new Set(existingWorkItems.map((item): string => item.work_item_id));
-      const filteredItems = result.items.filter(item => !existingIds.has(item.work_item_id));
-      
-      const itemsWithStatus = filteredItems.map((item): WorkItemWithStatus => ({ 
+      const itemsWithStatus = result.items.map((item): WorkItemWithStatus => ({ 
         work_item_id: item.work_item_id,
         type: item.type,
         name: item.name,
@@ -131,7 +125,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
 
       setWorkItems(itemsWithStatus);
       setTotal(result.total);
-      setHasMore(result.total > page * pageSize);
+      setHasMore(page * pageSize < result.total);
     } catch (error) {
       console.error('Error loading work items:', error);
       // Show error state in the list
@@ -168,68 +162,6 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
   };
 
   const totalPages = Math.ceil(total / pageSize);
-
-  const renderWorkItemContent = (item: WorkItemWithStatus) => {
-    if (item.type === 'ticket') {
-      return (
-        <>
-          <div className="font-medium text-[rgb(var(--color-text-900))]">
-            {item.ticket_number} - {item.title || 'Untitled'}
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-900))]">
-              Ticket
-            </span>
-            {item.is_billable && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-accent-100))] text-[rgb(var(--color-accent-900))]">
-                Billable
-              </span>
-            )}
-          </div>
-        </>
-      );
-    } else if (item.type === 'project_task') {
-      return (
-        <>
-          <div className="font-medium text-[rgb(var(--color-text-900))]">
-            {item.project_name}
-          </div>
-          <div className="text-sm text-[rgb(var(--color-text-600))]">
-            {item.phase_name} → {item.task_name}
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-900))]">
-              Project Task
-            </span>
-            {item.is_billable && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-accent-100))] text-[rgb(var(--color-accent-900))]">
-                Billable
-              </span>
-            )}
-          </div>
-        </>
-      );
-    } else if (item.type === 'ad_hoc') {
-      return (
-        <>
-          <div className="font-medium text-[rgb(var(--color-text-900))]">
-            {item.title || item.name}
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-900))]">
-              Ad-hoc Entry
-            </span>
-            {item.is_billable && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-accent-100))] text-[rgb(var(--color-accent-900))]">
-                Billable
-              </span>
-            )}
-          </div>
-        </>
-      );
-    }
-    return null;
-  };
 
   return (
     <div className="flex flex-col h-auto max-h-[70vh] min-h-[200px] transition-all duration-300 ease-in-out">
@@ -486,60 +418,16 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
         </div>
       </div>
 
-      <div className="flex-1 min-h-[200px] overflow-auto transition-all duration-300">
-        <div className="h-full overflow-y-auto">
-          <div className="bg-white dark:bg-[rgb(var(--color-border-50))] rounded-md border border-[rgb(var(--color-border-200))]">
-            {workItems.length > 0 ? (
-              <div>
-                <ul className="divide-y divide-[rgb(var(--color-border-200))]">
-                  {workItems.map((item): JSX.Element => (
-                    <li
-                      key={item.work_item_id}
-                      className="bg-[rgb(var(--color-border-50))] hover:bg-[rgb(var(--color-border-100))] cursor-pointer transition-colors duration-150"
-                      onClick={() => onSelect(item)}
-                    >
-                      <div className="px-4 py-3">
-                        {renderWorkItemContent(item)}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-                {totalPages > 1 && (
-                  <div className="p-2 border-t border-[rgb(var(--color-border-200))] flex items-center justify-between">
-                    <button
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      className="px-3 py-1 text-sm font-medium text-[rgb(var(--color-text-600))] hover:text-[rgb(var(--color-text-900))] hover:bg-[rgb(var(--color-border-100))] rounded-md transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={currentPage === 1 || isSearching}
-                      id="previous-page-btn"
-                    >
-                      Previous
-                    </button>
-                    <span className="text-sm text-[rgb(var(--color-text-600))]">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <button
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      className="px-3 py-1 text-sm font-medium text-[rgb(var(--color-text-600))] hover:text-[rgb(var(--color-text-900))] hover:bg-[rgb(var(--color-border-100))] rounded-md transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={!hasMore || isSearching}
-                      id="next-page-btn"
-                    >
-                      Next
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : searchTerm && !isSearching ? (
-              <div className="p-4 text-center text-[rgb(var(--color-text-500))]">
-                No work items found. Try adjusting your search terms.
-              </div>
-            ) : !isSearching ? (
-              <div className="p-4 text-center text-[rgb(var(--color-text-500))]">
-                No available work items.
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </div>
+      <WorkItemList
+        items={workItems}
+        isSearching={isSearching}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        total={total}
+        hasMore={hasMore}
+        onPageChange={handlePageChange}
+        onSelect={onSelect}
+      />
     </div>
   );
 }

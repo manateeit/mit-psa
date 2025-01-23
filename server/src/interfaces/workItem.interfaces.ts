@@ -13,6 +13,10 @@ export interface IWorkItem extends TenantEntity {
   endTime?: Date;
 }
 
+export interface WorkItemWithStatus extends Omit<IExtendedWorkItem, "tenant"> {
+  status: string;
+}
+
 export interface IExtendedWorkItem extends IWorkItem {
   // Ticket specific fields
   ticket_number?: string;
