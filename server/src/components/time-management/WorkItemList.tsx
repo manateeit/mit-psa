@@ -35,7 +35,7 @@ export function WorkItemList({
               Ticket
             </span>
             {item.is_billable && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-accent-100))] text-[rgb(var(--color-accent-900))]">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-accent-100))] text-[rgb(var(--color-accent-800))]">
                 Billable
               </span>
             )}
@@ -52,11 +52,11 @@ export function WorkItemList({
             {item.phase_name} → {item.task_name}
           </div>
           <div className="flex items-center gap-2 mt-1">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-900))]">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-900))]">
               Project Task
             </span>
             {item.is_billable && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-accent-100))] text-[rgb(var(--color-accent-900))]">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-accent-100))] text-[rgb(var(--color-accent-800))]">
                 Billable
               </span>
             )}
@@ -69,12 +69,17 @@ export function WorkItemList({
           <div className="font-medium text-[rgb(var(--color-text-900))]">
             {item.title || item.name}
           </div>
+          {item.scheduled_start && item.scheduled_end && (
+            <div className="text-sm text-[rgb(var(--color-text-600))]">
+              {new Date(item.scheduled_start).toLocaleTimeString()} - {new Date(item.scheduled_end).toLocaleTimeString()}
+            </div>
+          )}
           <div className="flex items-center gap-2 mt-1">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-900))]">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-900">
               Ad-hoc Entry
             </span>
             {item.is_billable && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-accent-100))] text-[rgb(var(--color-accent-900))]">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-accent-100))] text-[rgb(var(--color-accent-800))]">
                 Billable
               </span>
             )}

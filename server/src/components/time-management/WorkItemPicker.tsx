@@ -19,12 +19,12 @@ import CustomSelect from '@/components/ui/CustomSelect';
 
 interface WorkItemPickerProps {
   onSelect: (workItem: IWorkItem | null) => void;
-  existingWorkItems: IWorkItem[];
+  availableWorkItems: IWorkItem[];
   initialWorkItemId?: string | null;
   initialWorkItemType?: WorkItemType;
 }
 
-export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerProps) {
+export function WorkItemPicker({ onSelect, availableWorkItems }: WorkItemPickerProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [workItems, setWorkItems] = useState<WorkItemWithStatus[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -106,21 +106,14 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
           start: startDate,
           end: endDate
         } : undefined,
-        existingWorkItemIds: existingWorkItems.map(item => item.work_item_id)
+        availableWorkItemIds: availableWorkItems.map(item => item.work_item_id)
       });
       
-      const itemsWithStatus = result.items.map((item): WorkItemWithStatus => ({ 
-        work_item_id: item.work_item_id,
-        type: item.type,
-        name: item.name,
-        description: item.description,
-        is_billable: item.is_billable,
-        ticket_number: item.ticket_number,
-        title: item.title,
-        project_name: item.project_name,
-        phase_name: item.phase_name,
-        task_name: item.task_name,
-        status: 'Active'
+      const itemsWithStatus = result.items.map((item): WorkItemWithStatus => ({
+        ...item,
+        status: 'Active',
+        scheduled_start: item.type === 'ad_hoc' ? item.scheduled_start : undefined,
+        scheduled_end: item.type === 'ad_hoc' ? item.scheduled_end : undefined
       }));
 
       setWorkItems(itemsWithStatus);
@@ -135,7 +128,7 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
     } finally {
       setIsSearching(false);
     }
-  }, [existingWorkItems, includeInactive, assignedTo, assignedToMe, companyId, startDate, endDate, searchType]);
+  }, [availableWorkItems, includeInactive, assignedTo, assignedToMe, companyId, startDate, endDate, searchType]);
 
   // Load initial items when component mounts
   useEffect(() => {
@@ -214,11 +207,13 @@ export function WorkItemPicker({ onSelect, existingWorkItems }: WorkItemPickerPr
                       is_billable: true,
                       description: '',
                       startTime,
-                      endTime
+                      endTime,
+                      scheduled_start: startTime.toISOString(),
+                      scheduled_end: endTime.toISOString()
                     });
                     
-                    // Add to existing work items to prevent duplicate showing
-                    existingWorkItems.push(newItem);
+                    // Add to available work items to prevent duplicate showing
+                    availableWorkItems.push(newItem);
                     onSelect(newItem);
                     
                     // Reset form

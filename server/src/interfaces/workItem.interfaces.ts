@@ -11,10 +11,14 @@ export interface IWorkItem extends TenantEntity {
   is_billable: boolean;
   startTime?: Date;
   endTime?: Date;
+  scheduled_start?: string;
+  scheduled_end?: string;
 }
 
 export interface WorkItemWithStatus extends Omit<IExtendedWorkItem, "tenant"> {
   status: string;
+  scheduled_start?: string;
+  scheduled_end?: string;
 }
 
 export interface IExtendedWorkItem extends IWorkItem {

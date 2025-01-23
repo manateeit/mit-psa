@@ -6,6 +6,7 @@ import { IWorkItem } from '../../interfaces/workItem.interfaces';
 import { TaxRegion } from '../../types/types.d';
 import { fetchCompanyTaxRateForWorkItem, fetchServicesForTimeEntry, fetchTaxRegions } from '../../lib/actions/timeEntryActions';
 import { formatISO, parseISO } from 'date-fns';
+import { createTenantKnex } from '@/lib/db';
 
 interface Service {
   id: string;
@@ -201,16 +202,30 @@ export function TimeEntryProvider({ children }: { children: React.ReactNode }) {
         tempId: crypto.randomUUID(),
       }];
     } else {
-      const defaultStart = new Date(date);
-      defaultStart.setHours(8, 0, 0, 0);
-      const defaultEnd = new Date(defaultStart);
-      defaultEnd.setHours(9, 0, 0, 0);
-      const duration = calculateDuration(defaultStart, defaultEnd);
+      // For ad-hoc items, get the scheduled times from the schedule entry
+      const {knex: db} = await createTenantKnex();
+      const scheduleEntry = await db('schedule_entries')
+        .where('entry_id', workItem.work_item_id)
+        .select('scheduled_start', 'scheduled_end')
+        .first();
+
+      let startTime, endTime;
+      if (scheduleEntry && workItem.type === 'ad_hoc') {
+        startTime = parseISO(scheduleEntry.scheduled_start);
+        endTime = parseISO(scheduleEntry.scheduled_end);
+      } else {
+        startTime = new Date(date);
+        startTime.setHours(8, 0, 0, 0);
+        endTime = new Date(startTime);
+        endTime.setHours(9, 0, 0, 0);
+      }
+
+      const duration = calculateDuration(startTime, endTime);
 
       newEntries = [{
         work_item_id: workItem.work_item_id,
-        start_time: formatISO(defaultStart),
-        end_time: formatISO(defaultEnd),
+        start_time: formatISO(startTime),
+        end_time: formatISO(endTime),
         billable_duration: duration,
         work_item_type: workItem.type,
         notes: '',
