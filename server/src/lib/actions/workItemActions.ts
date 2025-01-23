@@ -91,6 +91,7 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
       .whereNotIn('se.entry_id', options.existingWorkItemIds || [])
       .where('work_item_type', 'ad_hoc')
       .whereILike('title', db.raw('?', [`%${searchTerm}%`]))
+      .leftJoin('schedule_entry_assignees as sea', 'se.entry_id', 'sea.entry_id')
       .select(
         'se.entry_id as work_item_id',
         'se.title as name',
@@ -102,7 +103,7 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         db.raw('NULL as phase_name'),
         db.raw('NULL as task_name'),
         db.raw('NULL as company_id'),
-        db.raw('NULL as assigned_to'),
+        'sea.user_id as assigned_to',
         db.raw('NULL as additional_user_id')
       );
 
@@ -131,6 +132,7 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         this.where('pt.assigned_to', options.assignedTo)
             .orWhere('tr.additional_user_id', options.assignedTo);
       });
+      adHocQuery = adHocQuery.where('sea.user_id', options.assignedTo);
       
       // Debug logging
       console.log('Filtering by assigned to me:', {
@@ -148,6 +150,7 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         this.where('pt.assigned_to', options.assignedTo)
             .orWhere('tr.additional_user_id', options.assignedTo);
       });
+      adHocQuery = adHocQuery.where('sea.user_id', options.assignedTo);
       
       // Debug logging
       console.log('Filtering by assigned user:', {
@@ -161,6 +164,8 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
     if (options.companyId) {
       ticketsQuery = ticketsQuery.where('t.company_id', options.companyId);
       projectTasksQuery = projectTasksQuery.where('p.company_id', options.companyId);
+      // Exclude ad hoc entries when filtering by company
+      adHocQuery = adHocQuery.whereRaw('1 = 0');
       
       // Debug logging
       console.log('Filtering by company:', {
