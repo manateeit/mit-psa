@@ -229,7 +229,7 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
             <div className="w-full min-w-[min(100%,400px)]">
               <WorkItemPicker
               onSelect={handleWorkItemSelect}
-              existingWorkItems={[]} // Pass existing work items if needed
+              availableWorkItems={[]}
               initialWorkItemId={event?.work_item_id}
               initialWorkItemType={event?.work_item_type}
               />

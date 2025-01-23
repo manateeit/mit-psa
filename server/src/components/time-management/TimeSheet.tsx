@@ -17,6 +17,7 @@ import { useTenant } from '@/components/TenantProvider';
 import { fromZonedTime } from 'date-fns-tz';
 import { formatISO, parseISO } from 'date-fns';
 import { time } from 'console';
+import { createTenantKnex } from '@/lib/db';
 
 interface TimeSheetProps {
     timeSheet: ITimeSheet;
@@ -440,50 +441,68 @@ const handleSaveTimeEntry = async (timeEntry: ITimeEntry) => {
     }), [timeSheet.time_period, start_year, start_month, start_day, end_year, end_month, end_day]);
 
     const handleCellClick = (workItem: IWorkItem, date: Date, entries: ITimeEntryWithWorkItemString[]) => {
-        let startTime = new Date(date);
-        startTime.setHours(8, 0, 0, 0);
-        let endTime = new Date(startTime);
-        endTime.setHours(9, 0, 0, 0);
+        let startTime, endTime;
 
+        // If it's an ad-hoc item, use the scheduled times from the work item
+        if (workItem.type === 'ad_hoc' && 
+            'scheduled_start' in workItem && 
+            'scheduled_end' in workItem && 
+            workItem.scheduled_start && 
+            workItem.scheduled_end) {
+            startTime = typeof workItem.scheduled_start === 'string' ? 
+                parseISO(workItem.scheduled_start) : 
+                workItem.scheduled_start;
+            endTime = typeof workItem.scheduled_end === 'string' ? 
+                parseISO(workItem.scheduled_end) : 
+                workItem.scheduled_end;
+        }
 
-        // If there are existing entries for this day, use the last entry's end time as the start time
-        if (entries.length > 0) {
+        // If no schedule entry found or not ad-hoc, check for existing entries
+        if (!startTime && entries.length > 0) {
             const sortedEntries = [...entries].sort((a, b) => 
                 parseISO(b.end_time).getTime() - parseISO(a.end_time).getTime()
             );
             startTime = parseISO(sortedEntries[0].end_time);
             endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // Add 1 hour
-        } else if (initialDuration && initialWorkItem && workItem.work_item_id === initialWorkItem.work_item_id) {
-            endTime = new Date(); // Use current time as end time
+        } else if (!startTime) {
+            if (initialDuration && initialWorkItem && workItem.work_item_id === initialWorkItem.work_item_id) {
+                endTime = new Date(); // Use current time as end time
 
-            // Convert seconds to milliseconds and round up to the nearest minute
-            const durationInMilliseconds = Math.ceil(initialDuration / 60) * 60 * 1000;
+                // Convert seconds to milliseconds and round up to the nearest minute
+                const durationInMilliseconds = Math.ceil(initialDuration / 60) * 60 * 1000;
 
-            startTime = new Date(endTime.getTime() - durationInMilliseconds);
-
-            // Ensure the times are within the selected date
-            startTime.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
-            endTime.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
-
-            // If start time is before the date, set it to the start of the day
-            if (startTime < date) {
-                startTime = new Date(date);
-                startTime.setHours(0, 0, 0, 0);
-                endTime = new Date(startTime.getTime() + durationInMilliseconds);
-            }
-
-            // If end time is after the end of the day, adjust both start and end times
-            const endOfDay = new Date(date);
-            endOfDay.setHours(23, 59, 59, 999);
-            if (endTime > endOfDay) {
-                endTime = new Date(endOfDay);
                 startTime = new Date(endTime.getTime() - durationInMilliseconds);
 
-                // If this pushes start time before the start of the day, adjust it
+                // Ensure the times are within the selected date
+                startTime.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+                endTime.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+
+                // If start time is before the date, set it to the start of the day
                 if (startTime < date) {
                     startTime = new Date(date);
                     startTime.setHours(0, 0, 0, 0);
+                    endTime = new Date(startTime.getTime() + durationInMilliseconds);
                 }
+
+                // If end time is after the end of the day, adjust both start and end times
+                const endOfDay = new Date(date);
+                endOfDay.setHours(23, 59, 59, 999);
+                if (endTime > endOfDay) {
+                    endTime = new Date(endOfDay);
+                    startTime = new Date(endTime.getTime() - durationInMilliseconds);
+
+                    // If this pushes start time before the start of the day, adjust it
+                    if (startTime < date) {
+                        startTime = new Date(date);
+                        startTime.setHours(0, 0, 0, 0);
+                    }
+                }
+            } else {
+                // Default fallback if no other times are set
+                startTime = new Date(date);
+                startTime.setHours(8, 0, 0, 0);
+                endTime = new Date(startTime);
+                endTime.setHours(9, 0, 0, 0);
             }
         }
 
@@ -491,8 +510,8 @@ const handleSaveTimeEntry = async (timeEntry: ITimeEntry) => {
             workItem,
             date: formatISO(date),
             entries,
-            defaultStartTime: formatISO(startTime),
-            defaultEndTime: formatISO(endTime)
+            defaultStartTime: startTime ? formatISO(startTime) : undefined,
+            defaultEndTime: endTime ? formatISO(endTime) : undefined
         });
     };
 
@@ -808,7 +827,7 @@ const handleSaveTimeEntry = async (timeEntry: ITimeEntry) => {
                 isOpen={isAddWorkItemDialogOpen}
                 onClose={() => setIsAddWorkItemDialogOpen(false)}
                 onAdd={onAddWorkItem}
-                existingWorkItems={getAllExistingWorkItems()}
+                availableWorkItems={getAllExistingWorkItems()}
             />
 
                 <div className="mt-4">
@@ -850,5 +869,3 @@ function getDatesInPeriod(timePeriod: { start_date: Date; end_date: Date }): Dat
 function formatTime(date: Date): string {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
-
-

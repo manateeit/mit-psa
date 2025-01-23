@@ -19,6 +19,7 @@ interface SearchOptions {
     start?: Date;
     end?: Date;
   };
+  availableWorkItemIds?: string[];
 }
 
 interface SearchResult {
@@ -36,10 +37,12 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
 
     // Build base queries using proper parameter binding
     let ticketsQuery = db('tickets as t')
+      .whereNotIn('t.ticket_id', options.availableWorkItemIds || [])
       .leftJoin('ticket_resources as tr', function() {
         this.on('t.tenant', 'tr.tenant')
             .andOn('t.ticket_id', 'tr.ticket_id');
       })
+      .leftJoin('companies as c', 't.company_id', 'c.company_id')
       .whereILike('t.title', db.raw('?', [`%${searchTerm}%`]))
       .select(
         't.ticket_id as work_item_id',
@@ -48,17 +51,23 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         db.raw("'ticket' as type"),
         't.ticket_number',
         't.title',
-        db.raw('NULL as project_name'),
-        db.raw('NULL as phase_name'),
-        db.raw('NULL as task_name'),
+        db.raw('NULL::text as project_name'),
+        db.raw('NULL::text as phase_name'),
+        db.raw('NULL::text as task_name'),
         't.company_id',
-        't.assigned_to',
-        'tr.additional_user_id'
+        'c.company_name as company_name',
+        db.raw('NULL::timestamp with time zone as scheduled_start'),
+        db.raw('NULL::timestamp with time zone as scheduled_end'),
+        db.raw('t.closed_at::timestamp with time zone as due_date'),
+        db.raw('t.assigned_to::uuid'),
+        db.raw('tr.additional_user_id::uuid')
       );
 
     let projectTasksQuery = db('project_tasks as pt')
+      .whereNotIn('pt.task_id', options.availableWorkItemIds || [])
       .join('project_phases as pp', 'pt.phase_id', 'pp.phase_id')
       .join('projects as p', 'pp.project_id', 'p.project_id')
+      .leftJoin('companies as c', 'p.company_id', 'c.company_id')
       .leftJoin('task_resources as tr', function() {
         this.on('pt.tenant', 'tr.tenant')
             .andOn('pt.task_id', 'tr.task_id');
@@ -74,32 +83,42 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         'pt.task_name as name',
         'pt.description',
         db.raw("'project_task' as type"),
-        db.raw('NULL as ticket_number'),
-        db.raw('NULL as title'),
+        db.raw('NULL::text as ticket_number'),
+        db.raw('NULL::text as title'),
         'p.project_name',
         'pp.phase_name',
         'pt.task_name',
         'p.company_id',
-        'pt.assigned_to',
-        'tr.additional_user_id'
+        'c.company_name as company_name',
+        db.raw('NULL::timestamp with time zone as scheduled_start'),
+        db.raw('NULL::timestamp with time zone as scheduled_end'),
+        db.raw('pt.due_date::timestamp with time zone as due_date'),
+        db.raw('pt.assigned_to::uuid'),
+        db.raw('tr.additional_user_id::uuid')
       );
 
     let adHocQuery = db('schedule_entries as se')
+      .whereNotIn('se.entry_id', options.availableWorkItemIds || [])
       .where('work_item_type', 'ad_hoc')
       .whereILike('title', db.raw('?', [`%${searchTerm}%`]))
+      .leftJoin('schedule_entry_assignees as sea', 'se.entry_id', 'sea.entry_id')
       .select(
         'se.entry_id as work_item_id',
         'se.title as name',
         'se.notes as description',
         db.raw("'ad_hoc' as type"),
-        db.raw('NULL as ticket_number'),
+        db.raw('NULL::text as ticket_number'),
         'se.title',
-        db.raw('NULL as project_name'),
-        db.raw('NULL as phase_name'),
-        db.raw('NULL as task_name'),
-        db.raw('NULL as company_id'),
-        db.raw('NULL as assigned_to'),
-        db.raw('NULL as additional_user_id')
+        db.raw('NULL::text as project_name'),
+        db.raw('NULL::text as phase_name'),
+        db.raw('NULL::text as task_name'),
+        db.raw('NULL::uuid as company_id'),
+        db.raw('NULL::text as company_name'),
+        'se.scheduled_start',
+        'se.scheduled_end',
+        db.raw('NULL::timestamp with time zone as due_date'),
+        db.raw('sea.user_id::uuid as assigned_to'),
+        db.raw('NULL::uuid as additional_user_id')
       );
 
     // Apply filters
@@ -127,6 +146,7 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         this.where('pt.assigned_to', options.assignedTo)
             .orWhere('tr.additional_user_id', options.assignedTo);
       });
+      adHocQuery = adHocQuery.where('sea.user_id', options.assignedTo);
       
       // Debug logging
       console.log('Filtering by assigned to me:', {
@@ -144,6 +164,7 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         this.where('pt.assigned_to', options.assignedTo)
             .orWhere('tr.additional_user_id', options.assignedTo);
       });
+      adHocQuery = adHocQuery.where('sea.user_id', options.assignedTo);
       
       // Debug logging
       console.log('Filtering by assigned user:', {
@@ -157,6 +178,8 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
     if (options.companyId) {
       ticketsQuery = ticketsQuery.where('t.company_id', options.companyId);
       projectTasksQuery = projectTasksQuery.where('p.company_id', options.companyId);
+      // Exclude ad hoc entries when filtering by company
+      adHocQuery = adHocQuery.whereRaw('1 = 0');
       
       // Debug logging
       console.log('Filtering by company:', {
@@ -199,18 +222,30 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
     const results = await query;
 
     // Format results
-    const workItems = results.map((item: any): Omit<IExtendedWorkItem, "tenant"> => ({
-      work_item_id: item.work_item_id,
-      type: item.type,
-      name: item.name,
-      description: item.description,
-      is_billable: true, // You may need to adjust this based on your business logic
-      ticket_number: item.ticket_number,
-      title: item.title,
-      project_name: item.project_name,
-      phase_name: item.phase_name,
-      task_name: item.task_name
-    }));
+    const workItems = results.map((item: any): Omit<IExtendedWorkItem, "tenant"> => {
+      const workItem: Omit<IExtendedWorkItem, "tenant"> = {
+        work_item_id: item.work_item_id,
+        type: item.type,
+        name: item.name,
+        description: item.description,
+        is_billable: true, // You may need to adjust this based on your business logic
+        ticket_number: item.ticket_number,
+        title: item.title,
+        project_name: item.project_name,
+        phase_name: item.phase_name,
+        task_name: item.task_name,
+        company_name: item.company_name,
+        due_date: item.due_date
+      };
+
+      // Add scheduled times for ad-hoc items
+      if (item.type === 'ad_hoc' && item.scheduled_start && item.scheduled_end) {
+        workItem.scheduled_start = item.scheduled_start;
+        workItem.scheduled_end = item.scheduled_end;
+      }
+
+      return workItem;
+    });
 
     return {
       items: workItems,
@@ -259,8 +294,8 @@ export async function createWorkItem(item: Omit<IWorkItem, "work_item_id">): Pro
       title: item.title,
       description: item.description,
       is_billable: item.is_billable,
-      startTime: item.startTime,
-      endTime: item.endTime
+      scheduled_start: item.startTime.toISOString(),
+      scheduled_end: item.endTime.toISOString()
     };
   } catch (error) {
     console.error('Error creating work item:', error);
@@ -283,9 +318,9 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
           db.raw("'ticket' as type"),
           'ticket_number',
           'title',
-          db.raw('NULL as project_name'),
-          db.raw('NULL as phase_name'),
-          db.raw('NULL as task_name')
+          db.raw('NULL::text as project_name'),
+          db.raw('NULL::text as phase_name'),
+          db.raw('NULL::text as task_name')
         )
         .first();
     } else if (workItemType === 'project_task') {
@@ -298,8 +333,8 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
           'pt.task_name as name',
           'pt.description',
           db.raw("'project_task' as type"),
-          db.raw('NULL as ticket_number'),
-          db.raw('NULL as title'),
+          db.raw('NULL::text as ticket_number'),
+          db.raw('NULL::text as title'),
           'p.project_name',
           'pp.phase_name',
           'pt.task_name'
@@ -313,17 +348,19 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
           'title as name',
           'notes as description',
           db.raw("'ad_hoc' as type"),
-          db.raw('NULL as ticket_number'),
+          db.raw('NULL::text as ticket_number'),
           'title',
-          db.raw('NULL as project_name'),
-          db.raw('NULL as phase_name'),
-          db.raw('NULL as task_name')
+          db.raw('NULL::text as project_name'),
+          db.raw('NULL::text as phase_name'),
+          db.raw('NULL::text as task_name'),
+          'scheduled_start',
+          'scheduled_end'
         )
         .first();
     }
 
     if (workItem) {
-      return {
+      const result: Omit<IExtendedWorkItem, "tenant"> = {
         work_item_id: workItem.work_item_id,
         type: workItem.type,
         name: workItem.name,
@@ -335,6 +372,14 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
         phase_name: workItem.phase_name,
         task_name: workItem.task_name
       };
+
+      // Add scheduled times for ad-hoc items
+      if (workItem.type === 'ad_hoc' && workItem.scheduled_start && workItem.scheduled_end) {
+        result.scheduled_start = workItem.scheduled_start;
+        result.scheduled_end = workItem.scheduled_end;
+      }
+
+      return result;
     }
 
     return null;

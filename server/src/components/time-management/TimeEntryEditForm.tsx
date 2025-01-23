@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { formatISO, parseISO, addMinutes } from 'date-fns';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -27,6 +27,25 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
   onUpdateTimeInputs,
   lastNoteInputRef
 }: TimeEntryFormProps) {
+  // Use work item times for ad-hoc entries - only update if values actually changed
+  useEffect(() => {
+    if (entry.work_item_type === 'ad_hoc' && entry.start_time && entry.end_time) {
+      const start = parseISO(entry.start_time);
+      const end = parseISO(entry.end_time);
+      
+      const newStartInput = formatTimeForInput(start);
+      const newEndInput = formatTimeForInput(end);
+      
+      // Only update if the formatted times are different from current inputs
+      if (timeInputs[`start-${index}`] !== newStartInput || 
+          timeInputs[`end-${index}`] !== newEndInput) {
+        onUpdateTimeInputs({
+          [`start-${index}`]: newStartInput,
+          [`end-${index}`]: newEndInput
+        });
+      }
+    }
+  }, [entry.work_item_type, entry.start_time, entry.end_time, index, onUpdateTimeInputs, timeInputs]);
   const { hours: durationHours, minutes: durationMinutes } = useMemo(
     () => getDurationParts(calculateDuration(parseISO(entry.start_time), parseISO(entry.end_time))),
     [entry.start_time, entry.end_time]

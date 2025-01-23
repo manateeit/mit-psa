@@ -7,10 +7,10 @@ interface AddWorkItemDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (workItem: IWorkItem) => void;
-  existingWorkItems: IWorkItem[];
+  availableWorkItems: IWorkItem[];
 }
 
-export function AddWorkItemDialog({ isOpen, onClose, onAdd, existingWorkItems }: AddWorkItemDialogProps) {
+export function AddWorkItemDialog({ isOpen, onClose, onAdd, availableWorkItems }: AddWorkItemDialogProps) {
   const handleSelect = (workItem: IWorkItem | null) => {
     if (workItem) {
       onAdd(workItem);
@@ -27,7 +27,7 @@ export function AddWorkItemDialog({ isOpen, onClose, onAdd, existingWorkItems }:
           <div className="flex-1 min-h-0 overflow-visible">
             <WorkItemPicker 
               onSelect={handleSelect} 
-              existingWorkItems={existingWorkItems}
+              availableWorkItems={availableWorkItems}
             />
           </div>
         </div>
