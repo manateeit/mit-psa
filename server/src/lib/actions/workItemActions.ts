@@ -42,6 +42,7 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         this.on('t.tenant', 'tr.tenant')
             .andOn('t.ticket_id', 'tr.ticket_id');
       })
+      .leftJoin('companies as c', 't.company_id', 'c.company_id')
       .whereILike('t.title', db.raw('?', [`%${searchTerm}%`]))
       .select(
         't.ticket_id as work_item_id',
@@ -50,20 +51,23 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         db.raw("'ticket' as type"),
         't.ticket_number',
         't.title',
-        db.raw('NULL as project_name'),
-        db.raw('NULL as phase_name'),
-        db.raw('NULL as task_name'),
+        db.raw('NULL::text as project_name'),
+        db.raw('NULL::text as phase_name'),
+        db.raw('NULL::text as task_name'),
         't.company_id',
-        't.assigned_to',
-        'tr.additional_user_id',
+        'c.company_name as company_name',
         db.raw('NULL::timestamp with time zone as scheduled_start'),
-        db.raw('NULL::timestamp with time zone as scheduled_end')
+        db.raw('NULL::timestamp with time zone as scheduled_end'),
+        db.raw('t.closed_at::timestamp with time zone as due_date'),
+        db.raw('t.assigned_to::uuid'),
+        db.raw('tr.additional_user_id::uuid')
       );
 
     let projectTasksQuery = db('project_tasks as pt')
       .whereNotIn('pt.task_id', options.availableWorkItemIds || [])
       .join('project_phases as pp', 'pt.phase_id', 'pp.phase_id')
       .join('projects as p', 'pp.project_id', 'p.project_id')
+      .leftJoin('companies as c', 'p.company_id', 'c.company_id')
       .leftJoin('task_resources as tr', function() {
         this.on('pt.tenant', 'tr.tenant')
             .andOn('pt.task_id', 'tr.task_id');
@@ -79,16 +83,18 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         'pt.task_name as name',
         'pt.description',
         db.raw("'project_task' as type"),
-        db.raw('NULL as ticket_number'),
-        db.raw('NULL as title'),
+        db.raw('NULL::text as ticket_number'),
+        db.raw('NULL::text as title'),
         'p.project_name',
         'pp.phase_name',
         'pt.task_name',
         'p.company_id',
-        'pt.assigned_to',
-        'tr.additional_user_id',
+        'c.company_name as company_name',
         db.raw('NULL::timestamp with time zone as scheduled_start'),
-        db.raw('NULL::timestamp with time zone as scheduled_end')
+        db.raw('NULL::timestamp with time zone as scheduled_end'),
+        db.raw('pt.due_date::timestamp with time zone as due_date'),
+        db.raw('pt.assigned_to::uuid'),
+        db.raw('tr.additional_user_id::uuid')
       );
 
     let adHocQuery = db('schedule_entries as se')
@@ -101,16 +107,18 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         'se.title as name',
         'se.notes as description',
         db.raw("'ad_hoc' as type"),
-        db.raw('NULL as ticket_number'),
+        db.raw('NULL::text as ticket_number'),
         'se.title',
-        db.raw('NULL as project_name'),
-        db.raw('NULL as phase_name'),
-        db.raw('NULL as task_name'),
-        db.raw('NULL as company_id'),
-        'sea.user_id as assigned_to',
-        db.raw('NULL as additional_user_id'),
+        db.raw('NULL::text as project_name'),
+        db.raw('NULL::text as phase_name'),
+        db.raw('NULL::text as task_name'),
+        db.raw('NULL::uuid as company_id'),
+        db.raw('NULL::text as company_name'),
         'se.scheduled_start',
-        'se.scheduled_end'
+        'se.scheduled_end',
+        db.raw('NULL::timestamp with time zone as due_date'),
+        db.raw('sea.user_id::uuid as assigned_to'),
+        db.raw('NULL::uuid as additional_user_id')
       );
 
     // Apply filters
@@ -225,7 +233,9 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         title: item.title,
         project_name: item.project_name,
         phase_name: item.phase_name,
-        task_name: item.task_name
+        task_name: item.task_name,
+        company_name: item.company_name,
+        due_date: item.due_date
       };
 
       // Add scheduled times for ad-hoc items
@@ -308,9 +318,9 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
           db.raw("'ticket' as type"),
           'ticket_number',
           'title',
-          db.raw('NULL as project_name'),
-          db.raw('NULL as phase_name'),
-          db.raw('NULL as task_name')
+          db.raw('NULL::text as project_name'),
+          db.raw('NULL::text as phase_name'),
+          db.raw('NULL::text as task_name')
         )
         .first();
     } else if (workItemType === 'project_task') {
@@ -323,8 +333,8 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
           'pt.task_name as name',
           'pt.description',
           db.raw("'project_task' as type"),
-          db.raw('NULL as ticket_number'),
-          db.raw('NULL as title'),
+          db.raw('NULL::text as ticket_number'),
+          db.raw('NULL::text as title'),
           'p.project_name',
           'pp.phase_name',
           'pt.task_name'
@@ -338,11 +348,11 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
           'title as name',
           'notes as description',
           db.raw("'ad_hoc' as type"),
-          db.raw('NULL as ticket_number'),
+          db.raw('NULL::text as ticket_number'),
           'title',
-          db.raw('NULL as project_name'),
-          db.raw('NULL as phase_name'),
-          db.raw('NULL as task_name'),
+          db.raw('NULL::text as project_name'),
+          db.raw('NULL::text as phase_name'),
+          db.raw('NULL::text as task_name'),
           'scheduled_start',
           'scheduled_end'
         )

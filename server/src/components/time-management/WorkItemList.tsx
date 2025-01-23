@@ -27,8 +27,14 @@ export function WorkItemList({
     if (item.type === 'ticket') {
       return (
         <>
-          <div className="font-medium text-[rgb(var(--color-text-900))]">
+          <div className="font-medium text-[rgb(var(--color-text-900))] text-lg mb-1">
             {item.ticket_number} - {item.title || 'Untitled'}
+          </div>
+          <div className="text-sm text-[rgb(var(--color-text-600))] mt-1">
+            {item.company_name}
+          </div>
+          <div className="text-sm text-[rgb(var(--color-text-600))] mt-1">
+            Due Date: {item.due_date ? new Date(item.due_date).toLocaleDateString() : 'No due date'}
           </div>
           <div className="flex items-center gap-2 mt-1">
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-900))]">
@@ -45,11 +51,17 @@ export function WorkItemList({
     } else if (item.type === 'project_task') {
       return (
         <>
-          <div className="font-medium text-[rgb(var(--color-text-900))]">
-            {item.project_name}
+          <div className="font-medium text-[rgb(var(--color-text-900))] text-lg mb-1">
+            {item.task_name}
           </div>
           <div className="text-sm text-[rgb(var(--color-text-600))]">
-            {item.phase_name} → {item.task_name}
+            {item.project_name} • {item.phase_name}
+          </div>
+          <div className="text-sm text-[rgb(var(--color-text-600))] mt-1">
+            {item.company_name}
+          </div>
+          <div className="text-sm text-[rgb(var(--color-text-600))] mt-1">
+            Due Date: {item.due_date ? new Date(item.due_date).toLocaleDateString() : 'No due date'}
           </div>
           <div className="flex items-center gap-2 mt-1">
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-900))]">
@@ -66,12 +78,12 @@ export function WorkItemList({
     } else if (item.type === 'ad_hoc') {
       return (
         <>
-          <div className="font-medium text-[rgb(var(--color-text-900))]">
+          <div className="font-medium text-[rgb(var(--color-text-900))] text-lg mb-1">
             {item.title || item.name}
           </div>
           {item.scheduled_start && item.scheduled_end && (
             <div className="text-sm text-[rgb(var(--color-text-600))]">
-              {new Date(item.scheduled_start).toLocaleTimeString()} - {new Date(item.scheduled_end).toLocaleTimeString()}
+              Scheduled end: {new Date(item.scheduled_end).toLocaleString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'})}
             </div>
           )}
           <div className="flex items-center gap-2 mt-1">
