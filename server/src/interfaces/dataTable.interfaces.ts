@@ -31,4 +31,6 @@ export interface DataTableProps<T> {
   pageSize?: number;
   totalItems?: number;
   editableConfig?: EditableConfig;
+  /** Custom class name for table rows */
+  rowClassName?: (record: T) => string;
 }
