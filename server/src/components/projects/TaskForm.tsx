@@ -44,6 +44,7 @@ interface TaskFormProps {
   users: IUserWithRoles[];
   mode: 'create' | 'edit';
   onPhaseChange: (phaseId: string) => void;
+  inDrawer?: boolean;
 }
 
 export default function TaskForm({
@@ -56,7 +57,8 @@ export default function TaskForm({
   defaultStatus,
   users,
   mode,
-  onPhaseChange
+  onPhaseChange,
+  inDrawer = false
 }: TaskFormProps): JSX.Element {
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [taskName, setTaskName] = useState(task?.task_name || '');
@@ -502,20 +504,14 @@ export default function TaskForm({
     }
   };
 
-  return (
-    <>
-      <Dialog.Root open={true} onOpenChange={handleDialogClose}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
-          <Dialog.Content 
-            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-[600px] max-h-[90vh] overflow-y-auto"
-          >
-            <Dialog.Title className="text-lg font-medium mb-4">
-              {mode === 'edit' ? 'Edit Task' : 'Add New Task'}
-            </Dialog.Title>
-            <form onSubmit={handleSubmit} className="flex flex-col">
-              <div className="space-y-4">
-                <TextArea
+  const renderContent = () => (
+    <div className="h-full">
+      <div className="text-lg font-medium mb-4">
+        {mode === 'edit' ? 'Edit Task' : 'Add New Task'}
+      </div>
+      <form onSubmit={handleSubmit} className="flex flex-col h-full">
+        <div className="space-y-4">
+          <TextArea
                   value={taskName}
                   onChange={(e) => setTaskName(e.target.value)}
                   placeholder="Title..."
@@ -744,11 +740,27 @@ export default function TaskForm({
                     {isSubmitting ? (mode === 'edit' ? 'Updating...' : 'Adding...') : (mode === 'edit' ? 'Update' : 'Save')}
                   </Button>
                 </div>
-              </div>
-            </form>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+        </div>
+      </form>
+    </div>
+  );
+
+  return (
+    <>
+      {inDrawer ? (
+        renderContent()
+      ) : (
+        <Dialog.Root open={true} onOpenChange={handleDialogClose}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
+            <Dialog.Content 
+              className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-[600px] max-h-[90vh] overflow-y-auto"
+            >
+              {renderContent()}
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
+      )}
 
       <ConfirmationDialog
         isOpen={showCancelConfirm}

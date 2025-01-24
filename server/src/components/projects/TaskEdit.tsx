@@ -62,17 +62,20 @@ export default function TaskEdit({
   };
 
   return (
-    <TaskForm
-      task={task}
-      phase={phase}
-      phases={phases}
-      onClose={onClose}
-      onSubmit={onTaskUpdated}
-      projectStatuses={selectedPhaseStatuses}
-      defaultStatus={selectedPhaseStatuses.find(s => s.project_status_mapping_id === task.project_status_mapping_id)}
-      users={users}
-      mode="edit"
-      onPhaseChange={handlePhaseChange}
-    />
+    <div className="h-full">
+      <TaskForm
+        task={task}
+        phase={phase}
+        phases={phases}
+        onClose={onClose}
+        onSubmit={onTaskUpdated}
+        projectStatuses={selectedPhaseStatuses}
+        defaultStatus={selectedPhaseStatuses.find(s => s.project_status_mapping_id === task.project_status_mapping_id)}
+        users={users}
+        mode="edit"
+        onPhaseChange={handlePhaseChange}
+        inDrawer={true}
+      />
+    </div>
   );
 }

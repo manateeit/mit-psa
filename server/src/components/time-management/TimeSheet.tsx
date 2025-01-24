@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { ITimeEntryWithWorkItem, ITimeEntry, ITimeSheet, ITimeSheetComment, TimeSheetStatus } from '@/interfaces/timeEntry.interfaces';
-import { IWorkItem } from '@/interfaces/workItem.interfaces';
+import { IExtendedWorkItem, IWorkItem } from '@/interfaces/workItem.interfaces';
+import { ITicket, IProjectTask } from '@/interfaces';
 import { TimeEntryDialog } from './TimeEntryDialog';
 import { AddWorkItemDialog } from './AddWorkItemDialog';
 import { fetchTimeEntriesForTimeSheet, fetchWorkItemsForTimeSheet, saveTimeEntry, submitTimeSheet, addWorkItem } from '@/lib/actions/timeEntryActions';
@@ -18,13 +19,17 @@ import { fromZonedTime } from 'date-fns-tz';
 import { formatISO, parseISO } from 'date-fns';
 import { time } from 'console';
 import { createTenantKnex } from '@/lib/db';
+import { useDrawer } from '@/context/DrawerContext';
+import TicketDetails from '@/components/tickets/TicketDetails';
+import TaskEdit from '@/components/projects/TaskEdit';
+import EntryPopup from '@/components/time-management/EntryPopup';
 
 interface TimeSheetProps {
     timeSheet: ITimeSheet;
     onSaveTimeEntry: (timeEntry: ITimeEntry) => Promise<void>;
     isManager?: boolean;
     onSubmitTimeSheet: () => Promise<void>;
-    initialWorkItem?: IWorkItem;
+    initialWorkItem?: IExtendedWorkItem;
     initialDate?: string;
     initialDuration?: number;
     onBack: () => void;
@@ -146,10 +151,10 @@ export function TimeSheet({
     }
 
     const [timeSheet, setTimeSheet] = useState<ITimeSheet>(initialTimeSheet);
-    const [workItemsByType, setWorkItemsByType] = useState<Record<string, IWorkItem[]>>({});
+    const [workItemsByType, setWorkItemsByType] = useState<Record<string, IExtendedWorkItem[]>>({});
     const [groupedTimeEntries, setGroupedTimeEntries] = useState<Record<string, ITimeEntryWithWorkItemString[]>>({});
     const [isAddWorkItemDialogOpen, setIsAddWorkItemDialogOpen] = useState(false);
-    const [localWorkItems, setLocalWorkItems] = useState<IWorkItem[]>([]);
+    const [localWorkItems, setLocalWorkItems] = useState<IExtendedWorkItem[]>([]);
     const [comments, setComments] = useState<ITimeSheetComment[]>([]);
     const [isLoadingComments, setIsLoadingComments] = useState(false);
     const [newComment, setNewComment] = useState('');
@@ -157,12 +162,40 @@ export function TimeSheet({
     const [isBillable, setIsBillable] = useState<boolean[]>([]);
 
     const [selectedCell, setSelectedCell] = useState<{
-        workItem: IWorkItem;
+        workItem: IExtendedWorkItem;
         date: string;
         entries: ITimeEntryWithWorkItemString[];
         defaultStartTime?: string;
         defaultEndTime?: string;
     } | null>(null);
+
+    const { openDrawer } = useDrawer();
+
+    const handleTaskUpdate = (updated: any) => {
+        // Update the work item in state
+        setWorkItemsByType(prev => {
+            const updatedItems = { ...prev };
+            Object.keys(updatedItems).forEach(type => {
+                updatedItems[type] = updatedItems[type].map(item => 
+                    item.work_item_id === updated.work_item_id ? updated : item
+                );
+            });
+            return updatedItems;
+        });
+    };
+
+    const handleScheduleUpdate = (updated: any) => {
+        // Update the work item in state
+        setWorkItemsByType(prev => {
+            const updatedItems = { ...prev };
+            Object.keys(updatedItems).forEach(type => {
+                updatedItems[type] = updatedItems[type].map(item => 
+                    item.work_item_id === updated.work_item_id ? updated : item
+                );
+            });
+            return updatedItems;
+        });
+    };
 
     useEffect(() => {
         const loadComments = async () => {
@@ -440,81 +473,6 @@ const handleSaveTimeEntry = async (timeEntry: ITimeEntry) => {
         end_date: timeSheet.time_period ? new Date(end_year, end_month-1, end_day) : new Date()
     }), [timeSheet.time_period, start_year, start_month, start_day, end_year, end_month, end_day]);
 
-    const handleCellClick = (workItem: IWorkItem, date: Date, entries: ITimeEntryWithWorkItemString[]) => {
-        let startTime, endTime;
-
-        // If it's an ad-hoc item, use the scheduled times from the work item
-        if (workItem.type === 'ad_hoc' && 
-            'scheduled_start' in workItem && 
-            'scheduled_end' in workItem && 
-            workItem.scheduled_start && 
-            workItem.scheduled_end) {
-            startTime = typeof workItem.scheduled_start === 'string' ? 
-                parseISO(workItem.scheduled_start) : 
-                workItem.scheduled_start;
-            endTime = typeof workItem.scheduled_end === 'string' ? 
-                parseISO(workItem.scheduled_end) : 
-                workItem.scheduled_end;
-        }
-
-        // If no schedule entry found or not ad-hoc, check for existing entries
-        if (!startTime && entries.length > 0) {
-            const sortedEntries = [...entries].sort((a, b) => 
-                parseISO(b.end_time).getTime() - parseISO(a.end_time).getTime()
-            );
-            startTime = parseISO(sortedEntries[0].end_time);
-            endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // Add 1 hour
-        } else if (!startTime) {
-            if (initialDuration && initialWorkItem && workItem.work_item_id === initialWorkItem.work_item_id) {
-                endTime = new Date(); // Use current time as end time
-
-                // Convert seconds to milliseconds and round up to the nearest minute
-                const durationInMilliseconds = Math.ceil(initialDuration / 60) * 60 * 1000;
-
-                startTime = new Date(endTime.getTime() - durationInMilliseconds);
-
-                // Ensure the times are within the selected date
-                startTime.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
-                endTime.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
-
-                // If start time is before the date, set it to the start of the day
-                if (startTime < date) {
-                    startTime = new Date(date);
-                    startTime.setHours(0, 0, 0, 0);
-                    endTime = new Date(startTime.getTime() + durationInMilliseconds);
-                }
-
-                // If end time is after the end of the day, adjust both start and end times
-                const endOfDay = new Date(date);
-                endOfDay.setHours(23, 59, 59, 999);
-                if (endTime > endOfDay) {
-                    endTime = new Date(endOfDay);
-                    startTime = new Date(endTime.getTime() - durationInMilliseconds);
-
-                    // If this pushes start time before the start of the day, adjust it
-                    if (startTime < date) {
-                        startTime = new Date(date);
-                        startTime.setHours(0, 0, 0, 0);
-                    }
-                }
-            } else {
-                // Default fallback if no other times are set
-                startTime = new Date(date);
-                startTime.setHours(8, 0, 0, 0);
-                endTime = new Date(startTime);
-                endTime.setHours(9, 0, 0, 0);
-            }
-        }
-
-        setSelectedCell({
-            workItem,
-            date: formatISO(date),
-            entries,
-            defaultStartTime: startTime ? formatISO(startTime) : undefined,
-            defaultEndTime: endTime ? formatISO(endTime) : undefined
-        });
-    };
-
     const handleAddWorkItemClick = () => {
         setIsAddWorkItemDialogOpen(true);
     };
@@ -601,7 +559,7 @@ const handleSaveTimeEntry = async (timeEntry: ITimeEntry) => {
     const isEditable = timeSheet.approval_status === 'DRAFT' || timeSheet.approval_status === 'CHANGES_REQUESTED';
 
     // Get all existing work items for the AddWorkItemDialog
-    const getAllExistingWorkItems = () => {
+    const getAllExistingWorkItems = (): IExtendedWorkItem[] => {
         return Object.values(workItemsByType).flat();
     };
 
@@ -670,7 +628,7 @@ const handleSaveTimeEntry = async (timeEntry: ITimeEntry) => {
                     <table className="min-w-full divide-y divide-gray-200" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                         <thead>
                             <tr>
-                                <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider shadow-[4px_0_6px_rgba(0,0,0,0.1)] relative">
+                                <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider shadow-[4px_0_6px_rgba(0,0,0,0.1)] sticky left-0 z-20 min-w-fit max-w-[15%] whitespace-nowrap truncate bg-gray-50">
                                     Work Item
                                 </th>
                                 {dates.map((date): JSX.Element => (
@@ -684,7 +642,7 @@ const handleSaveTimeEntry = async (timeEntry: ITimeEntry) => {
                             <tr className="h-10 bg-primary-100">
                                 <td
                                     colSpan={1}
-                                    className="px-6 py-3 whitespace-nowrap text-xs text-gray-400 cursor-pointer relative shadow-[4px_0_6px_rgba(0,0,0,0.1)]  "
+                                    className="px-6 py-3 whitespace-nowrap text-xs text-gray-400 cursor-pointer relative shadow-[4px_0_6px_rgba(0,0,0,0.1)] sticky left-0 z-10 w-[25vw] truncate bg-primary-100"
                                     onClick={handleAddWorkItemClick}
                                 >
                                     + Add new work item
@@ -697,7 +655,102 @@ const handleSaveTimeEntry = async (timeEntry: ITimeEntry) => {
                                         const entries = groupedTimeEntries[workItem.work_item_id] || [];
                                         return (
                                             <tr key={`${workItem.work_item_id}-${Math.random()}`}>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 shadow-[4px_0_6px_rgba(0,0,0,0.1)] border-t border-b relative z-10">
+                                                <td 
+                                                    className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 shadow-[4px_0_6px_rgba(0,0,0,0.1)] border-t border-b sticky left-0 z-10 bg-white min-w-fit max-w-[15%] truncate bg-white cursor-pointer hover:bg-gray-50"
+                                                    onClick={() => {
+                                                        // Open drawer for work item details
+                                                        const drawerContent = () => {
+                                                            const content = (() => {
+                                                                switch(workItem.type) {
+                                                                    case 'ticket':
+                                                                        return (
+                                                                            <TicketDetails 
+                                                                                initialTicket={{
+                                                                                ...workItem.details as ITicket,
+                                                                                tenant: tenant,
+                                                                                ticket_id: workItem.work_item_id,
+                                                                                ticket_number: workItem.ticket_number || '',
+                                                                                title: workItem.title || '',
+                                                                                url: '',
+                                                                                channel_id: '',
+                                                                                status_id: '',
+                                                                                priority_id: '',
+                                                                                category_id: '',
+                                                                                updated_at: new Date().toISOString(),
+                                                                                entered_at: new Date().toISOString(),
+                                                                                entered_by: '',
+                                                                                updated_by: null,
+                                                                                closed_by: null,
+                                                                                closed_at: null,
+                                                                                attributes: null,
+                                                                                company_id: '',
+                                                                                contact_name_id: null,
+                                                                                assigned_to: null
+                                                                            }}
+                                                                            />
+                                                                        );
+                                                                    case 'project_task':
+                                                                        return (
+                                                                            <TaskEdit
+                                                                            task={workItem.details as IProjectTask}
+                                                                            phase={{
+                                                                                phase_id: workItem.phase_name || '',
+                                                                                project_id: '',
+                                                                                phase_name: workItem.phase_name || '',
+                                                                                description: null,
+                                                                                start_date: null,
+                                                                                end_date: null,
+                                                                                status: '',
+                                                                                order_number: 0,
+                                                                                created_at: new Date(),
+                                                                                updated_at: new Date(),
+                                                                                wbs_code: '',
+                                                                                tenant: tenant
+                                                                            }}
+                                                                            users={[]}
+                                                                            onClose={() => {}}
+                                                                            onTaskUpdated={handleTaskUpdate}
+                                                                            />
+                                                                        );
+                                                                    case 'ad_hoc':
+                                                                        return (
+                                                                            <EntryPopup
+                                                                            slot={null}
+                                                                            canAssignMultipleAgents={false}
+                                                                            users={[]}
+                                                                            event={{
+                                                                                ...workItem.schedule_details,
+                                                                                entry_id: workItem.work_item_id,
+                                                                                work_item_id: workItem.work_item_id,
+                                                                                work_item_type: workItem.type,
+                                                                                assigned_user_ids: workItem.users?.map(u => u.user_id) || [],
+                                                                                scheduled_start: new Date(workItem.scheduled_start || new Date()),
+                                                                                scheduled_end: new Date(workItem.scheduled_end || new Date()),
+                                                                                status: 'SCHEDULED',
+                                                                                created_at: new Date(),
+                                                                                updated_at: new Date(),
+                                                                                title: workItem.name || 'Ad Hoc Entry',
+                                                                                notes: workItem.description || ''
+                                                                            }}
+                                                                            onClose={() => {}}
+                                                                            onSave={handleScheduleUpdate}
+                                                                            />
+                                                                        );
+                                                                    default:
+                                                                        return <div>Unsupported work item type</div>;
+                                                                }
+                                                            })();
+
+                                                            return (
+                                                                <div className="w-[800px] h-full bg-white">
+                                                                    {content}
+                                                                </div>
+                                                            );
+                                                        };
+
+                                                        openDrawer(drawerContent());
+                                                    }}
+                                                >
                                                     <div className="flex flex-col">
                                                         <span>{workItem.name}</span>
                                                         <span className="text-xs text-gray-500 mt-1">{formatWorkItemType(workItem.type)}</span>
@@ -727,7 +780,80 @@ const handleSaveTimeEntry = async (timeEntry: ITimeEntry) => {
                                                         <td
                                                             key={formatISO(date)}
                                                             className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer border transition-colors relative min-h-[100px]"
-                                                            onClick={() => handleCellClick(workItem, date, dayEntries)}
+                                                            onClick={() => {
+                                                let startTime, endTime;
+
+                                                // If it's an ad-hoc item, use the scheduled times from the work item
+                                                if (workItem.type === 'ad_hoc' && 
+                                                    'scheduled_start' in workItem && 
+                                                    'scheduled_end' in workItem && 
+                                                    workItem.scheduled_start && 
+                                                    workItem.scheduled_end) {
+                                                    startTime = typeof workItem.scheduled_start === 'string' ? 
+                                                        parseISO(workItem.scheduled_start) : 
+                                                        workItem.scheduled_start;
+                                                    endTime = typeof workItem.scheduled_end === 'string' ? 
+                                                        parseISO(workItem.scheduled_end) : 
+                                                        workItem.scheduled_end;
+                                                }
+
+                                                // If no schedule entry found or not ad-hoc, check for existing entries
+                                                if (!startTime && dayEntries.length > 0) {
+                                                    const sortedEntries = [...dayEntries].sort((a, b) => 
+                                                        parseISO(b.end_time).getTime() - parseISO(a.end_time).getTime()
+                                                    );
+                                                    startTime = parseISO(sortedEntries[0].end_time);
+                                                    endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // Add 1 hour
+                                                } else if (!startTime) {
+                                                    if (initialDuration && initialWorkItem && workItem.work_item_id === initialWorkItem.work_item_id) {
+                                                        endTime = new Date(); // Use current time as end time
+
+                                                        // Convert seconds to milliseconds and round up to the nearest minute
+                                                        const durationInMilliseconds = Math.ceil(initialDuration / 60) * 60 * 1000;
+
+                                                        startTime = new Date(endTime.getTime() - durationInMilliseconds);
+
+                                                        // Ensure the times are within the selected date
+                                                        startTime.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+                                                        endTime.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+
+                                                        // If start time is before the date, set it to the start of the day
+                                                        if (startTime < date) {
+                                                            startTime = new Date(date);
+                                                            startTime.setHours(0, 0, 0, 0);
+                                                            endTime = new Date(startTime.getTime() + durationInMilliseconds);
+                                                        }
+
+                                                        // If end time is after the end of the day, adjust both start and end times
+                                                        const endOfDay = new Date(date);
+                                                        endOfDay.setHours(23, 59, 59, 999);
+                                                        if (endTime > endOfDay) {
+                                                            endTime = new Date(endOfDay);
+                                                            startTime = new Date(endTime.getTime() - durationInMilliseconds);
+
+                                                            // If this pushes start time before the start of the day, adjust it
+                                                            if (startTime < date) {
+                                                                startTime = new Date(date);
+                                                                startTime.setHours(0, 0, 0, 0);
+                                                            }
+                                                        }
+                                                    } else {
+                                                        // Default fallback if no other times are set
+                                                        startTime = new Date(date);
+                                                        startTime.setHours(8, 0, 0, 0);
+                                                        endTime = new Date(startTime);
+                                                        endTime.setHours(9, 0, 0, 0);
+                                                    }
+                                                }
+
+                                                setSelectedCell({
+                                                    workItem,
+                                                    date: formatISO(date),
+                                                    entries: dayEntries,
+                                                    defaultStartTime: startTime ? formatISO(startTime) : undefined,
+                                                    defaultEndTime: endTime ? formatISO(endTime) : undefined
+                                                });
+                                            }}
                                                         >
                                                             {dayEntries.length > 0 && (
                                                                 <div
@@ -757,7 +883,7 @@ const handleSaveTimeEntry = async (timeEntry: ITimeEntry) => {
 
                         <tfoot>
                             <tr className=' shadow-[0px_-4px_6px_rgba(0,0,0,0.1)]'>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r z-10">Total</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r z-10 min-w-fit max-w-[15%] shadow-[4px_0_6px_rgba(0,0,0,0.1)] sticky left-0 bg-white">Total</td>
                                 {dates.map((date): JSX.Element => {
                                     const totalDuration = Object.values(groupedTimeEntries).flat()
                                         .filter((entry) => parseISO(entry.start_time).toDateString() === date.toDateString())

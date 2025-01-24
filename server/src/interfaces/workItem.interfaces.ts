@@ -32,4 +32,15 @@ export interface IExtendedWorkItem extends IWorkItem {
   project_name?: string;
   phase_name?: string;
   task_name?: string;
+
+  // Common fields
+  details?: object;
+  id?: string;
+  schedule_details?: object;
+  users?: any[];
+  canAssignMultipleAgents?: boolean;
+  slot?: {
+    start: Date;
+    end: Date;
+  };
 }
