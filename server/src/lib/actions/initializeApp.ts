@@ -236,7 +236,7 @@ export async function initializeApp() {
         logger.info(`********                                             ********`);
         logger.info(`******** User Email is -> [ ${glinda.email} ]  ********`);
         logger.info(`********                                             ********`);
-        logger.info(`********       Password is -> [ ${newPassword} ]          ********`);
+        logger.info(`********       Password is -> [ ${newPassword} ]   ********`);
         logger.info(`********                                             ********`);
         logger.info('*************************************************************');
     }

@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { ITimeSheet, ITimeSheetApproval, ITimeSheetWithUserInfo } from '@/interfaces/timeEntry.interfaces';
-import { Button } from '../ui/Button';
+import { DataTable } from '@/components/ui/DataTable';
+import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
+import { Button } from '@/components/ui/Button';
 import {
   fetchTimeSheetsForApproval,
   bulkApproveTimeSheets,
@@ -134,87 +136,93 @@ export default function ManagerApprovalDashboard({ currentUser }: ManagerApprova
           </Button>
         </div>
       </div>
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead>
-          <tr>
-            <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Select
-            </th>
-            <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Employee
-            </th>
-            <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Period
-            </th>
-            <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Status
-            </th>
-            <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {timeSheets.map((sheet):JSX.Element => (
-            <tr
-              key={sheet.id}
-              className={
-                sheet.approval_status === 'APPROVED'
-                  ? 'bg-green-50'
-                  : sheet.approval_status === 'CHANGES_REQUESTED'
-                    ? 'bg-orange-100'
-                    : ''
-              }
-            >
-              <td className="px-6 py-4 whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={selectedTimeSheets.includes(sheet.id)}
-                  onChange={() => handleSelectTimeSheet(sheet.id)}
-                  disabled={
-                    sheet.approval_status === 'CHANGES_REQUESTED' ||
-                    sheet.approval_status === 'APPROVED'
-                  }
-                />
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">{sheet.employee_name}</td>
-              <td className="px-6 py-4 whitespace-nowrap">
-              {(sheet.time_period?.start_date) ? parseISO(sheet.time_period?.start_date).toLocaleDateString() : 'N/A'} - {(sheet.time_period?.end_date) ? parseISO(sheet.time_period?.end_date).toLocaleDateString() : 'N/A'}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                  sheet.approval_status === 'APPROVED'
-                    ? 'bg-green-100 text-green-800'
-                    : sheet.approval_status === 'SUBMITTED'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {sheet.approval_status}
-                </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex gap-2">
+      <DataTable
+        data={timeSheets}
+        columns={[
+          {
+            title: 'Select',
+            dataIndex: 'select',
+            width: '10%',
+            render: (_, record) => (
+              <input
+                type="checkbox"
+                checked={selectedTimeSheets.includes(record.id)}
+                onChange={() => handleSelectTimeSheet(record.id)}
+                disabled={
+                  record.approval_status === 'CHANGES_REQUESTED' ||
+                  record.approval_status === 'APPROVED'
+                }
+              />
+            )
+          },
+          {
+            title: 'Employee',
+            dataIndex: 'employee_name',
+            width: '25%'
+          },
+          {
+            title: 'Period',
+            dataIndex: 'time_period',
+            width: '25%',
+            render: (_, record) => (
+              <>
+                {record.time_period?.start_date ? parseISO(record.time_period.start_date).toLocaleDateString() : 'N/A'} -{' '}
+                {record.time_period?.end_date ? parseISO(record.time_period.end_date).toLocaleDateString() : 'N/A'}
+              </>
+            )
+          },
+          {
+            title: 'Status',
+            dataIndex: 'approval_status',
+            width: '20%',
+            render: (status) => (
+              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                status === 'APPROVED'
+                  ? 'bg-green-100 text-green-800'
+                  : status === 'SUBMITTED'
+                  ? 'bg-yellow-100 text-yellow-800'
+                  : 'bg-red-100 text-red-800'
+              }`}>
+                {status}
+              </span>
+            )
+          },
+          {
+            title: 'Actions',
+            dataIndex: 'actions',
+            width: '20%',
+            render: (_, record) => (
+              <div className="flex gap-2">
+                <Button
+                  id={`view-timesheet-${record.id}-btn`}
+                  onClick={() => handleViewTimeSheet(record)}
+                  variant="soft"
+                >
+                  View
+                </Button>
+                {record.approval_status === 'APPROVED' && (
                   <Button
-                    id={`view-timesheet-${sheet.id}-btn`}
-                    onClick={() => handleViewTimeSheet(sheet)}
+                    id={`reverse-approval-${record.id}-btn`}
+                    onClick={() => handleReverseApproval(record)}
+                    variant="destructive"
                   >
-                    View
+                    Reverse
                   </Button>
-                  {sheet.approval_status === 'APPROVED' && (
-                    <Button
-                      id={`reverse-approval-${sheet.id}-btn`}
-                      onClick={() => handleReverseApproval(sheet)}
-                      variant="destructive"
-                    >
-                      Reverse
-                    </Button>
-                  )}
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                )}
+              </div>
+            )
+          }
+        ]}
+        onRowClick={(row: ITimeSheetApproval) => handleViewTimeSheet(row)}
+        rowClassName={(row: ITimeSheetApproval) => 
+          row.approval_status === 'APPROVED'
+            ? 'bg-green-50'
+            : row.approval_status === 'CHANGES_REQUESTED'
+              ? 'bg-orange-100'
+              : ''
+        }
+        pagination={false}
+      />
     </div>
   );
 }
