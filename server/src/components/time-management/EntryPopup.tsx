@@ -24,6 +24,7 @@ interface EntryPopupProps {
   canAssignMultipleAgents: boolean;
   users: IUserWithRoles[];
   loading?: boolean;
+  isInDrawer?: boolean;
   error?: string | null;
 }
 
@@ -35,6 +36,7 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
   canAssignMultipleAgents,
   users,
   loading = false,
+  isInDrawer = false,
   error = null
 }) => {
   const [entryData, setEntryData] = useState<Omit<IScheduleEntry, 'tenant'>>(() => {
@@ -217,7 +219,12 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
   };
 
   return (
-    <DialogContent className="bg-white p-4 rounded-lg shadow-lg fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-[90vw] w-[550px] h-auto max-h-[90vh] flex flex-col transition-all duration-300 overflow-y-auto">
+    <DialogContent className={`bg-white p-4 rounded-lg h-auto flex flex-col transition-all duration-300 overflow-y-auto 
+      ${isInDrawer ? 
+        'w-fit max-w-[90vw] shadow-none' : 
+        'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-[95vw] w-[600px] min-w-[300px] max-h-[90vh] shadow-lg'
+        }`}
+      >
        <div className="shrink-0 pb-4 border-b">
         <DialogTitle className="text-xl font-bold">
           {event ? 'Edit Entry' : 'New Entry'}

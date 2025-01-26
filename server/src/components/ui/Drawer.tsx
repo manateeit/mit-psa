@@ -33,7 +33,7 @@ const Drawer: React.FC<DrawerProps & AutomationProps> = ({
     type: 'drawer',
     id,
     open: true,
-    width: isInDrawer ? '40%' : '50%',
+    width: 'auto',
     children: reflectionChildren
   }) : undefined;
   return (
@@ -43,7 +43,7 @@ const Drawer: React.FC<DrawerProps & AutomationProps> = ({
           className="fixed inset-0 bg-black/50 transition-opacity duration-300 data-[state=closed]:opacity-0 data-[state=open]:opacity-100"
         />
         <Dialog.Content 
-          className="fixed inset-y-0 right-0 w-fit max-w-[90vw] bg-white shadow-lg focus:outline-none overflow-y-auto transform transition-all duration-300 ease-in-out data-[state=open]:translate-x-0 data-[state=closed]:translate-x-full data-[state=closed]:opacity-0 data-[state=open]:opacity-100"
+          className="fixed inset-y-0 right-0 w-fit max-w-[60vw] bg-white shadow-lg focus:outline-none overflow-y-auto transform transition-all duration-300 ease-in-out data-[state=open]:translate-x-0 data-[state=closed]:translate-x-full data-[state=closed]:opacity-0 data-[state=open]:opacity-100"
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
           <SessionProvider>

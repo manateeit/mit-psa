@@ -715,25 +715,26 @@ const handleSaveTimeEntry = async (timeEntry: ITimeEntry) => {
                                                                     case 'ad_hoc':
                                                                         return (
                                                                             <EntryPopup
-                                                                            slot={null}
-                                                                            canAssignMultipleAgents={false}
-                                                                            users={[]}
-                                                                            event={{
-                                                                                ...workItem.schedule_details,
-                                                                                entry_id: workItem.work_item_id,
-                                                                                work_item_id: workItem.work_item_id,
-                                                                                work_item_type: workItem.type,
-                                                                                assigned_user_ids: workItem.users?.map(u => u.user_id) || [],
-                                                                                scheduled_start: new Date(workItem.scheduled_start || new Date()),
-                                                                                scheduled_end: new Date(workItem.scheduled_end || new Date()),
-                                                                                status: 'SCHEDULED',
-                                                                                created_at: new Date(),
-                                                                                updated_at: new Date(),
-                                                                                title: workItem.name || 'Ad Hoc Entry',
-                                                                                notes: workItem.description || ''
-                                                                            }}
-                                                                            onClose={() => {}}
-                                                                            onSave={handleScheduleUpdate}
+                                                                                slot={null}
+                                                                                canAssignMultipleAgents={false}
+                                                                                users={[]}
+                                                                                event={{
+                                                                                    ...workItem.schedule_details,
+                                                                                    entry_id: workItem.work_item_id,
+                                                                                    work_item_id: workItem.work_item_id,
+                                                                                    work_item_type: workItem.type,
+                                                                                    assigned_user_ids: workItem.users?.map(u => u.user_id) || [],
+                                                                                    scheduled_start: new Date(workItem.scheduled_start || new Date()),
+                                                                                    scheduled_end: new Date(workItem.scheduled_end || new Date()),
+                                                                                    status: 'SCHEDULED',
+                                                                                    created_at: new Date(),
+                                                                                    updated_at: new Date(),
+                                                                                    title: workItem.name || 'Ad Hoc Entry',
+                                                                                    notes: workItem.description || ''
+                                                                                }}
+                                                                                onClose={() => {}}
+                                                                                onSave={handleScheduleUpdate}
+                                                                                isInDrawer={true}
                                                                             />
                                                                         );
                                                                     default:
@@ -742,7 +743,7 @@ const handleSaveTimeEntry = async (timeEntry: ITimeEntry) => {
                                                             })();
 
                                                             return (
-                                                                <div className="w-[800px] h-full bg-white">
+                                                                <div className="min-w-auto h-full bg-white">
                                                                     {content}
                                                                 </div>
                                                             );
