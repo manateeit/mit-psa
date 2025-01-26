@@ -7,6 +7,12 @@ import { ITicket, IProjectTask } from '@/interfaces';
 import { TimeEntryDialog } from './TimeEntryDialog';
 import { AddWorkItemDialog } from './AddWorkItemDialog';
 import { fetchTimeEntriesForTimeSheet, fetchWorkItemsForTimeSheet, saveTimeEntry, submitTimeSheet, addWorkItem } from '@/lib/actions/timeEntryActions';
+import { updateScheduleEntry } from '@/lib/actions/scheduleActions';
+import { getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
+import { getTaskWithDetails } from '@/lib/actions/project-actions/projectTaskActions';
+import { getWorkItemById } from '@/lib/actions/workItemActions';
+import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
+import { toast } from 'react-hot-toast';
 import { ApprovalActions } from './ApprovalActions';
 import { fetchTimeSheet } from '@/lib/actions/timeSheetActions';
 import { Button } from '@/components/ui/Button';
@@ -169,32 +175,63 @@ export function TimeSheet({
         defaultEndTime?: string;
     } | null>(null);
 
-    const { openDrawer } = useDrawer();
+    const { openDrawer, closeDrawer } = useDrawer();
 
-    const handleTaskUpdate = (updated: any) => {
-        // Update the work item in state
-        setWorkItemsByType(prev => {
-            const updatedItems = { ...prev };
-            Object.keys(updatedItems).forEach(type => {
-                updatedItems[type] = updatedItems[type].map(item => 
-                    item.work_item_id === updated.work_item_id ? updated : item
-                );
-            });
-            return updatedItems;
-        });
+    const handleTaskUpdate = async (updated: any) => {
+        try {
+            // Refresh work items data
+            const fetchedWorkItems = await fetchWorkItemsForTimeSheet(timeSheet.id);
+            const fetchedWorkItemsByType = fetchedWorkItems.reduce((acc: Record<string, IWorkItem[]>, item: IWorkItem) => {
+                if (!acc[item.type]) {
+                    acc[item.type] = [];
+                }
+                acc[item.type].push(item);
+                return acc;
+            }, {});
+            setWorkItemsByType(fetchedWorkItemsByType);
+
+            toast.success('Task updated successfully');
+            closeDrawer();
+        } catch (error) {
+            console.error('Error updating task:', error);
+            toast.error('Failed to update task');
+        }
     };
 
-    const handleScheduleUpdate = (updated: any) => {
-        // Update the work item in state
-        setWorkItemsByType(prev => {
-            const updatedItems = { ...prev };
-            Object.keys(updatedItems).forEach(type => {
-                updatedItems[type] = updatedItems[type].map(item => 
-                    item.work_item_id === updated.work_item_id ? updated : item
-                );
+    const handleScheduleUpdate = async (updated: any) => {
+        try {
+            // Save changes to database
+            const result = await updateScheduleEntry(updated.entry_id, {
+                title: updated.title,
+                notes: updated.notes,
+                scheduled_start: updated.scheduled_start,
+                scheduled_end: updated.scheduled_end,
+                assigned_user_ids: updated.assigned_user_ids,
+                status: updated.status
             });
-            return updatedItems;
-        });
+
+            if (!result.success) {
+                toast.error(result.error || 'Failed to save changes');
+                return;
+            }
+
+            // Refresh work items data
+            const fetchedWorkItems = await fetchWorkItemsForTimeSheet(timeSheet.id);
+            const fetchedWorkItemsByType = fetchedWorkItems.reduce((acc: Record<string, IWorkItem[]>, item: IWorkItem) => {
+                if (!acc[item.type]) {
+                    acc[item.type] = [];
+                }
+                acc[item.type].push(item);
+                return acc;
+            }, {});
+            setWorkItemsByType(fetchedWorkItemsByType);
+
+            toast.success('Changes saved successfully');
+            closeDrawer();
+        } catch (error) {
+            console.error('Error updating schedule entry:', error);
+            toast.error('Failed to save changes');
+        }
     };
 
     useEffect(() => {
@@ -659,97 +696,191 @@ const handleSaveTimeEntry = async (timeEntry: ITimeEntry) => {
                                                     className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 shadow-[4px_0_6px_rgba(0,0,0,0.1)] border-t border-b sticky left-0 z-10 bg-white min-w-fit max-w-[15%] truncate bg-white cursor-pointer hover:bg-gray-50"
                                                     onClick={() => {
                                                         // Open drawer for work item details
-                                                        const drawerContent = () => {
-                                                            const content = (() => {
-                                                                switch(workItem.type) {
-                                                                    case 'ticket':
-                                                                        return (
-                                                                            <TicketDetails 
-                                                                                initialTicket={{
-                                                                                ...workItem.details as ITicket,
-                                                                                tenant: tenant,
-                                                                                ticket_id: workItem.work_item_id,
-                                                                                ticket_number: workItem.ticket_number || '',
-                                                                                title: workItem.title || '',
-                                                                                url: '',
-                                                                                channel_id: '',
-                                                                                status_id: '',
-                                                                                priority_id: '',
-                                                                                category_id: '',
-                                                                                updated_at: new Date().toISOString(),
-                                                                                entered_at: new Date().toISOString(),
-                                                                                entered_by: '',
-                                                                                updated_by: null,
-                                                                                closed_by: null,
-                                                                                closed_at: null,
-                                                                                attributes: null,
-                                                                                company_id: '',
-                                                                                contact_name_id: null,
-                                                                                assigned_to: null
-                                                                            }}
-                                                                            />
-                                                                        );
-                                                                    case 'project_task':
-                                                                        return (
-                                                                            <TaskEdit
-                                                                            task={workItem.details as IProjectTask}
-                                                                            phase={{
-                                                                                phase_id: workItem.phase_name || '',
-                                                                                project_id: '',
-                                                                                phase_name: workItem.phase_name || '',
-                                                                                description: null,
-                                                                                start_date: null,
-                                                                                end_date: null,
-                                                                                status: '',
-                                                                                order_number: 0,
-                                                                                created_at: new Date(),
-                                                                                updated_at: new Date(),
-                                                                                wbs_code: '',
-                                                                                tenant: tenant
-                                                                            }}
-                                                                            users={[]}
-                                                                            onClose={() => {}}
-                                                                            onTaskUpdated={handleTaskUpdate}
-                                                                            />
-                                                                        );
-                                                                    case 'ad_hoc':
-                                                                        return (
-                                                                            <EntryPopup
-                                                                                slot={null}
-                                                                                canAssignMultipleAgents={false}
-                                                                                users={[]}
-                                                                                event={{
-                                                                                    ...workItem.schedule_details,
-                                                                                    entry_id: workItem.work_item_id,
-                                                                                    work_item_id: workItem.work_item_id,
-                                                                                    work_item_type: workItem.type,
-                                                                                    assigned_user_ids: workItem.users?.map(u => u.user_id) || [],
-                                                                                    scheduled_start: new Date(workItem.scheduled_start || new Date()),
-                                                                                    scheduled_end: new Date(workItem.scheduled_end || new Date()),
-                                                                                    status: 'SCHEDULED',
-                                                                                    created_at: new Date(),
-                                                                                    updated_at: new Date(),
-                                                                                    title: workItem.name || 'Ad Hoc Entry',
-                                                                                    notes: workItem.description || ''
-                                                                                }}
-                                                                                onClose={() => {}}
-                                                                                onSave={handleScheduleUpdate}
-                                                                                isInDrawer={true}
-                                                                            />
-                                                                        );
-                                                                    default:
-                                                                        return <div>Unsupported work item type</div>;
-                                                                }
-                                                            })();
-
-                                                            return (
-                                                                <div className="min-w-auto h-full bg-white">
-                                                                    {content}
+                                                        const drawerContent = async () => {
+                                                            // Show loading state immediately
+                                                            openDrawer(
+                                                                <div className="min-w-auto h-full bg-white p-4">
+                                                                    <div className="flex items-center justify-center h-full">
+                                                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+                                                                        <span className="ml-2">Loading details...</span>
+                                                                    </div>
                                                                 </div>
                                                             );
+
+                                                            // Then fetch and render the actual content
+                                                            switch(workItem.type) {
+                                                                case 'ticket':
+                                                                    try {
+                                                                        const currentUser = await getCurrentUser();
+                                                                        if (!currentUser) {
+                                                                            toast.error('No user session found');
+                                                                            return;
+                                                                        }
+
+                                                                        const ticketData = await getTicketById(workItem.work_item_id, currentUser);
+                                                                        openDrawer(
+                                                                            <div className="min-w-auto h-full bg-white">
+                                                                                <TicketDetails 
+                                                                                    initialTicket={ticketData}
+                                                                                />
+                                                                            </div>
+                                                                        );
+                                                                    } catch (error) {
+                                                                        console.error('Error fetching ticket data:', error);
+                                                                        toast.error('Failed to load ticket data');
+                                                                        openDrawer(
+                                                                            <div className="min-w-auto h-full bg-white p-4">
+                                                                                <div className="flex flex-col items-center justify-center h-full text-red-500">
+                                                                                    <div className="text-lg mb-2">Error loading ticket</div>
+                                                                                    <div className="text-sm">Please try again</div>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                    break;
+
+                                                                case 'project_task':
+                                                                    try {
+                                                                        const currentUser = await getCurrentUser();
+                                                                        if (!currentUser) {
+                                                                            toast.error('No user session found');
+                                                                            return;
+                                                                        }
+
+                                                                        const taskData = await getTaskWithDetails(workItem.work_item_id, currentUser);
+                                                                        openDrawer(
+                                                                            <div className="min-w-auto h-full bg-white">
+                                                                                <TaskEdit
+                                                                                    task={taskData}
+                                                                                    phase={{
+                                                                                        phase_id: taskData.phase_id,
+                                                                                        project_id: taskData.project_id || '',
+                                                                                        phase_name: taskData.phase_name || '',
+                                                                                        description: null,
+                                                                                        start_date: null,
+                                                                                        end_date: null,
+                                                                                        status: taskData.status_id || '',
+                                                                                        order_number: 0,
+                                                                                        created_at: new Date(),
+                                                                                        updated_at: new Date(),
+                                                                                        wbs_code: taskData.wbs_code,
+                                                                                        tenant: tenant
+                                                                                    }}
+                                                                                    users={taskData.resources.map((resource: {
+                                                                                        assignment_id: string;
+                                                                                        task_id: string;
+                                                                                        assigned_to: string | null;
+                                                                                        additional_user_id: string;
+                                                                                        role: string | null;
+                                                                                        first_name: string;
+                                                                                        last_name: string;
+                                                                                        tenant: string;
+                                                                                    }) => ({
+                                                                                        user_id: resource.additional_user_id,
+                                                                                        first_name: resource.first_name,
+                                                                                        last_name: resource.last_name,
+                                                                                        email: '',
+                                                                                        username: '',
+                                                                                        user_type: 'user',
+                                                                                        roles: [],
+                                                                                        tenant: resource.tenant,
+                                                                                        hashed_password: '',
+                                                                                        is_inactive: false
+                                                                                    }))}
+                                                                                    onClose={closeDrawer}
+                                                                                    onTaskUpdated={handleTaskUpdate}
+                                                                                />
+                                                                            </div>
+                                                                        );
+                                                                    } catch (error) {
+                                                                        console.error('Error fetching task data:', error);
+                                                                        toast.error('Failed to load task data');
+                                                                        openDrawer(
+                                                                            <div className="min-w-auto h-full bg-white p-4">
+                                                                                <div className="flex flex-col items-center justify-center h-full text-red-500">
+                                                                                    <div className="text-lg mb-2">Error loading task</div>
+                                                                                    <div className="text-sm">Please try again</div>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                    break;
+
+                                                                case 'ad_hoc':
+                                                                    try {
+                                                                        const adHocData = await getWorkItemById(workItem.work_item_id, 'ad_hoc');
+                                                                        if (!adHocData) {
+                                                                            toast.error('Failed to load ad-hoc entry data');
+                                                                            openDrawer(
+                                                                                <div className="min-w-auto h-full bg-white p-4">
+                                                                                    <div className="flex flex-col items-center justify-center h-full text-red-500">
+                                                                                        <div className="text-lg mb-2">Error loading ad-hoc entry</div>
+                                                                                        <div className="text-sm">Please try again</div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                            return;
+                                                                        }
+
+                                                                        openDrawer(
+                                                                            <div className="min-w-auto h-full bg-white">
+                                                                                <EntryPopup
+                                                                                    slot={null}
+                                                                                    canAssignMultipleAgents={false}
+                                                                                    users={[]}
+                                                                                    event={{
+                                                                                        entry_id: adHocData.work_item_id,
+                                                                                        work_item_id: adHocData.work_item_id,
+                                                                                        work_item_type: adHocData.type,
+                                                                                        title: adHocData.name,
+                                                                                        notes: adHocData.description,
+                                                                                        scheduled_start: new Date(adHocData.scheduled_start || new Date()),
+                                                                                        scheduled_end: new Date(adHocData.scheduled_end || new Date()),
+                                                                                        status: 'SCHEDULED',
+                                                                                        assigned_user_ids: workItem.users?.map(u => u.user_id) || [],
+                                                                                        created_at: new Date(),
+                                                                                        updated_at: new Date()
+                                                                                    }}
+                                                                                    onClose={closeDrawer}
+                                                                                    onSave={handleScheduleUpdate}
+                                                                                    isInDrawer={true}
+                                                                                />
+                                                                            </div>
+                                                                        );
+                                                                    } catch (error) {
+                                                                        console.error('Error loading ad-hoc entry:', error);
+                                                                        toast.error('Failed to load ad-hoc entry data');
+                                                                        openDrawer(
+                                                                            <div className="min-w-auto h-full bg-white p-4">
+                                                                                <div className="flex flex-col items-center justify-center h-full text-red-500">
+                                                                                    <div className="text-lg mb-2">Error loading ad-hoc entry</div>
+                                                                                    <div className="text-sm">Please try again</div>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                    break;
+
+                                                                default:
+                                                                    openDrawer(
+                                                                        <div className="min-w-auto h-full bg-white p-4">
+                                                                            <div>Unsupported work item type</div>
+                                                                        </div>
+                                                                    );
+                                                            }
                                                         };
 
-                                                        openDrawer(drawerContent());
+                                                        drawerContent().catch(error => {
+                                                            console.error('Error in drawer content:', error);
+                                                            openDrawer(
+                                                                <div className="min-w-auto h-full bg-white p-4">
+                                                                    <div className="flex flex-col items-center justify-center h-full text-red-500">
+                                                                        <div className="text-lg mb-2">Error loading content</div>
+                                                                        <div className="text-sm">Please try again</div>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        });
                                                     }}
                                                 >
                                                     <div className="flex flex-col">
