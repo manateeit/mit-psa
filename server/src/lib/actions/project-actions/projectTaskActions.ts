@@ -601,6 +601,48 @@ export async function moveTaskToPhase(taskId: string, newPhaseId: string, newSta
     }
 }
 
+export async function getTaskWithDetails(taskId: string, user: IUser) {
+    try {
+        await checkPermission(user, 'project', 'read');
+        
+        const {knex: db} = await createTenantKnex();
+        
+        // Get task with phase and status details
+        const task = await db('project_tasks')
+            .where('project_tasks.task_id', taskId)
+            .join('project_phases', 'project_tasks.phase_id', 'project_phases.phase_id')
+            .join('project_status_mappings', 'project_tasks.project_status_mapping_id', 'project_status_mappings.project_status_mapping_id')
+            .select(
+                'project_tasks.*',
+                'project_phases.phase_name',
+                'project_phases.project_id',
+                'project_status_mappings.status_id'
+            )
+            .first();
+
+        if (!task) {
+            throw new Error('Task not found');
+        }
+        
+        // Get additional data needed for TaskEdit
+        const [checklistItems, ticketLinks, resources] = await Promise.all([
+            ProjectTaskModel.getChecklistItems(taskId),
+            ProjectTaskModel.getTaskTicketLinks(taskId),
+            ProjectTaskModel.getTaskResources(taskId)
+        ]);
+        
+        return {
+            ...task,
+            checklist_items: checklistItems,
+            ticket_links: ticketLinks,
+            resources: resources
+        };
+    } catch (error) {
+        console.error('Error getting task with details:', error);
+        throw error;
+    }
+}
+
 export async function reorderTasksInStatus(tasks: { taskId: string, newWbsCode: string }[]): Promise<void> {
     try {
         const currentUser = await getCurrentUser();
