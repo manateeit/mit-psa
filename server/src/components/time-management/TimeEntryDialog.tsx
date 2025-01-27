@@ -224,7 +224,7 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
     <Dialog isOpen={isOpen} onClose={handleClose} title={`Edit Time Entries for ${workItem.name}`}>
       <DialogContent className="w-full max-w-4xl">
         <ReflectionContainer id={id} label="Time Entry Dialog">
-          {isLoading && existingEntries?.length ? (
+          {isLoading ? (
             <TimeEntrySkeletons />
           ) : (
             <TimeEntryList
