@@ -1,8 +1,7 @@
 'use server'
 
 import { createTenantKnex } from '@/lib/db';
-import { ITimeEntry, ITimePeriod, ITimeEntryWithWorkItem, ITimeSheet } from '@/interfaces/timeEntry.interfaces';
-import { ITimePeriodWithStatus, TimeSheetStatus } from '@/interfaces/timeEntry.interfaces';
+import { ITimeEntry, ITimePeriod, ITimeEntryWithWorkItem, ITimeSheet, ITimePeriodWithStatus, TimeSheetStatus } from '@/interfaces/timeEntry.interfaces';
 import { IWorkItem } from '@/interfaces/workItem.interfaces';
 import { getServerSession } from "next-auth/next";
 import { options } from "@/app/api/auth/[...nextauth]/options";
@@ -11,13 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { formatISO } from 'date-fns';
 import { validateData } from '@/lib/utils/validation';
 import { z } from 'zod';
-import {
-  timeEntrySchema,
-  timeSheetSchema,
-  timePeriodSchema,
-  timeSheetStatusSchema,
-  workItemTypeSchema
-} from '@/lib/schemas/timeSheet.schemas';
+import { timeEntrySchema } from '@/lib/schemas/timeSheet.schemas';
 
 // Parameter schemas
 const fetchTimeEntriesParamsSchema = z.object({
@@ -244,95 +237,158 @@ export async function fetchWorkItemsForTimeSheet(timeSheetId: string): Promise<I
   }));
 }
 
-export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Promise<ITimeEntry> {
+export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Promise<ITimeEntryWithWorkItem> {
   // Validate input
   const validatedTimeEntry = validateData<SaveTimeEntryParams>(saveTimeEntryParamsSchema, timeEntry);
 
   const {knex: db, tenant} = await createTenantKnex();
   const session = await getServerSession(options);
+  
+  // Check for session and user ID
   if (!session?.user?.id) {
-    throw new Error("User not authenticated");
-  }
-  validatedTimeEntry.user_id = session.user.id;
-
-  // require the time_sheet_id to be set
-  if (!validatedTimeEntry.time_sheet_id) {
-    throw new Error('time_sheet_id is required');
+    throw new Error("Unauthorized: Please log in to continue");
   }
 
-  const { entry_id, ...entryData } = validatedTimeEntry;
-
-  let resultingEntry: ITimeEntry[] | undefined;
-
-  if (entry_id) {
-    // Update existing entry
-    console.log('Updating time entry:', {
+  try {
+    // Extract only the fields that exist in the database schema
+    const { 
       entry_id,
-      billable_duration: validatedTimeEntry.billable_duration,
-      entryData
-    });
-    resultingEntry = await db<ITimeEntry>('time_entries')
-      .where({ entry_id: entry_id })
-      .update({
-        ...entryData,
-        updated_at: db.fn.now()
-      }).returning('*');
-    console.log('Updated time entry result:', resultingEntry);
-  } else {
-    // log the entry data
-    console.log(`Saving new time entry: ${JSON.stringify(entryData)}`);
-    validatedTimeEntry.entry_id = uuidv4();
-    // Insert new entry
-    if (!validatedTimeEntry.tax_region) {      
-      let company_id = '';
-      if (validatedTimeEntry.work_item_type === 'project_task') {
-        const projectTask = await db('project_tasks')
-          .where({ task_id: validatedTimeEntry.work_item_id })
-          .select('company_id')
-          .first();
-        company_id = projectTask?.company_id;
-      } else if (validatedTimeEntry.work_item_type === 'ticket') {
-        const ticket = await db('tickets')
-          .where({ ticket_id: validatedTimeEntry.work_item_id })
-          .select('company_id')
-          .first();
-        company_id = ticket?.company_id;
+      work_item_id,
+      work_item_type,
+      start_time,
+      end_time,
+      billable_duration,
+      notes,
+      time_sheet_id,
+      approval_status,
+      service_id,
+      tax_region,
+    } = timeEntry;
+    
+    const cleanedEntry = {
+      work_item_id,
+      work_item_type,
+      start_time,
+      end_time,
+      billable_duration,
+      notes,
+      time_sheet_id,
+      approval_status,
+      service_id,
+      tax_region,
+      user_id: session.user.id, // Always use session user_id
+      tenant: tenant as string,
+      updated_at: new Date().toISOString()
+    };
+
+    // Log the cleaned entry for debugging
+    console.log('Cleaned entry data:', cleanedEntry);
+
+    let resultingEntry: ITimeEntry;
+
+    if (entry_id) {
+      // Update existing entry
+      const [updated] = await db('time_entries')
+        .where({ entry_id })
+        .update(cleanedEntry)
+        .returning('*');
+
+      if (!updated) {
+        throw new Error('Failed to update time entry');
       }
-      const company = await db('companies')
-        .where({ company_id: company_id })
-        .select('tax_region')
-        .first();
+      
+      resultingEntry = updated;
+      console.log('Updated entry:', resultingEntry);
+    } else {
+      // Insert new entry
+      const [inserted] = await db('time_entries')
+        .insert({
+          ...cleanedEntry,
+          entry_id: uuidv4(),
+          created_at: new Date().toISOString()
+        })
+        .returning('*');
 
-      validatedTimeEntry.tax_region = company?.tax_region;
-    }       
-    const [newEntry] = await db('time_entries')
-      .insert({ ...validatedTimeEntry, tenant })
-      .returning('*');
+      if (!inserted) {
+        throw new Error('Failed to insert time entry');
+      }
 
-    resultingEntry = [newEntry];
+      resultingEntry = inserted;
+      console.log('Inserted entry:', resultingEntry);
+    }
 
-    validatedTimeEntry.entry_id = resultingEntry![0].entry_id;
-  }
+    // Fetch work item details based on the saved entry
+    let workItemDetails: IWorkItem;
+    switch (resultingEntry.work_item_type) {
+      case 'project_task': {
+        const [task] = await db('project_tasks')
+          .where({ task_id: resultingEntry.work_item_id })
+          .select(
+            'task_id as work_item_id',
+            'task_name as name',
+            'description'
+          );
+        workItemDetails = {
+          ...task,
+          type: 'project_task',
+          is_billable: true
+        };
+        break;
+      }
+      case 'ad_hoc': {
+        const schedule = await db('schedule_entries')
+          .where({ entry_id: resultingEntry.work_item_id })
+          .first();
+        workItemDetails = {
+          work_item_id: resultingEntry.work_item_id,
+          name: schedule?.title || 'Ad Hoc Entry',
+          description: '',
+          type: 'ad_hoc',
+          is_billable: true
+        };
+        break;
+      }
+      case 'ticket': {
+        const [ticket] = await db('tickets')
+          .where({ ticket_id: resultingEntry.work_item_id })
+          .select(
+            'ticket_id as work_item_id',
+            'title as name',
+            'url as description'
+          );
+        workItemDetails = {
+          ...ticket,
+          type: 'ticket',
+          is_billable: true
+        };
+        break;
+      }
+      case 'non_billable_category':
+        workItemDetails = {
+          work_item_id: resultingEntry.work_item_id,
+          name: resultingEntry.work_item_id,
+          description: '',
+          type: 'non_billable_category',
+          is_billable: false
+        };
+        break;
+      default:
+        throw new Error(`Unknown work item type: ${resultingEntry.work_item_type}`);
+    }
 
-  if (!resultingEntry) {
+    // Return the complete time entry with work item details
+    return {
+      ...resultingEntry,
+      workItem: workItemDetails
+    } as ITimeEntryWithWorkItem;
+
+  } catch (error) {
+    console.error('Error saving time entry:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
     throw new Error('Failed to save time entry');
   }
-
-  // Return the full time entry with work item details
-  const savedEntry = resultingEntry[0];
-  
-  if (!savedEntry.time_sheet_id) {
-    throw new Error('Saved entry is missing time_sheet_id');
-  }
-
-  const timeEntriesWithWorkItems = await fetchTimeEntriesForTimeSheet(savedEntry.time_sheet_id);
-  const savedEntryWithWorkItem = timeEntriesWithWorkItems.find(entry => entry.entry_id === savedEntry.entry_id);
-
-  if (!savedEntryWithWorkItem) {
-    throw new Error('Failed to fetch saved time entry details');
-  }
-
-  return savedEntryWithWorkItem;
 }
 
 export async function addWorkItem(workItem: Omit<IWorkItem, 'tenant'>): Promise<IWorkItem> {

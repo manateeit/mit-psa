@@ -21,7 +21,6 @@ interface TimeEntryListProps {
   onSave: (index: number) => Promise<void>;
   onDelete: (index: number) => Promise<void>;
   onEdit: (index: number) => void;
-  onCollapse: () => void;
   onUpdateEntry: (index: number, entry: ITimeEntryWithNew) => void;
   onUpdateTimeInputs: (inputs: TimeInputs) => void;
   onAddEntry: () => void;
@@ -40,7 +39,6 @@ const TimeEntryList = memo(function TimeEntryList({
   onSave,
   onDelete,
   onEdit,
-  onCollapse,
   onUpdateEntry,
   onUpdateTimeInputs,
   onAddEntry
@@ -61,7 +59,6 @@ const TimeEntryList = memo(function TimeEntryList({
               totalDuration={totalDurations[index] || 0}
               onSave={onSave}
               onDelete={onDelete}
-              onCollapse={onCollapse}
               onUpdateEntry={onUpdateEntry}
               onUpdateTimeInputs={onUpdateTimeInputs}
               lastNoteInputRef={lastNoteInputRef}
