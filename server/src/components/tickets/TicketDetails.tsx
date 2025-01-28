@@ -431,6 +431,16 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
             const endTime = new Date();
             const startTime = new Date(endTime.getTime() - (elapsedTime * 1000));
 
+            // Create initial time entry with description
+            const initialEntry = {
+                notes: timeDescription || '',
+                start_time: startTime.toISOString(),
+                end_time: endTime.toISOString(),
+                billable_duration: Math.round(elapsedTime / 60), // Convert seconds to minutes
+                work_item_type: 'ticket',
+                work_item_id: ticket.ticket_id!
+            };
+
             // Open drawer with TimeEntryDialog
             openDrawer(
                 <TimeEntryDialog
@@ -446,7 +456,6 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
                                 created_at: new Date().toISOString(),
                                 updated_at: new Date().toISOString(),
                                 approval_status: 'DRAFT',
-                                notes: timeDescription || '',
                                 billable_duration: Math.round(elapsedTime / 60), // Convert seconds to minutes
                                 work_item_type: 'ticket',
                                 work_item_id: ticket.ticket_id!,

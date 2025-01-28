@@ -12,6 +12,7 @@ import { TimeEntryProvider, useTimeEntry } from './TimeEntryProvider';
 import { ReflectionContainer } from '@/types/ui-reflection/ReflectionContainer';
 import TimeEntrySkeletons from './TimeEntrySkeletons';
 import TimeEntryList from './TimeEntryList';
+import SingleTimeEntryForm from './SingleTimeEntryForm';
 import { validateTimeEntry, calculateDuration } from './utils';
 
 interface TimeEntryDialogProps {
@@ -76,7 +77,10 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
   useEffect(() => {
     if (isOpen) {
       initializeEntries({
-        existingEntries,
+        existingEntries: existingEntries?.map(entry => ({
+          ...entry,
+          notes: entry.notes || workItem.description || ''
+        })) || [],
         defaultStartTime,
         defaultEndTime,
         defaultTaxRegion,
@@ -84,7 +88,7 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
         date,
       });
     }
-  }, [isOpen, defaultStartTime, defaultEndTime, defaultTaxRegion, date]);
+  }, [isOpen, defaultStartTime, defaultEndTime, defaultTaxRegion, date, workItem]);
 
   // Focus notes input when adding new entry
   useEffect(() => {
@@ -253,13 +257,15 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
     }
   }, [entries, onClose]);
 
-  const title = `Edit Time Entries for ${workItem.name}`;
+  const title = existingEntries && existingEntries.length > 0 
+    ? `Edit Time Entries for ${workItem.name}`
+    : `Add New Time Entry for ${workItem.name}`;
   const content = (
     <ReflectionContainer id={id} label={title}>
-      <h2 className="text-lg font-semibold mb-4">{title}</h2>
+      {inDrawer && <h2 className="text-lg font-semibold mb-4">{title}</h2>}
       {isLoading ? (
         <TimeEntrySkeletons />
-      ) : (
+      ) : existingEntries && existingEntries.length > 0 ? (
         <TimeEntryList
           id={id}
           entries={entries}
@@ -276,6 +282,21 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
           onUpdateEntry={updateEntry}
           onUpdateTimeInputs={updateTimeInputs}
           onAddEntry={handleAddEntry}
+        />
+      ) : (
+        <SingleTimeEntryForm
+          id={id}
+          entry={entries[0]}
+          services={services}
+          taxRegions={taxRegions}
+          timeInputs={timeInputs}
+          totalDuration={totalDurations[0] || 0}
+          isEditable={isEditable}
+          lastNoteInputRef={lastNoteInputRef}
+          onSave={handleSaveEntry}
+          onDelete={handleDeleteEntry}
+          onUpdateEntry={updateEntry}
+          onUpdateTimeInputs={updateTimeInputs}
         />
       )}
 
@@ -294,7 +315,7 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
   return inDrawer ? (
     content
   ) : (
-    <Dialog isOpen={isOpen} onClose={handleClose} title={`Edit Time Entries for ${workItem.name}`}>
+    <Dialog isOpen={isOpen} onClose={handleClose} title={title}>
       <DialogContent className="w-full max-w-4xl">
         {content}
       </DialogContent>
