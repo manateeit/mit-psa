@@ -14,6 +14,7 @@ interface TaskEditProps {
   onTaskUpdated: (updatedTask: IProjectTask | null) => void;
   projectStatuses?: ProjectStatus[];
   users: IUserWithRoles[];
+  inDrawer?: boolean;
 }
 
 export default function TaskEdit({ 
@@ -23,7 +24,8 @@ export default function TaskEdit({
   onTaskUpdated,
   phases,
   projectStatuses: initialStatuses,
-  users 
+  users,
+  inDrawer = false
 }: TaskEditProps): JSX.Element {
   const [statuses, setStatuses] = useState<ProjectStatus[]>(initialStatuses || []);
   const [selectedPhaseStatuses, setSelectedPhaseStatuses] = useState<ProjectStatus[]>(initialStatuses || []);
@@ -74,7 +76,7 @@ export default function TaskEdit({
         users={users}
         mode="edit"
         onPhaseChange={handlePhaseChange}
-        inDrawer={true}
+        inDrawer={inDrawer}
       />
     </div>
   );

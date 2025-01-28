@@ -69,6 +69,7 @@ export function WorkItemDrawer({
                         <div className="min-w-auto h-full bg-white">
                             <TaskEdit
                                 task={taskData}
+                                inDrawer={true}
                                 phase={{
                                     phase_id: taskData.phase_id,
                                     project_id: taskData.project_id || '',
