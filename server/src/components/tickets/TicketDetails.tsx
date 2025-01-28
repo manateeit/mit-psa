@@ -6,7 +6,7 @@ import TicketInfo from './TicketInfo';
 import TicketProperties from './TicketProperties';
 import TicketConversation from './TicketConversation';
 import AssociatedAssets from '../assets/AssociatedAssets';
-import { TimeEntryDialog } from '../time-management/TimeEntryDialog';
+import TimeEntryDialog from '../time-management/TimeEntryDialog';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
 import { useDrawer } from '../../context/DrawerContext';

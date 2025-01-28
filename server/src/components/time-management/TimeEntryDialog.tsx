@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, memo, useEffect } from 'react';
 import { formatISO, parseISO } from 'date-fns';
+import { toast } from 'react-hot-toast';
 import { Dialog, DialogContent, DialogFooter } from '../ui/Dialog';
 import { deleteTimeEntry, fetchTimeEntriesForTimeSheet } from '../../lib/actions/timeEntryActions';
 import { Button } from '../ui/Button';
@@ -33,15 +34,6 @@ interface TimeEntryDialogProps {
 interface ITimeEntryWithWorkItemString extends Omit<ITimeEntryWithWorkItem, 'start_time' | 'end_time'> {
   start_time: string;
   end_time: string;
-}
-
-// Main dialog wrapper component that provides the TimeEntryProvider context
-export function TimeEntryDialog(props: TimeEntryDialogProps) {
-  return (
-    <TimeEntryProvider>
-      <TimeEntryDialogContent {...props} />
-    </TimeEntryProvider>
-  );
 }
 
 // Main dialog content component
@@ -115,19 +107,24 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
     const duration = calculateDuration(defaultStartTime, defaultEndTime);
 
     const newEntry = {
+      // Required fields from schema
       work_item_id: workItem.work_item_id,
+      work_item_type: workItem.type,
       start_time: formatISO(defaultStartTime),
       end_time: formatISO(defaultEndTime),
       billable_duration: duration,
-      work_item_type: workItem.type,
       notes: '',
-      entry_id: '',
-      user_id: '',
       created_at: formatISO(new Date()),
       updated_at: formatISO(new Date()),
       approval_status: 'DRAFT' as TimeSheetStatus,
+      user_id: '',
+      
+      // Optional fields
+      entry_id: '',
       service_id: '',
       tax_region: defaultTaxRegion || '',
+      
+      // Local state fields (not sent to server)
       isNew: true,
       tempId: crypto.randomUUID(),
     };
@@ -139,46 +136,81 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
 
   const handleSaveEntry = useCallback(async (index: number) => {
     if (!isEditable || !timeSheetId) return;
-
+  
     const entry = entries[index];
+    console.log('Entry to save:', entry);
+    
+    // Validate required fields
     if (!entry.service_id) {
-      alert('Please select a service');
+      toast.error('Please select a service');
       return;
     }
-
+  
     const selectedService = services.find(s => s.id === entry.service_id);
-    if (selectedService?.is_taxable && !entry.tax_region) {
-      alert('Please select a tax region for taxable services');
+    if (!selectedService) {
+      toast.error('Invalid service selected');
       return;
     }
-
+  
+    if (selectedService.is_taxable && !entry.tax_region) {
+      toast.error('Please select a tax region for taxable services');
+      return;
+    }
+  
     if (!validateTimeEntry(entry)) {
+      toast.error('Please check the time entry values');
       return;
     }
-
+  
+    const loadingToast = toast.loading('Saving time entry...');
+    
     try {
-      const { isNew, isDirty, tempId, ...entryToSave } = entry;
-      await onSave(entryToSave);
+      const { isNew, isDirty, tempId, ...cleanedEntry } = entry;
+  
+      // Prepare the time entry with all required fields
+      const timeEntry = {
+        ...cleanedEntry,
+        work_item_id: workItem.work_item_id,
+        work_item_type: workItem.type,
+        time_sheet_id: timeSheetId,
+        billable_duration: entry.billable_duration || 0,
+        start_time: entry.start_time,
+        end_time: entry.end_time,
+        created_at: entry.created_at || formatISO(new Date()),
+        updated_at: formatISO(new Date()),
+        notes: entry.notes || '',
+        approval_status: 'DRAFT' as TimeSheetStatus
+      };
       
-      if (timeSheetId) {
+      console.log('Prepared time entry:', timeEntry);
+      const savedEntry = await onSave(timeEntry);
+      console.log('Saved entry response:', savedEntry);
+  
+      // Fetch updated entries
+      if (onTimeEntriesUpdate && timeSheetId) {
         const fetchedTimeEntries = await fetchTimeEntriesForTimeSheet(timeSheetId);
         const updatedEntries = fetchedTimeEntries.map(entry => ({
           ...entry,
           start_time: typeof entry.start_time === 'string' ? entry.start_time : formatISO(entry.start_time),
           end_time: typeof entry.end_time === 'string' ? entry.end_time : formatISO(entry.end_time),
         }));
-
-        if (onTimeEntriesUpdate) {
-          onTimeEntriesUpdate(updatedEntries);
-        }
+        await onTimeEntriesUpdate(updatedEntries);
       }
-
-      setEditingIndex(null);
+  
+      toast.dismiss(loadingToast);
+      onClose();
     } catch (error) {
+      toast.dismiss(loadingToast);
       console.error('Error saving time entry:', error);
-      alert('Failed to save time entry. Please try again.');
+      
+      // Show a more user-friendly error message
+      if (error instanceof Error && error.message.includes('Unauthorized')) {
+        toast.error('Please log in to save time entries');
+      } else {
+        toast.error('Failed to save time entry. Please try again.');
+      }
     }
-  }, [isEditable, timeSheetId, entries, services, workItem, onSave, onTimeEntriesUpdate, setEditingIndex]);
+  }, [isEditable, timeSheetId, entries, services, workItem, onSave, onTimeEntriesUpdate, onClose]);
 
   const handleDeleteEntry = useCallback(async (index: number) => {
     const entry = entries[index];
@@ -224,7 +256,7 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
     <Dialog isOpen={isOpen} onClose={handleClose} title={`Edit Time Entries for ${workItem.name}`}>
       <DialogContent className="w-full max-w-4xl">
         <ReflectionContainer id={id} label="Time Entry Dialog">
-          {isLoading && existingEntries?.length ? (
+          {isLoading ? (
             <TimeEntrySkeletons />
           ) : (
             <TimeEntryList
@@ -240,7 +272,6 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
               onSave={handleSaveEntry}
               onDelete={handleDeleteEntry}
               onEdit={setEditingIndex}
-              onCollapse={() => setEditingIndex(null)}
               onUpdateEntry={updateEntry}
               onUpdateTimeInputs={updateTimeInputs}
               onAddEntry={handleAddEntry}
@@ -262,4 +293,15 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
   );
 });
 
+const TimeEntryDialog = memo(function TimeEntryDialog(props: TimeEntryDialogProps) {
+  return (
+    <TimeEntryProvider>
+      <TimeEntryDialogContent {...props} />
+    </TimeEntryProvider>
+  );
+});
+
+TimeEntryDialog.displayName = 'TimeEntryDialog';
+
+// Export the component
 export default TimeEntryDialog;

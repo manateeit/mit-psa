@@ -22,7 +22,6 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
   totalDuration,
   onSave,
   onDelete,
-  onCollapse,
   onUpdateEntry,
   onUpdateTimeInputs,
   lastNoteInputRef
@@ -76,6 +75,8 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
     startTime?: string;
     endTime?: string;
     duration?: string;
+    service?: string;
+    taxRegion?: string;
   }>({});
 
   const [showErrors, setShowErrors] = useState(false);
@@ -138,6 +139,29 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
     if (!validateTimes()) {
       return;
     }
+    
+    // Ensure we have required fields
+    if (!entry.service_id) {
+      setValidationErrors(prev => ({
+        ...prev,
+        service: 'Service is required'
+      }));
+      return;
+    }
+
+    const selectedService = services.find(s => s.id === entry.service_id);
+    if (selectedService?.is_taxable && !entry.tax_region) {
+      setValidationErrors(prev => ({
+        ...prev,
+        taxRegion: 'Tax region is required for taxable services'
+      }));
+      return;
+    }
+
+    // Clear any existing validation errors
+    setValidationErrors({});
+    
+    // Call parent's onSave with the current entry
     onSave(index);
   }, [onSave, validateTimes]);
 
@@ -179,18 +203,6 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
           )}
         </div>
         <div className="flex space-x-2">
-          {!entry.isNew && (
-            <Button
-              id={`${id}-collapse-entry-${index}-btn`}
-              onClick={onCollapse}
-              variant="ghost"
-              size="sm"
-              className="h-10 w-10"
-              title="Collapse entry"
-            >
-              <MinusCircle className="h-6 w-6" />
-            </Button>
-          )}
           <Button
             id={`${id}-delete-entry-${index}-btn`}
             onClick={() => onDelete(index)}
@@ -219,6 +231,9 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
               options={serviceOptions}
               placeholder="Select a service"
             />
+            {showErrors && validationErrors.service && (
+              <span className="text-sm text-red-500">{validationErrors.service}</span>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">
@@ -235,6 +250,9 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
               options={taxRegionOptions}
               placeholder="Select a tax region"
             />
+            {showErrors && validationErrors.taxRegion && (
+              <span className="text-sm text-red-500">{validationErrors.taxRegion}</span>
+            )}
           </div>
         </div>
 

@@ -29,7 +29,6 @@ export interface TimeEntryFormProps {
   totalDuration: number;
   onSave: (index: number) => Promise<void>;
   onDelete: (index: number) => Promise<void>;
-  onCollapse: () => void;
   onUpdateEntry: (index: number, entry: ITimeEntryWithNew) => void;
   onUpdateTimeInputs: (inputs: TimeInputs) => void;
   lastNoteInputRef?: React.RefObject<HTMLInputElement>;

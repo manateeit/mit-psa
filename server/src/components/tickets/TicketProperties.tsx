@@ -11,7 +11,7 @@ import { Clock, Edit2, Play, Pause, StopCircle, UserPlus, X } from 'lucide-react
 import styles from './TicketDetails.module.css';
 import UserPicker from '../ui/UserPicker';
 import AvatarIcon from '../ui/AvatarIcon';
-import { TimeEntryDialog } from '../time-management/TimeEntryDialog';
+import TimeEntryDialog from '../time-management/TimeEntryDialog';
 import { CompanyPicker } from '../companies/CompanyPicker';
 import CustomSelect from '../ui/CustomSelect';
 import { toast } from 'react-hot-toast';
