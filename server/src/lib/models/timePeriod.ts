@@ -9,7 +9,13 @@ export class TimePeriod {
       .orderBy('end_date', 'desc')
       .first();
 
-    return latestPeriod || null;
+    if (!latestPeriod) return null;
+    
+    return {
+      ...latestPeriod,
+      start_date: new Date(latestPeriod.start_date).toISOString().split('.')[0] + 'Z',
+      end_date: new Date(latestPeriod.end_date).toISOString().split('.')[0] + 'Z'
+    };
   }
 
   static async getAll(): Promise<ITimePeriod[]> {
@@ -46,7 +52,13 @@ export class TimePeriod {
       .where('end_date', '>=', date)
       .first();
 
-    return period || null;
+    if (!period) return null;
+    
+    return {
+      ...period,
+      start_date: new Date(period.start_date).toISOString().split('.')[0] + 'Z',
+      end_date: new Date(period.end_date).toISOString().split('.')[0] + 'Z'
+    };
   }
 
   static async findOverlapping(
@@ -72,7 +84,14 @@ export class TimePeriod {
       query.whereNot('period_id', excludePeriodId);
     }
 
-    return await query.first() || null;
+    const period = await query.first();
+    if (!period) return null;
+    
+    return {
+      ...period,
+      start_date: new Date(period.start_date).toISOString().split('.')[0] + 'Z',
+      end_date: new Date(period.end_date).toISOString().split('.')[0] + 'Z'
+    };
   }
 
   static async findById(periodId: string): Promise<ITimePeriod | null> {
@@ -81,7 +100,13 @@ export class TimePeriod {
       .where('period_id', periodId)
       .first();
     
-    return period || null;
+    if (!period) return null;
+    
+    return {
+      ...period,
+      start_date: new Date(period.start_date).toISOString().split('.')[0] + 'Z',
+      end_date: new Date(period.end_date).toISOString().split('.')[0] + 'Z'
+    };
   }
 
   static async hasTimeSheets(periodId: string): Promise<boolean> {

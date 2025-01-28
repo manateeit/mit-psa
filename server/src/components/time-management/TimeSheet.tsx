@@ -429,6 +429,7 @@ export function TimeSheet({
                     defaultEndTime={selectedCell.defaultEndTime ? parseISO(selectedCell.defaultEndTime) : undefined}
                     defaultStartTime={selectedCell.defaultStartTime ? parseISO(selectedCell.defaultStartTime) : undefined}
                     timeSheetId={timeSheet.id}
+                    inDrawer={false}
                     onTimeEntriesUpdate={(entries) => {
                         const grouped = entries.reduce((acc, entry) => {
                             const key = `${entry.work_item_id}`;

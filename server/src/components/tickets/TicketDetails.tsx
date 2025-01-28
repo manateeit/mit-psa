@@ -6,7 +6,6 @@ import TicketInfo from './TicketInfo';
 import TicketProperties from './TicketProperties';
 import TicketConversation from './TicketConversation';
 import AssociatedAssets from '../assets/AssociatedAssets';
-import TimeEntryDialog from '../time-management/TimeEntryDialog';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
 import { useDrawer } from '../../context/DrawerContext';
@@ -26,6 +25,7 @@ import ContactDetailsView from '../contacts/ContactDetailsView';
 import { addTicketResource, getTicketResources, removeTicketResource } from '../../lib/actions/ticketResourceActions';
 import TechnicianDispatchDashboard from '../technician-dispatch/TechnicianDispatchDashboard';
 import { ReflectionContainer } from '../../types/ui-reflection/ReflectionContainer';
+import TimeEntryDialog from '@/components/time-management/TimeEntryDialog';
 
 interface TicketDetailsProps {
     id?: string; // Made optional to maintain backward compatibility
@@ -68,7 +68,6 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
     const [elapsedTime, setElapsedTime] = useState(0);
     const [isRunning, setIsRunning] = useState(true);
     const [timeDescription, setTimeDescription] = useState('');
-    const [isTimeEntryDialogOpen, setIsTimeEntryDialogOpen] = useState(false);
     const [currentTimeSheet, setCurrentTimeSheet] = useState<ITimeSheet | null>(null);
     const [currentTimePeriod, setCurrentTimePeriod] = useState<ITimePeriod | null>(null);
 
@@ -81,7 +80,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
     const [companyFilterState, setCompanyFilterState] = useState<'all' | 'active' | 'inactive'>('all');
     const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
 
-    const { openDrawer } = useDrawer();
+    const { openDrawer, closeDrawer } = useDrawer();
 
     // Timer logic
     const tick = useCallback(() => {
@@ -396,9 +395,9 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
 
     const handleAddTimeEntry = async () => {
         try {
-            if (!ticket.ticket_id) {
-                console.error('Ticket ID is missing');
-                toast.error('Unable to add time entry: Ticket ID is missing');
+            if (!ticket.ticket_id || !userId) {
+                console.error('Ticket ID or User ID is missing');
+                toast.error('Unable to add time entry: Missing required information');
                 return;
             }
 
@@ -410,8 +409,6 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
                 return;
             }
 
-            setCurrentTimePeriod(currentTimePeriod);
-
             const timeSheet = await fetchOrCreateTimeSheet(userId!, currentTimePeriod.period_id);
 
             if (!timeSheet) {
@@ -420,10 +417,65 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
                 return;
             }
 
-            setCurrentTimeSheet(timeSheet);
-            setIsTimeEntryDialogOpen(true);
+            // Create work item from ticket
+            const workItem = {
+                work_item_id: ticket.ticket_id,
+                type: 'ticket' as const,
+                name: ticket.title || 'Untitled Ticket',
+                description: timeDescription,
+                is_billable: true,
+                ticket_number: ticket.ticket_number
+            };
+
+            // Calculate times based on timer
+            const endTime = new Date();
+            const startTime = new Date(endTime.getTime() - (elapsedTime * 1000));
+
+            // Open drawer with TimeEntryDialog
+            openDrawer(
+                <TimeEntryDialog
+                    id={`${id}-time-entry-dialog`}
+                    isOpen={true}
+                    onClose={closeDrawer}
+                    onSave={async (timeEntry) => {
+                        try {
+                            await saveTimeEntry({
+                                ...timeEntry,
+                                time_sheet_id: timeSheet.id,
+                                user_id: userId,
+                                created_at: new Date().toISOString(),
+                                updated_at: new Date().toISOString(),
+                                approval_status: 'DRAFT',
+                                notes: timeDescription || '',
+                                billable_duration: Math.round(elapsedTime / 60), // Convert seconds to minutes
+                                work_item_type: 'ticket',
+                                work_item_id: ticket.ticket_id!,
+                                start_time: startTime.toISOString(),
+                                end_time: endTime.toISOString()
+                            });
+                            toast.success('Time entry saved successfully');
+                            closeDrawer();
+                        } catch (error) {
+                            console.error('Error saving time entry:', error);
+                            toast.error('Failed to save time entry');
+                        }
+                    }}
+                    workItem={workItem}
+                    date={new Date()}
+                    existingEntries={[]}
+                    timePeriod={currentTimePeriod!}
+                    isEditable={true}
+                    defaultStartTime={startTime}
+                    defaultEndTime={endTime}
+                    timeSheetId={timeSheet.id}
+                    inDrawer={true}
+                />
+            );
+
+            // Stop and reset timer
             setIsRunning(false);
             setElapsedTime(0);
+            setTimeDescription('');
         } catch (error) {
             console.error('Error in handleAddTimeEntry:', error);
             toast.error('An error occurred while preparing the time entry. Please try again.');
@@ -496,40 +548,6 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
     return (
         <ReflectionContainer id={id} label={`Ticket Details - ${ticket.ticket_number}`}>
             <div className="bg-gray-100">
-                {isTimeEntryDialogOpen && currentTimeSheet && (
-                    <TimeEntryDialog
-                        id={`${id}-time-entry-dialog`}
-                        isOpen={isTimeEntryDialogOpen}
-                        onClose={() => setIsTimeEntryDialogOpen(false)}
-                        onSave={async (timeEntry: Omit<ITimeEntry, 'tenant'>) => {
-                            try {
-                                const timeEntryWithSheetId = {
-                                    ...timeEntry,
-                                    time_sheet_id: currentTimeSheet.id
-                                };
-                                await saveTimeEntry(timeEntryWithSheetId);
-                                toast.success('Time entry saved successfully');
-                                setIsTimeEntryDialogOpen(false);
-                            } catch (error) {
-                                console.error('Error saving time entry:', error);
-                                toast.error('Failed to save time entry. Please try again.');
-                            }
-                        }}
-                        workItem={{
-                            work_item_id: ticket.ticket_id!,
-                            type: 'ticket',
-                            name: ticket.title || 'Untitled Ticket',
-                            description: ticket.title,
-                            is_billable: true,
-                        }}
-                        date={new Date()}
-                        existingEntries={[]}
-                        timePeriod={currentTimePeriod!}
-                        isEditable={true}
-                        defaultStartTime={new Date()}
-                        defaultEndTime={new Date(Date.now() + elapsedTime * 1000)}
-                    />
-                )}
 
                 <div className="flex gap-6">
                     <div className="flex-grow col-span-2 space-y-6">
