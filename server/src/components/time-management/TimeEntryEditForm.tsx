@@ -75,6 +75,8 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
     startTime?: string;
     endTime?: string;
     duration?: string;
+    service?: string;
+    taxRegion?: string;
   }>({});
 
   const [showErrors, setShowErrors] = useState(false);
@@ -229,6 +231,9 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
               options={serviceOptions}
               placeholder="Select a service"
             />
+            {showErrors && validationErrors.service && (
+              <span className="text-sm text-red-500">{validationErrors.service}</span>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">
@@ -245,6 +250,9 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
               options={taxRegionOptions}
               placeholder="Select a tax region"
             />
+            {showErrors && validationErrors.taxRegion && (
+              <span className="text-sm text-red-500">{validationErrors.taxRegion}</span>
+            )}
           </div>
         </div>
 

@@ -104,12 +104,20 @@ export async function fetchTimeEntriesForTimeSheet(timeSheetId: string): Promise
       case 'ticket':
         [workItem] = await db('tickets')
           .where({ ticket_id: entry.work_item_id })
-          .select('ticket_id as work_item_id', 'title as name', 'url as description');
+          .select('ticket_id as work_item_id', 'title as name', 'url as description', 'ticket_number');
         break;
       case 'project_task':
         [workItem] = await db('project_tasks')
           .where({ task_id: entry.work_item_id })
-          .select('task_id as work_item_id', 'task_name as name', 'description');
+          .join('project_phases', 'project_tasks.phase_id', 'project_phases.phase_id')
+          .join('projects', 'project_phases.project_id', 'projects.project_id')
+          .select(
+            'task_id as work_item_id',
+            'task_name as name',
+            'project_tasks.description',
+            'projects.project_name as project_name',
+            'project_phases.phase_name as phase_name'
+          );
         break;
       case 'non_billable_category':
         workItem = {
@@ -149,6 +157,7 @@ export async function fetchTimeEntriesForTimeSheet(timeSheetId: string): Promise
       end_date: formatISO(entry.end_time),
       type: entry.work_item_type,
       is_billable: entry.is_billable,
+      ticket_number: entry.work_item_type === 'ticket' ? workItem.ticket_number : undefined,
       service: service ? {
         id: entry.service_id,
         name: service.service_name,
@@ -198,6 +207,7 @@ export async function fetchWorkItemsForTimeSheet(timeSheetId: string): Promise<I
       'ticket_id as work_item_id',
       'title as name',
       'url as description',
+      'ticket_number',
       db.raw("'ticket' as type")
     );
 
@@ -209,10 +219,14 @@ export async function fetchWorkItemsForTimeSheet(timeSheetId: string): Promise<I
         .where('time_entries.work_item_type', 'project_task')
         .where('time_entries.time_sheet_id', validatedParams.timeSheetId);
     })
+    .join('project_phases', 'project_tasks.phase_id', 'project_phases.phase_id')
+    .join('projects', 'project_phases.project_id', 'projects.project_id')
     .select(
       'task_id as work_item_id',
       'task_name as name',
-      'description',
+      'project_tasks.description',
+      'projects.project_name as project_name',
+      'project_phases.phase_name as phase_name',
       db.raw("'project_task' as type")
     );
 
@@ -234,6 +248,7 @@ export async function fetchWorkItemsForTimeSheet(timeSheetId: string): Promise<I
   return [...tickets, ...projectTasks, ...adHocEntries].map((item): IWorkItem => ({
     ...item,
     is_billable: item.type !== 'non_billable_category',
+    ticket_number: item.type === 'ticket' ? item.ticket_number : undefined
   }));
 }
 
@@ -323,15 +338,21 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
       case 'project_task': {
         const [task] = await db('project_tasks')
           .where({ task_id: resultingEntry.work_item_id })
+          .join('project_phases', 'project_tasks.phase_id', 'project_phases.phase_id')
+          .join('projects', 'project_phases.project_id', 'projects.project_id')
           .select(
             'task_id as work_item_id',
             'task_name as name',
-            'description'
+            'project_tasks.description',
+            'projects.project_name as project_name',
+            'project_phases.phase_name as phase_name'
           );
         workItemDetails = {
           ...task,
           type: 'project_task',
-          is_billable: true
+          is_billable: true,
+          project_name: task.project_name,
+          phase_name: task.phase_name
         };
         break;
       }
@@ -354,12 +375,14 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
           .select(
             'ticket_id as work_item_id',
             'title as name',
-            'url as description'
+            'url as description',
+            'ticket_number'
           );
         workItemDetails = {
           ...ticket,
           type: 'ticket',
-          is_billable: true
+          is_billable: true,
+          ticket_number: ticket.ticket_number
         };
         break;
       }

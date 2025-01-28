@@ -36,15 +36,6 @@ interface ITimeEntryWithWorkItemString extends Omit<ITimeEntryWithWorkItem, 'sta
   end_time: string;
 }
 
-// Main dialog wrapper component that provides the TimeEntryProvider context
-export function TimeEntryDialog(props: TimeEntryDialogProps) {
-  return (
-    <TimeEntryProvider>
-      <TimeEntryDialogContent {...props} />
-    </TimeEntryProvider>
-  );
-}
-
 // Main dialog content component
 const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
   id = 'time-entry-dialog',
@@ -207,7 +198,6 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
       }
   
       toast.dismiss(loadingToast);
-      toast.success('Time entry saved successfully');
       onClose();
     } catch (error) {
       toast.dismiss(loadingToast);
@@ -303,4 +293,15 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
   );
 });
 
+const TimeEntryDialog = memo(function TimeEntryDialog(props: TimeEntryDialogProps) {
+  return (
+    <TimeEntryProvider>
+      <TimeEntryDialogContent {...props} />
+    </TimeEntryProvider>
+  );
+});
+
+TimeEntryDialog.displayName = 'TimeEntryDialog';
+
+// Export the component
 export default TimeEntryDialog;

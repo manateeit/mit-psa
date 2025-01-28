@@ -125,7 +125,7 @@ interface TimeEntryContextType extends TimeEntryState {
 
 const TimeEntryContext = createContext<TimeEntryContextType | undefined>(undefined);
 
-export function TimeEntryProvider({ children }: { children: React.ReactNode }) {
+export function TimeEntryProvider({ children }: { children: React.ReactNode }): JSX.Element {
   const [state, dispatch] = useReducer(timeEntryReducer, initialState);
 
   const initializeEntries = async ({
@@ -135,39 +135,24 @@ export function TimeEntryProvider({ children }: { children: React.ReactNode }) {
     defaultTaxRegion,
     workItem,
     date,
-  }: InitializeEntriesParams) => {
-    // Load services based on work item type
+  }: InitializeEntriesParams): Promise<void> => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      const [services, taxRegions] = await Promise.all([
+      
+      // Load all required data in parallel
+      const [services, taxRegions, defaultTaxRegionFromCompany] = await Promise.all([
         fetchServicesForTimeEntry(workItem.type),
         fetchTaxRegions(),
+        (workItem.type === 'ticket' || workItem.type === 'project_task') 
+          ? fetchCompanyTaxRateForWorkItem(workItem.work_item_id, workItem.type)
+          : Promise.resolve(undefined)
       ]);
+
       dispatch({
         type: 'SET_INITIAL_DATA',
         payload: { services, taxRegions },
       });
-    } catch (error) {
-      console.error('Error loading initial data:', error);
-      dispatch({
-        type: 'SET_ERROR',
-        payload: 'Failed to load services and tax regions',
-      });
-      return;
-    }
 
-    let defaultTaxRegionFromCompany: string | undefined;
-
-    if (workItem.type === 'ticket' || workItem.type === 'project_task') {
-      try {
-        defaultTaxRegionFromCompany = await fetchCompanyTaxRateForWorkItem(
-          workItem.work_item_id,
-          workItem.type
-        );
-      } catch (error) {
-        console.error('Error fetching company tax rate:', error);
-      }
-    }
 
     let newEntries: ITimeEntryWithNew[] = [];
 
@@ -196,7 +181,7 @@ export function TimeEntryProvider({ children }: { children: React.ReactNode }) {
         created_at: formatISO(new Date()),
         updated_at: formatISO(new Date()),
         approval_status: 'DRAFT',
-        service_id: state.services[0]?.id || '',
+        service_id: '',
         tax_region: defaultTaxRegion || defaultTaxRegionFromCompany || '',
         isNew: true,
         tempId: crypto.randomUUID(),
@@ -234,29 +219,35 @@ export function TimeEntryProvider({ children }: { children: React.ReactNode }) {
         created_at: formatISO(new Date()),
         updated_at: formatISO(new Date()),
         approval_status: 'DRAFT',
-        service_id: state.services[0]?.id || '',
+        service_id: '',
         tax_region: defaultTaxRegion || '',
         isNew: true,
         tempId: crypto.randomUUID(),
       }];
     }
 
-    const sortedEntries = [...newEntries].sort((a, b) =>
-      parseISO(a.start_time).getTime() - parseISO(b.start_time).getTime()
-    );
+      const sortedEntries = [...newEntries].sort((a, b) =>
+        parseISO(a.start_time).getTime() - parseISO(b.start_time).getTime()
+      );
 
-    dispatch({ type: 'SET_ENTRIES', payload: sortedEntries });
-    
-    // Set initial editing index
-    if (sortedEntries.length === 1 && !existingEntries?.length) {
-      dispatch({ type: 'SET_EDITING_INDEX', payload: 0 });
+      dispatch({ type: 'SET_ENTRIES', payload: sortedEntries });
+      
+      // Set initial editing index
+      if (sortedEntries.length === 1 && !existingEntries?.length) {
+        dispatch({ type: 'SET_EDITING_INDEX', payload: 0 });
+      }
+
+      // Calculate initial durations
+      const durations = sortedEntries.map(entry =>
+        calculateDuration(parseISO(entry.start_time), parseISO(entry.end_time))
+      );
+      dispatch({ type: 'UPDATE_DURATIONS', payload: durations });
+    } catch (error) {
+      console.error('Error initializing entries:', error);
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to initialize time entries' });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
-
-    // Calculate initial durations
-    const durations = sortedEntries.map(entry =>
-      calculateDuration(parseISO(entry.start_time), parseISO(entry.end_time))
-    );
-    dispatch({ type: 'UPDATE_DURATIONS', payload: durations });
   };
 
   const updateEntry = (index: number, entry: ITimeEntryWithNew) => {
