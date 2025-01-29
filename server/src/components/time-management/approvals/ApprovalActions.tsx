@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ITimeSheet } from '@/interfaces/timeEntry.interfaces';
-import { Button } from '../ui/Button';
-import { Dialog, DialogHeader, DialogTitle, DialogContent, DialogFooter } from '../ui/Dialog';
-import { TextArea } from '../ui/TextArea';
+import { Button } from '@/components/ui/Button';
+import { Dialog, DialogHeader, DialogTitle, DialogContent, DialogFooter } from '@/components/ui/Dialog';
+import { TextArea } from '@/components/ui/TextArea';
 
 interface ApprovalActionsProps {
   timeSheet: ITimeSheet;

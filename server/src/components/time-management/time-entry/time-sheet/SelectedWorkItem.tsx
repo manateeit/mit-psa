@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Button } from '../ui/Button';
-import { IWorkItem } from '../../interfaces/workItem.interfaces';
+import { Button } from '@/components/ui/Button';
+import { IWorkItem } from '@/interfaces/workItem.interfaces';
 
 interface SelectedWorkItemProps {
   workItem: Omit<IWorkItem, 'tenant'> | null;

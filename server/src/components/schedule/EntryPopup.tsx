@@ -2,19 +2,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { DialogContent, DialogTitle } from '@radix-ui/react-dialog';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { TextArea } from '@/components/ui/TextArea';
 import { format } from 'date-fns';
-import { IScheduleEntry, IRecurrencePattern } from '../../interfaces/schedule.interfaces';
-import { WorkItemPicker } from './WorkItemPicker';
-import { IWorkItem } from '../../interfaces/workItem.interfaces';
-import { getWorkItemById } from '../../lib/actions/workItemActions';
-import CustomSelect from '../ui/CustomSelect';
-import SelectedWorkItem from './SelectedWorkItem';
-import MultiUserPicker from '../ui/MultiUserPicker';
-import { DateTimePicker } from '../ui/DateTimePicker';
-import { IUserWithRoles } from '../../interfaces/auth.interfaces';
+import { IScheduleEntry, IRecurrencePattern } from '@/interfaces/schedule.interfaces';
+import { WorkItemPicker } from '@/components/time-management/time-entry/time-sheet/WorkItemPicker';
+import { IWorkItem } from '@/interfaces/workItem.interfaces';
+import { getWorkItemById } from '@/lib/actions/workItemActions';
+import CustomSelect from '@/components/ui/CustomSelect';
+import SelectedWorkItem from '@/components/time-management/time-entry/time-sheet/SelectedWorkItem';
+import MultiUserPicker from '@/components/ui/MultiUserPicker';
+import { DateTimePicker } from '@/components/ui/DateTimePicker';
+import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 
 interface EntryPopupProps {
   event: IScheduleEntry | null;

@@ -1,10 +1,10 @@
 'use client';
 
 import { createContext, useContext, useReducer, useEffect } from 'react';
-import { ITimeEntry, ITimeEntryWithWorkItem, ITimePeriod } from '../../interfaces/timeEntry.interfaces';
-import { IWorkItem } from '../../interfaces/workItem.interfaces';
-import { TaxRegion } from '../../types/types.d';
-import { fetchCompanyTaxRateForWorkItem, fetchServicesForTimeEntry, fetchTaxRegions } from '../../lib/actions/timeEntryActions';
+import { ITimeEntry, ITimeEntryWithWorkItem, ITimePeriod } from '@/interfaces/timeEntry.interfaces';
+import { IWorkItem } from '@/interfaces/workItem.interfaces';
+import { TaxRegion } from '@/types/types.d';
+import { fetchCompanyTaxRateForWorkItem, fetchServicesForTimeEntry, fetchTaxRegions } from '@/lib/actions/timeEntryActions';
 import { formatISO, parseISO } from 'date-fns';
 import { createTenantKnex } from '@/lib/db';
 

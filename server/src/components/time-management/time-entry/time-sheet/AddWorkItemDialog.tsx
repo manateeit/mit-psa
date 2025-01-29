@@ -1,5 +1,5 @@
 'use client'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/Dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
 import { IWorkItem } from '@/interfaces/workItem.interfaces';
 import { WorkItemPicker } from './WorkItemPicker';
 

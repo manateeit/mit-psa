@@ -3,16 +3,16 @@
 import { useState, useRef, useCallback, memo, useEffect } from 'react';
 import { formatISO, parseISO } from 'date-fns';
 import { toast } from 'react-hot-toast';
-import { Dialog, DialogContent, DialogFooter } from '../ui/Dialog';
-import { ConfirmationDialog } from '../ui/ConfirmationDialog';
-import { deleteTimeEntry, fetchTimeEntriesForTimeSheet } from '../../lib/actions/timeEntryActions';
-import { Button } from '../ui/Button';
-import { ITimeEntry, ITimeEntryWithWorkItem, ITimePeriod, TimeSheetStatus, ITimeEntryWithWorkItemString } from '../../interfaces/timeEntry.interfaces';
-import { IWorkItem } from '../../interfaces/workItem.interfaces';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/Dialog';
+import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
+import { deleteTimeEntry, fetchTimeEntriesForTimeSheet } from '@/lib/actions/timeEntryActions';
+import { Button } from '@/components/ui/Button';
+import { ITimeEntry, ITimeEntryWithWorkItem, ITimePeriod, TimeSheetStatus, ITimeEntryWithWorkItemString } from '@/interfaces/timeEntry.interfaces';
+import { IWorkItem } from '@/interfaces/workItem.interfaces';
 import { TimeEntryProvider, useTimeEntry } from './TimeEntryProvider';
 import { ReflectionContainer } from '@/types/ui-reflection/ReflectionContainer';
 import TimeEntrySkeletons from './TimeEntrySkeletons';
-import TimeEntryList from './TimeEntryList';
+import TimeEntryList from '../TimeEntryList';
 import SingleTimeEntryForm from './SingleTimeEntryForm';
 import { validateTimeEntry, calculateDuration } from './utils';
 

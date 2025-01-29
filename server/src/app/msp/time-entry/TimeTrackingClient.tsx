@@ -1,7 +1,7 @@
 'use client';
 
 import { Profiler } from 'react';
-import TimeTracking from '@/components/time-management/TimeTracking';
+import TimeTracking from '@/components/time-management/time-entry/TimeTracking';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 
 interface Props {

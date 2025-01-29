@@ -1,6 +1,6 @@
 import { createTenantKnex } from '../db';
-import { ITimePeriod } from '../../interfaces/timeEntry.interfaces';
-import { ISO8601String } from '../../types/types.d';
+import { ITimePeriod } from '@/interfaces/timeEntry.interfaces';
+import { ISO8601String } from '@/types/types.d';
 
 export class TimePeriod {
   static async getLatest(): Promise<ITimePeriod | null> {

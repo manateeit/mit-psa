@@ -1,7 +1,7 @@
 'use client';
 
 import { memo } from 'react';
-import { Skeleton } from '../ui/Skeleton';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 const TimeEntrySkeletons = memo(function TimeEntrySkeletons() {
   return (
