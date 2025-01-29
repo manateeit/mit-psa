@@ -12,6 +12,7 @@ import { TimeEntryProvider, useTimeEntry } from './TimeEntryProvider';
 import { ReflectionContainer } from '@/types/ui-reflection/ReflectionContainer';
 import TimeEntrySkeletons from './TimeEntrySkeletons';
 import TimeEntryList from './TimeEntryList';
+import SingleTimeEntryForm from './SingleTimeEntryForm';
 import { validateTimeEntry, calculateDuration } from './utils';
 
 interface TimeEntryDialogProps {
@@ -29,6 +30,7 @@ interface TimeEntryDialogProps {
   defaultTaxRegion?: string;
   timeSheetId?: string;
   onTimeEntriesUpdate?: (entries: ITimeEntryWithWorkItemString[]) => void;
+  inDrawer?: boolean;
 }
 
 interface ITimeEntryWithWorkItemString extends Omit<ITimeEntryWithWorkItem, 'start_time' | 'end_time'> {
@@ -52,6 +54,7 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
   defaultTaxRegion,
   timeSheetId,
   onTimeEntriesUpdate,
+  inDrawer,
 }: TimeEntryDialogProps) {
   const {
     entries,
@@ -74,7 +77,10 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
   useEffect(() => {
     if (isOpen) {
       initializeEntries({
-        existingEntries,
+        existingEntries: existingEntries?.map(entry => ({
+          ...entry,
+          notes: entry.notes || workItem.description || ''
+        })) || [],
         defaultStartTime,
         defaultEndTime,
         defaultTaxRegion,
@@ -82,7 +88,7 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
         date,
       });
     }
-  }, [isOpen, defaultStartTime, defaultEndTime, defaultTaxRegion, date]);
+  }, [isOpen, defaultStartTime, defaultEndTime, defaultTaxRegion, date, workItem]);
 
   // Focus notes input when adding new entry
   useEffect(() => {
@@ -118,7 +124,6 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
       updated_at: formatISO(new Date()),
       approval_status: 'DRAFT' as TimeSheetStatus,
       user_id: '',
-      
       // Optional fields
       entry_id: '',
       service_id: '',
@@ -252,42 +257,67 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
     }
   }, [entries, onClose]);
 
-  return (
-    <Dialog isOpen={isOpen} onClose={handleClose} title={`Edit Time Entries for ${workItem.name}`}>
-      <DialogContent className="w-full max-w-4xl">
-        <ReflectionContainer id={id} label="Time Entry Dialog">
-          {isLoading ? (
-            <TimeEntrySkeletons />
-          ) : (
-            <TimeEntryList
-              id={id}
-              entries={entries}
-              services={services}
-              taxRegions={taxRegions}
-              timeInputs={timeInputs}
-              editingIndex={editingIndex}
-              totalDurations={totalDurations}
-              isEditable={isEditable}
-              lastNoteInputRef={lastNoteInputRef}
-              onSave={handleSaveEntry}
-              onDelete={handleDeleteEntry}
-              onEdit={setEditingIndex}
-              onUpdateEntry={updateEntry}
-              onUpdateTimeInputs={updateTimeInputs}
-              onAddEntry={handleAddEntry}
-            />
-          )}
+  const title = existingEntries && existingEntries.length > 0 
+    ? `Edit Time Entries for ${workItem.name}`
+    : `Add New Time Entry for ${workItem.name}`;
+  const content = (
+    <ReflectionContainer id={id} label={title}>
+      {inDrawer && <h2 className="text-lg font-semibold mb-4">{title}</h2>}
+      {isLoading ? (
+        <TimeEntrySkeletons />
+      ) : existingEntries && existingEntries.length > 0 ? (
+        <TimeEntryList
+          id={id}
+          entries={entries}
+          services={services}
+          taxRegions={taxRegions}
+          timeInputs={timeInputs}
+          editingIndex={editingIndex}
+          totalDurations={totalDurations}
+          isEditable={isEditable}
+          lastNoteInputRef={lastNoteInputRef}
+          onSave={handleSaveEntry}
+          onDelete={handleDeleteEntry}
+          onEdit={setEditingIndex}
+          onUpdateEntry={updateEntry}
+          onUpdateTimeInputs={updateTimeInputs}
+          onAddEntry={handleAddEntry}
+        />
+      ) : (
+        <SingleTimeEntryForm
+          id={id}
+          entry={entries[0]}
+          services={services}
+          taxRegions={taxRegions}
+          timeInputs={timeInputs}
+          totalDuration={totalDurations[0] || 0}
+          isEditable={isEditable}
+          lastNoteInputRef={lastNoteInputRef}
+          onSave={handleSaveEntry}
+          onDelete={handleDeleteEntry}
+          onUpdateEntry={updateEntry}
+          onUpdateTimeInputs={updateTimeInputs}
+        />
+      )}
 
-          <DialogFooter>
-            <Button
-              id={`${id}-close-dialog-btn`}
-              onClick={handleClose}
-              variant="outline"
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </ReflectionContainer>
+      <DialogFooter>
+        <Button
+          id={`${id}-close-dialog-btn`}
+          onClick={handleClose}
+          variant="outline"
+        >
+          Close
+        </Button>
+      </DialogFooter>
+    </ReflectionContainer>
+  );
+
+  return inDrawer ? (
+    content
+  ) : (
+    <Dialog isOpen={isOpen} onClose={handleClose} title={title}>
+      <DialogContent className="w-full max-w-4xl">
+        {content}
       </DialogContent>
     </Dialog>
   );

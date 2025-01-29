@@ -63,7 +63,7 @@ function formatWorkItemType(type: string): string {
 
 function formatDuration(minutes: number): string {
     const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
+    const remainingMinutes = Math.round(minutes % 60);
     return `${hours.toString().padStart(2, '0')}:${remainingMinutes.toString().padStart(2, '0')}`;
 }
 
@@ -131,20 +131,28 @@ export function TimeSheetTable({
                                             const dayEntries = entries.filter(entry =>
                                                 parseISO(entry.start_time).toDateString() === date.toDateString()
                                             );
+                                            
                                             const totalDuration = dayEntries.reduce((sum, entry) => {
-                                                const duration = (parseISO(entry.end_time).getTime() - parseISO(entry.start_time).getTime()) / 60000;
-                                                return sum + duration;
+                                                const start = parseISO(entry.start_time);
+                                                const end = parseISO(entry.end_time);
+                                                const durationInMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+                                                return sum + durationInMinutes;
                                             }, 0);
-                                            const totalBillableDuration = dayEntries.reduce((sum, entry) => sum + entry.billable_duration, 0);
 
-                                            let colors = billabilityColorScheme[0];
-                                            if (totalDuration > 0) {
-                                                const percentage = (totalBillableDuration / totalDuration) * 100;
-                                                if (percentage === 100) colors = billabilityColorScheme[100];
-                                                else if (percentage >= 75) colors = billabilityColorScheme[75];
-                                                else if (percentage >= 50) colors = billabilityColorScheme[50];
-                                                else if (percentage >= 25) colors = billabilityColorScheme[25];
-                                            }
+                                            const totalBillableDuration = dayEntries.reduce((sum, entry) => 
+                                                sum + entry.billable_duration, 0
+                                            );
+
+                                            // Calculate billability percentage
+                                            const billabilityPercentage = totalDuration === 0 ? 0 :
+                                                Math.round((totalBillableDuration / totalDuration) * 100) as BillabilityPercentage;
+                                            
+                                            // Map to nearest billability tier
+                                            const billabilityTier = [0, 25, 50, 75, 100].reduce((prev, curr) => 
+                                                Math.abs(curr - billabilityPercentage) < Math.abs(prev - billabilityPercentage) ? curr : prev
+                                            ) as BillabilityPercentage;
+
+                                            const colors = billabilityColorScheme[billabilityTier];
 
                                             return (
                                                 <td
@@ -220,15 +228,20 @@ export function TimeSheetTable({
                     <tr className="shadow-[0px_-4px_6px_rgba(0,0,0,0.1)]">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r z-10 min-w-fit max-w-[15%] shadow-[4px_0_6px_rgba(0,0,0,0.1)] sticky left-0 bg-white">Total</td>
                         {dates.map((date): JSX.Element => {
-                            const totalDuration = Object.values(groupedTimeEntries).flat()
-                                .filter((entry) => parseISO(entry.start_time).toDateString() === date.toDateString())
-                                .reduce((sum, entry) => {
-                                    const duration = (parseISO(entry.end_time).getTime() - parseISO(entry.start_time).getTime()) / 60000;
-                                    return sum + duration;
-                                }, 0);
-                            const totalBillableDuration = Object.values(groupedTimeEntries).flat()
-                                .filter((entry) => parseISO(entry.start_time).toDateString() === date.toDateString())
-                                .reduce((sum, entry) => sum + entry.billable_duration, 0);
+                            const entriesForDate = Object.values(groupedTimeEntries).flat()
+                                .filter((entry) => parseISO(entry.start_time).toDateString() === date.toDateString());
+                            
+                            const totalDuration = entriesForDate.reduce((sum, entry) => {
+                                const start = parseISO(entry.start_time);
+                                const end = parseISO(entry.end_time);
+                                const durationInMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+                                return sum + durationInMinutes;
+                            }, 0);
+
+                            const totalBillableDuration = entriesForDate.reduce((sum, entry) => 
+                                sum + entry.billable_duration, 0
+                            );
+                            
                             return (
                                 <td key={formatISO(date)} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 border-r">
                                     <div>{`Total: ${formatDuration(totalDuration)}`}</div>

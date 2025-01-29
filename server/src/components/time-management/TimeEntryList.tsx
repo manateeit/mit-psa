@@ -77,7 +77,7 @@ const TimeEntryList = memo(function TimeEntryList({
         </div>
       ))}
       
-      {isEditable && (
+      {isEditable && entries.length > 0 && (
         <Button 
           id={`${id}-add-new-entry-btn`}
           onClick={onAddEntry}
