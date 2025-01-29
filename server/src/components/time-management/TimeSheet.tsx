@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react';
-import { ITimeEntryWithWorkItem, ITimeEntry, ITimeSheet, ITimeSheetComment, TimeSheetStatus } from '@/interfaces/timeEntry.interfaces';
+import { ITimeEntry, ITimeSheet, ITimeSheetComment, TimeSheetStatus, ITimeEntryWithWorkItemString, ITimeEntryWithWorkItem } from '@/interfaces/timeEntry.interfaces';
 import { IExtendedWorkItem } from '@/interfaces/workItem.interfaces';
 import TimeEntryDialog from './TimeEntryDialog';
 import { AddWorkItemDialog } from './AddWorkItemDialog';
-import { fetchTimeEntriesForTimeSheet, fetchWorkItemsForTimeSheet, saveTimeEntry, submitTimeSheet } from '@/lib/actions/timeEntryActions';
+import { fetchTimeEntriesForTimeSheet, fetchWorkItemsForTimeSheet, saveTimeEntry, submitTimeSheet, deleteWorkItem } from '@/lib/actions/timeEntryActions';
 import { updateScheduleEntry } from '@/lib/actions/scheduleActions';
 import { toast } from 'react-hot-toast';
 import { fetchTimeSheet, fetchTimeSheetComments, addCommentToTimeSheet } from '@/lib/actions/timeSheetActions';
@@ -25,12 +25,6 @@ interface TimeSheetProps {
     initialDate?: string;
     initialDuration?: number;
     onBack: () => void;
-}
-
-// Update ITimeEntryWithWorkItem interface to use string types for dates
-interface ITimeEntryWithWorkItemString extends Omit<ITimeEntryWithWorkItem, 'start_time' | 'end_time'> {
-    start_time: string;
-    end_time: string;
 }
 
 function getDatesInPeriod(timePeriod: { start_date: Date; end_date: Date }): Date[] {
@@ -401,16 +395,57 @@ export function TimeSheet({
                 isEditable={isEditable}
                 onCellClick={setSelectedCell}
                 onAddWorkItem={() => setIsAddWorkItemDialogOpen(true)}
-                onWorkItemClick={(workItem) => {
-                    openDrawer(
-                        <WorkItemDrawer
-                            workItem={workItem}
-                            onClose={closeDrawer}
-                            onTaskUpdate={handleTaskUpdate}
-                            onScheduleUpdate={handleScheduleUpdate}
-                        />
-                    );
-                }}
+            onWorkItemClick={(workItem: IExtendedWorkItem) => {
+                openDrawer(
+                    <WorkItemDrawer
+                        workItem={workItem}
+                        onClose={closeDrawer}
+                        onTaskUpdate={handleTaskUpdate}
+                        onScheduleUpdate={handleScheduleUpdate}
+                    />
+                );
+            }}
+            onDeleteWorkItem={async (workItemId: string) => {
+                try {
+                    await deleteWorkItem(workItemId);
+                    
+                    // Refresh work items and time entries after deletion
+                    const [fetchedTimeEntries, fetchedWorkItems] = await Promise.all([
+                        fetchTimeEntriesForTimeSheet(timeSheet.id),
+                        fetchWorkItemsForTimeSheet(timeSheet.id)
+                    ]);
+
+                    // Update work items state
+                    const fetchedWorkItemsByType = fetchedWorkItems.reduce((acc: Record<string, IExtendedWorkItem[]>, item) => {
+                        if (!acc[item.type]) {
+                            acc[item.type] = [];
+                        }
+                        acc[item.type].push(item);
+                        return acc;
+                    }, {});
+                    setWorkItemsByType(fetchedWorkItemsByType);
+
+                    // Update time entries state
+                    const grouped = fetchedTimeEntries.reduce((acc: Record<string, ITimeEntryWithWorkItemString[]>, entry: ITimeEntryWithWorkItem) => {
+                        const key = `${entry.work_item_id}`;
+                        if (!acc[key]) {
+                            acc[key] = [];
+                        }
+                        acc[key].push({
+                            ...entry,
+                            start_time: typeof entry.start_time === 'string' ? entry.start_time : formatISO(entry.start_time),
+                            end_time: typeof entry.end_time === 'string' ? entry.end_time : formatISO(entry.end_time)
+                        });
+                        return acc;
+                    }, {});
+
+                    setGroupedTimeEntries(grouped);
+                    toast.success('Work item deleted successfully');
+                } catch (error) {
+                    console.error('Error deleting work item:', error);
+                    toast.error('Failed to delete work item');
+                }
+            }}
             />
 
             {selectedCell && isEditable && timeSheet.time_period && (

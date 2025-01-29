@@ -4,9 +4,10 @@ import { useState, useRef, useCallback, memo, useEffect } from 'react';
 import { formatISO, parseISO } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { Dialog, DialogContent, DialogFooter } from '../ui/Dialog';
+import { ConfirmationDialog } from '../ui/ConfirmationDialog';
 import { deleteTimeEntry, fetchTimeEntriesForTimeSheet } from '../../lib/actions/timeEntryActions';
 import { Button } from '../ui/Button';
-import { ITimeEntry, ITimeEntryWithWorkItem, ITimePeriod, TimeSheetStatus } from '../../interfaces/timeEntry.interfaces';
+import { ITimeEntry, ITimeEntryWithWorkItem, ITimePeriod, TimeSheetStatus, ITimeEntryWithWorkItemString } from '../../interfaces/timeEntry.interfaces';
 import { IWorkItem } from '../../interfaces/workItem.interfaces';
 import { TimeEntryProvider, useTimeEntry } from './TimeEntryProvider';
 import { ReflectionContainer } from '@/types/ui-reflection/ReflectionContainer';
@@ -33,29 +34,25 @@ interface TimeEntryDialogProps {
   inDrawer?: boolean;
 }
 
-interface ITimeEntryWithWorkItemString extends Omit<ITimeEntryWithWorkItem, 'start_time' | 'end_time'> {
-  start_time: string;
-  end_time: string;
-}
-
 // Main dialog content component
-const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
-  id = 'time-entry-dialog',
-  isOpen,
-  onClose,
-  onSave,
-  workItem,
-  date,
-  existingEntries,
-  timePeriod: _timePeriod,
-  isEditable,
-  defaultStartTime,
-  defaultEndTime,
-  defaultTaxRegion,
-  timeSheetId,
-  onTimeEntriesUpdate,
-  inDrawer,
-}: TimeEntryDialogProps) {
+const TimeEntryDialogContent = memo(function TimeEntryDialogContent(props: TimeEntryDialogProps): JSX.Element {
+  const {
+    id = 'time-entry-dialog',
+    isOpen,
+    onClose,
+    onSave,
+    workItem,
+    date,
+    existingEntries,
+    timePeriod: _timePeriod,
+    isEditable,
+    defaultStartTime,
+    defaultEndTime,
+    defaultTaxRegion,
+    timeSheetId,
+    onTimeEntriesUpdate,
+    inDrawer,
+  } = props;
   const {
     entries,
     services,
@@ -72,6 +69,11 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
 
   const lastNoteInputRef = useRef<HTMLInputElement>(null);
   const [shouldFocusNotes, setShouldFocusNotes] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; index: number | null }>({
+    isOpen: false,
+    index: null
+  });
+  const [closeConfirmation, setCloseConfirmation] = useState(false);
 
   // Initialize entries when dialog opens
   useEffect(() => {
@@ -217,41 +219,64 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
     }
   }, [isEditable, timeSheetId, entries, services, workItem, onSave, onTimeEntriesUpdate, onClose]);
 
+  const deleteTimeEntryAtIndex = async (index: number) => {
+    try {
+      const entry = entries[index];
+      if (entry.entry_id) {
+        await deleteTimeEntry(entry.entry_id);
+      }
+      
+      // Remove the entry from state and maintain workItem property
+      const newEntries = entries.filter((_, i) => i !== index).map(entry => ({
+        ...entry,
+        workItem: workItem
+      }));
+
+      if (newEntries.length === 0) {
+        // If no entries left, close the form
+        onClose();
+      } else {
+        // Otherwise reinitialize with remaining entries
+        initializeEntries({
+          existingEntries: newEntries,
+          workItem,
+          date,
+          defaultTaxRegion
+        });
+        setEditingIndex(null);
+      }
+      
+      if (onTimeEntriesUpdate && timeSheetId) {
+        const fetchedTimeEntries = await fetchTimeEntriesForTimeSheet(timeSheetId);
+        const updatedEntries = fetchedTimeEntries.map(entry => ({
+          ...entry,
+          start_time: typeof entry.start_time === 'string' ? entry.start_time : formatISO(entry.start_time),
+          end_time: typeof entry.end_time === 'string' ? entry.end_time : formatISO(entry.end_time),
+        }));
+        onTimeEntriesUpdate(updatedEntries);
+      }
+    } catch (error) {
+      console.error('Error deleting time entry:', error);
+      toast.error('Failed to delete time entry. Please try again.');
+    } finally {
+      setDeleteConfirmation({ isOpen: false, index: null });
+    }
+  };
+
   const handleDeleteEntry = useCallback(async (index: number) => {
     const entry = entries[index];
-    if (!entry.entry_id || window.confirm('Are you sure you want to delete this time entry?')) {
-      try {
-        if (entry.entry_id) {
-          await deleteTimeEntry(entry.entry_id);
-        }
-        
-        const newEntries = [...entries];
-        newEntries.splice(index, 1);
-        updateEntry(index, newEntries[index]);
-        setEditingIndex(null);
-        
-        if (onTimeEntriesUpdate && timeSheetId) {
-          const fetchedTimeEntries = await fetchTimeEntriesForTimeSheet(timeSheetId);
-          const updatedEntries = fetchedTimeEntries.map(entry => ({
-            ...entry,
-            start_time: typeof entry.start_time === 'string' ? entry.start_time : formatISO(entry.start_time),
-            end_time: typeof entry.end_time === 'string' ? entry.end_time : formatISO(entry.end_time),
-          }));
-          onTimeEntriesUpdate(updatedEntries);
-        }
-      } catch (error) {
-        console.error('Error deleting time entry:', error);
-        alert('Failed to delete time entry. Please try again.');
-      }
+    if (!entry.entry_id) {
+      // For new entries that haven't been saved, delete without confirmation
+      await deleteTimeEntryAtIndex(index);
+    } else {
+      setDeleteConfirmation({ isOpen: true, index });
     }
-  }, [entries, timeSheetId, updateEntry, setEditingIndex, onTimeEntriesUpdate]);
+  }, [entries]);
 
   const handleClose = useCallback(() => {
     const hasUnsavedChanges = entries.some(entry => entry.isDirty);
     if (hasUnsavedChanges) {
-      if (window.confirm('You have unsaved changes. Are you sure you want to close?')) {
-        onClose();
-      }
+      setCloseConfirmation(true);
     } else {
       onClose();
     }
@@ -312,14 +337,47 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent({
     </ReflectionContainer>
   );
 
-  return inDrawer ? (
-    content
-  ) : (
-    <Dialog isOpen={isOpen} onClose={handleClose} title={title}>
-      <DialogContent className="w-full max-w-4xl">
-        {content}
-      </DialogContent>
-    </Dialog>
+  return (
+    <>
+      {inDrawer ? (
+        content
+      ) : (
+        <Dialog isOpen={isOpen} onClose={handleClose} title={title}>
+          <DialogContent className="w-full max-w-4xl">
+            {content}
+          </DialogContent>
+        </Dialog>
+      )}
+
+      <ConfirmationDialog
+        id={`${id}-delete-confirmation`}
+        isOpen={deleteConfirmation.isOpen}
+        onClose={() => setDeleteConfirmation({ isOpen: false, index: null })}
+        onConfirm={async () => {
+          if (deleteConfirmation.index !== null) {
+            await deleteTimeEntryAtIndex(deleteConfirmation.index);
+          }
+        }}
+        title="Delete Time Entry"
+        message="Are you sure you want to delete this time entry?"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+      />
+
+      <ConfirmationDialog
+        id={`${id}-close-confirmation`}
+        isOpen={closeConfirmation}
+        onClose={() => setCloseConfirmation(false)}
+        onConfirm={async () => {
+          onClose();
+          setCloseConfirmation(false);
+        }}
+        title="Unsaved Changes"
+        message="You have unsaved changes. Are you sure you want to close?"
+        confirmLabel="Close"
+        cancelLabel="Cancel"
+      />
+    </>
   );
 });
 

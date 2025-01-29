@@ -28,7 +28,7 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
 }: TimeEntryFormProps) {
   // Use work item times for ad-hoc entries - only update if values actually changed
   useEffect(() => {
-    if (entry.work_item_type === 'ad_hoc' && entry.start_time && entry.end_time) {
+    if (entry?.work_item_type === 'ad_hoc' && entry.start_time && entry.end_time) {
       const start = parseISO(entry.start_time);
       const end = parseISO(entry.end_time);
       
@@ -44,10 +44,12 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
         });
       }
     }
-  }, [entry.work_item_type, entry.start_time, entry.end_time, index, onUpdateTimeInputs, timeInputs]);
+  }, [entry?.work_item_type, entry?.start_time, entry?.end_time, index, onUpdateTimeInputs, timeInputs]);
   const { hours: durationHours, minutes: durationMinutes } = useMemo(
-    () => getDurationParts(calculateDuration(parseISO(entry.start_time), parseISO(entry.end_time))),
-    [entry.start_time, entry.end_time]
+    () => entry?.start_time && entry?.end_time 
+      ? getDurationParts(calculateDuration(parseISO(entry.start_time), parseISO(entry.end_time)))
+      : { hours: 0, minutes: 0 },
+    [entry?.start_time, entry?.end_time]
   );
 
   const serviceOptions = useMemo(() => 
@@ -67,8 +69,8 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
   );
 
   const selectedService = useMemo(() => 
-    services.find(s => s.id === entry.service_id),
-    [entry.service_id]
+    services.find(s => s.id === entry?.service_id),
+    [entry?.service_id]
   );
 
   const [validationErrors, setValidationErrors] = useState<{
@@ -82,6 +84,7 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
   const [showErrors, setShowErrors] = useState(false);
 
   const validateTimes = useCallback(() => {
+    if (!entry?.start_time || !entry?.end_time) return false;
     const startTime = parseISO(entry.start_time);
     const endTime = parseISO(entry.end_time);
     const duration = calculateDuration(startTime, endTime);
@@ -98,7 +101,7 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
 
     setValidationErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [entry.start_time, entry.end_time]);
+  }, [entry?.start_time, entry?.end_time]);
 
   const updateBillableDuration = useCallback((updatedEntry: typeof entry, newDuration: number) => {
     // If entry is billable, update duration. Otherwise keep it at 0
@@ -109,7 +112,7 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
   }, []);
 
   const handleTimeChange = useCallback((type: 'start' | 'end', value: string) => {
-    if (!isEditable) return;
+    if (!isEditable || !entry) return;
 
     const currentDate = type === 'start' ? parseISO(entry.start_time) : parseISO(entry.end_time);
     const newTime = parseTimeToDate(value, currentDate);
@@ -141,7 +144,7 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
     }
     
     // Ensure we have required fields
-    if (!entry.service_id) {
+    if (!entry?.service_id) {
       setValidationErrors(prev => ({
         ...prev,
         service: 'Service is required'
@@ -149,8 +152,8 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
       return;
     }
 
-    const selectedService = services.find(s => s.id === entry.service_id);
-    if (selectedService?.is_taxable && !entry.tax_region) {
+    const selectedService = services.find(s => s.id === entry?.service_id);
+    if (selectedService?.is_taxable && !entry?.tax_region) {
       setValidationErrors(prev => ({
         ...prev,
         taxRegion: 'Tax region is required for taxable services'
@@ -166,6 +169,7 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
   }, [onSave, validateTimes]);
 
   const handleDurationChange = useCallback((type: 'hours' | 'minutes', value: number) => {
+    if (!entry) return;
     const hours = type === 'hours' ? value : durationHours;
     const minutes = type === 'minutes' ? value : durationMinutes;
     
@@ -198,7 +202,7 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
     <div className="border p-4 rounded">
       <div className="flex justify-end items-center mb-4">
         <div className="flex items-center">
-          {entry.isDirty && (
+          {entry?.isDirty && (
             <span className="text-yellow-500 text-sm mr-2">Unsaved changes</span>
           )}
         </div>
@@ -206,12 +210,9 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
           <Button
             id={`${id}-delete-entry-${index}-btn`}
             onClick={() => onDelete(index)}
-            variant="ghost"
-            size="sm"
-            className="h-10 w-10 text-red-500 hover:text-red-600"
-            title="Delete entry"
+            variant="destructive"
           >
-            <XCircle className="h-6 w-6" />
+            Delete Time Entry
           </Button>
         </div>
       </div>
@@ -221,10 +222,12 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
           <div>
             <label className="block text-sm font-medium text-gray-700">Service <span className="text-red-500">*</span></label>
             <CustomSelect
-              value={entry.service_id || ''}
+              value={entry?.service_id || ''}
               onValueChange={(value) => {
-                const updatedEntry = { ...entry, service_id: value };
-                onUpdateEntry(index, updatedEntry);
+                if (entry) {
+                  const updatedEntry = { ...entry, service_id: value };
+                  onUpdateEntry(index, updatedEntry);
+                }
               }}
               disabled={!isEditable}
               className="mt-1 w-full"
@@ -240,10 +243,12 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
               Tax Region {selectedService?.is_taxable && <span className="text-red-500">*</span>}
             </label>
             <CustomSelect
-              value={entry.tax_region || ''}
+              value={entry?.tax_region || ''}
               onValueChange={(value) => {
-                const updatedEntry = { ...entry, tax_region: value };
-                onUpdateEntry(index, updatedEntry);
+                if (entry) {
+                  const updatedEntry = { ...entry, tax_region: value };
+                  onUpdateEntry(index, updatedEntry);
+                }
               }}
               disabled={!isEditable || !selectedService?.is_taxable}
               className="mt-1 w-full"
@@ -261,7 +266,7 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
             <label className="block text-sm font-medium text-gray-700">Start Time</label>
             <TimePicker
               id={`${id}-start-time-${index}`}
-              value={timeInputs[`start-${index}`] || formatTimeForInput(parseISO(entry.start_time))}
+              value={timeInputs[`start-${index}`] || (entry?.start_time ? formatTimeForInput(parseISO(entry.start_time)) : '')}
               onChange={(value) => handleTimeChange('start', value)}
               disabled={!isEditable}
               className="mt-1"
@@ -274,7 +279,7 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
             <label className="block text-sm font-medium text-gray-700">End Time</label>
             <TimePicker
               id={`${id}-end-time-${index}`}
-              value={timeInputs[`end-${index}`] || formatTimeForInput(parseISO(entry.end_time))}
+              value={timeInputs[`end-${index}`] || (entry?.end_time ? formatTimeForInput(parseISO(entry.end_time)) : '')}
               onChange={(value) => handleTimeChange('end', value)}
               disabled={!isEditable}
               className="mt-1"
@@ -316,23 +321,25 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
           <div className="flex items-center justify-between mt-4">
             <div className="flex items-center space-x-2">
               <span className="text-sm font-medium text-gray-700">
-                {entry.billable_duration > 0 ? 'Billable' : 'Non-billable'}
+                {entry?.billable_duration > 0 ? 'Billable' : 'Non-billable'}
               </span>
               <Switch
                 id='billable-duration'
-                checked={entry.billable_duration > 0}
+                checked={entry?.billable_duration > 0}
                 onCheckedChange={(checked) => {
-                  const duration = calculateDuration(
-                    parseISO(entry.start_time),
-                    parseISO(entry.end_time)
-                  );
-                  
-                  onUpdateEntry(
-                    index,
-                    checked
-                      ? updateBillableDuration({ ...entry, billable_duration: 1 }, duration)
-                      : { ...entry, billable_duration: 0 }
-                  );
+                  if (entry?.start_time && entry?.end_time) {
+                    const duration = calculateDuration(
+                      parseISO(entry.start_time),
+                      parseISO(entry.end_time)
+                    );
+                    
+                    onUpdateEntry(
+                      index,
+                      checked
+                        ? updateBillableDuration({ ...entry, billable_duration: 1 }, duration)
+                        : { ...entry, billable_duration: 0 }
+                    );
+                  }
                 }}
                 className="data-[state=checked]:bg-primary-500"
               />
@@ -344,10 +351,12 @@ const TimeEntryEditForm = memo(function TimeEntryEditForm({
           <label className="block text-sm font-medium text-gray-700">Notes</label>
           <Input
             id='notes'
-            value={entry.notes}
+            value={entry?.notes || ''}
             onChange={(e) => {
-              const updatedEntry = { ...entry, notes: e.target.value };
-              onUpdateEntry(index, updatedEntry);
+              if (entry) {
+                const updatedEntry = { ...entry, notes: e.target.value };
+                onUpdateEntry(index, updatedEntry);
+              }
             }}
             placeholder="Notes"
             disabled={!isEditable}

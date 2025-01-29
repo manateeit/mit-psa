@@ -18,8 +18,8 @@ const TimeEntryReadOnly = memo(function TimeEntryReadOnly({
   onDelete
 }: TimeEntryReadOnlyProps) {
   const selectedService = useMemo(() => 
-    getServiceById(services, entry.service_id),
-    [services, entry.service_id]
+    getServiceById(services, entry?.service_id),
+    [services, entry?.service_id]
   );
 
   return (
@@ -28,12 +28,12 @@ const TimeEntryReadOnly = memo(function TimeEntryReadOnly({
         <div className="flex items-center space-x-2">
           <BsClock className="text-gray-400" />
           <span>
-            {formatTimeForInput(parseISO(entry.start_time))} - {formatTimeForInput(parseISO(entry.end_time))}
+            {entry?.start_time && formatTimeForInput(parseISO(entry.start_time))} - {entry?.end_time && formatTimeForInput(parseISO(entry.end_time))}
           </span>
         </div>
         <span className="text-gray-600">|</span>
         <span>{selectedService?.name || 'No service selected'}</span>
-        {entry.notes && (
+        {entry?.notes && (
           <>
             <span className="text-gray-600">|</span>
             <span className="text-gray-600 truncate max-w-[200px]">{entry.notes}</span>

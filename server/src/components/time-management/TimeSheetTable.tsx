@@ -1,7 +1,10 @@
 'use client'
 
-import React from 'react';
-import { ITimeEntryWithWorkItem } from '@/interfaces/timeEntry.interfaces';
+import React, { useState }  from 'react';
+import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
+import { Button } from '@/components/ui/Button';
+import { X } from 'lucide-react';
+import { ITimeEntryWithWorkItemString } from '@/interfaces/timeEntry.interfaces';
 import { IExtendedWorkItem } from '@/interfaces/workItem.interfaces';
 import { formatISO, parseISO } from 'date-fns';
 
@@ -10,6 +13,7 @@ interface TimeSheetTableProps {
     workItemsByType: Record<string, IExtendedWorkItem[]>;
     groupedTimeEntries: Record<string, ITimeEntryWithWorkItemString[]>;
     isEditable: boolean;
+    onDeleteWorkItem: (workItemId: string) => Promise<void>;
     onCellClick: (params: {
         workItem: IExtendedWorkItem;
         date: string;
@@ -21,10 +25,6 @@ interface TimeSheetTableProps {
     onWorkItemClick: (workItem: IExtendedWorkItem) => void;
 }
 
-interface ITimeEntryWithWorkItemString extends Omit<ITimeEntryWithWorkItem, 'start_time' | 'end_time'> {
-    start_time: string;
-    end_time: string;
-}
 
 type BillabilityPercentage = 0 | 25 | 50 | 75 | 100;
 
@@ -74,9 +74,26 @@ export function TimeSheetTable({
     isEditable,
     onCellClick,
     onAddWorkItem,
-    onWorkItemClick
+    onWorkItemClick,
+    onDeleteWorkItem
 }: TimeSheetTableProps): JSX.Element {
+    const [selectedWorkItemToDelete, setSelectedWorkItemToDelete] = useState<string | null>(null);
+    
     return (
+        <React.Fragment>
+            <ConfirmationDialog
+                isOpen={!!selectedWorkItemToDelete}
+                onConfirm={async () => {
+                    if (selectedWorkItemToDelete) {
+                        await onDeleteWorkItem(selectedWorkItemToDelete);
+                        setSelectedWorkItemToDelete(null);
+                    }
+                }}
+                onClose={() => setSelectedWorkItemToDelete(null)}
+                title="Delete Work Item"
+                message="This will permanently delete all time entries for this work item. This action cannot be undone."
+                confirmLabel="Delete"
+            />
         <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                 <thead>
@@ -108,11 +125,11 @@ export function TimeSheetTable({
                                 const entries = groupedTimeEntries[workItem.work_item_id] || [];
                                 return (
                                     <tr key={`${workItem.work_item_id}-${Math.random()}`}>
-                                        <td 
-                                            className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 shadow-[4px_0_6px_rgba(0,0,0,0.1)] border-t border-b sticky left-0 z-10 bg-white min-w-fit max-w-[15%] truncate bg-white cursor-pointer hover:bg-gray-50"
-                                            onClick={() => onWorkItemClick(workItem)}
-                                        >
-                                        <div className="flex flex-col">
+                                    <td 
+                                        className="px-6 py-4 pr-1 whitespace-nowrap text-sm font-medium text-gray-900 shadow-[4px_0_6px_rgba(0,0,0,0.1)] border-t border-b sticky left-0 z-10 bg-white min-w-fit max-w-[15%] truncate bg-white cursor-pointer hover:bg-gray-50"
+                                        onClick={() => onWorkItemClick(workItem)}
+                                    >
+                                        <div className="flex flex-col pr-8">
                                             <span>
                                                 {workItem.type === 'ticket'
                                                     ? `${workItem.ticket_number} - ${workItem.title || workItem.name}`
@@ -126,7 +143,22 @@ export function TimeSheetTable({
                                             )}
                                             <span className="text-xs text-gray-500 mt-1">{formatWorkItemType(workItem.type)}</span>
                                         </div>
-                                        </td>
+                                        {isEditable && (
+                                            <Button
+                                                id="delete-workitem-button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="absolute right-1 top-2 p-1 hover:bg-[rgb(var(--color-primary-50))]"
+                                                title="Delete"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedWorkItemToDelete(workItem.work_item_id);
+                                                }}
+                                            >
+                                                <X className="h-4 w-4 text-red-500" />
+                                            </Button>
+                                        )}
+                                    </td>
                                         {dates.map((date): JSX.Element => {
                                             const dayEntries = entries.filter(entry =>
                                                 parseISO(entry.start_time).toDateString() === date.toDateString()
@@ -271,5 +303,6 @@ export function TimeSheetTable({
                 </div>
             </div>
         </div>
+        </React.Fragment>
     );
 }
