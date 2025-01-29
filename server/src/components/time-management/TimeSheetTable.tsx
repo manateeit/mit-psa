@@ -3,7 +3,7 @@
 import React, { useState }  from 'react';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import { Button } from '@/components/ui/Button';
-import { X } from 'lucide-react';
+import { Trash } from 'lucide-react';
 import { ITimeEntryWithWorkItemString } from '@/interfaces/timeEntry.interfaces';
 import { IExtendedWorkItem } from '@/interfaces/workItem.interfaces';
 import { formatISO, parseISO } from 'date-fns';
@@ -155,7 +155,7 @@ export function TimeSheetTable({
                                                     setSelectedWorkItemToDelete(workItem.work_item_id);
                                                 }}
                                             >
-                                                <X className="h-4 w-4 text-red-500" />
+                                                <Trash className="h-4 w-4 text-[rgb(var(--color-text-300))] hover:text-red-600" />
                                             </Button>
                                         )}
                                     </td>

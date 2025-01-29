@@ -37,6 +37,7 @@ const TechnicianDispatchDashboard: React.FC = () => {
     { value: 'all', label: 'All Types' },
     { value: 'ticket', label: 'Tickets' },
     { value: 'project_task', label: 'Project Tasks' },
+    { value: 'ad_hoc', label: 'Ad Hoc Entries'},
     { value: 'non_billable_category', label: 'Non-Billable' }
   ];
 
