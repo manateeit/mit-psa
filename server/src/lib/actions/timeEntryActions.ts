@@ -635,6 +635,26 @@ export async function deleteTimeEntry(entryId: string): Promise<void> {
   }
 }
 
+export async function deleteWorkItem(workItemId: string): Promise<void> {
+  const {knex: db} = await createTenantKnex();
+  const session = await getServerSession(options);
+  if (!session?.user?.id) {
+    throw new Error("User not authenticated");
+  }
+
+  try {
+    await db.transaction(async (trx) => {
+      // First delete all time entries associated with this work item
+      await trx('time_entries')
+        .where({ work_item_id: workItemId })
+        .delete();
+    });
+  } catch (error) {
+    console.error('Error deleting work item:', error);
+    throw new Error('Failed to delete work item');
+  }
+}
+
 export async function fetchServicesForTimeEntry(workItemType?: string): Promise<{ id: string; name: string; type: string; is_taxable: boolean }[]> {
   const {knex: db} = await createTenantKnex();
 

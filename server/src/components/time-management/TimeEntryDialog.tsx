@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogFooter } from '../ui/Dialog';
 import { ConfirmationDialog } from '../ui/ConfirmationDialog';
 import { deleteTimeEntry, fetchTimeEntriesForTimeSheet } from '../../lib/actions/timeEntryActions';
 import { Button } from '../ui/Button';
-import { ITimeEntry, ITimeEntryWithWorkItem, ITimePeriod, TimeSheetStatus } from '../../interfaces/timeEntry.interfaces';
+import { ITimeEntry, ITimeEntryWithWorkItem, ITimePeriod, TimeSheetStatus, ITimeEntryWithWorkItemString } from '../../interfaces/timeEntry.interfaces';
 import { IWorkItem } from '../../interfaces/workItem.interfaces';
 import { TimeEntryProvider, useTimeEntry } from './TimeEntryProvider';
 import { ReflectionContainer } from '@/types/ui-reflection/ReflectionContainer';
@@ -32,11 +32,6 @@ interface TimeEntryDialogProps {
   timeSheetId?: string;
   onTimeEntriesUpdate?: (entries: ITimeEntryWithWorkItemString[]) => void;
   inDrawer?: boolean;
-}
-
-interface ITimeEntryWithWorkItemString extends Omit<ITimeEntryWithWorkItem, 'start_time' | 'end_time'> {
-  start_time: string;
-  end_time: string;
 }
 
 // Main dialog content component

@@ -89,3 +89,8 @@ export interface ITimeSheetWithUserInfo extends ITimeSheet {
   first_name: string;
   last_name: string;
 }
+
+export interface ITimeEntryWithWorkItemString extends Omit<ITimeEntryWithWorkItem, 'start_time' | 'end_time'> {
+  start_time: string;
+  end_time: string;
+}
