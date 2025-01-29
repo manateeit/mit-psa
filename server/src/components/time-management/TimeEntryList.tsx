@@ -46,7 +46,7 @@ const TimeEntryList = memo(function TimeEntryList({
   return (
     <div className="space-y-4">
       {entries.map((entry, index): JSX.Element => (
-        <div key={entry.entry_id || entry.tempId || `entry-${index}`}>
+        <div key={entry?.entry_id || entry?.tempId || `entry-${index}`}>
           {editingIndex === index ? (
             <TimeEntryEditForm
               id={id}
