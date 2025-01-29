@@ -1,4 +1,4 @@
-import ManagerApprovalDashboard from '@/components/time-management/ManagerApprovalDashboard';
+import ManagerApprovalDashboard from '@/components/time-management/approvals/ManagerApprovalDashboard';
 import { findUserById } from '@/lib/actions/user-actions/userActions';
 import { getServerSession } from "next-auth/next";
 import { options } from "@/app/api/auth/[...nextauth]/options";
