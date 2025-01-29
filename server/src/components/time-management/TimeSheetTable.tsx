@@ -132,13 +132,27 @@ export function TimeSheetTable({
                                                 parseISO(entry.start_time).toDateString() === date.toDateString()
                                             );
                                             
-                                            // Use billable_duration for both total and billable
+                                            const totalDuration = dayEntries.reduce((sum, entry) => {
+                                                const start = parseISO(entry.start_time);
+                                                const end = parseISO(entry.end_time);
+                                                const durationInMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+                                                return sum + durationInMinutes;
+                                            }, 0);
+
                                             const totalBillableDuration = dayEntries.reduce((sum, entry) => 
                                                 sum + entry.billable_duration, 0
                                             );
 
-                                            // Since all time is billable, use primary color scheme
-                                            const colors = billabilityColorScheme[100];
+                                            // Calculate billability percentage
+                                            const billabilityPercentage = totalDuration === 0 ? 0 :
+                                                Math.round((totalBillableDuration / totalDuration) * 100) as BillabilityPercentage;
+                                            
+                                            // Map to nearest billability tier
+                                            const billabilityTier = [0, 25, 50, 75, 100].reduce((prev, curr) => 
+                                                Math.abs(curr - billabilityPercentage) < Math.abs(prev - billabilityPercentage) ? curr : prev
+                                            ) as BillabilityPercentage;
+
+                                            const colors = billabilityColorScheme[billabilityTier];
 
                                             return (
                                                 <td
@@ -195,7 +209,7 @@ export function TimeSheetTable({
                                                             }}
                                                         >
                                                             <div>
-                                                                <div className="font-medium text-gray-700">{`Total: ${formatDuration(totalBillableDuration)}`}</div>
+                                                                <div className="font-medium text-gray-700">{`Total: ${formatDuration(totalDuration)}`}</div>
                                                                 <div className="text-gray-600">{`Billable: ${formatDuration(totalBillableDuration)}`}</div>
                                                             </div>
                                                         </div>
@@ -214,14 +228,23 @@ export function TimeSheetTable({
                     <tr className="shadow-[0px_-4px_6px_rgba(0,0,0,0.1)]">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r z-10 min-w-fit max-w-[15%] shadow-[4px_0_6px_rgba(0,0,0,0.1)] sticky left-0 bg-white">Total</td>
                         {dates.map((date): JSX.Element => {
-                            // Use billable_duration for totals in footer
-                            const totalBillableDuration = Object.values(groupedTimeEntries).flat()
-                                .filter((entry) => parseISO(entry.start_time).toDateString() === date.toDateString())
-                                .reduce((sum, entry) => sum + entry.billable_duration, 0);
+                            const entriesForDate = Object.values(groupedTimeEntries).flat()
+                                .filter((entry) => parseISO(entry.start_time).toDateString() === date.toDateString());
+                            
+                            const totalDuration = entriesForDate.reduce((sum, entry) => {
+                                const start = parseISO(entry.start_time);
+                                const end = parseISO(entry.end_time);
+                                const durationInMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+                                return sum + durationInMinutes;
+                            }, 0);
+
+                            const totalBillableDuration = entriesForDate.reduce((sum, entry) => 
+                                sum + entry.billable_duration, 0
+                            );
                             
                             return (
                                 <td key={formatISO(date)} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 border-r">
-                                    <div>{`Total: ${formatDuration(totalBillableDuration)}`}</div>
+                                    <div>{`Total: ${formatDuration(totalDuration)}`}</div>
                                     <div>{`Billable: ${formatDuration(totalBillableDuration)}`}</div>
                                 </td>
                             );
