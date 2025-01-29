@@ -1,5 +1,5 @@
-import { ITimeEntry } from '../../interfaces/timeEntry.interfaces';
-import { TaxRegion } from '../../types/types.d';
+import { ITimeEntry } from '@/interfaces';
+import { TaxRegion } from '@/types/types.d';
 
 export interface Service {
   id: string;

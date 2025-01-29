@@ -13,7 +13,7 @@ import { useDrawer } from '@/context/DrawerContext';
 import { formatISO, parseISO } from 'date-fns';
 import { TimeSheetTable } from './TimeSheetTable';
 import { TimeSheetHeader } from './TimeSheetHeader';
-import { TimeSheetComments } from './TimeSheetComments';
+import { TimeSheetComments } from '@/components/time-management/approvals/TimeSheetComments';
 import { WorkItemDrawer } from './WorkItemDrawer';
 
 interface TimeSheetProps {

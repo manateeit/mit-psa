@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, MouseEvent } from 'react';
 import { Calendar, momentLocalizer, NavigateAction, View } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
@@ -8,14 +8,16 @@ import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Button } from '../ui/Button';
 import EntryPopup from './EntryPopup';
-import { getCurrentUserScheduleEntries, addScheduleEntry, updateScheduleEntry, deleteScheduleEntry } from '../../lib/actions/scheduleActions';
-import { IScheduleEntry } from '../../interfaces/schedule.interfaces';
+import { getCurrentUserScheduleEntries, addScheduleEntry, updateScheduleEntry, deleteScheduleEntry } from '@/lib/actions/scheduleActions';
+import { IScheduleEntry } from '@/interfaces/schedule.interfaces';
 import { produce } from 'immer';
 import { Dialog } from '@radix-ui/react-dialog';
-import { WorkItemType } from '../../interfaces/workItem.interfaces';
-import { useUsers } from '../../hooks/useUsers';
-import { getCurrentUser } from '../../lib/actions/user-actions/userActions';
-import { IUserWithRoles } from '../../interfaces/auth.interfaces';
+import { WorkItemType, IExtendedWorkItem } from '@/interfaces/workItem.interfaces';
+import { useUsers } from '@/hooks/useUsers';
+import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
+import { IUserWithRoles } from '@/interfaces/auth.interfaces';
+import { WorkItemDrawer } from '@/components/time-management/time-entry/time-sheet/WorkItemDrawer';
+import { useDrawer } from '@/context/DrawerContext';
 
 const localizer = momentLocalizer(moment);
 
@@ -30,9 +32,10 @@ const ScheduleCalendar: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [date, setDate] = useState(new Date());
+  const { openDrawer, closeDrawer } = useDrawer();
 
   const workItemColors: Record<WorkItemType, string> = {
-    ticket: 'rgb(var(--color-primary-100))',
+    ticket: 'rgb(var(--color-primary-200))',
     project_task: 'rgb(var(--color-secondary-100))',
     non_billable_category: 'rgb(var(--color-accent-100))',
     ad_hoc: 'rgb(var(--color-border-200))'
@@ -151,15 +154,58 @@ const ScheduleCalendar: React.FC = () => {
     setShowEntryPopup(true);
   };
 
-  const handleSelectEvent = (event: object) => {
-    setSelectedEvent(event as IScheduleEntry);
-    setShowEntryPopup(true);
+  const handleSelectEvent = (event: object, e: React.SyntheticEvent<HTMLElement>) => {
+    const scheduleEvent = event as IScheduleEntry;
+    const target = e.target as HTMLElement;
+    const isTicketOrTask = scheduleEvent.work_item_type === 'ticket' || scheduleEvent.work_item_type === 'project_task';
+    
+    // If it's a title click on a ticket or project task, open the drawer
+    if (target.classList.contains('event-title') && isTicketOrTask) {
+      e.stopPropagation(); // Prevent EntryPopup from opening
+      const workItem = {
+        work_item_id: scheduleEvent.work_item_id || '',
+        type: scheduleEvent.work_item_type,
+        name: scheduleEvent.title,
+        title: scheduleEvent.title,
+        description: scheduleEvent.notes || '',
+        startTime: new Date(scheduleEvent.scheduled_start),
+        endTime: new Date(scheduleEvent.scheduled_end),
+        scheduled_start: new Date(scheduleEvent.scheduled_start).toISOString(),
+        scheduled_end: new Date(scheduleEvent.scheduled_end).toISOString(),
+        users: scheduleEvent.assigned_user_ids.map(id => ({ user_id: id })),
+        tenant: scheduleEvent.tenant,
+        is_billable: true 
+      } as IExtendedWorkItem;
+
+      openDrawer(
+        <div className="h-full">
+          <WorkItemDrawer
+            workItem={workItem}
+            onClose={closeDrawer}
+            onTaskUpdate={handleTaskUpdate}
+            onScheduleUpdate={handleScheduleUpdate}
+          />
+        </div>
+      );
+    } else {
+      // For non-title clicks or non-ticket/task items, show the EntryPopup
+      setSelectedEvent(scheduleEvent);
+      setShowEntryPopup(true);
+    }
   };
 
   const handleEntryPopupClose = () => {
     setShowEntryPopup(false);
     setSelectedEvent(null);
     setSelectedSlot(null);
+  };
+
+  const handleTaskUpdate = async (updated: any) => {
+    await fetchEvents(); // Refresh events after task update
+  };
+
+  const handleScheduleUpdate = async (updated: any) => {
+    await fetchEvents(); // Refresh events after schedule update
   };
 
   const handleEntryPopupSave = async (entryData: IScheduleEntry) => {
@@ -333,6 +379,24 @@ const ScheduleCalendar: React.FC = () => {
     };
   };
 
+  const EventWrapper = ({ event: calendarEvent, children }: { event: object; children?: React.ReactNode }) => {
+    const event = calendarEvent as IScheduleEntry;
+    const isTicketOrTask = event.work_item_type === 'ticket' || event.work_item_type === 'project_task';
+    
+    return (
+      <div style={{ height: '100%' }}>
+        <div className="flex flex-col h-full">
+          <div className={`event-title ${isTicketOrTask ? 'cursor-pointer hover:underline' : ''}`}>
+            {event.title}
+          </div>
+          <div className="flex-1">
+            {children}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="h-screen flex flex-col">
       <style jsx global>{`
@@ -476,6 +540,9 @@ const ScheduleCalendar: React.FC = () => {
           onEventDrop={handleEventDrop}
           step={30}
           timeslots={2}
+          components={{
+            event: EventWrapper
+          }}
         />
       </div>
       <Dialog open={showEntryPopup} onOpenChange={setShowEntryPopup}>

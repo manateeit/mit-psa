@@ -25,7 +25,7 @@ import ContactDetailsView from '../contacts/ContactDetailsView';
 import { addTicketResource, getTicketResources, removeTicketResource } from '../../lib/actions/ticketResourceActions';
 import TechnicianDispatchDashboard from '../technician-dispatch/TechnicianDispatchDashboard';
 import { ReflectionContainer } from '../../types/ui-reflection/ReflectionContainer';
-import TimeEntryDialog from '@/components/time-management/TimeEntryDialog';
+import TimeEntryDialog from '@/components/time-management/time-entry/time-sheet/TimeEntryDialog';
 
 interface TicketDetailsProps {
     id?: string; // Made optional to maintain backward compatibility

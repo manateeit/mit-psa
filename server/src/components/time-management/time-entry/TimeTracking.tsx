@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TimeSheet } from './TimeSheet';
+import { TimeSheet } from './time-sheet/TimeSheet';
 import { TimePeriodList } from './TimePeriodList';
 import { SkeletonTimeSheet } from './SkeletonTimeSheet';
 import { ITimeSheet, ITimePeriodWithStatus, ITimeEntry } from '@/interfaces/timeEntry.interfaces';

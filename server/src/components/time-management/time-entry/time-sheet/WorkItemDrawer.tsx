@@ -9,7 +9,7 @@ import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { toast } from 'react-hot-toast';
 import TicketDetails from '@/components/tickets/TicketDetails';
 import TaskEdit from '@/components/projects/TaskEdit';
-import EntryPopup from '@/components/time-management/EntryPopup';
+import EntryPopup from '@/components/schedule/EntryPopup';
 import { useTenant } from '@/components/TenantProvider';
 
 interface WorkItemDrawerProps {

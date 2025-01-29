@@ -1,5 +1,5 @@
 import React from 'react';
-import ScheduleCalendar from '@/components/time-management/ScheduleCalendar';
+import ScheduleCalendar from '@/components/schedule/ScheduleCalendar';
 
 export default function SchedulePage() {
   return (
