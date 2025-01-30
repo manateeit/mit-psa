@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import TicketCard from './TicketCard';
+import WorkItemCard from './WorkItemCard';
+import { WorkItemDetailsDrawer } from './WorkItemDetailsDrawer';
+import { useDrawer } from '@/context/DrawerContext';
 import TechnicianScheduleGrid from './TechnicianScheduleGrid';
 import { IScheduleEntry } from '@/interfaces/schedule.interfaces';
-import { WorkItemType, IWorkItem } from '@/interfaces/workItem.interfaces';
+import { WorkItemType, IWorkItem, IExtendedWorkItem } from '@/interfaces/workItem.interfaces';
 import { IUser } from '@/interfaces/auth.interfaces';
 import { getAllUsers } from '@/lib/actions/user-actions/userActions';
 import { searchWorkItems } from '@/lib/actions/workItemActions';
@@ -214,6 +216,8 @@ const TechnicianDispatchDashboard: React.FC = () => {
     }
   }, [workItems, events, debouncedSaveSchedule]);
 
+  const { openDrawer, closeDrawer } = useDrawer();
+  
   const [dragOverlay, setDragOverlay] = useState<{
     visible: boolean;
     x: number;
@@ -375,7 +379,7 @@ const TechnicianDispatchDashboard: React.FC = () => {
                   setSortOrder(order => order === 'asc' ? 'desc' : 'asc');
                   setCurrentPage(1);
                 }}
-                className="p-2 border border-[rgb(var(--color-border-200))] rounded bg-white text-[rgb(var(--color-text-900))] hover:bg-[rgb(var(--color-border-100))] transition-colors focus:outline-none focus:border-[rgb(var(--color-primary-400))] focus:ring-1 focus:ring-[rgb(var(--color-primary-400))]"
+                className="p-1 border border-[rgb(var(--color-border-200))] rounded bg-white text-[rgb(var(--color-text-900))] hover:bg-[rgb(var(--color-border-100))] transition-colors focus:outline-none focus:border-[rgb(var(--color-primary-400))] focus:ring-1 focus:ring-[rgb(var(--color-primary-400))]"
               >
                 {sortOrder === 'asc' ? '↑' : '↓'}
               </button>
@@ -392,11 +396,28 @@ const TechnicianDispatchDashboard: React.FC = () => {
                 onDrag={handleDrag}
                 onDragEnd={handleDragEnd}
               >
-                <TicketCard
+                <WorkItemCard
                   title={item.name}
                   description={item.description}
                   type={item.type}
                   isBillable={item.is_billable}
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation(); // Prevent drag event from firing
+                    openDrawer(
+                      <WorkItemDetailsDrawer
+                        workItem={item as IExtendedWorkItem}
+                        onClose={closeDrawer}
+                        onTaskUpdate={(updatedTask) => {
+                          // Handle task update if needed
+                          closeDrawer();
+                        }}
+                        onScheduleUpdate={(entryData) => {
+                          // Handle schedule update if needed
+                          closeDrawer();
+                        }}
+                      />
+                    );
+                  }}
                 />
               </div>
             ))}
@@ -488,7 +509,7 @@ const TechnicianDispatchDashboard: React.FC = () => {
           }}
           className="p-2 border border-[rgb(var(--color-border-200))] rounded bg-white shadow-lg"
         >
-          <TicketCard
+          <WorkItemCard
             title={dragOverlay.item?.name || ''}
             description={dragOverlay.item?.description || ''}
             type={dragOverlay.item?.type || 'ticket'}

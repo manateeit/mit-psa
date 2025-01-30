@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { DialogContent, DialogTitle } from '@radix-ui/react-dialog';
+import { Dialog, DialogContent, DialogTitle } from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { TextArea } from '@/components/ui/TextArea';
@@ -219,7 +219,8 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
   };
 
   return (
-    <DialogContent className={`bg-white p-4 rounded-lg h-auto flex flex-col transition-all duration-300 overflow-y-auto 
+    <Dialog open={true}>
+      <DialogContent className={`bg-white p-4 rounded-lg h-auto flex flex-col transition-all duration-300 overflow-y-auto 
       ${isInDrawer ? 
         'w-fit max-w-[90vw] shadow-none' : 
         'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-[95vw] w-[600px] min-w-[300px] max-h-[90vh] shadow-lg'
@@ -400,7 +401,8 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
         </Button>
         <Button id="save-entry-btn" onClick={handleSave}>Save</Button>
       </div>
-    </DialogContent>
+      </DialogContent>
+    </Dialog>
   );
 };
 

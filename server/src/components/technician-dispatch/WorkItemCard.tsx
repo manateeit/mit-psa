@@ -1,7 +1,7 @@
 import React from 'react';
 import { WorkItemType } from '@/interfaces/workItem.interfaces';
 
-interface TicketCardProps {
+interface WorkItemCardProps {
   ticketNumber?: string;
   priority?: string;
   client?: string;
@@ -10,9 +10,10 @@ interface TicketCardProps {
   description?: string;
   type?: WorkItemType;
   isBillable?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
 }
 
-const TicketCard: React.FC<TicketCardProps> = ({ 
+const WorkItemCard: React.FC<WorkItemCardProps> = ({ 
   ticketNumber, 
   priority, 
   client, 
@@ -20,10 +21,14 @@ const TicketCard: React.FC<TicketCardProps> = ({
   title,
   description,
   type,
-  isBillable
+  isBillable,
+  onClick
 }) => {
   return (
-    <div className="bg-white p-2 rounded shadow">
+    <div 
+      className="bg-white p-2 rounded shadow cursor-pointer hover:bg-gray-50 transition-colors"
+      onClick={onClick}
+    >
       {title ? (
         <>
           <div className="font-bold">{title}</div>
@@ -51,4 +56,4 @@ const TicketCard: React.FC<TicketCardProps> = ({
   );
 };
 
-export default TicketCard;
+export default WorkItemCard;
