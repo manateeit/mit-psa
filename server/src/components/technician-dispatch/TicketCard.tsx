@@ -29,7 +29,13 @@ const TicketCard: React.FC<TicketCardProps> = ({
           <div className="font-bold">{title}</div>
           <div className="text-sm">{description}</div>
           <div className="mt-1 flex justify-between text-xs text-gray-500">
-            <span>{type === 'ticket' ? 'Ticket' : 'Project Task'}</span>
+            <span>
+              {type === 'ticket' ? 'Ticket' : 
+               type === 'ad_hoc' ? 'Ad Hoc Entry' :
+               type === 'project_task' ? 'Project Task' :
+               type === 'non_billable_category' ? 'Non-Billable' : 
+               'Unknown Type'}
+            </span>
             <span>{isBillable ? 'Billable' : 'Non-billable'}</span>
           </div>
         </>

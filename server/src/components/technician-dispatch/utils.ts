@@ -35,6 +35,12 @@ export const getEventColors = (type: WorkItemType) => {
         hover: 'hover:bg-[rgb(var(--color-secondary-200))]',
         text: 'text-[rgb(var(--color-text-900))]'
       };
+    case 'ad_hoc':
+      return {
+        bg: 'bg-[rgb(var(--color-border-200))]',
+        hover: 'hover:bg-[rgb(var(--color-border-300))]',
+        text: 'text-[rgb(var(--color-text-900))]'
+      };
     case 'non_billable_category':
       return {
         bg: 'bg-[rgb(var(--color-accent-100))]',

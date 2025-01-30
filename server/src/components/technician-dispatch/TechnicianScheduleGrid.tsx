@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { IScheduleEntry } from '../../interfaces/schedule.interfaces';
-import { IUser } from '../../interfaces/auth.interfaces';
+import { IScheduleEntry } from '@/interfaces/schedule.interfaces';
+import { IUser } from '@/interfaces/auth.interfaces';
 import TimeHeader from './TimeHeader';
 import TechnicianRow from './TechnicianRow';
 

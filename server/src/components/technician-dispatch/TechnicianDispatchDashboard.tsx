@@ -3,17 +3,16 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import TicketCard from './TicketCard';
 import TechnicianScheduleGrid from './TechnicianScheduleGrid';
-import { IScheduleEntry } from '../../interfaces/schedule.interfaces';
-import { WorkItemType, IWorkItem } from '../../interfaces/workItem.interfaces';
-import { IUser } from '../../interfaces/auth.interfaces';
-import { getAllUsers } from '../../lib/actions/user-actions/userActions';
-import { searchWorkItems } from '../../lib/actions/workItemActions';
-import { addScheduleEntry, updateScheduleEntry, getScheduleEntries, deleteScheduleEntry } from '../../lib/actions/scheduleActions';
-import CustomSelect from '../../components/ui/CustomSelect';
-
-import { DragState } from '../../interfaces/drag.interfaces';
-import { HighlightedSlot } from '../../interfaces/schedule.interfaces';
-import { DropEvent } from '../../interfaces/event.interfaces';
+import { IScheduleEntry } from '@/interfaces/schedule.interfaces';
+import { WorkItemType, IWorkItem } from '@/interfaces/workItem.interfaces';
+import { IUser } from '@/interfaces/auth.interfaces';
+import { getAllUsers } from '@/lib/actions/user-actions/userActions';
+import { searchWorkItems } from '@/lib/actions/workItemActions';
+import { addScheduleEntry, updateScheduleEntry, getScheduleEntries, deleteScheduleEntry } from '@/lib/actions/scheduleActions';
+import CustomSelect from '@/components/ui/CustomSelect';
+import { DragState } from '@/interfaces/drag.interfaces';
+import { HighlightedSlot } from '@/interfaces/schedule.interfaces';
+import { DropEvent } from '@/interfaces/event.interfaces';
 
 const TechnicianDispatchDashboard: React.FC = () => {
   const [selectedPriority, setSelectedPriority] = useState('All');
