@@ -10,7 +10,8 @@ import { WorkItemType, IWorkItem, IExtendedWorkItem } from '@/interfaces/workIte
 import { IUser } from '@/interfaces/auth.interfaces';
 import { getAllUsers } from '@/lib/actions/user-actions/userActions';
 import { searchWorkItems } from '@/lib/actions/workItemActions';
-import { addScheduleEntry, updateScheduleEntry, getScheduleEntries, deleteScheduleEntry } from '@/lib/actions/scheduleActions';
+import { addScheduleEntry, updateScheduleEntry, getScheduleEntries, deleteScheduleEntry, ScheduleActionResult } from '@/lib/actions/scheduleActions';
+import { toast } from 'react-hot-toast';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { DragState } from '@/interfaces/drag.interfaces';
 import { HighlightedSlot } from '@/interfaces/schedule.interfaces';
@@ -71,13 +72,23 @@ const TechnicianDispatchDashboard: React.FC = () => {
   const performSearch = useCallback(async (query: string) => {
     try {
       const { selectedType, sortBy, sortOrder, currentPage } = searchParamsRef.current;
+      // Get start and end of selected date
+      const start = new Date(selectedDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(selectedDate);
+      end.setHours(23, 59, 59, 999);
+
       const result = await searchWorkItems({
         searchTerm: query,
         type: selectedType,
         sortBy,
         sortOrder,
         page: currentPage,
-        pageSize: ITEMS_PER_PAGE
+        pageSize: ITEMS_PER_PAGE,
+        dateRange: {
+          start,
+          end
+        }
       });
 
       setWorkItems(result.items);
@@ -403,16 +414,95 @@ const TechnicianDispatchDashboard: React.FC = () => {
                   isBillable={item.is_billable}
                   onClick={(e: React.MouseEvent) => {
                     e.stopPropagation(); // Prevent drag event from firing
+                    const refreshData = async () => {
+                      try {
+                        // Refresh the work items list
+                        await performSearch(searchQuery);
+                        // Refresh schedule entries
+                        const start = new Date(selectedDate);
+                        start.setHours(0, 0, 0, 0);
+                        const end = new Date(selectedDate);
+                        end.setHours(23, 59, 59, 999);
+                        const scheduleResult = await getScheduleEntries(start, end);
+                        if (scheduleResult.success && scheduleResult.entries) {
+                          setEvents(scheduleResult.entries);
+                        }
+                      } catch (err) {
+                        console.error('Error refreshing data:', err);
+                        toast.error('Failed to refresh data');
+                      }
+                    };
+
                     openDrawer(
                       <WorkItemDetailsDrawer
                         workItem={item as IExtendedWorkItem}
-                        onClose={closeDrawer}
-                        onTaskUpdate={(updatedTask) => {
-                          // Handle task update if needed
+                        onClose={async () => {
+                          await refreshData();
                           closeDrawer();
                         }}
-                        onScheduleUpdate={(entryData) => {
-                          // Handle schedule update if needed
+                        onTaskUpdate={async (updatedTask) => {
+                          try {
+                            await refreshData();
+                            toast.success('Task updated successfully');
+                            closeDrawer();
+                          } catch (err) {
+                            console.error('Error updating task:', err);
+                            toast.error('Failed to update task');
+                          }
+                        }}
+                        onScheduleUpdate={async (entryData) => {
+                          try {
+                            // For ad hoc entries, update the existing entry instead of creating a new one
+                            const existingEvent = events.find(e => 
+                              e.work_item_id === item.work_item_id && 
+                              e.work_item_type === item.type
+                            );
+
+                            if (existingEvent) {
+                              // Update existing entry
+                              const updateResult = await updateScheduleEntry(existingEvent.entry_id, {
+                                ...entryData,
+                                work_item_id: item.work_item_id,
+                                work_item_type: item.type,
+                                title: entryData.title || item.name
+                              });
+                              
+                              if (updateResult.success && updateResult.entry) {
+                                const updatedEntry = updateResult.entry as Omit<IScheduleEntry, 'tenant'>;
+                                setEvents(prevEvents => prevEvents.map(e => 
+                                  e.entry_id === existingEvent.entry_id ? updatedEntry : e
+                                ));
+                                toast.success('Schedule entry updated successfully');
+                              } else {
+                                setError('Failed to update schedule entry');
+                                toast.error('Failed to update schedule entry');
+                              }
+                            } else {
+                              // Create new entry
+                              const createResult = await addScheduleEntry(
+                                {
+                                  ...entryData,
+                                  work_item_id: item.work_item_id,
+                                  work_item_type: item.type,
+                                  title: entryData.title || item.name
+                                },
+                                { assignedUserIds: entryData.assigned_user_ids }
+                              );
+                              
+                              if (createResult.success && createResult.entry) {
+                                const newEntry = createResult.entry as Omit<IScheduleEntry, 'tenant'>;
+                                setEvents(prevEvents => [...prevEvents, newEntry]);
+                                toast.success('Schedule entry created successfully');
+                              } else {
+                                setError('Failed to create schedule entry');
+                                toast.error('Failed to create schedule entry');
+                              }
+                            }
+                          } catch (err) {
+                            console.error('Error saving schedule entry:', err);
+                            setError('Failed to save schedule entry');
+                            toast.error('Failed to save schedule entry');
+                          }
                           closeDrawer();
                         }}
                       />

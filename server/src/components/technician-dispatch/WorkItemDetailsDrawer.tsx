@@ -17,8 +17,8 @@ import { useTenant } from '@/components/TenantProvider';
 interface WorkItemDetailsDrawerProps {
     workItem: IExtendedWorkItem;
     onClose: () => void;
-    onTaskUpdate?: (updatedTask: IProjectTask | null) => void;
-    onScheduleUpdate?: (entryData: Omit<IScheduleEntry, "tenant">) => void;
+    onTaskUpdate: (updatedTask: IProjectTask | null) => Promise<void>;
+    onScheduleUpdate: (entryData: Omit<IScheduleEntry, "tenant">) => Promise<void>;
 }
 
 export function WorkItemDetailsDrawer({
@@ -60,7 +60,6 @@ export function WorkItemDetailsDrawer({
                     return (
                         <div className="h-full">
                             <TaskEdit
-                                task={taskData}
                                 inDrawer={true}
                                 phase={{
                                     phase_id: taskData.phase_id,
@@ -76,20 +75,40 @@ export function WorkItemDetailsDrawer({
                                     wbs_code: taskData.wbs_code,
                                     tenant: tenant
                                 }}
-                                users={taskData.resources.map((resource: any) => ({
-                                    user_id: resource.additional_user_id,
-                                    first_name: resource.first_name,
-                                    last_name: resource.last_name,
-                                    email: '',
-                                    username: '',
-                                    user_type: 'user',
-                                    roles: [],
-                                    tenant: resource.tenant,
-                                    hashed_password: '',
-                                    is_inactive: false
-                                }))}
+                                task={{
+                                    ...taskData,
+                                    tenant: tenant // Ensure tenant is set
+                                }}
+                                users={[
+                                    // Include primary assigned user if exists
+                                    ...(taskData.assigned_to ? [{
+                                        user_id: taskData.assigned_to,
+                                        first_name: taskData.assigned_to_first_name || '',
+                                        last_name: taskData.assigned_to_last_name || '',
+                                        email: '',
+                                        username: '',
+                                        user_type: 'user',
+                                        roles: [],
+                                        tenant: tenant,
+                                        hashed_password: '',
+                                        is_inactive: false
+                                    }] : []),
+                                    // Include additional resources
+                                    ...taskData.resources.map((resource: any) => ({
+                                        user_id: resource.additional_user_id,
+                                        first_name: resource.first_name,
+                                        last_name: resource.last_name,
+                                        email: '',
+                                        username: '',
+                                        user_type: 'user',
+                                        roles: [],
+                                        tenant: tenant,
+                                        hashed_password: '',
+                                        is_inactive: false
+                                    }))
+                                ]}
                                 onClose={onClose}
-                                onTaskUpdated={onTaskUpdate || (() => {})}
+                                onTaskUpdated={onTaskUpdate}
                             />
                         </div>
                     );
@@ -122,7 +141,7 @@ export function WorkItemDetailsDrawer({
                                     updated_at: new Date()
                                 }}
                                 onClose={onClose}
-                                onSave={onScheduleUpdate || (() => {})}
+                                onSave={onScheduleUpdate}
                                 isInDrawer={true}
                             />
                         </div>

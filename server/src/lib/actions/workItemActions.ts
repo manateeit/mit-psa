@@ -44,6 +44,16 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
       })
       .leftJoin('companies as c', 't.company_id', 'c.company_id')
       .whereILike('t.title', db.raw('?', [`%${searchTerm}%`]))
+      .groupBy(
+        't.ticket_id',
+        't.title',
+        't.url',
+        't.ticket_number',
+        't.company_id',
+        'c.company_name',
+        't.closed_at',
+        't.assigned_to'
+      )
       .select(
         't.ticket_id as work_item_id',
         't.title as name',
@@ -59,11 +69,11 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         db.raw('NULL::timestamp with time zone as scheduled_start'),
         db.raw('NULL::timestamp with time zone as scheduled_end'),
         db.raw('t.closed_at::timestamp with time zone as due_date'),
-        db.raw('t.assigned_to::uuid'),
-        db.raw('tr.additional_user_id::uuid')
+        db.raw('ARRAY[t.assigned_to] as assigned_user_ids'),
+        db.raw('array_remove(array_agg(DISTINCT tr.additional_user_id), NULL) as additional_user_ids')
       );
 
-    let projectTasksQuery = db('project_tasks as pt')
+      let projectTasksQuery = db('project_tasks as pt')
       .whereNotIn('pt.task_id', options.availableWorkItemIds || [])
       .join('project_phases as pp', 'pt.phase_id', 'pp.phase_id')
       .join('projects as p', 'pp.project_id', 'p.project_id')
@@ -73,6 +83,17 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
             .andOn('pt.task_id', 'tr.task_id');
       })
       .whereILike('pt.task_name', db.raw('?', [`%${searchTerm}%`]))
+      .groupBy(
+        'pt.task_id',
+        'pt.task_name',
+        'pt.description',
+        'p.project_name',
+        'pp.phase_name',
+        'p.company_id',
+        'c.company_name',
+        'pt.due_date',
+        'pt.assigned_to'
+      )
       .modify((queryBuilder) => {
         if (!options.includeInactive) {
           queryBuilder.where('p.is_inactive', false);
@@ -93,15 +114,22 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         db.raw('NULL::timestamp with time zone as scheduled_start'),
         db.raw('NULL::timestamp with time zone as scheduled_end'),
         db.raw('pt.due_date::timestamp with time zone as due_date'),
-        db.raw('pt.assigned_to::uuid'),
-        db.raw('tr.additional_user_id::uuid')
+        db.raw('ARRAY[pt.assigned_to] as assigned_user_ids'),
+        db.raw('array_remove(array_agg(DISTINCT tr.additional_user_id), NULL) as additional_user_ids')
       );
 
-    let adHocQuery = db('schedule_entries as se')
+      let adHocQuery = db('schedule_entries as se')
       .whereNotIn('se.entry_id', options.availableWorkItemIds || [])
       .where('work_item_type', 'ad_hoc')
       .whereILike('title', db.raw('?', [`%${searchTerm}%`]))
       .leftJoin('schedule_entry_assignees as sea', 'se.entry_id', 'sea.entry_id')
+      .groupBy(
+        'se.entry_id',
+        'se.title',
+        'se.notes',
+        'se.scheduled_start',
+        'se.scheduled_end'
+      )
       .select(
         'se.entry_id as work_item_id',
         'se.title as name',
@@ -117,8 +145,8 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         'se.scheduled_start',
         'se.scheduled_end',
         db.raw('NULL::timestamp with time zone as due_date'),
-        db.raw('sea.user_id::uuid as assigned_to'),
-        db.raw('NULL::uuid as additional_user_id')
+        db.raw('array_remove(array_agg(DISTINCT sea.user_id), NULL) as assigned_user_ids'),
+        db.raw('NULL::uuid[] as additional_user_ids')
       );
 
     // Apply filters
@@ -147,13 +175,6 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
             .orWhere('tr.additional_user_id', options.assignedTo);
       });
       adHocQuery = adHocQuery.where('sea.user_id', options.assignedTo);
-      
-      // Debug logging
-      console.log('Filtering by assigned to me:', {
-        userId: options.assignedTo,
-        query: ticketsQuery.toString(),
-        projectQuery: projectTasksQuery.toString()
-      });
     } else if (options.assignedTo) {
       // Regular "Assigned to" filter
       ticketsQuery = ticketsQuery.where(function() {
@@ -165,13 +186,6 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
             .orWhere('tr.additional_user_id', options.assignedTo);
       });
       adHocQuery = adHocQuery.where('sea.user_id', options.assignedTo);
-      
-      // Debug logging
-      console.log('Filtering by assigned user:', {
-        userId: options.assignedTo,
-        query: ticketsQuery.toString(),
-        projectQuery: projectTasksQuery.toString()
-      });
     }
 
     // Filter by company
@@ -180,24 +194,13 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
       projectTasksQuery = projectTasksQuery.where('p.company_id', options.companyId);
       // Exclude ad hoc entries when filtering by company
       adHocQuery = adHocQuery.whereRaw('1 = 0');
-      
-      // Debug logging
-      console.log('Filtering by company:', {
-        companyId: options.companyId,
-        query: ticketsQuery.toString(),
-        projectQuery: projectTasksQuery.toString()
-      });
     }
 
-    // Filter by date range
+    // Only apply date filtering to ad-hoc entries since they represent actual scheduled work
     if (options.dateRange?.start) {
-      ticketsQuery = ticketsQuery.where('t.entered_at', '>=', options.dateRange.start);
-      projectTasksQuery = projectTasksQuery.where('pt.created_at', '>=', options.dateRange.start);
       adHocQuery = adHocQuery.where('se.scheduled_start', '>=', options.dateRange.start);
     }
     if (options.dateRange?.end) {
-      ticketsQuery = ticketsQuery.where('t.closed_at', '<=', options.dateRange.end);
-      projectTasksQuery = projectTasksQuery.where('pt.due_date', '<=', options.dateRange.end);
       adHocQuery = adHocQuery.where('se.scheduled_end', '<=', options.dateRange.end);
     }
 
@@ -235,7 +238,9 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         phase_name: item.phase_name,
         task_name: item.task_name,
         company_name: item.company_name,
-        due_date: item.due_date
+        due_date: item.due_date,
+        additional_user_ids: item.additional_user_ids || [],
+        assigned_user_ids: item.assigned_user_ids || []
       };
 
       // Add scheduled times for ad-hoc items
@@ -309,25 +314,37 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
     let workItem;
 
     if (workItemType === 'ticket') {
-      workItem = await db('tickets')
-        .where('ticket_id', workItemId)
+      workItem = await db('tickets as t')
+        .where('t.ticket_id', workItemId)
+        .leftJoin('ticket_resources as tr', function() {
+          this.on('t.tenant', 'tr.tenant')
+              .andOn('t.ticket_id', 'tr.ticket_id');
+        })
+        .groupBy('t.ticket_id', 't.title', 't.url', 't.ticket_number', 't.assigned_to')
         .select(
-          'ticket_id as work_item_id',
-          'title as name',
-          'url as description',
+          't.ticket_id as work_item_id',
+          't.title as name',
+          't.url as description',
           db.raw("'ticket' as type"),
-          'ticket_number',
-          'title',
+          't.ticket_number',
+          't.title',
           db.raw('NULL::text as project_name'),
           db.raw('NULL::text as phase_name'),
-          db.raw('NULL::text as task_name')
+          db.raw('NULL::text as task_name'),
+          db.raw('ARRAY[t.assigned_to] as assigned_user_ids'),
+          db.raw('array_remove(array_agg(DISTINCT tr.additional_user_id), NULL) as additional_user_ids')
         )
         .first();
     } else if (workItemType === 'project_task') {
       workItem = await db('project_tasks as pt')
         .join('project_phases as pp', 'pt.phase_id', 'pp.phase_id')
         .join('projects as p', 'pp.project_id', 'p.project_id')
+        .leftJoin('task_resources as tr', function() {
+          this.on('pt.tenant', 'tr.tenant')
+              .andOn('pt.task_id', 'tr.task_id');
+        })
         .where('pt.task_id', workItemId)
+        .groupBy('pt.task_id', 'pt.task_name', 'pt.description', 'p.project_name', 'pp.phase_name', 'pt.assigned_to')
         .select(
           'pt.task_id as work_item_id',
           'pt.task_name as name',
@@ -337,24 +354,30 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
           db.raw('NULL::text as title'),
           'p.project_name',
           'pp.phase_name',
-          'pt.task_name'
+          'pt.task_name',
+          db.raw('ARRAY[pt.assigned_to] as assigned_user_ids'),
+          db.raw('array_remove(array_agg(DISTINCT tr.additional_user_id), NULL) as additional_user_ids')
         )
         .first();
     } else if (workItemType === 'ad_hoc') {
-      workItem = await db('schedule_entries')
-        .where('entry_id', workItemId)
+      workItem = await db('schedule_entries as se')
+        .where('se.entry_id', workItemId)
+        .leftJoin('schedule_entry_assignees as sea', 'se.entry_id', 'sea.entry_id')
+        .groupBy('se.entry_id', 'se.title', 'se.notes', 'se.scheduled_start', 'se.scheduled_end')
         .select(
-          'entry_id as work_item_id',
-          'title as name',
-          'notes as description',
+          'se.entry_id as work_item_id',
+          'se.title as name',
+          'se.notes as description',
           db.raw("'ad_hoc' as type"),
           db.raw('NULL::text as ticket_number'),
-          'title',
+          'se.title',
           db.raw('NULL::text as project_name'),
           db.raw('NULL::text as phase_name'),
           db.raw('NULL::text as task_name'),
-          'scheduled_start',
-          'scheduled_end'
+          'se.scheduled_start',
+          'se.scheduled_end',
+          db.raw('array_remove(array_agg(DISTINCT sea.user_id), NULL) as assigned_user_ids'),
+          db.raw('NULL::uuid[] as additional_user_ids')
         )
         .first();
     }
@@ -370,7 +393,9 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
         title: workItem.title,
         project_name: workItem.project_name,
         phase_name: workItem.phase_name,
-        task_name: workItem.task_name
+        task_name: workItem.task_name,
+        additional_user_ids: workItem.additional_user_ids || [],
+        assigned_user_ids: workItem.assigned_user_ids || []
       };
 
       // Add scheduled times for ad-hoc items
