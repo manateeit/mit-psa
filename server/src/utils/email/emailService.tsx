@@ -1,76 +1,133 @@
-import nodemailer from 'nodemailer'; 
-import ejs from 'ejs';
-import path from 'path';
-import fs from 'fs';
+import nodemailer from 'nodemailer';
+import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
+import { StorageService } from '@/lib/storage/StorageService';
+import { InvoiceViewModel } from '@/interfaces/invoice.interfaces';
 
-import logger from '../logger';
-import { getSecret } from '../../lib/utils/getSecret';
+interface EmailAttachment {
+  filename: string;
+  path: string;
+  contentType: string;
+}
 
-const EMAIL_FROM = process.env.EMAIL_FROM as string;
-const EMAIL_HOST = process.env.EMAIL_HOST as string;
-const EMAIL_PORT = parseInt(process.env.EMAIL_PORT as string, 10);
-const EMAIL_USERNAME = process.env.EMAIL_USERNAME as string;
-const EMAIL_PASSWORD = getSecret('email_password', 'EMAIL_PASSWORD');
-const APP_HOST = process.env.HOST as string;
+interface EmailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  attachments?: EmailAttachment[];
+}
 
-type EmailTemplateData = { [key: string]: string }
-
-interface SendEmailParams {
+interface SendEmailOptions {
   toEmail: string;
   subject: string;
   templateName: string;
-  templateData: EmailTemplateData;
+  templateData: Record<string, any>;
 }
 
+export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
+  try {
+    const emailService = new EmailService();
+    const template = await getEmailTemplate(options.templateName, options.templateData);
+    await emailService.send({
+      to: options.toEmail,
+      subject: options.subject,
+      html: template
+    });
+    return true;
+  } catch (error) {
+    console.error('Failed to send email:', error);
+    return false;
+  }
+}
 
-const transporter = nodemailer.createTransport({
-  host: EMAIL_HOST,
-  port: EMAIL_PORT,
-  secure: EMAIL_PORT === 465, // Only use secure for port 465
-  auth: {
-    user: EMAIL_USERNAME,
-    pass: EMAIL_PASSWORD,
-  },
-});
+async function getEmailTemplate(templateName: string, data: Record<string, any>): Promise<string> {
+  // TODO: Load templates from database or files
+  const templates: Record<string, string> = {
+    verify_email: `
+      <p>Hello {{username}},</p>
+      <p>Please verify your email by clicking the link below:</p>
+      <p><a href="{{verificationUrl}}">Verify Email</a></p>
+    `,
+    recover_password_email: `
+      <p>Hello {{username}},</p>
+      <p>Click the link below to reset your password:</p>
+      <p><a href="{{recoverUrl}}">Reset Password</a></p>
+    `
+  };
 
-const EMAIL_ENABLE = process.env.EMAIL_ENABLE === 'true';
+  const template = templates[templateName];
+  if (!template) {
+    throw new Error(`Email template '${templateName}' not found`);
+  }
 
+  return Object.entries(data).reduce((html, [key, value]) => {
+    return html.replace(new RegExp(`{{${key}}}`, 'g'), value as string);
+  }, template);
+}
 
-export async function sendEmail({
-  toEmail,
-  subject,
-  templateName,
-  templateData,
-}: SendEmailParams): Promise<boolean>{
-    try {
-        if (!EMAIL_ENABLE) {
-            logger.warning('Email sending is disabled');
-            return false;
-        }
-        logger.system(`Sending email to ${toEmail} with subject: ${subject}`);
-        const templatePath = path.resolve('./src/utils/email/templates', `${templateName}.ejs`);
-        const template = fs.readFileSync(templatePath, 'utf8');
+export class EmailService {
+  private transporter: nodemailer.Transporter;
+  private storageService: StorageService;
 
-        const htmlContent = ejs.render(template, {
-            ...templateData,
-            url_app: process.env.APP_HOST,
-            url_master_terms: `${APP_HOST}/master_terms`,
-            url_privacy_policy: `${APP_HOST}/privacy_policy`,
-            });
+  constructor() {
+    this.storageService = new StorageService();
+    this.transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+  }
 
-        const mailOptions: nodemailer.SendMailOptions = {
-            from: EMAIL_FROM,
-            to: toEmail,
-            subject: subject,
-            html: htmlContent,
-            };
+  async send(options: EmailOptions) {
+    const user = await getCurrentUser();
+    
+    return this.transporter.sendMail({
+      from: `"${user?.email}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      ...options
+    });
+  }
 
+  async sendInvoiceEmail(
+    invoice: InvoiceViewModel & { 
+      contact?: { name: string; address: string };
+      recipientEmail: string; 
+    }, 
+    pdfPath: string
+  ) {
+    const template = await this.getInvoiceEmailTemplate();
+    const attachments = [{
+      filename: `invoice_${invoice.invoice_number}.pdf`,
+      path: pdfPath,
+      contentType: 'application/pdf'
+    }];
 
-        await transporter.sendMail(mailOptions);
-        logger.system(`Email sent success to ${toEmail} with subject: ${subject}`);
-        return true;
-    } catch (error) {
-        logger.error('Failed to send email:', error);
-        return false;
-    }
+    return this.send({
+      to: invoice.recipientEmail,
+      subject: template.subject.replace('{{invoice_number}}', invoice.invoice_number),
+      html: this.renderInvoiceTemplate(template.body, invoice),
+      attachments
+    });
+  }
+
+  private async getInvoiceEmailTemplate() {
+    // TODO: Fetch from database
+    return {
+      subject: 'Invoice {{invoice_number}} from Your Company',
+      body: `
+        <p>Dear {{company_name}},</p>
+        <p>Please find attached your invoice {{invoice_number}} for {{total_amount}}.</p>
+        <p>Thank you for your business!</p>
+      `
+    };
+  }
+
+  private renderInvoiceTemplate(template: string, invoice: InvoiceViewModel) {
+    return template
+      .replace(/{{company_name}}/g, invoice.company.name)
+      .replace(/{{invoice_number}}/g, invoice.invoice_number)
+      .replace(/{{total_amount}}/g, `$${(invoice.total_amount / 100).toFixed(2)}`);
+  }
 }
