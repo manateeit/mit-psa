@@ -67,13 +67,19 @@ const ScheduleCalendar: React.FC = () => {
 
   const { users, loading: usersLoading, error: usersError } = useUsers();
   const [currentUserRoles, setCurrentUserRoles] = useState<string[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
 
-  // Fetch current user's roles on mount
+  // Fetch current user's roles and ID on mount
   useEffect(() => {
     async function fetchUserRoles() {
       const user = await getCurrentUser();
-      if (user?.roles) {
-        setCurrentUserRoles(user.roles.map((role): string => role.role_name));
+      if (user) {
+        if (user.roles) {
+          setCurrentUserRoles(user.roles.map((role): string => role.role_name));
+        }
+        if (user.user_id) {
+          setCurrentUserId(user.user_id);
+        }
       }
     }
     fetchUserRoles();
@@ -273,6 +279,7 @@ const ScheduleCalendar: React.FC = () => {
         onSave={handleEntryPopupSave}
         canAssignMultipleAgents={canAssignMultipleAgents}
         users={usersLoading ? [] : (users || [])}
+        currentUserId={currentUserId}
         loading={usersLoading}
         error={usersError}
       />

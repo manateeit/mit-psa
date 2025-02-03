@@ -12,7 +12,7 @@ import { IWorkItem } from '@/interfaces/workItem.interfaces';
 import { getWorkItemById } from '@/lib/actions/workItemActions';
 import CustomSelect from '@/components/ui/CustomSelect';
 import SelectedWorkItem from '@/components/time-management/time-entry/time-sheet/SelectedWorkItem';
-import MultiUserPicker from '@/components/ui/MultiUserPicker';
+import UserPicker from '@/components/ui/UserPicker';
 import { DateTimePicker } from '@/components/ui/DateTimePicker';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 
@@ -23,6 +23,7 @@ interface EntryPopupProps {
   onSave: (entryData: Omit<IScheduleEntry, 'tenant'>) => void;
   canAssignMultipleAgents: boolean;
   users: IUserWithRoles[];
+  currentUserId: string;
   loading?: boolean;
   isInDrawer?: boolean;
   error?: string | null;
@@ -35,6 +36,7 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
   onSave, 
   canAssignMultipleAgents,
   users,
+  currentUserId,
   loading = false,
   isInDrawer = false,
   error = null
@@ -59,7 +61,7 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
         work_item_id: null,
         status: 'scheduled',
         work_item_type: 'ad_hoc',
-        assigned_user_ids: [],
+        assigned_user_ids: [currentUserId],
       };
     } else {
       return {
@@ -73,7 +75,7 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
         work_item_id: null,
         status: 'scheduled',
         work_item_type: 'ad_hoc',
-        assigned_user_ids: [],
+        assigned_user_ids: [currentUserId],
       };
     }
   });
@@ -121,7 +123,7 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
           work_item_id: null,
           status: 'scheduled',
           work_item_type: 'ad_hoc',
-          assigned_user_ids: [],
+          assigned_user_ids: [currentUserId],
         });
       }
     };
@@ -266,13 +268,12 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
               <label htmlFor="assigned_users" className="block text-sm font-medium text-gray-700 mb-1">
                 Assigned Users
               </label>
-              <MultiUserPicker
-                values={entryData.assigned_user_ids || []}
-                onValuesChange={handleAssignedUsersChange}
-                users={users}
-                loading={loading}
-                error={error}
-              />
+            <UserPicker
+              value={entryData.assigned_user_ids?.[0] || currentUserId}
+              onValueChange={(userId) => handleAssignedUsersChange([userId])}
+              users={users}
+              disabled={loading}
+            />
             </div>
           )}
           <div className="flex gap-4">
