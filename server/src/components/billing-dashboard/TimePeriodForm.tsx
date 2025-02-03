@@ -51,7 +51,7 @@ const TimePeriodForm: React.FC<TimePeriodFormProps> = ({
             setStartDateInput('');
             setEndDateInput('');
             const { start_date: suggestedStart, end_date: suggestedEnd } =
-                TimePeriodSuggester.suggestNewTimePeriod(settings, existingTimePeriods);
+                TimePeriodSuggester.suggestNewTimePeriod([settings], existingTimePeriods);
             setStartDate(Temporal.PlainDate.from(suggestedStart));
             setEndDate(Temporal.PlainDate.from(suggestedEnd));
             setStartDateInput(formatDateForInput(Temporal.PlainDate.from(suggestedStart)));
