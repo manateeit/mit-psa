@@ -37,7 +37,7 @@ export function WorkItemList({
             Due Date: {item.due_date ? new Date(item.due_date).toLocaleDateString() : 'No due date'}
           </div>
           <div className="flex items-center gap-2 mt-1">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-900))]">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-primary-200))] text-[rgb(var(--color-primary-900))]">
               Ticket
             </span>
             {item.is_billable && (
@@ -87,7 +87,7 @@ export function WorkItemList({
             </div>
           )}
           <div className="flex items-center gap-2 mt-1">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-900">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(var(--color-border-200))] text-[rgb(var(--color-border-900))]">
               Ad-hoc Entry
             </span>
             {item.is_billable && (
