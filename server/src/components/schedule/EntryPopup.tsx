@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { TextArea } from '@/components/ui/TextArea';
 import { format } from 'date-fns';
 import { IScheduleEntry, IRecurrencePattern } from '@/interfaces/schedule.interfaces';
-import { WorkItemPicker } from '@/components/time-management/time-entry/time-sheet/WorkItemPicker';
+import { AddWorkItemDialog } from '@/components/time-management/time-entry/time-sheet/AddWorkItemDialog';
 import { IWorkItem } from '@/interfaces/workItem.interfaces';
 import { getWorkItemById } from '@/lib/actions/workItemActions';
 import CustomSelect from '@/components/ui/CustomSelect';
@@ -222,7 +222,7 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
 
   return (
     <Dialog open={true}>
-      <DialogContent className={`bg-white p-4 rounded-lg h-auto flex flex-col transition-all duration-300 overflow-y-auto 
+      <DialogContent className={`bg-white p-4 rounded-lg h-auto flex flex-col transition-all duration-300 overflow-y-auto z-10
       ${isInDrawer ? 
         'w-fit max-w-[90vw] shadow-none' : 
         'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-[95vw] w-[600px] min-w-[300px] max-h-[90vh] shadow-lg'
@@ -235,21 +235,21 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
       </div>
       <div className="flex-1 overflow-y-auto space-y-4 p-1">
         <div className="min-w-0">
-          {isEditingWorkItem ? (
-            <div className="w-full min-w-[min(100%,400px)]">
-              <WorkItemPicker
-              onSelect={handleWorkItemSelect}
+          <div className="relative">
+            <SelectedWorkItem
+              workItem={selectedWorkItem}
+              onEdit={() => setIsEditingWorkItem(true)}
+            />
+            <AddWorkItemDialog
+              isOpen={isEditingWorkItem}
+              onClose={() => setIsEditingWorkItem(false)}
+              onAdd={(workItem) => {
+                handleWorkItemSelect(workItem);
+                setIsEditingWorkItem(false);
+              }}
               availableWorkItems={[]}
-              initialWorkItemId={event?.work_item_id}
-              initialWorkItemType={event?.work_item_type}
-              />
-            </div>
-            ) : (
-              <SelectedWorkItem
-                workItem={selectedWorkItem}
-                onEdit={() => setIsEditingWorkItem(true)}
-              />
-            )}
+            />
+          </div>
           </div>
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700">
