@@ -453,11 +453,12 @@ const TechnicianDispatchDashboard: React.FC = () => {
                         onScheduleUpdate={async (entryData) => {
                           try {
                             // For ad hoc entries, update the existing entry instead of creating a new one
-                            const existingEvent = events.find(e => 
-                              e.work_item_id === item.work_item_id && 
-                              e.work_item_type === item.type
-                            );
+                            // For ad hoc entries, find the existing entry by work_item_id
+                            const existingEvent = events.find(e => e.work_item_id === item.work_item_id);
 
+                            console.log('Existing event found:', existingEvent);
+                            console.log('Current item:', item);
+                            
                             if (existingEvent) {
                               // Update existing entry
                               const updateResult = await updateScheduleEntry(existingEvent.entry_id, {

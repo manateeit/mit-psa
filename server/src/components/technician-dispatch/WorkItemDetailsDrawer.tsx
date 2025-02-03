@@ -7,7 +7,8 @@ import { IScheduleEntry } from '@/interfaces/schedule.interfaces';
 import { getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
 import { getTaskWithDetails } from '@/lib/actions/project-actions/projectTaskActions';
 import { getWorkItemById } from '@/lib/actions/workItemActions';
-import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
+import { getCurrentUser, getAllUsers } from '@/lib/actions/user-actions/userActions';
+import { getScheduleEntries } from '@/lib/actions/scheduleActions';
 import { toast } from 'react-hot-toast';
 import TicketDetails from '@/components/tickets/TicketDetails';
 import TaskEdit from '@/components/projects/TaskEdit';
@@ -34,6 +35,20 @@ export function WorkItemDetailsDrawer({
 
     const [content, setContent] = React.useState<JSX.Element | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
+    const [users, setUsers] = React.useState<any[]>([]);
+
+    React.useEffect(() => {
+        const loadUsers = async () => {
+            try {
+                const allUsers = await getAllUsers();
+                setUsers(allUsers);
+            } catch (error) {
+                console.error('Error loading users:', error);
+                toast.error('Failed to load users');
+            }
+        };
+        loadUsers();
+    }, []);
 
     const loadContent = React.useCallback(async () => {
         try {
@@ -79,34 +94,7 @@ export function WorkItemDetailsDrawer({
                                     ...taskData,
                                     tenant: tenant // Ensure tenant is set
                                 }}
-                                users={[
-                                    // Include primary assigned user if exists
-                                    ...(taskData.assigned_to ? [{
-                                        user_id: taskData.assigned_to,
-                                        first_name: taskData.assigned_to_first_name || '',
-                                        last_name: taskData.assigned_to_last_name || '',
-                                        email: '',
-                                        username: '',
-                                        user_type: 'user',
-                                        roles: [],
-                                        tenant: tenant,
-                                        hashed_password: '',
-                                        is_inactive: false
-                                    }] : []),
-                                    // Include additional resources
-                                    ...taskData.resources.map((resource: any) => ({
-                                        user_id: resource.additional_user_id,
-                                        first_name: resource.first_name,
-                                        last_name: resource.last_name,
-                                        email: '',
-                                        username: '',
-                                        user_type: 'user',
-                                        roles: [],
-                                        tenant: tenant,
-                                        hashed_password: '',
-                                        is_inactive: false
-                                    }))
-                                ]}
+                                users={users}
                                 onClose={onClose}
                                 onTaskUpdated={onTaskUpdate}
                             />
@@ -121,12 +109,21 @@ export function WorkItemDetailsDrawer({
                         return null;
                     }
 
+                    // Get schedule entry data to get assigned users
+                    const start = new Date(adHocData.scheduled_start || new Date());
+                    const end = new Date(adHocData.scheduled_end || new Date());
+                    const scheduleResult = await getScheduleEntries(start, end);
+                    const scheduleEntry = scheduleResult.success ? 
+                        scheduleResult.entries.find((e: IScheduleEntry) => e.entry_id === adHocData.work_item_id) : null;
+
+                    console.log('Schedule entry:', scheduleEntry);
+                    
                     return (
                         <div className="h-full">
                             <EntryPopup
                                 slot={null}
                                 canAssignMultipleAgents={true}
-                                users={[]}
+                                users={users}
                                 event={{
                                     entry_id: adHocData.work_item_id,
                                     work_item_id: adHocData.work_item_id,
@@ -136,7 +133,7 @@ export function WorkItemDetailsDrawer({
                                     scheduled_start: new Date(adHocData.scheduled_start || new Date()),
                                     scheduled_end: new Date(adHocData.scheduled_end || new Date()),
                                     status: 'SCHEDULED',
-                                    assigned_user_ids: workItem.users?.map(u => u.user_id) || [],
+                                    assigned_user_ids: scheduleEntry?.assigned_user_ids || [],
                                     created_at: new Date(),
                                     updated_at: new Date()
                                 }}

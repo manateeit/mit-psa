@@ -38,22 +38,17 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
     // Build base queries using proper parameter binding
     let ticketsQuery = db('tickets as t')
       .whereNotIn('t.ticket_id', options.availableWorkItemIds || [])
-      .leftJoin('ticket_resources as tr', function() {
-        this.on('t.tenant', 'tr.tenant')
-            .andOn('t.ticket_id', 'tr.ticket_id');
-      })
-      .leftJoin('companies as c', 't.company_id', 'c.company_id')
-      .whereILike('t.title', db.raw('?', [`%${searchTerm}%`]))
-      .groupBy(
-        't.ticket_id',
-        't.title',
-        't.url',
-        't.ticket_number',
-        't.company_id',
-        'c.company_name',
-        't.closed_at',
-        't.assigned_to'
+      .innerJoin('companies as c', 't.company_id', 'c.company_id')
+      .leftJoin(
+        db('ticket_resources')
+          .select('ticket_id')
+          .select(db.raw('array_agg(distinct additional_user_id) as additional_user_ids'))
+          .groupBy('ticket_id')
+          .as('tr'),
+        't.ticket_id', 'tr.ticket_id'
       )
+      .whereILike('t.title', db.raw('?', [`%${searchTerm}%`]))
+      .distinctOn('t.ticket_id')
       .select(
         't.ticket_id as work_item_id',
         't.title as name',
@@ -70,30 +65,24 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         db.raw('NULL::timestamp with time zone as scheduled_end'),
         db.raw('t.closed_at::timestamp with time zone as due_date'),
         db.raw('ARRAY[t.assigned_to] as assigned_user_ids'),
-        db.raw('array_remove(array_agg(DISTINCT tr.additional_user_id), NULL) as additional_user_ids')
+        'tr.additional_user_ids as additional_user_ids'
       );
 
       let projectTasksQuery = db('project_tasks as pt')
       .whereNotIn('pt.task_id', options.availableWorkItemIds || [])
-      .join('project_phases as pp', 'pt.phase_id', 'pp.phase_id')
-      .join('projects as p', 'pp.project_id', 'p.project_id')
-      .leftJoin('companies as c', 'p.company_id', 'c.company_id')
-      .leftJoin('task_resources as tr', function() {
-        this.on('pt.tenant', 'tr.tenant')
-            .andOn('pt.task_id', 'tr.task_id');
-      })
-      .whereILike('pt.task_name', db.raw('?', [`%${searchTerm}%`]))
-      .groupBy(
-        'pt.task_id',
-        'pt.task_name',
-        'pt.description',
-        'p.project_name',
-        'pp.phase_name',
-        'p.company_id',
-        'c.company_name',
-        'pt.due_date',
-        'pt.assigned_to'
+      .innerJoin('project_phases as pp', 'pt.phase_id', 'pp.phase_id')
+      .innerJoin('projects as p', 'pp.project_id', 'p.project_id')
+      .innerJoin('companies as c', 'p.company_id', 'c.company_id')
+      .leftJoin(
+        db('task_resources')
+          .select('task_id')
+          .select(db.raw('array_agg(distinct additional_user_id) as additional_user_ids'))
+          .groupBy('task_id')
+          .as('tr'),
+        'pt.task_id', 'tr.task_id'
       )
+      .whereILike('pt.task_name', db.raw('?', [`%${searchTerm}%`]))
+      .distinctOn('pt.task_id')
       .modify((queryBuilder) => {
         if (!options.includeInactive) {
           queryBuilder.where('p.is_inactive', false);
@@ -115,21 +104,22 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         db.raw('NULL::timestamp with time zone as scheduled_end'),
         db.raw('pt.due_date::timestamp with time zone as due_date'),
         db.raw('ARRAY[pt.assigned_to] as assigned_user_ids'),
-        db.raw('array_remove(array_agg(DISTINCT tr.additional_user_id), NULL) as additional_user_ids')
+        'tr.additional_user_ids as additional_user_ids'
       );
 
       let adHocQuery = db('schedule_entries as se')
       .whereNotIn('se.entry_id', options.availableWorkItemIds || [])
       .where('work_item_type', 'ad_hoc')
       .whereILike('title', db.raw('?', [`%${searchTerm}%`]))
-      .leftJoin('schedule_entry_assignees as sea', 'se.entry_id', 'sea.entry_id')
-      .groupBy(
-        'se.entry_id',
-        'se.title',
-        'se.notes',
-        'se.scheduled_start',
-        'se.scheduled_end'
+      .leftJoin(
+        db('schedule_entry_assignees')
+          .select('entry_id')
+          .select(db.raw('array_agg(distinct user_id) as assigned_user_ids'))
+          .groupBy('entry_id')
+          .as('sea'),
+        'se.entry_id', 'sea.entry_id'
       )
+      .distinctOn('se.entry_id')
       .select(
         'se.entry_id as work_item_id',
         'se.title as name',
@@ -145,7 +135,7 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
         'se.scheduled_start',
         'se.scheduled_end',
         db.raw('NULL::timestamp with time zone as due_date'),
-        db.raw('array_remove(array_agg(DISTINCT sea.user_id), NULL) as assigned_user_ids'),
+        'sea.assigned_user_ids as assigned_user_ids',
         db.raw('NULL::uuid[] as additional_user_ids')
       );
 
@@ -316,10 +306,10 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
     if (workItemType === 'ticket') {
       workItem = await db('tickets as t')
         .where('t.ticket_id', workItemId)
-        .leftJoin('ticket_resources as tr', function() {
-          this.on('t.tenant', 'tr.tenant')
-              .andOn('t.ticket_id', 'tr.ticket_id');
-        })
+      .leftJoin(
+        db.raw('(select ticket_id, array_agg(distinct additional_user_id) as additional_user_ids from ticket_resources group by ticket_id) as tr'),
+        't.ticket_id', 'tr.ticket_id'
+      )
         .groupBy('t.ticket_id', 't.title', 't.url', 't.ticket_number', 't.assigned_to')
         .select(
           't.ticket_id as work_item_id',
@@ -332,17 +322,17 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
           db.raw('NULL::text as phase_name'),
           db.raw('NULL::text as task_name'),
           db.raw('ARRAY[t.assigned_to] as assigned_user_ids'),
-          db.raw('array_remove(array_agg(DISTINCT tr.additional_user_id), NULL) as additional_user_ids')
+          'tr.additional_user_ids as additional_user_ids'
         )
         .first();
     } else if (workItemType === 'project_task') {
       workItem = await db('project_tasks as pt')
         .join('project_phases as pp', 'pt.phase_id', 'pp.phase_id')
         .join('projects as p', 'pp.project_id', 'p.project_id')
-        .leftJoin('task_resources as tr', function() {
-          this.on('pt.tenant', 'tr.tenant')
-              .andOn('pt.task_id', 'tr.task_id');
-        })
+      .leftJoin(
+        db.raw('(select task_id, array_agg(distinct additional_user_id) as additional_user_ids from task_resources group by task_id) as tr'),
+        'pt.task_id', 'tr.task_id'
+      )
         .where('pt.task_id', workItemId)
         .groupBy('pt.task_id', 'pt.task_name', 'pt.description', 'p.project_name', 'pp.phase_name', 'pt.assigned_to')
         .select(
@@ -356,14 +346,21 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
           'pp.phase_name',
           'pt.task_name',
           db.raw('ARRAY[pt.assigned_to] as assigned_user_ids'),
-          db.raw('array_remove(array_agg(DISTINCT tr.additional_user_id), NULL) as additional_user_ids')
+          'tr.additional_user_ids as additional_user_ids'
         )
         .first();
     } else if (workItemType === 'ad_hoc') {
       workItem = await db('schedule_entries as se')
         .where('se.entry_id', workItemId)
-        .leftJoin('schedule_entry_assignees as sea', 'se.entry_id', 'sea.entry_id')
-        .groupBy('se.entry_id', 'se.title', 'se.notes', 'se.scheduled_start', 'se.scheduled_end')
+        .leftJoin(
+          db('schedule_entry_assignees')
+            .select('entry_id')
+            .select(db.raw('array_agg(distinct user_id) as assigned_user_ids'))
+            .groupBy('entry_id')
+            .as('sea'),
+          'se.entry_id', 'sea.entry_id'
+        )
+        .groupBy('se.entry_id', 'se.title', 'se.notes', 'se.scheduled_start', 'se.scheduled_end', 'sea.assigned_user_ids')
         .select(
           'se.entry_id as work_item_id',
           'se.title as name',
@@ -376,7 +373,7 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
           db.raw('NULL::text as task_name'),
           'se.scheduled_start',
           'se.scheduled_end',
-          db.raw('array_remove(array_agg(DISTINCT sea.user_id), NULL) as assigned_user_ids'),
+          'sea.assigned_user_ids',
           db.raw('NULL::uuid[] as additional_user_ids')
         )
         .first();
