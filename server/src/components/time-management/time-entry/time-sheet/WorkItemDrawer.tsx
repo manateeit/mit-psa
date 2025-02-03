@@ -5,7 +5,7 @@ import { IExtendedWorkItem } from '@/interfaces/workItem.interfaces';
 import { getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
 import { getTaskWithDetails } from '@/lib/actions/project-actions/projectTaskActions';
 import { getWorkItemById } from '@/lib/actions/workItemActions';
-import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
+import { getCurrentUser, getAllUsers } from '@/lib/actions/user-actions/userActions';
 import { toast } from 'react-hot-toast';
 import TicketDetails from '@/components/tickets/TicketDetails';
 import TaskEdit from '@/components/projects/TaskEdit';
@@ -42,6 +42,42 @@ export function WorkItemDrawer({
 
     const [content, setContent] = React.useState<JSX.Element | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
+    const [users, setUsers] = React.useState<any[]>([]);
+    const [isUsersLoading, setIsUsersLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        const loadUsers = async () => {
+            console.log('Starting to load users...');
+            try {
+                setIsUsersLoading(true);
+                const allUsers = await getAllUsers();
+                console.log('Users loaded:', allUsers?.length ?? 0);
+                if (!allUsers || allUsers.length === 0) {
+                    console.warn('No users returned from getAllUsers');
+                    toast.error('No users available in the system');
+                }
+                setUsers(allUsers || []);
+            } catch (error) {
+                console.error('Error loading users:', error);
+                toast.error('Failed to load users. Please try refreshing the page.');
+                setUsers([]);
+            } finally {
+                console.log('Finished loading users, setting isUsersLoading to false');
+                setIsUsersLoading(false);
+            }
+        };
+        loadUsers();
+    }, []);
+
+    // Debug effect to track state changes
+    React.useEffect(() => {
+        console.log('State updated:', {
+            isLoading,
+            isUsersLoading,
+            usersCount: users.length,
+            hasContent: content !== null
+        });
+    }, [isLoading, isUsersLoading, users, content]);
 
     const loadContent = React.useCallback(async () => {
         try {
@@ -64,50 +100,42 @@ export function WorkItemDrawer({
                 }
 
                 case 'project_task': {
+                    console.log('Loading project task with details:', {
+                        workItemId: workItem.work_item_id,
+                        isUsersLoading,
+                        usersCount: users.length
+                    });
                     const taskData = await getTaskWithDetails(workItem.work_item_id, currentUser);
+                    console.log('Task data loaded:', taskData);
                     return (
                         <div className="min-w-auto h-full bg-white">
-                            <TaskEdit
-                                task={taskData}
-                                inDrawer={true}
-                                phase={{
-                                    phase_id: taskData.phase_id,
-                                    project_id: taskData.project_id || '',
-                                    phase_name: taskData.phase_name || '',
-                                    description: null,
-                                    start_date: null,
-                                    end_date: null,
-                                    status: taskData.status_id || '',
-                                    order_number: 0,
-                                    created_at: new Date(),
-                                    updated_at: new Date(),
-                                    wbs_code: taskData.wbs_code,
-                                    tenant: tenant
-                                }}
-                                users={taskData.resources.map((resource: {
-                                    assignment_id: string;
-                                    task_id: string;
-                                    assigned_to: string | null;
-                                    additional_user_id: string;
-                                    role: string | null;
-                                    first_name: string;
-                                    last_name: string;
-                                    tenant: string;
-                                }) => ({
-                                    user_id: resource.additional_user_id,
-                                    first_name: resource.first_name,
-                                    last_name: resource.last_name,
-                                    email: '',
-                                    username: '',
-                                    user_type: 'user',
-                                    roles: [],
-                                    tenant: resource.tenant,
-                                    hashed_password: '',
-                                    is_inactive: false
-                                }))}
-                                onClose={onClose}
-                                onTaskUpdated={onTaskUpdate}
-                            />
+                            {users.length === 0 ? (
+                                <div className="flex items-center justify-center h-full text-gray-500">
+                                    No users available
+                                </div>
+                            ) : (
+                                <TaskEdit
+                                    task={taskData}
+                                    inDrawer={true}
+                                    phase={{
+                                        phase_id: taskData.phase_id,
+                                        project_id: taskData.project_id || '',
+                                        phase_name: taskData.phase_name || '',
+                                        description: null,
+                                        start_date: null,
+                                        end_date: null,
+                                        status: taskData.status_id || '',
+                                        order_number: 0,
+                                        created_at: new Date(),
+                                        updated_at: new Date(),
+                                        wbs_code: taskData.wbs_code,
+                                        tenant: tenant
+                                    }}
+                                    users={users}
+                                    onClose={onClose}
+                                    onTaskUpdated={onTaskUpdate}
+                                />
+                            )}
                         </div>
                     );
                 }
@@ -124,7 +152,8 @@ export function WorkItemDrawer({
                             <EntryPopup
                                 slot={null}
                                 canAssignMultipleAgents={false}
-                                users={[]}
+                                users={users}
+                                currentUserId={currentUser.user_id}
                                 event={{
                                     entry_id: adHocData.work_item_id,
                                     work_item_id: adHocData.work_item_id,
@@ -164,17 +193,21 @@ export function WorkItemDrawer({
                 </div>
             );
         }
-    }, [workItem, tenant, onClose, onTaskUpdate, onScheduleUpdate]);
+    }, [workItem, tenant, onClose, onTaskUpdate, onScheduleUpdate, isUsersLoading, users]);
 
     React.useEffect(() => {
         const init = async () => {
             setIsLoading(true);
+            // For project tasks, wait for users to load before loading content
+            if (workItem.type === 'project_task' && isUsersLoading) {
+                return;
+            }
             const loadedContent = await loadContent();
             setContent(loadedContent);
             setIsLoading(false);
         };
         init();
-    }, [loadContent]); 
+    }, [loadContent, workItem.type, isUsersLoading]); 
 
     return (
         <div className="min-w-auto h-full bg-white">

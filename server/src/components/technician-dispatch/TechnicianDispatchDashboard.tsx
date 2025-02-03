@@ -349,7 +349,7 @@ const TechnicianDispatchDashboard: React.FC = () => {
   return (
     <div className="flex flex-col h-screen">
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-1/4 p-4 bg-[rgb(var(--color-border-50))] overflow-y-auto">
+        <div className="w-1/4 p-2 bg-[rgb(var(--color-border-50))] overflow-y-auto">
           <h2 className="text-xl font-bold mb-4 text-[rgb(var(--color-text-900))]">Unassigned Work Items</h2>
 
           <div className="space-y-3 mb-4">
