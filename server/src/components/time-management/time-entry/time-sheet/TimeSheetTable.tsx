@@ -126,7 +126,7 @@ export function TimeSheetTable({
                                 return (
                                     <tr key={`${workItem.work_item_id}-${Math.random()}`}>
                                     <td 
-                                        className="px-6 py-4 pr-1 whitespace-nowrap text-sm font-medium text-gray-900 shadow-[4px_0_6px_rgba(0,0,0,0.1)] border-t border-b sticky left-0 z-10 bg-white min-w-fit max-w-[15%] truncate bg-white cursor-pointer hover:bg-gray-50"
+                                        className="px-6 py-4 pr-1 whitespace-nowrap text-sm font-medium text-gray-900 shadow-[4px_0_6px_rgba(0,0,0,0.1)] border-t border-b sticky left-0 z-10 bg-white min-w-fit max-w-[15%] truncate bg-white cursor-pointer hover:bg-white"
                                         onClick={() => onWorkItemClick(workItem)}
                                     >
                                         <div className="flex flex-col pr-8">
@@ -141,7 +141,15 @@ export function TimeSheetTable({
                                                     {workItem.project_name} • {workItem.phase_name}
                                                 </div>
                                             )}
-                                            <span className="text-xs text-gray-500 mt-1">{formatWorkItemType(workItem.type)}</span>
+                                            <span className={`inline-flex w-max items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                workItem.type === 'ticket' 
+                                                    ? 'bg-[rgb(var(--color-primary-200))] text-[rgb(var(--color-primary-900))]' 
+                                                    : workItem.type === 'project_task' 
+                                                        ? 'bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-900))]' 
+                                                        : 'bg-[rgb(var(--color-border-200))] text-[rgb(var(--color-border-900))]'
+                                            }`}>
+                                                {formatWorkItemType(workItem.type)}
+                                            </span>
                                         </div>
                                         {isEditable && (
                                             <Button

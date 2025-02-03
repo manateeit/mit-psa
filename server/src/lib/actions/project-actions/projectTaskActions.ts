@@ -612,11 +612,14 @@ export async function getTaskWithDetails(taskId: string, user: IUser) {
             .where('project_tasks.task_id', taskId)
             .join('project_phases', 'project_tasks.phase_id', 'project_phases.phase_id')
             .join('project_status_mappings', 'project_tasks.project_status_mapping_id', 'project_status_mappings.project_status_mapping_id')
+            .leftJoin('users as assigned_user', 'project_tasks.assigned_to', 'assigned_user.user_id')
             .select(
                 'project_tasks.*',
                 'project_phases.phase_name',
                 'project_phases.project_id',
-                'project_status_mappings.status_id'
+                'project_status_mappings.status_id',
+                'assigned_user.first_name as assigned_to_first_name',
+                'assigned_user.last_name as assigned_to_last_name'
             )
             .first();
 

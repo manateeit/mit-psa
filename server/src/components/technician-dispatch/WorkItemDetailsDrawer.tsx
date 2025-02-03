@@ -2,39 +2,32 @@
 
 import React from 'react';
 import { IExtendedWorkItem } from '@/interfaces/workItem.interfaces';
+import { IProjectTask } from '@/interfaces/project.interfaces';
+import { IScheduleEntry } from '@/interfaces/schedule.interfaces';
 import { getTicketById } from '@/lib/actions/ticket-actions/ticketActions';
 import { getTaskWithDetails } from '@/lib/actions/project-actions/projectTaskActions';
 import { getWorkItemById } from '@/lib/actions/workItemActions';
 import { getCurrentUser, getAllUsers } from '@/lib/actions/user-actions/userActions';
+import { getScheduleEntries } from '@/lib/actions/scheduleActions';
 import { toast } from 'react-hot-toast';
 import TicketDetails from '@/components/tickets/TicketDetails';
 import TaskEdit from '@/components/projects/TaskEdit';
 import EntryPopup from '@/components/schedule/EntryPopup';
 import { useTenant } from '@/components/TenantProvider';
 
-interface WorkItemDrawerProps {
+interface WorkItemDetailsDrawerProps {
     workItem: IExtendedWorkItem;
     onClose: () => void;
-    onTaskUpdate: (updated: any) => Promise<void>;
-    onScheduleUpdate: (updated: any) => Promise<void>;
+    onTaskUpdate: (updatedTask: IProjectTask | null) => Promise<void>;
+    onScheduleUpdate: (entryData: Omit<IScheduleEntry, "tenant">) => Promise<void>;
 }
 
-interface ScheduleUpdateData {
-    entry_id: string;
-    title: string;
-    notes: string;
-    scheduled_start: Date;
-    scheduled_end: Date;
-    assigned_user_ids: string[];
-    status: string;
-}
-
-export function WorkItemDrawer({
+export function WorkItemDetailsDrawer({
     workItem,
     onClose,
     onTaskUpdate,
     onScheduleUpdate
-}: WorkItemDrawerProps): JSX.Element {
+}: WorkItemDetailsDrawerProps): JSX.Element {
     const tenant = useTenant();
     if (!tenant) {
         throw new Error('tenant is not defined');
@@ -91,7 +84,7 @@ export function WorkItemDrawer({
                 case 'ticket': {
                     const ticketData = await getTicketById(workItem.work_item_id, currentUser);
                     return (
-                        <div className="min-w-auto h-full bg-white">
+                        <div className="h-full">
                             <TicketDetails 
                                 initialTicket={ticketData}
                             />
@@ -108,14 +101,13 @@ export function WorkItemDrawer({
                     const taskData = await getTaskWithDetails(workItem.work_item_id, currentUser);
                     console.log('Task data loaded:', taskData);
                     return (
-                        <div className="min-w-auto h-full bg-white">
+                        <div className="h-full">
                             {users.length === 0 ? (
                                 <div className="flex items-center justify-center h-full text-gray-500">
                                     No users available
                                 </div>
                             ) : (
                                 <TaskEdit
-                                    task={taskData}
                                     inDrawer={true}
                                     phase={{
                                         phase_id: taskData.phase_id,
@@ -129,6 +121,10 @@ export function WorkItemDrawer({
                                         created_at: new Date(),
                                         updated_at: new Date(),
                                         wbs_code: taskData.wbs_code,
+                                        tenant: tenant
+                                    }}
+                                    task={{
+                                        ...taskData,
                                         tenant: tenant
                                     }}
                                     users={users}
@@ -147,11 +143,21 @@ export function WorkItemDrawer({
                         return null;
                     }
 
+                    // Get schedule entry data to get assigned users
+                    const start = new Date(adHocData.scheduled_start || new Date());
+                    const end = new Date(adHocData.scheduled_end || new Date());
+                    const scheduleResult = await getScheduleEntries(start, end);
+                    const scheduleEntry = scheduleResult.success ? 
+                        scheduleResult.entries.find((e: IScheduleEntry) => e.entry_id === adHocData.work_item_id) : null;
+
+                    console.log('Schedule entry:', scheduleEntry);
+                    
                     return (
-                        <div className="min-w-auto h-full bg-white">
+                        <div className="h-full">
+                            {currentUser && (
                             <EntryPopup
                                 slot={null}
-                                canAssignMultipleAgents={false}
+                                canAssignMultipleAgents={true}
                                 users={users}
                                 currentUserId={currentUser.user_id}
                                 event={{
@@ -163,7 +169,7 @@ export function WorkItemDrawer({
                                     scheduled_start: new Date(adHocData.scheduled_start || new Date()),
                                     scheduled_end: new Date(adHocData.scheduled_end || new Date()),
                                     status: 'SCHEDULED',
-                                    assigned_user_ids: workItem.users?.map(u => u.user_id) || [],
+                                    assigned_user_ids: scheduleEntry?.assigned_user_ids || [],
                                     created_at: new Date(),
                                     updated_at: new Date()
                                 }}
@@ -171,13 +177,14 @@ export function WorkItemDrawer({
                                 onSave={onScheduleUpdate}
                                 isInDrawer={true}
                             />
+                            )}
                         </div>
                     );
                 }
 
                 default:
                     return (
-                        <div className="min-w-auto h-full bg-white p-4">
+                        <div className="h-full">
                             <div>Unsupported work item type</div>
                         </div>
                     );
@@ -185,7 +192,7 @@ export function WorkItemDrawer({
         } catch (error) {
             console.error('Error loading content:', error);
             return (
-                <div className="min-w-auto h-full bg-white p-4">
+                <div className="h-full">
                     <div className="flex flex-col items-center justify-center h-full text-red-500">
                         <div className="text-lg mb-2">Error loading content</div>
                         <div className="text-sm">Please try again</div>
@@ -198,16 +205,12 @@ export function WorkItemDrawer({
     React.useEffect(() => {
         const init = async () => {
             setIsLoading(true);
-            // For project tasks, wait for users to load before loading content
-            if (workItem.type === 'project_task' && isUsersLoading) {
-                return;
-            }
             const loadedContent = await loadContent();
             setContent(loadedContent);
             setIsLoading(false);
         };
         init();
-    }, [loadContent, workItem.type, isUsersLoading]); 
+    }, [loadContent]); 
 
     return (
         <div className="min-w-auto h-full bg-white">

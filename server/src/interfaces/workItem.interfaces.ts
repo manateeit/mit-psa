@@ -43,4 +43,6 @@ export interface IExtendedWorkItem extends IWorkItem {
     start: Date;
     end: Date;
   };
+  additional_user_ids?: string[];
+  assigned_user_ids?: string[];
 }

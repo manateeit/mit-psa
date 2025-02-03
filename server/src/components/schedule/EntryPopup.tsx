@@ -1,18 +1,18 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { DialogContent, DialogTitle } from '@radix-ui/react-dialog';
+import { Dialog, DialogContent, DialogTitle } from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { TextArea } from '@/components/ui/TextArea';
 import { format } from 'date-fns';
 import { IScheduleEntry, IRecurrencePattern } from '@/interfaces/schedule.interfaces';
-import { WorkItemPicker } from '@/components/time-management/time-entry/time-sheet/WorkItemPicker';
+import { AddWorkItemDialog } from '@/components/time-management/time-entry/time-sheet/AddWorkItemDialog';
 import { IWorkItem } from '@/interfaces/workItem.interfaces';
 import { getWorkItemById } from '@/lib/actions/workItemActions';
 import CustomSelect from '@/components/ui/CustomSelect';
 import SelectedWorkItem from '@/components/time-management/time-entry/time-sheet/SelectedWorkItem';
-import MultiUserPicker from '@/components/ui/MultiUserPicker';
+import UserPicker from '@/components/ui/UserPicker';
 import { DateTimePicker } from '@/components/ui/DateTimePicker';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 
@@ -23,6 +23,7 @@ interface EntryPopupProps {
   onSave: (entryData: Omit<IScheduleEntry, 'tenant'>) => void;
   canAssignMultipleAgents: boolean;
   users: IUserWithRoles[];
+  currentUserId: string;
   loading?: boolean;
   isInDrawer?: boolean;
   error?: string | null;
@@ -35,6 +36,7 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
   onSave, 
   canAssignMultipleAgents,
   users,
+  currentUserId,
   loading = false,
   isInDrawer = false,
   error = null
@@ -59,7 +61,7 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
         work_item_id: null,
         status: 'scheduled',
         work_item_type: 'ad_hoc',
-        assigned_user_ids: [],
+        assigned_user_ids: [currentUserId],
       };
     } else {
       return {
@@ -73,7 +75,7 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
         work_item_id: null,
         status: 'scheduled',
         work_item_type: 'ad_hoc',
-        assigned_user_ids: [],
+        assigned_user_ids: [currentUserId],
       };
     }
   });
@@ -121,7 +123,7 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
           work_item_id: null,
           status: 'scheduled',
           work_item_type: 'ad_hoc',
-          assigned_user_ids: [],
+          assigned_user_ids: [currentUserId],
         });
       }
     };
@@ -219,7 +221,8 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
   };
 
   return (
-    <DialogContent className={`bg-white p-4 rounded-lg h-auto flex flex-col transition-all duration-300 overflow-y-auto 
+    <Dialog open={true}>
+      <DialogContent className={`bg-white p-4 rounded-lg h-auto flex flex-col transition-all duration-300 overflow-y-auto z-10
       ${isInDrawer ? 
         'w-fit max-w-[90vw] shadow-none' : 
         'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-[95vw] w-[600px] min-w-[300px] max-h-[90vh] shadow-lg'
@@ -232,21 +235,21 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
       </div>
       <div className="flex-1 overflow-y-auto space-y-4 p-1">
         <div className="min-w-0">
-          {isEditingWorkItem ? (
-            <div className="w-full min-w-[min(100%,400px)]">
-              <WorkItemPicker
-              onSelect={handleWorkItemSelect}
+          <div className="relative">
+            <SelectedWorkItem
+              workItem={selectedWorkItem}
+              onEdit={() => setIsEditingWorkItem(true)}
+            />
+            <AddWorkItemDialog
+              isOpen={isEditingWorkItem}
+              onClose={() => setIsEditingWorkItem(false)}
+              onAdd={(workItem) => {
+                handleWorkItemSelect(workItem);
+                setIsEditingWorkItem(false);
+              }}
               availableWorkItems={[]}
-              initialWorkItemId={event?.work_item_id}
-              initialWorkItemType={event?.work_item_type}
-              />
-            </div>
-            ) : (
-              <SelectedWorkItem
-                workItem={selectedWorkItem}
-                onEdit={() => setIsEditingWorkItem(true)}
-              />
-            )}
+            />
+          </div>
           </div>
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700">
@@ -265,13 +268,12 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
               <label htmlFor="assigned_users" className="block text-sm font-medium text-gray-700 mb-1">
                 Assigned Users
               </label>
-              <MultiUserPicker
-                values={entryData.assigned_user_ids || []}
-                onValuesChange={handleAssignedUsersChange}
-                users={users}
-                loading={loading}
-                error={error}
-              />
+            <UserPicker
+              value={entryData.assigned_user_ids?.[0] || currentUserId}
+              onValueChange={(userId) => handleAssignedUsersChange([userId])}
+              users={users}
+              disabled={loading}
+            />
             </div>
           )}
           <div className="flex gap-4">
@@ -400,7 +402,8 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
         </Button>
         <Button id="save-entry-btn" onClick={handleSave}>Save</Button>
       </div>
-    </DialogContent>
+      </DialogContent>
+    </Dialog>
   );
 };
 
