@@ -19,7 +19,7 @@ export async function getContactByContactNameId(contactNameId: string): Promise<
     return contact || null;
   } catch (error) {
     console.error('Error getting contact by contact_name_id:', error);
-    throw new Error("Failed to get the contact");
+    throw new Error('Unable to retrieve contact information. Please try again.');
   }
 }
 
@@ -107,7 +107,7 @@ export async function deleteContact(contactId: string) {
     return result;
   } catch (error) {
     console.error('Error deleting contact:', error);
-    throw new Error('Failed to delete contact');
+    throw new Error('Unable to delete contact. Please ensure the contact exists and try again.');
   }
 }
 
@@ -135,7 +135,7 @@ export async function getContactsByCompany(companyId: string, status: ContactFil
     return contacts;
   } catch (error) {
     console.error('Error fetching contacts for company:', error);
-    throw new Error('Failed to fetch contacts for company');
+    throw new Error('Unable to load company contacts. Please refresh the page and try again.');
   }
 }
 
@@ -151,7 +151,7 @@ export async function getAllCompanies(): Promise<ICompany[]> {
     return companies;
   } catch (error) {
     console.error('Error fetching all companies:', error);
-    throw new Error('Failed to fetch all companies');
+    throw new Error('Unable to load company list. Please refresh the page and try again.');
   }
 }
 
@@ -176,95 +176,77 @@ export async function getAllContacts(status: ContactFilterStatus = 'active'): Pr
     return contacts;
   } catch (error) {
     console.error('Error fetching all contacts:', error);
-    throw new Error('Failed to fetch all contacts');
+    throw new Error('Unable to load contacts. Please refresh the page and try again.');
   }
 }
 
 export async function addContact(contactData: Partial<IContact>): Promise<IContact> {
+  const {knex: db, tenant} = await createTenantKnex();
+  if (!tenant) {
+    throw new Error('Tenant not found');
+  }
+
+  // Validate required fields
+  if (!contactData.full_name?.trim()) {
+    throw new Error('Full name is required');
+  }
+  if (!contactData.email?.trim()) {
+    throw new Error('Email address is required');
+  }
+
+  // Check if email already exists
+  if (contactData.email) {
+    const existingContact = await db('contacts')
+      .where({ email: contactData.email.trim(), tenant })
+      .first();
+  
+    if (existingContact) {
+      throw new Error('A contact with this email address already exists in the system. Please use a different email address.');
+    }
+  }
+
+  const contactWithTenant = {
+    ...contactData,
+    tenant: tenant,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
   try {
-    const {knex: db, tenant} = await createTenantKnex();
-    if (!tenant) {
-      throw new Error('Tenant not found');
+    const [newContact] = await db('contacts').insert(contactWithTenant).returning('*');
+
+    if (!newContact) {
+      throw new Error('Unable to create contact. Please try again.');
     }
 
-      // Validate required fields
-      if (!contactData.full_name?.trim()) {
-        throw new Error('VALIDATION_ERROR: Full name is required');
-      }
-      if (!contactData.email?.trim()) {
-        throw new Error('VALIDATION_ERROR: Email address is required');
-      }
-
-      // Check if email already exists
-      if (contactData.email) {
-        const existingContact = await db('contacts')
-          .where({ email: contactData.email.trim(), tenant })
-          .first();
-      
-        if (existingContact) {
-          throw new Error('EMAIL_EXISTS: A contact with this email address already exists');
-        }
-      }
-
-    const contactWithTenant = {
-      ...contactData,
-      tenant: tenant,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
-    try {
-      const [newContact] = await db('contacts').insert(contactWithTenant).returning('*');
-
-      if (!newContact) {
-        throw new Error('DB_ERROR: Failed to create contact record');
-      }
-
-      return newContact;
-    } catch (err) {
-      // Check for specific database errors
-      const error = err as Error;
-      const message = error.message || '';
-      
-      // Log the full error for debugging
-      console.error('Detailed database error:', {
-        message: error.message,
-        stack: error.stack,
-        error: error
-      });
-      
-      if (message.includes('duplicate key') && message.includes('contacts_email_tenant_unique')) {
-        throw new Error('EMAIL_EXISTS: A contact with this email address already exists');
-      }
-      
-      if (message.includes('violates not-null constraint')) {
-        const field = message.match(/column "([^"]+)"/)?.[1] || 'required field';
-        throw new Error(`VALIDATION_ERROR: The ${field} is required`);
-      }
-      
-      if (message.includes('violates foreign key constraint') && message.includes('company_id')) {
-        throw new Error('FOREIGN_KEY_ERROR: Invalid company reference');
-      }
-      
-      // Re-throw with a generic message
-      throw new Error('SYSTEM_ERROR: Failed to add new contact. Please try again later.');
-    }
-  } catch (error) {
-    console.error('Error adding new contact:', error);
+    return newContact;
+  } catch (err) {
+    // Check for specific database errors
+    const error = err as Error;
+    const message = error.message || '';
     
-    if (error instanceof Error) {
-      // Re-throw errors we've already formatted
-      if (error.message.startsWith('EMAIL_EXISTS:') ||
-          error.message.startsWith('VALIDATION_ERROR:') ||
-          error.message.startsWith('FOREIGN_KEY_ERROR:') ||
-          error.message.startsWith('SYSTEM_ERROR:') ||
-          error.message.startsWith('DB_ERROR:')) {
-        throw error;
-      }
+    // Log the full error for debugging
+    console.error('Detailed database error:', {
+      message: error.message,
+      stack: error.stack,
+      error: error
+    });
+    
+    if (message.includes('duplicate key') && message.includes('contacts_email_tenant_unique')) {
+      throw new Error('A contact with this email address already exists in the system. Please use a different email address.');
     }
     
-    // Generic error for truly unexpected cases
-    throw new Error('SYSTEM_ERROR: An unexpected error occurred. Please try again later.');
+    if (message.includes('violates not-null constraint')) {
+      const field = message.match(/column "([^"]+)"/)?.[1] || 'required field';
+      throw new Error(`The ${field} is required`);
+    }
+    
+    if (message.includes('violates foreign key constraint') && message.includes('company_id')) {
+      throw new Error('The selected company is no longer valid. Please select a different company.');
+    }
+    
+    // Re-throw with a generic message
+    throw new Error('A system error occurred. Please try again or contact support if the issue persists.');
   }
 }
 
@@ -275,7 +257,7 @@ export async function updateContact(contactData: Partial<IContact>): Promise<ICo
       throw new Error('Tenant not found');
     }
     if (!contactData.contact_name_id) {
-      throw new Error('Contact ID is required for updating');
+      throw new Error('Unable to update contact: Missing required information');
     }
 
     // Define valid fields
@@ -304,7 +286,7 @@ export async function updateContact(contactData: Partial<IContact>): Promise<ICo
       .returning('*');
     
     if (!updatedContact) {
-      throw new Error(`Contact with ID ${contactData.contact_name_id} not found`);
+      throw new Error('The contact you are trying to update no longer exists.');
     }
     
     return updatedContact;
@@ -312,10 +294,10 @@ export async function updateContact(contactData: Partial<IContact>): Promise<ICo
     console.error('Error updating contact:', error);
     if (error instanceof Error) {
       console.error('Error details:', error.stack);
-      throw new Error(`Failed to update contact: ${error.message}`);
+      throw new Error('Unable to update contact. Please try again or contact support if the issue persists.');
     } else {
       console.error('Unknown error:', error);
-      throw new Error('Failed to update contact: Unknown error');
+      throw new Error('Unable to update contact. Please try again or contact support if the issue persists.');
     }
   }
 }
@@ -331,7 +313,7 @@ export async function updateContactsForCompany(companyId: string, updateData: Pa
       .update(updateData);
   } catch (error) {
     console.error('Error updating contacts for company:', error);
-    throw new Error('Failed to update contacts for company');
+    throw new Error('Unable to update company contacts. Please try again or contact support if the issue persists.');
   }
 }
 
