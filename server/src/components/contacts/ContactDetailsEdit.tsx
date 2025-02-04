@@ -59,8 +59,8 @@ const ContactDetailsEdit: React.FC<ContactDetailsEditProps> = ({
     setContact(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleCompanySelect = (companyId: string) => {
-    setContact(prev => ({ ...prev, company_id: companyId }));
+  const handleCompanySelect = (companyId: string | null) => {
+    setContact(prev => ({ ...prev, company_id: companyId || '' }));
   };
 
   const handleSave = async () => {

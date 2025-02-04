@@ -266,7 +266,7 @@ export default function CreateAssetDialog({ onClose, onAssetCreated }: CreateAss
               id='company-picker'
               companies={companies}
               selectedCompanyId={formData.company_id || null}
-              onSelect={(companyId) => handleChange('company_id', companyId)}
+              onSelect={(companyId) => handleChange('company_id', companyId || '')}
               filterState="active"
               onFilterStateChange={() => {}}
               clientTypeFilter="all"

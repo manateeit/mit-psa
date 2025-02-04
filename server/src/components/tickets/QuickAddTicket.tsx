@@ -207,14 +207,14 @@ export function QuickAddTicket({
     });
   }, [error, open]);
 
-  const handleCompanyChange = async (newCompanyId: string) => {
+  const handleCompanyChange = async (newCompanyId: string | null) => {
     if (isPrefilledCompany) return;
 
-    setCompanyId(newCompanyId);
+    setCompanyId(newCompanyId || '');
     setContactId(null);
     setError(null);
 
-    if (newCompanyId) {
+    if (newCompanyId !== null) {
       const selectedCompany = companies.find(company => company.company_id === newCompanyId);
 
       if (selectedCompany?.client_type === 'company') {

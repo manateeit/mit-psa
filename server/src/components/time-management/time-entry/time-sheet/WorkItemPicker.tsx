@@ -353,8 +353,8 @@ export function WorkItemPicker({ onSelect, availableWorkItems }: WorkItemPickerP
                 <CompanyPicker
                   id="work-item-company-picker"
                   selectedCompanyId={companyId}
-                  onSelect={(value: string) => {
-                    setCompanyId(value);
+                  onSelect={(value: string | null) => {
+                    setCompanyId(value || '');
                     setCurrentPage(1);
                     loadWorkItems(searchTerm, 1);
                   }}

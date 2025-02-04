@@ -34,7 +34,7 @@ const UsageTracking: React.FC<UsageTrackingProps> = ({ initialServices }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [usageRecords, setUsageRecords] = useState<IUsageRecord[]>([]);
   const [companies, setCompanies] = useState<ICompany[]>([]);
-  const [selectedCompany, setSelectedCompany] = useState<string>('');
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<string>('');
   const [editingUsage, setEditingUsage] = useState<IUsageRecord | null>(null);
   const [usageToDelete, setUsageToDelete] = useState<string | null>(null);
@@ -78,7 +78,7 @@ const UsageTracking: React.FC<UsageTrackingProps> = ({ initialServices }) => {
     try {
       setIsLoading(true);
       const filter: IUsageFilter = {};
-      if (selectedCompany) filter.company_id = selectedCompany;
+      if (selectedCompany !== null) filter.company_id = selectedCompany;
       if (selectedService) filter.service_id = selectedService;
       
       const records = await getUsageRecords(filter);
@@ -319,7 +319,7 @@ const UsageTracking: React.FC<UsageTrackingProps> = ({ initialServices }) => {
                 id="company-select"
                 companies={companies}
                 selectedCompanyId={newUsage.company_id}
-                onSelect={(id) => setNewUsage({ ...newUsage, company_id: id })}
+                onSelect={(id) => setNewUsage({ ...newUsage, company_id: id || '' })}
                 filterState={filterState}
                 onFilterStateChange={setFilterState}
                 clientTypeFilter={clientTypeFilter}
