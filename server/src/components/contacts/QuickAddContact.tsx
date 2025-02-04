@@ -1,5 +1,6 @@
-// server/src/components/QuickAddContact.tsx
 import React, { useState, useEffect } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import { X } from 'lucide-react';
 import { useAutomationIdAndRegister } from '@/types/ui-reflection/useAutomationIdAndRegister';
 import { ReflectionContainer } from '@/types/ui-reflection/ReflectionContainer';
 import { FormComponent, FormFieldComponent, ButtonComponent, ContainerComponent } from '@/types/ui-reflection/types';
@@ -22,7 +23,24 @@ interface QuickAddContactProps {
   selectedCompanyId?: string | null;
 }
 
-export const QuickAddContact: React.FC<QuickAddContactProps> = ({
+function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
+  return (
+    <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+      <h2 className="text-lg font-semibold text-red-800">Something went wrong:</h2>
+      <pre className="mt-2 text-sm text-red-600">{error.message}</pre>
+      <Button
+        id='try-again-button'
+        onClick={resetErrorBoundary}
+        className="mt-4"
+        variant="secondary"
+      >
+        Try again
+      </Button>
+    </div>
+  );
+}
+
+const QuickAddContactContent: React.FC<QuickAddContactProps> = ({
   isOpen,
   onClose,
   onContactAdded,
@@ -38,6 +56,7 @@ export const QuickAddContact: React.FC<QuickAddContactProps> = ({
   const [isInactive, setIsInactive] = useState(false);
   const [role, setRole] = useState('');
   const [notes, setNotes] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
 
   // Set initial company ID when the component mounts or when selectedCompanyId changes
@@ -45,10 +64,11 @@ export const QuickAddContact: React.FC<QuickAddContactProps> = ({
     setCompanyId(selectedCompanyId);
   }, [selectedCompanyId]);
 
-  // Reset form when dialog opens/closes
+  // Reset form and error when dialog opens/closes
   useEffect(() => {
     if (isOpen) {
       setCompanyId(selectedCompanyId);
+      setError(null);
     } else {
       setFullName('');
       setEmail('');
@@ -61,25 +81,67 @@ export const QuickAddContact: React.FC<QuickAddContactProps> = ({
   }, [isOpen, selectedCompanyId]);
 
   const handleCompanySelect = (companyId: string | null) => {
-    setCompanyId(companyId);
+    // Prevent unintended company selection
+    if (typeof companyId === 'string' || companyId === null) {
+      setCompanyId(companyId);
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent | React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+
+    // If the click target is inside the company picker, don't submit
+    const target = e.target as HTMLElement;
+    if (target.closest('#quick-add-contact-company')) {
+      return;
+    }
+
+    // Validate required fields
+    if (!fullName.trim()) {
+      setError('Full name is required');
+      return;
+    }
+    if (!email.trim()) {
+      setError('Email address is required');
+      return;
+    }
+
     try {
-      const newContact = await addContact({
-        full_name: fullName,
-        email: email,
-        phone_number: phoneNumber,
-        company_id: companyId || undefined,
+      const contactData = {
+        full_name: fullName.trim(),
+        email: email.trim(),
+        phone_number: phoneNumber.trim(),
         is_inactive: isInactive,
-        role: role,
-        notes: notes,
-      });
+        role: role.trim(),
+        notes: notes.trim(),
+      };
+
+      // Only include company_id if it's actually selected
+      if (companyId) {
+        Object.assign(contactData, { company_id: companyId });
+      }
+
+      const newContact = await addContact(contactData);
       onContactAdded(newContact);
       onClose();
     } catch (error) {
       console.error('Error adding contact:', error);
+      if (error instanceof Error) {
+        if (error.message.includes('EMAIL_EXISTS:')) {
+          setError('A contact with this email address already exists in the system. Please use a different email address.');
+        } else if (error.message.includes('VALIDATION_ERROR:')) {
+          setError('Please ensure all required fields are filled in correctly.');
+        } else if (error.message.includes('FOREIGN_KEY_ERROR:')) {
+          setError('The selected company is no longer valid. Please select a different company.');
+        } else if (error.message.includes('SYSTEM_ERROR:')) {
+          setError('A system error occurred. Please try again or contact support if the issue persists.');
+        } else {
+          setError('An error occurred while creating the contact. Please verify all information and try again.');
+        }
+      } else {
+        setError('Failed to create contact. Please try again.');
+      }
     }
   };
 
@@ -89,7 +151,25 @@ export const QuickAddContact: React.FC<QuickAddContactProps> = ({
         <DialogTitle>Add New Contact</DialogTitle>
       </DialogHeader>
       <DialogContent>
-        <form onSubmit={handleSubmit}>
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <button
+              onClick={() => setError(null)}
+              className="absolute top-2 right-2 p-1 hover:bg-red-200 rounded-full transition-colors"
+              aria-label="Close error message"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h4 className="font-semibold mb-2">Error creating contact:</h4>
+            <ul className="list-disc pl-5">
+              <li>{error}</li>
+            </ul>
+          </div>
+        )}
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}>
           <div className="space-y-4">
             <div>
               <Label htmlFor="fullName">Full Name</Label>
@@ -165,14 +245,43 @@ export const QuickAddContact: React.FC<QuickAddContactProps> = ({
             </div>
           </div>
           <DialogFooter>
-            <Button id="quick-add-contact-cancel" type="button" variant="outline" onClick={onClose}>
+            <Button 
+              id="quick-add-contact-cancel" 
+              type="button" 
+              variant="outline" 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
+            >
               Cancel
             </Button>
-            <Button id="quick-add-contact-submit" type="submit">Add Contact</Button>
+            <Button 
+              id="quick-add-contact-submit" 
+              type="button"
+              onClick={handleSubmit}
+              disabled={!fullName.trim() || !email.trim()}
+            >
+              Add Contact
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  );
+};
+
+const QuickAddContact: React.FC<QuickAddContactProps> = (props) => {
+  return (
+    <ErrorBoundary
+      FallbackComponent={ErrorFallback}
+      onReset={() => {
+        window.location.reload();
+      }}
+    >
+      <QuickAddContactContent {...props} />
+    </ErrorBoundary>
   );
 };
 
