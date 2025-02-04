@@ -129,10 +129,10 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
     setHasChanges(true);
   };
 
-  const handleCompanySelect = (companyId: string) => {
+  const handleCompanySelect = (companyId: string | null) => {
     setProject(prev => ({
       ...prev,
-      company_id: companyId,
+      company_id: companyId || '',
       // Reset contact when company changes
       contact_name_id: null,
       contact_name: null,

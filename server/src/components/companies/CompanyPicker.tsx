@@ -213,7 +213,7 @@ export const CompanyPicker: React.FC<CompanyPickerProps & AutomationProps> = ({
 
         {isOpen && (
           <div
-            className="absolute z-[200] bg-white border rounded-md shadow-lg w-full min-w-max" 
+            className="absolute z-[200] bg-white border rounded-md shadow-lg w-full min-w-max max-w-[600px]" 
             style={{
               top: '100%',
               left: 0

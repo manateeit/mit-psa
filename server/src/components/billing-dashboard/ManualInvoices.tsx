@@ -122,8 +122,8 @@ const ManualInvoicesContent: React.FC<ManualInvoicesProps> = ({
   onGenerateSuccess,
   invoice,
 }) => {
-  const [selectedCompany, setSelectedCompany] = useState<string>(
-    invoice?.company_id || ''
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(
+    invoice?.company_id || null
   );
 
   const [items, setItems] = useState<EditableInvoiceItem[]>(() => {
@@ -328,7 +328,7 @@ const ManualInvoicesContent: React.FC<ManualInvoicesProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!invoice && !selectedCompany) {
+      if (!invoice && selectedCompany === null) {
       setError('Please select a company');
       return;
     }
@@ -389,12 +389,12 @@ const ManualInvoicesContent: React.FC<ManualInvoicesProps> = ({
         });
       } else {
         console.log('Generating new manual invoice:', {
-          companyId: selectedCompany,
+          companyId: selectedCompany || '',
           itemCount: items.filter(item => !item.isRemoved).length
         });
 
         await generateManualInvoice({
-          companyId: selectedCompany,
+          companyId: selectedCompany || '',
           items: items.filter(item => !item.isRemoved).map(({ 
             service_id, description, quantity, rate, is_discount, discount_type, applies_to_item_id, discount_percentage 
           }) => ({

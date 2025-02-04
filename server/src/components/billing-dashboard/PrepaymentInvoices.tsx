@@ -20,7 +20,7 @@ interface PrepaymentInvoicesProps {
 }
 
 const PrepaymentInvoices: React.FC<PrepaymentInvoicesProps> = ({ companies, onGenerateSuccess }) => {
-  const [selectedCompany, setSelectedCompany] = useState<string>('');
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [amount, setAmount] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -31,7 +31,7 @@ const PrepaymentInvoices: React.FC<PrepaymentInvoicesProps> = ({ companies, onGe
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCompany || !amount || !description) {
+    if (selectedCompany === null || !amount || !description) {
       setError('Please fill in all fields');
       return;
     }
@@ -50,10 +50,10 @@ const PrepaymentInvoices: React.FC<PrepaymentInvoicesProps> = ({ companies, onGe
         throw new Error('Credit memos are not yet supported');
       }
 
-      await createPrepaymentInvoice(selectedCompany, numericAmount);
+      await createPrepaymentInvoice(selectedCompany || '', numericAmount);
       
       // Clear form
-      setSelectedCompany('');
+      setSelectedCompany(null);
       setAmount('');
       setDescription('');
       setType('prepayment');

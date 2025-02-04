@@ -357,8 +357,8 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({
     setExcludedCategories(excludedIds);
   }, []);
 
-  const handleCompanySelect = useCallback((companyId: string) => {
-    setSelectedCompany(companyId);
+  const handleCompanySelect = useCallback((companyId: string | null) => {
+    setSelectedCompany(companyId || '');
   }, []);
 
   const handleCompanyFilterStateChange = useCallback((state: 'active' | 'inactive' | 'all') => {
