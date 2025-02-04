@@ -14,7 +14,7 @@ import { withDataAutomationId } from '@/types/ui-reflection/withDataAutomationId
 interface CompanyPickerProps {
   id?: string;
   companies?: ICompany[];
-  onSelect: (companyId: string) => void;
+  onSelect: (companyId: string | null) => void;
   selectedCompanyId: string | null;
   filterState: 'all' | 'active' | 'inactive';
   onFilterStateChange: (state: 'all' | 'active' | 'inactive') => void;
@@ -39,31 +39,13 @@ export const CompanyPicker: React.FC<CompanyPickerProps & AutomationProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Debug logs
-  useEffect(() => {
-    console.log('CompanyPicker props:', {
-      companies: companies.length,
-      selectedCompanyId,
-      filterState,
-      clientTypeFilter
-    });
-  }, [companies, selectedCompanyId, filterState, clientTypeFilter]);
-
   const selectedCompany = useMemo(() =>
     companies.find((c) => c.company_id === selectedCompanyId),
     [companies, selectedCompanyId]
   );
 
   const filteredCompanies = useMemo(() => {
-    console.log('Filtering companies:', {
-      total: companies.length,
-      searchTerm,
-      filterState,
-      clientTypeFilter,
-      selectedCompanyId
-    }, []);
-
-    const filtered = companies.filter(company => {
+    return companies.filter(company => {
       const matchesSearch = company.company_name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesState =
         filterState === 'all' ? true :
@@ -76,42 +58,21 @@ export const CompanyPicker: React.FC<CompanyPickerProps & AutomationProps> = ({
             clientTypeFilter === 'individual' ? company.client_type === 'individual' :
               true;
 
-      const matches = matchesSearch && matchesState && matchesClientType;
-      console.log('Company filter result:', {
-        name: company.company_name,
-        matches,
-        matchesSearch,
-        matchesState,
-        matchesClientType
-      });
-
-      console.log('Company filter details:', {
-        companyName: company.company_name,
-        companyId: company.company_id,
-        matchesSearch,
-        matchesState,
-        matchesClientType,
-        matches
-      });
-
-      return matches;
+      return matchesSearch && matchesState && matchesClientType;
     });
-
-    console.log('Filtered results:', {
-      totalCompanies: companies.length,
-      filteredCount: filtered.length,
-      selectedCompanyFound: filtered.some(c => c.company_id === selectedCompanyId)
-    });
-
-    return filtered;
   }, [companies, filterState, clientTypeFilter, searchTerm]);
 
   useEffect(() => {
-    if (!isOpen) return;
-
     const handleClickOutside = (event: MouseEvent) => {
+      if (!isOpen) return;
+      
       const target = event.target as Node;
-      if (!dropdownRef.current?.contains(target) && target.nodeName !== 'SELECT') {
+      const isSelectElement = target.nodeName === 'SELECT';
+      const isInsideDropdown = dropdownRef.current?.contains(target);
+      const isButton = (target as Element).tagName === 'BUTTON';
+      
+      // Don't close if clicking select elements or buttons inside the dropdown
+      if (!isInsideDropdown && !isSelectElement && !isButton) {
         setIsOpen(false);
       }
     };
@@ -121,8 +82,13 @@ export const CompanyPicker: React.FC<CompanyPickerProps & AutomationProps> = ({
   }, [isOpen]);
 
   const handleSelect = (companyId: string, e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-    onSelect(companyId);
+    
+    // Ensure we're actually changing the selection
+    if (companyId !== selectedCompanyId) {
+      onSelect(companyId);
+    }
     setIsOpen(false);
   };
 
@@ -233,7 +199,11 @@ export const CompanyPicker: React.FC<CompanyPickerProps & AutomationProps> = ({
         <Button
           id={`${id}-toggle`}
           variant="outline"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsOpen(!isOpen);
+          }}
           className="w-full justify-between"
           label={selectedCompany ? selectedCompany.company_name : 'Select Client'}
         >

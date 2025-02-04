@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Pen, Eye, CloudDownload, MoreVertical, Upload, Trash2 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { QuickAddContact } from './QuickAddContact';
+import QuickAddContact from './QuickAddContact';
 import { useDrawer } from '@/context/DrawerContext';
 import ContactDetailsView from './ContactDetailsView';
 import ContactDetailsEdit from './ContactDetailsEdit';
