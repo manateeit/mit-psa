@@ -1,4 +1,9 @@
-AlgaPSA EE Source Code License Agreement
+# This License Applies to the /ee folder Only
+
+## Please note: the following license applies to a a specific portion of this project. See LICENSE.md in the main folder for the details.
+
+
+# AlgaPSA EE Source Code License Agreement
 
 This License Agreement (“Agreement”) is entered into by and between Nine Minds LLC (“Licensor”) and you (“Licensee”). This Agreement governs your use of the AlgaPSA Enterprise Edition source code located in the ee/ folder (“Software”).
 
