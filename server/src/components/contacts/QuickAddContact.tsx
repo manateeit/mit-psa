@@ -129,16 +129,14 @@ const QuickAddContactContent: React.FC<QuickAddContactProps> = ({
     } catch (err) {
       console.error('Error adding contact:', err);
       if (err instanceof Error) {
-        // Handle specific error types
-        if (err.message.includes('VALIDATION_ERROR:')) {
-          setError(err.message.replace('VALIDATION_ERROR:', 'Please fix the following:'));
-        } else if (err.message.includes('EMAIL_EXISTS:')) {
-          setError(err.message.replace('EMAIL_EXISTS:', ''));
-        } else if (err.message.includes('FOREIGN_KEY_ERROR:')) {
-          setError(err.message.replace('FOREIGN_KEY_ERROR:', ''));
-        } else if (err.message.includes('SYSTEM_ERROR:')) {
-          setError('An unexpected error occurred. Please try again or contact support.');
+        // Preserve the original error message without stripping prefixes
+        if (err.message.includes('VALIDATION_ERROR:') ||
+            err.message.includes('EMAIL_EXISTS:') ||
+            err.message.includes('FOREIGN_KEY_ERROR:') ||
+            err.message.includes('SYSTEM_ERROR:')) {
+          setError(err.message);
         } else {
+          // For unhandled errors, use a generic message
           setError('An error occurred while creating the contact. Please try again.');
         }
       } else {
@@ -164,9 +162,20 @@ const QuickAddContactContent: React.FC<QuickAddContactProps> = ({
             </button>
             <h4 className="font-semibold mb-2">Error creating contact:</h4>
             <div className="text-sm">
-              {error.split('\n').map((line, index) => (
-                <p key={index} className="mb-1">{line}</p>
-              ))}
+              {error.split('\n').map((line, index) => {
+                // Remove error type prefixes for display
+                let displayMessage = line;
+                if (line.includes('VALIDATION_ERROR:')) {
+                  displayMessage = line.replace('VALIDATION_ERROR:', 'Please fix the following:');
+                } else if (line.includes('EMAIL_EXISTS:')) {
+                  displayMessage = line.replace('EMAIL_EXISTS:', '');
+                } else if (line.includes('FOREIGN_KEY_ERROR:')) {
+                  displayMessage = line.replace('FOREIGN_KEY_ERROR:', '');
+                } else if (line.includes('SYSTEM_ERROR:')) {
+                  displayMessage = 'An unexpected error occurred. Please try again or contact support.';
+                }
+                return <p key={index} className="mb-1">{displayMessage}</p>;
+              })}
             </div>
           </div>
         )}
