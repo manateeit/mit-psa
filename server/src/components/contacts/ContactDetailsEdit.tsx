@@ -41,6 +41,7 @@ const ContactDetailsEdit: React.FC<ContactDetailsEditProps> = ({
   const [allTagTexts, setAllTagTexts] = useState<string[]>([]);
   const [filterState, setFilterState] = useState<'all' | 'active' | 'inactive'>('all');
   const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,10 +66,27 @@ const ContactDetailsEdit: React.FC<ContactDetailsEditProps> = ({
 
   const handleSave = async () => {
     try {
+      setError(null);
       const updatedContact = await updateContact(contact);
       onSave(updatedContact);
-    } catch (error) {
-      console.error('Error updating contact:', error);
+    } catch (err) {
+      console.error('Error updating contact:', err);
+      if (err instanceof Error) {
+        // Handle specific error types
+        if (err.message.includes('VALIDATION_ERROR:')) {
+          setError(err.message.replace('VALIDATION_ERROR:', 'Please fix the following:'));
+        } else if (err.message.includes('EMAIL_EXISTS:')) {
+          setError(err.message.replace('EMAIL_EXISTS:', ''));
+        } else if (err.message.includes('FOREIGN_KEY_ERROR:')) {
+          setError(err.message.replace('FOREIGN_KEY_ERROR:', ''));
+        } else if (err.message.includes('SYSTEM_ERROR:')) {
+          setError('An unexpected error occurred. Please try again or contact support.');
+        } else {
+          setError('An error occurred while saving. Please try again.');
+        }
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     }
   };
 
@@ -79,6 +97,11 @@ const ContactDetailsEdit: React.FC<ContactDetailsEditProps> = ({
   return (
     <ReflectionContainer id={id} label={`Edit Contact - ${contact.full_name}`}>
       <div className="p-6 bg-white shadow rounded-lg">
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-800">{error}</p>
+          </div>
+        )}
         <div className="flex justify-between items-center mb-4">
           <Heading size="6">Edit Contact: {contact.full_name}</Heading>
         </div>
