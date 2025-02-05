@@ -108,6 +108,7 @@ const QuickAddContactContent: React.FC<QuickAddContactProps> = ({
     }
 
     try {
+      setError(null); // Clear any existing errors
       const contactData = {
         full_name: fullName.trim(),
         email: email.trim(),
@@ -125,22 +126,23 @@ const QuickAddContactContent: React.FC<QuickAddContactProps> = ({
       const newContact = await addContact(contactData);
       onContactAdded(newContact);
       onClose();
-    } catch (error) {
-      console.error('Error adding contact:', error);
-      if (error instanceof Error) {
-        if (error.message.includes('EMAIL_EXISTS:')) {
-          setError('A contact with this email address already exists in the system. Please use a different email address.');
-        } else if (error.message.includes('VALIDATION_ERROR:')) {
-          setError('Please ensure all required fields are filled in correctly.');
-        } else if (error.message.includes('FOREIGN_KEY_ERROR:')) {
-          setError('The selected company is no longer valid. Please select a different company.');
-        } else if (error.message.includes('SYSTEM_ERROR:')) {
-          setError('A system error occurred. Please try again or contact support if the issue persists.');
+    } catch (err) {
+      console.error('Error adding contact:', err);
+      if (err instanceof Error) {
+        // Handle specific error types
+        if (err.message.includes('VALIDATION_ERROR:')) {
+          setError(err.message.replace('VALIDATION_ERROR:', 'Please fix the following:'));
+        } else if (err.message.includes('EMAIL_EXISTS:')) {
+          setError(err.message.replace('EMAIL_EXISTS:', ''));
+        } else if (err.message.includes('FOREIGN_KEY_ERROR:')) {
+          setError(err.message.replace('FOREIGN_KEY_ERROR:', ''));
+        } else if (err.message.includes('SYSTEM_ERROR:')) {
+          setError('An unexpected error occurred. Please try again or contact support.');
         } else {
-          setError('An error occurred while creating the contact. Please verify all information and try again.');
+          setError('An error occurred while creating the contact. Please try again.');
         }
       } else {
-        setError('Failed to create contact. Please try again.');
+        setError('An unexpected error occurred. Please try again.');
       }
     }
   };
@@ -161,9 +163,11 @@ const QuickAddContactContent: React.FC<QuickAddContactProps> = ({
               <X className="h-5 w-5" />
             </button>
             <h4 className="font-semibold mb-2">Error creating contact:</h4>
-            <ul className="list-disc pl-5">
-              <li>{error}</li>
-            </ul>
+            <div className="text-sm">
+              {error.split('\n').map((line, index) => (
+                <p key={index} className="mb-1">{line}</p>
+              ))}
+            </div>
           </div>
         )}
         <form onSubmit={(e) => {

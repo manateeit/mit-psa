@@ -208,36 +208,8 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
     if (!contactToDelete) return;
 
     try {
-      const result = await deleteContact(contactToDelete.contact_name_id);
-
-      if (!result.success) {
-        if ('code' in result && result.code === 'CONTACT_HAS_DEPENDENCIES' && 'dependencies' in result && 'counts' in result) {
-          const dependencies = result.dependencies || [];
-          const counts = result.counts || {};
-          const dependencyText = dependencies.map((dep: string): string => {
-            const count = counts[dep] || 0;
-            const readableTypes: Record<string, string> = {
-              'ticket': 'active tickets',
-              'interaction': 'interactions',
-              'project': 'active projects',
-              'document': 'documents',
-              'timeEntry': 'time entries'
-            };
-            return `${count} ${readableTypes[dep] || `${dep}s`}`;
-          }).join(', ');
-
-          setDeleteError(
-            `This contact cannot be deleted because it has the following associated records: ${dependencyText}. ` +
-            `To maintain data integrity, you can edit the contact and set its status to inactive instead.`
-          );
-          return;
-        }
-        if ('message' in result) {
-          throw new Error(result.message);
-        }
-        throw new Error('Failed to delete contact');
-      }
-
+      await deleteContact(contactToDelete.contact_name_id);
+      
       setContacts(prevContacts =>
         prevContacts.filter(c => c.contact_name_id !== contactToDelete.contact_name_id)
       );
@@ -245,9 +217,27 @@ const Contacts: React.FC<ContactsProps> = ({ initialContacts, companyId, preSele
       setIsDeleteDialogOpen(false);
       setContactToDelete(null);
       setDeleteError(null);
-    } catch (error) {
-      console.error('Error deleting contact:', error);
-      setDeleteError('An error occurred while deleting the contact. Please try again.');
+    } catch (err) {
+      console.error('Error deleting contact:', err);
+      if (err instanceof Error) {
+        if (err.message.includes('VALIDATION_ERROR:')) {
+          // For dependency errors
+          const message = err.message.replace('VALIDATION_ERROR:', '').trim();
+          if (message.includes('associated records:')) {
+            setDeleteError(
+              `${message}\n\nTo maintain data integrity, you can edit the contact and set its status to inactive instead.`
+            );
+          } else {
+            setDeleteError(message);
+          }
+        } else if (err.message.includes('SYSTEM_ERROR:')) {
+          setDeleteError('An unexpected error occurred. Please try again or contact support.');
+        } else {
+          setDeleteError('An error occurred while deleting the contact. Please try again.');
+        }
+      } else {
+        setDeleteError('An unexpected error occurred. Please try again.');
+      }
     }
   };
 

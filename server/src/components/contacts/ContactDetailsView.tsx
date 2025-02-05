@@ -70,17 +70,32 @@ const ContactDetailsView: React.FC<ContactDetailsViewProps> = ({
   const [allTagTexts, setAllTagTexts] = useState<string[]>([]);
   const [interactions, setInteractions] = useState<IInteraction[]>([]);
   const [documents, setDocuments] = useState<IDocument[]>(initialDocuments);
+  const [error, setError] = useState<string | null>(null);
   const { openDrawer, goBack } = useDrawer();
 
   useEffect(() => {
     const fetchData = async () => {
-      const [fetchedTags, allTags] = await Promise.all([
-        findTagsByEntityIds([contact.contact_name_id], 'contact'),
-        findAllTagsByType('contact')
-      ]);
-      
-      setTags(fetchedTags);
-      setAllTagTexts(allTags);
+      try {
+        setError(null);
+        const [fetchedTags, allTags] = await Promise.all([
+          findTagsByEntityIds([contact.contact_name_id], 'contact'),
+          findAllTagsByType('contact')
+        ]);
+        
+        setTags(fetchedTags);
+        setAllTagTexts(allTags);
+      } catch (err) {
+        console.error('Error fetching tags:', err);
+        if (err instanceof Error) {
+          if (err.message.includes('SYSTEM_ERROR:')) {
+            setError('An unexpected error occurred while loading tags. Please try again or contact support.');
+          } else {
+            setError('Failed to load tags. Please try refreshing the page.');
+          }
+        } else {
+          setError('An unexpected error occurred. Please try again.');
+        }
+      }
     };
     fetchData();
   }, [contact.contact_name_id]);
@@ -144,6 +159,7 @@ const ContactDetailsView: React.FC<ContactDetailsViewProps> = ({
   const handleCompanyClick = async () => {
     if (contact.company_id) {
       try {
+        setError(null);
         const company = await getCompanyById(contact.company_id);
         if (company) {
           openDrawer(
@@ -156,13 +172,22 @@ const ContactDetailsView: React.FC<ContactDetailsViewProps> = ({
             />
           );
         } else {
-          console.error('Company not found');
+          setError('Company not found. The company may have been deleted.');
         }
-      } catch (error) {
-        console.error('Error fetching company details:', error);
+      } catch (err) {
+        console.error('Error fetching company details:', err);
+        if (err instanceof Error) {
+          if (err.message.includes('SYSTEM_ERROR:')) {
+            setError('An unexpected error occurred while loading company details. Please try again or contact support.');
+          } else if (err.message.includes('FOREIGN_KEY_ERROR:')) {
+            setError('The company no longer exists in the system.');
+          } else {
+            setError('Failed to load company details. Please try again.');
+          }
+        } else {
+          setError('An unexpected error occurred. Please try again.');
+        }
       }
-    } else {
-      console.log('No company associated with this contact');
     }
   };
 
@@ -178,6 +203,11 @@ const ContactDetailsView: React.FC<ContactDetailsViewProps> = ({
   return (
     <ReflectionContainer id={id} label={`Contact Details - ${contact.full_name}`}>
       <div className="p-6 bg-white shadow rounded-lg">
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-800">{error}</p>
+          </div>
+        )}
         <div className="flex justify-between items-center mb-6">
           <Heading size="6">{contact.full_name}</Heading>
           <div className="flex items-center space-x-2">
