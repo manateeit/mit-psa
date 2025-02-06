@@ -132,12 +132,13 @@ async function createDatabase(retryCount = 0) {
   }
 
   // Read passwords from secret files
-  const postgresPassword = getSecret('postgres_password', 'POSTGRES_PASSWORD');
+  const postgresPassword = getSecret('postgres_password', 'DB_PASSWORD_ADMIN');
   if (!postgresPassword) {
     console.error('Error: No postgres password available');
     process.exit(1);
   }
 
+  
   const serverPassword = getSecret('db_password_server', 'DB_PASSWORD_SERVER');
   if (!serverPassword) {
     console.error('Error: No server password available');

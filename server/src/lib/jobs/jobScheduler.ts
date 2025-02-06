@@ -104,6 +104,8 @@ export class JobScheduler implements IJobScheduler {
         const env = process.env.APP_ENV || 'development';
         const { host, port, user, database } = await getPostgresConnection();
         let { password } = await getPostgresConnection();
+
+        console.log('Initializing pgboss with connection:', { host, port, user, database, password });
         
         // Ensure password is properly encoded for URL
         if (password) {

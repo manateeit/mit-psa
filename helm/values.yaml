@@ -86,7 +86,7 @@ config:
     password: password
     server_database: server
     hocuspocus_database: hocuspocus
-  redis: # Redis configuration only is redis enabled is true
+  redis: # Redis configuration only if redis enabled is true
     host: redis
     port: 6379
     password: password

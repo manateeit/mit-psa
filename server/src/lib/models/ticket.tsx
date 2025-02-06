@@ -24,7 +24,10 @@ const Ticket = {
         'tickets.*',
         'priorities.priority_name'
       )
-      .leftJoin('priorities', 'tickets.priority_id', 'priorities.priority_id')
+      .leftJoin('priorities', function() {
+        this.on('tickets.priority_id', 'priorities.priority_id')
+           .andOn('tickets.tenant', 'priorities.tenant')
+      })
       .where('tickets.ticket_id', id);
     
     return ticket;

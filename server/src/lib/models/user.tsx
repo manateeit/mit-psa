@@ -1,6 +1,7 @@
 import logger from '@/utils/logger';
 import { IUser, IRole, IUserRole, IUserWithRoles, IRoleWithPermissions, IPermission } from '@/interfaces/auth.interfaces';
 import { getConnection } from '@/lib/db/db';
+import { getAdminConnection } from '@/lib/db/admin';
 import { createTenantKnex } from '@/lib/db';
 import { hashPassword, verifyPassword } from '@/utils/encryption/encryption';
 
@@ -28,7 +29,7 @@ const User = {
   },
 
   findUserByEmail: async (email: string): Promise<IUser | undefined> => {
-    const db = await getConnection();
+    const db = await getAdminConnection();
     try {
       const user = await db<IUser>('users').select('*').where({ email }).first();
       return user;
@@ -212,7 +213,10 @@ const User = {
     const {knex: db, tenant} = await createTenantKnex();
     try {
       let query = db<IRole>('roles')
-        .join('user_roles', 'roles.role_id', 'user_roles.role_id')
+        .join('user_roles', function() {
+          this.on('roles.role_id', '=', 'user_roles.role_id')
+              .andOn('roles.tenant', '=', 'user_roles.tenant');
+        })
         .where('user_roles.user_id', user_id);
       
       if (tenant !== null) {
@@ -223,12 +227,12 @@ const User = {
 
       const rolesWithPermissions = await Promise.all(roles.map(async (role): Promise<IRoleWithPermissions> => {
         let permissionQuery = db<IPermission>('permissions')
-          .join('role_permissions', 'permissions.permission_id', 'role_permissions.permission_id')
-          .where('role_permissions.role_id', role.role_id);
-        
-        if (tenant !== null) {
-          permissionQuery = permissionQuery.andWhere('role_permissions.tenant', tenant);
-        }
+          .join('role_permissions', function() {
+            this.on('permissions.permission_id', '=', 'role_permissions.permission_id')
+                .andOn('permissions.tenant', '=', 'role_permissions.tenant');
+          })
+          .where('role_permissions.role_id', role.role_id)
+          .andWhere('role_permissions.tenant', tenant);
         
         const permissions = await permissionQuery.select('permissions.*');
 

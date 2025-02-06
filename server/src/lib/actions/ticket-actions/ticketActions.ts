@@ -440,11 +440,26 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
         'cat.category_name',
         db.raw("CONCAT(u.first_name, ' ', u.last_name) as entered_by_name")
       )
-      .leftJoin('statuses as s', 't.status_id', 's.status_id')
-      .leftJoin('priorities as p', 't.priority_id', 'p.priority_id')
-      .leftJoin('channels as c', 't.channel_id', 'c.channel_id')
-      .leftJoin('categories as cat', 't.category_id', 'cat.category_id')
-      .leftJoin('users as u', 't.entered_by', 'u.user_id')
+      .leftJoin('statuses as s', function() {
+        this.on('t.status_id', 's.status_id')
+           .andOn('t.tenant', 's.tenant')
+      })
+      .leftJoin('priorities as p', function() {
+        this.on('t.priority_id', 'p.priority_id')
+           .andOn('t.tenant', 'p.tenant')
+      })
+      .leftJoin('channels as c', function() {
+        this.on('t.channel_id', 'c.channel_id')
+           .andOn('t.tenant', 'c.tenant')
+      })
+      .leftJoin('categories as cat', function() {
+        this.on('t.category_id', 'cat.category_id')
+           .andOn('t.tenant', 'cat.tenant')
+      })
+      .leftJoin('users as u', function() {
+        this.on('t.entered_by', 'u.user_id')
+           .andOn('t.tenant', 'u.tenant')
+      })
       .where('t.tenant', tenant);
 
     // Apply filters

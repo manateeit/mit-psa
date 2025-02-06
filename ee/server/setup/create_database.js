@@ -131,7 +131,7 @@ async function createDatabase(retryCount = 0) {
   }
 
   // Read passwords from secret files
-  const postgresPassword = getSecret('postgres_password', 'POSTGRES_PASSWORD');
+  const postgresPassword = getSecret('postgres_password', 'DB_PASSWORD_ADMIN');
   if (!postgresPassword) {
     console.error('Error: No postgres password available');
     process.exit(1);
@@ -187,7 +187,6 @@ async function createDatabase(retryCount = 0) {
 
     // Create extensions required for EE
     await dbClient.query(`
-      CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
       CREATE EXTENSION IF NOT EXISTS "vector";
     `);
 

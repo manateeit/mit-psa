@@ -1,7 +1,7 @@
 const PgBoss = require('pg-boss');
 
 exports.up = async function(knex) {
-  await knex.raw('CREATE EXTENSION IF NOT EXISTS pgcrypto');
+  /*await knex.raw('CREATE EXTENSION IF NOT EXISTS pgcrypto'); */
 
   const connection = knex.client.config.connection;
   

@@ -60,7 +60,7 @@ export async function getContactByContactNameId(contactNameId: string): Promise<
 }
 
 export async function deleteContact(contactId: string) {
-  const {knex: db, tenant} = await createTenantKnex();
+  const { knex: db, tenant } = await createTenantKnex();
   if (!tenant) {
     throw new Error('SYSTEM_ERROR: Tenant configuration not found');
   }
@@ -214,7 +214,7 @@ export async function getContactsByCompany(companyId: string, status: ContactFil
       .leftJoin('companies', 'contacts.company_id', 'companies.company_id')
       .where('contacts.company_id', companyId)
       .andWhere('contacts.tenant', tenant)
-      .modify(function(queryBuilder) {
+      .modify(function (queryBuilder) {
         if (status !== 'all') {
           queryBuilder.where('contacts.is_inactive', status === 'inactive');
         }
@@ -310,7 +310,7 @@ export async function getAllContacts(status: ContactFilterStatus = 'active'): Pr
       )
       .leftJoin('companies', 'contacts.company_id', 'companies.company_id')
       .where('contacts.tenant', tenant)
-      .modify(function(queryBuilder) {
+      .modify(function (queryBuilder) {
         if (status !== 'all') {
           queryBuilder.where('contacts.is_inactive', status === 'inactive');
         }
@@ -350,7 +350,7 @@ export async function addContact(contactData: Partial<IContact>): Promise<IConta
     throw new Error('SYSTEM_ERROR: Tenant configuration not found');
   }
 
-  try {
+
     // Validate required fields with specific messages
     if (!contactData.full_name?.trim() && !contactData.email?.trim()) {
       throw new Error('VALIDATION_ERROR: Full name and email address are required');
@@ -367,6 +367,7 @@ export async function addContact(contactData: Partial<IContact>): Promise<IConta
     if (!emailRegex.test(contactData.email.trim())) {
       throw new Error('VALIDATION_ERROR: Please enter a valid email address');
     }
+
 
     // Check if email already exists
     const existingContact = await db('contacts')
@@ -401,6 +402,7 @@ export async function addContact(contactData: Partial<IContact>): Promise<IConta
       updated_at: new Date().toISOString()
     };
 
+  try {
     const [newContact] = await db('contacts').insert(contactWithTenant).returning('*');
 
     if (!newContact) {
@@ -490,7 +492,7 @@ export async function updateContact(contactData: Partial<IContact>): Promise<ICo
 
     // Define valid fields
     const validFields: (keyof IContact)[] = [
-      'contact_name_id', 'full_name', 'company_id', 'phone_number', 
+      'contact_name_id', 'full_name', 'company_id', 'phone_number',
       'email', 'date_of_birth', 'created_at', 'updated_at', 'is_inactive',
       'role', 'notes'
     ];
@@ -526,11 +528,11 @@ export async function updateContact(contactData: Partial<IContact>): Promise<ICo
       .where({ contact_name_id: contactData.contact_name_id, tenant })
       .update(updateData)
       .returning('*');
-    
+
     if (!updatedContact) {
       throw new Error('SYSTEM_ERROR: Failed to update contact record');
     }
-    
+
     return updatedContact;
   } catch (err) {
     // Log the error for debugging
@@ -715,7 +717,7 @@ export async function exportContactsToCSV(
   contactTags: Record<string, ITag[]>
 ): Promise<string> {
   const fields = ['full_name', 'email', 'phone_number', 'company_name', 'role', 'notes', 'tags'];
-  
+
   const data = contacts.map((contact): Record<string, string> => {
     const company = companies.find(c => c.company_id === contact.company_id);
     const tags = contactTags[contact.contact_name_id] || [];
