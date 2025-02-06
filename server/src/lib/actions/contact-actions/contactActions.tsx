@@ -24,7 +24,10 @@ export async function getContactByContactNameId(contactNameId: string): Promise<
         'contacts.*',
         'companies.company_name'
       )
-      .leftJoin('companies', 'contacts.company_id', 'companies.company_id')
+      .leftJoin('companies', function() {
+        this.on('contacts.company_id', 'companies.company_id')
+           .andOn('companies.tenant', db.raw('?', [tenant]))
+      })
       .where({ 
         'contacts.contact_name_id': contactNameId, 
         'contacts.tenant': tenant 
@@ -86,7 +89,11 @@ export async function deleteContact(contactId: string) {
 
     // Check for tickets
     const ticketCount = await db('tickets')
-      .where({ contact_name_id: contactId, is_closed: false })
+      .where({ 
+        contact_name_id: contactId, 
+        is_closed: false,
+        tenant 
+      })
       .count('* as count')
       .first();
     if (ticketCount && Number(ticketCount.count) > 0) {
@@ -96,7 +103,10 @@ export async function deleteContact(contactId: string) {
 
     // Check for interactions
     const interactionCount = await db('interactions')
-      .where({ contact_name_id: contactId })
+      .where({ 
+        contact_name_id: contactId,
+        tenant 
+      })
       .count('* as count')
       .first();
     if (interactionCount && Number(interactionCount.count) > 0) {
@@ -108,7 +118,8 @@ export async function deleteContact(contactId: string) {
     const documentCount = await db('document_associations')
       .where({ 
         entity_id: contactId,
-        entity_type: 'contact'
+        entity_type: 'contact',
+        tenant 
       })
       .count('* as count')
       .first();
@@ -119,7 +130,10 @@ export async function deleteContact(contactId: string) {
 
     // Check for schedules
     const scheduleCount = await db('schedules')
-      .where({ contact_name_id: contactId })
+      .where({ 
+        contact_name_id: contactId,
+        tenant 
+      })
       .count('* as count')
       .first();
     if (scheduleCount && Number(scheduleCount.count) > 0) {
@@ -211,7 +225,10 @@ export async function getContactsByCompany(companyId: string, status: ContactFil
         'contacts.*',
         'companies.company_name'
       )
-      .leftJoin('companies', 'contacts.company_id', 'companies.company_id')
+      .leftJoin('companies', function() {
+        this.on('contacts.company_id', 'companies.company_id')
+           .andOn('companies.tenant', db.raw('?', [tenant]))
+      })
       .where('contacts.company_id', companyId)
       .andWhere('contacts.tenant', tenant)
       .modify(function (queryBuilder) {
@@ -308,7 +325,10 @@ export async function getAllContacts(status: ContactFilterStatus = 'active'): Pr
         'contacts.*',
         'companies.company_name'
       )
-      .leftJoin('companies', 'contacts.company_id', 'companies.company_id')
+      .leftJoin('companies', function() {
+        this.on('contacts.company_id', 'companies.company_id')
+           .andOn('companies.tenant', db.raw('?', [tenant]))
+      })
       .where('contacts.tenant', tenant)
       .modify(function (queryBuilder) {
         if (status !== 'all') {
