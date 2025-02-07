@@ -8,13 +8,13 @@ import { withDataAutomationId } from '../../types/ui-reflection/withDataAutomati
 interface ConfirmationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => Promise<void> | void;
+  onConfirm: (selectedValue?: string) => Promise<void> | void;
   title: string;
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
   isConfirming?: boolean;
-  /** Unique identifier for UI reflection system */
+  options?: Array<{ value: string; label: string }>;
   id?: string;
 }
 
@@ -27,14 +27,22 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps & AutomationPr
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   isConfirming,
+  options,
   id
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedValue, setSelectedValue] = useState('');
+
+  useEffect(() => {
+    if (options?.[0]?.value) {
+      setSelectedValue(options[0].value);
+    }
+  }, [options]);
 
   const handleConfirm = async () => {
     setIsProcessing(true);
     try {
-      await onConfirm();
+      await onConfirm(options ? selectedValue : undefined);
     } finally {
       setIsProcessing(false);
     }
@@ -49,7 +57,26 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps & AutomationPr
     >
       <DialogContent>
         <p className="text-gray-600">{message}</p>
+        {options && (
+          <div className="space-y-2 mt-4">
+            {options.map((opt) => (
+              <label key={opt.value} className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="dialog-option"
+                  value={opt.value}
+                  checked={selectedValue === opt.value}
+                  onChange={(e) => setSelectedValue(e.target.value)}
+                  className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
+                  id={`${id}-option-${opt.value}`}
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+        )}
         <DialogFooter>
+          <div className="mt-4 space-x-2">
           <Button 
             variant="outline" 
             onClick={onClose}
@@ -64,6 +91,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps & AutomationPr
           >
             {confirmLabel}
           </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

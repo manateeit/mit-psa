@@ -60,6 +60,12 @@ export interface IScheduleConflict extends TenantEntity {
   updated_at: Date;
 }
 
+export enum EditScope {
+  SINGLE = 'single',
+  FUTURE = 'future',
+  ALL = 'all'
+}
+
 export enum Views {
   MONTH = 'month',
   WEEK = 'week',
