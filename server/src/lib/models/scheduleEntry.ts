@@ -361,34 +361,51 @@ class ScheduleEntry {
           // Split the recurrence into two series
           const newMasterId = uuidv4();
               
-              // 1. Update original master to end before current instance
-              const originalEndDate = new Date(virtualTimestamp!.getTime() - 1000);
+              // 1. Update original master entry to end before the current instance
+              const originalEndDate = new Date(virtualTimestamp);
+              originalEndDate.setDate(originalEndDate.getDate() - 1); // Previous day
+              originalEndDate.setHours(23, 59, 59, 999); // End of previous day in local time
+              
+              const updatedOriginalPattern = {
+                ...originalPattern,
+                endDate: originalEndDate,
+                exceptions: originalPattern.exceptions?.filter(d => new Date(d) < virtualTimestamp)
+              };
+              
               await trx('schedule_entries')
                 .where({ entry_id: masterEntryId })
                 .update({
-                  recurrence_pattern: JSON.stringify({
-                    ...originalPattern,
-                    endDate: originalEndDate
-                  })
+                  recurrence_pattern: JSON.stringify(updatedOriginalPattern),
+                  scheduled_end: originalEndDate // Also update scheduled_end to match the new end date
                 });
 
-              // 2. Create new master starting at current instance
+              // 2. Create new master starting at current instance with fresh ID
+              const newStartDate = entry.scheduled_start || virtualTimestamp;
+              const newPattern = {
+                ...originalPattern,
+                startDate: newStartDate,
+                endDate: entry.recurrence_pattern?.endDate || originalPattern.endDate,
+                exceptions: originalPattern.exceptions?.filter(d => new Date(d) >= virtualTimestamp)
+              };
+
               const newMasterEntry = {
                 ...originalEntry,
                 entry_id: newMasterId,
-                scheduled_start: entry.scheduled_start || originalEntry.scheduled_start,
+                original_entry_id: null, // Reset original ID for new series
+                title: entry.title || originalEntry.title,
+                scheduled_start: newStartDate,
                 scheduled_end: entry.scheduled_end || originalEntry.scheduled_end,
-                recurrence_pattern: {
-                  ...originalPattern,
-                  startDate: entry.scheduled_start || originalEntry.scheduled_start,
-                  endDate: originalPattern.endDate,
-                  exceptions: originalPattern.exceptions?.filter(d => d >= virtualTimestamp)
-                },
-                assigned_user_ids: entry.assigned_user_ids || originalEntry.assigned_user_ids
+                notes: entry.notes || originalEntry.notes,
+                status: entry.status || originalEntry.status,
+                work_item_id: entry.work_item_id || originalEntry.work_item_id,
+                work_item_type: entry.work_item_type || originalEntry.work_item_type,
+                recurrence_pattern: JSON.stringify(newPattern),
+                is_recurring: true
               };
 
-              await trx('schedule_entries').insert(newMasterEntry);
-              await this.updateAssignees(trx, tenant || '', newMasterId, newMasterEntry.assigned_user_ids);
+          await trx('schedule_entries').insert(newMasterEntry);
+          await this.updateAssignees(trx, tenant || '', newMasterId, 
+            entry.assigned_user_ids || originalEntry.assigned_user_ids);
               break;
 
             case 'all':

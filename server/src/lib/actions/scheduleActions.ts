@@ -104,9 +104,8 @@ export async function updateScheduleEntry(
     // If no assigned_user_ids provided, keep existing assignments
       const updatedEntry = await ScheduleEntry.update(entry_id, {
         ...entry,
-        assigned_user_ids: entry.assigned_user_ids,
-        original_entry_id: ''
-      }, 'single');
+        assigned_user_ids: entry.assigned_user_ids
+      }, entry.updateType || 'single');
     return { success: true, entry: updatedEntry };
   } catch (error) {
     console.error('Error updating schedule entry:', error);

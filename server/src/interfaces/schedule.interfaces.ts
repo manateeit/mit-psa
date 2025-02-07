@@ -35,6 +35,7 @@ export interface IScheduleEntry extends TenantEntity {
   updated_at: Date;
   is_recurring?: boolean;
   original_entry_id?: string;
+  updateType?: IEditScope;
 }
 
 export interface IResource extends TenantEntity {
@@ -60,7 +61,7 @@ export interface IScheduleConflict extends TenantEntity {
   updated_at: Date;
 }
 
-export enum EditScope {
+export enum IEditScope {
   SINGLE = 'single',
   FUTURE = 'future',
   ALL = 'all'

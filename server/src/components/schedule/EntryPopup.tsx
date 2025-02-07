@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { TextArea } from '@/components/ui/TextArea';
 import { format } from 'date-fns';
-import { IScheduleEntry, IRecurrencePattern } from '@/interfaces/schedule.interfaces';
+import { IScheduleEntry, IRecurrencePattern, IEditScope } from '@/interfaces/schedule.interfaces';
 import { AddWorkItemDialog } from '@/components/time-management/time-entry/time-sheet/AddWorkItemDialog';
 import { IWorkItem } from '@/interfaces/workItem.interfaces';
 import { getWorkItemById } from '@/lib/actions/workItemActions';
@@ -414,7 +414,7 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
         onClose={() => setShowRecurrenceDialog(false)}
         onConfirm={async (updateType) => {
           if (pendingUpdateData) {
-            onSave({...pendingUpdateData, updateType});
+            onSave({...pendingUpdateData, updateType: updateType as IEditScope});
             setShowRecurrenceDialog(false);
           }
         }}
