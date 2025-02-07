@@ -331,7 +331,7 @@ class ScheduleEntry {
             // 2. Add UTC exception to master pattern
             const exceptionDate = new Date(entry.scheduled_start || originalEntry.scheduled_start);
             exceptionDate.setUTCHours(0, 0, 0, 0);
-            const updatedPattern = {
+            const singleUpdatedPattern = {
               ...originalPattern,
               exceptions: [...(originalPattern.exceptions || []), exceptionDate]
             };
@@ -339,7 +339,7 @@ class ScheduleEntry {
             await trx('schedule_entries')
               .where({ entry_id: masterEntryId })
               .update({
-                recurrence_pattern: JSON.stringify(updatedPattern)
+                recurrence_pattern: JSON.stringify(singleUpdatedPattern)
               });
 
             // 3. Return new standalone entry
@@ -366,7 +366,7 @@ class ScheduleEntry {
               originalEndDate.setDate(originalEndDate.getDate() - 1); // Previous day
               originalEndDate.setHours(23, 59, 59, 999); // End of previous day in local time
               
-              const updatedOriginalPattern = {
+              const futureOriginalPattern = {
                 ...originalPattern,
                 endDate: originalEndDate,
                 exceptions: originalPattern.exceptions?.filter(d => new Date(d) < virtualTimestamp)
@@ -375,16 +375,20 @@ class ScheduleEntry {
               await trx('schedule_entries')
                 .where({ entry_id: masterEntryId })
                 .update({
-                  recurrence_pattern: JSON.stringify(updatedOriginalPattern),
-                  scheduled_end: originalEndDate // Also update scheduled_end to match the new end date
+                  recurrence_pattern: JSON.stringify(futureOriginalPattern)
                 });
 
               // 2. Create new master starting at current instance with fresh ID
               const newStartDate = entry.scheduled_start || virtualTimestamp;
-              const newPattern = {
+              // Create new pattern with all changes from the entry update
+              const newPattern = entry.recurrence_pattern ? {
+                ...entry.recurrence_pattern,
+                startDate: newStartDate,
+                exceptions: [] // Start fresh with no exceptions for the new series
+              } : {
                 ...originalPattern,
                 startDate: newStartDate,
-                endDate: entry.recurrence_pattern?.endDate || originalPattern.endDate,
+                endDate: originalPattern.endDate,
                 exceptions: originalPattern.exceptions?.filter(d => new Date(d) >= virtualTimestamp)
               };
 
@@ -403,23 +407,61 @@ class ScheduleEntry {
                 is_recurring: true
               };
 
-          await trx('schedule_entries').insert(newMasterEntry);
-          await this.updateAssignees(trx, tenant || '', newMasterId, 
-            entry.assigned_user_ids || originalEntry.assigned_user_ids);
-              break;
+              await trx('schedule_entries').insert(newMasterEntry);
+              await this.updateAssignees(trx, tenant || '', newMasterId, 
+                entry.assigned_user_ids || originalEntry.assigned_user_ids);
+              
+              await trx.commit();
+              return {
+                ...newMasterEntry,
+                assigned_user_ids: entry.assigned_user_ids || originalEntry.assigned_user_ids
+              };
 
             case 'all':
-              // Update the original pattern directly
-              await trx('schedule_entries')
+              // Update all fields including the recurrence pattern
+              const allUpdatePattern = entry.recurrence_pattern ? {
+                ...originalPattern,
+                ...entry.recurrence_pattern,
+                startDate: entry.scheduled_start || originalPattern.startDate,
+                exceptions: originalPattern.exceptions || []
+              } : originalPattern;
+
+              // Update the entry with all changes
+              const [updatedMasterEntry] = await trx('schedule_entries')
                 .where({ entry_id: masterEntryId })
                 .update({
-                  ...updateData,
-                  recurrence_pattern: JSON.stringify({
-                    ...originalPattern,
-                    ...(entry.recurrence_pattern || {})
-                  })
-                });
-              break;
+                  title: entry.title || originalEntry.title,
+                  scheduled_start: entry.scheduled_start || originalEntry.scheduled_start,
+                  scheduled_end: entry.scheduled_end || originalEntry.scheduled_end,
+                  notes: entry.notes || originalEntry.notes,
+                  status: entry.status || originalEntry.status,
+                  work_item_id: entry.work_item_id || originalEntry.work_item_id,
+                  work_item_type: entry.work_item_type || originalEntry.work_item_type,
+                  recurrence_pattern: entry.recurrence_pattern ? JSON.stringify({
+                    frequency: entry.recurrence_pattern.frequency,
+                    interval: entry.recurrence_pattern.interval,
+                    startDate: originalPattern.startDate, // Keep original start date to preserve existing events
+                    endDate: entry.recurrence_pattern.endDate || originalPattern.endDate,
+                    exceptions: originalPattern.exceptions || [],
+                    daysOfWeek: entry.recurrence_pattern.daysOfWeek || originalPattern.daysOfWeek,
+                    dayOfMonth: entry.recurrence_pattern.dayOfMonth || originalPattern.dayOfMonth,
+                    monthOfYear: entry.recurrence_pattern.monthOfYear || originalPattern.monthOfYear,
+                    count: entry.recurrence_pattern.count || originalPattern.count
+                  }) : JSON.stringify(originalPattern),
+                  is_recurring: true
+                })
+                .returning('*');
+
+              // Update assignees if provided
+              if (entry.assigned_user_ids) {
+                await this.updateAssignees(trx, tenant || '', masterEntryId, entry.assigned_user_ids);
+              }
+
+              await trx.commit();
+              return {
+                ...updatedMasterEntry,
+                assigned_user_ids: entry.assigned_user_ids || originalEntry.assigned_user_ids
+              };
           }
         }
       }
@@ -446,120 +488,9 @@ class ScheduleEntry {
 
         // For virtual instances, use the parsed master ID and timestamp
         if (isVirtualId && virtualTimestamp) {
-          // Virtual instance - use its scheduled_start as the cutoff date
-          console.log('[ScheduleEntry] Removing recurrence from virtual instance:', {
-            virtualEntryId: entry_id,
-            virtualEntryStart: originalEntry.scheduled_start,
-            masterEntryId: masterEntryId,
-            endDate: originalEntry.scheduled_start
-          });
-
-          // Find and update the master entry's recurrence pattern
-          const masterEntry = await trx('schedule_entries')
-            .where('entry_id', masterEntryId)
-            .first();
-
-          console.log('[ScheduleEntry] Found master entry:', {
-            masterEntryId: masterEntry?.entry_id,
-            hasMasterPattern: !!masterEntry?.recurrence_pattern
-          });
-
-          if (masterEntry?.recurrence_pattern) {
-            // Parse the master's recurrence pattern
-            const pattern = parseRecurrencePattern(masterEntry.recurrence_pattern);
-            if (pattern) {
-              console.log('[ScheduleEntry] Current master pattern:', {
-                originalPattern: pattern,
-                originalEndDate: pattern.endDate
-              });
-
-              // Set endDate to the virtual instance's timestamp
-              pattern.endDate = virtualTimestamp;
-              
-              console.log('[ScheduleEntry] Updating master pattern:', {
-                masterEntryId,
-                newEndDate: pattern.endDate,
-                patternFrequency: pattern.frequency,
-                patternInterval: pattern.interval
-              });
-
-              // Update only the master entry's pattern
-              await trx('schedule_entries')
-                .where('entry_id', masterEntryId)
-                .update({
-                  recurrence_pattern: JSON.stringify(pattern)
-                });
-
-              console.log('[ScheduleEntry] Master pattern updated:', {
-                masterEntryId,
-                newPattern: pattern
-              });
-
-              // Get assigned user IDs for the master entry
-              const assignedUserIds = await this.getAssignedUserIds(trx, [masterEntryId]);
-              
-              // For virtual instances, return the original entry
-              // without applying any further updates that might affect recurrence
-              // Create concrete exception entry for the modified occurrence
-              const exceptionEntryId = uuidv4();
-              await trx('schedule_entries').insert({
-                entry_id: exceptionEntryId,
-                title: entry.title || originalEntry.title,
-                scheduled_start: entry.scheduled_start || originalEntry.scheduled_start,
-                scheduled_end: entry.scheduled_end || originalEntry.scheduled_end,
-                notes: entry.notes || originalEntry.notes,
-                status: entry.status || originalEntry.status,
-                work_item_id: entry.work_item_id || originalEntry.work_item_id,
-                work_item_type: entry.work_item_type || originalEntry.work_item_type,
-                tenant: tenant || '',
-                original_entry_id: masterEntryId,
-                is_recurring: false
-              });
-
-              // Update assignments for the new exception entry
-              await this.updateAssignees(trx, tenant || '', exceptionEntryId, 
-                entry.assigned_user_ids || assignedUserIds[masterEntryId] || []);
-
-              // Add exception date to original pattern
-              const originalPattern = parseRecurrencePattern(originalEntry.recurrence_pattern);
-              if (originalPattern) {
-                originalPattern.exceptions = originalPattern.exceptions || [];
-                originalPattern.exceptions.push(new Date(originalEntry.scheduled_start));
-                
-                await trx('schedule_entries')
-                  .where({ entry_id: masterEntryId })
-                  .update({
-                    recurrence_pattern: JSON.stringify(originalPattern)
-                  });
-              }
-
-              await trx.commit();
-              
-              return {
-                ...originalEntry,
-                entry_id: exceptionEntryId,
-                scheduled_start: entry.scheduled_start || originalEntry.scheduled_start,
-                scheduled_end: entry.scheduled_end || originalEntry.scheduled_end,
-                is_recurring: false,
-                original_entry_id: masterEntryId,
-                assigned_user_ids: entry.assigned_user_ids || assignedUserIds[masterEntryId] || []
-              };
-            } else {
-              console.log('[ScheduleEntry] Failed to parse master pattern:', {
-                masterEntryId,
-                recurrencePattern: masterEntry.recurrence_pattern
-              });
-              await trx.rollback();
-              throw new Error('Failed to parse master pattern');
-            }
-          } else {
-            console.log('[ScheduleEntry] No master pattern found:', {
-              masterEntryId,
-              masterExists: !!masterEntry
-            });
-              await trx.rollback();
-              throw new Error('Master pattern not found');
-          }
+          // For virtual instances in 'future' mode, we handle this in the 'future' case
+          // No need to create additional entries here
+          return undefined;
         } else {
           console.log('[ScheduleEntry] Removing recurrence from master entry:', {
             masterEntryId: entry_id,
