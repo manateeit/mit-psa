@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { TextArea } from '@/components/ui/TextArea';
 import { format } from 'date-fns';
-import { IScheduleEntry, IRecurrencePattern } from '@/interfaces/schedule.interfaces';
+import { IScheduleEntry, IRecurrencePattern, IEditScope } from '@/interfaces/schedule.interfaces';
 import { AddWorkItemDialog } from '@/components/time-management/time-entry/time-sheet/AddWorkItemDialog';
 import { IWorkItem } from '@/interfaces/workItem.interfaces';
 import { getWorkItemById } from '@/lib/actions/workItemActions';
@@ -15,12 +15,13 @@ import SelectedWorkItem from '@/components/time-management/time-entry/time-sheet
 import UserPicker from '@/components/ui/UserPicker';
 import { DateTimePicker } from '@/components/ui/DateTimePicker';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
+import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 
 interface EntryPopupProps {
   event: IScheduleEntry | null;
   slot: any;
   onClose: () => void;
-  onSave: (entryData: Omit<IScheduleEntry, 'tenant'>) => void;
+  onSave: (entryData: Omit<IScheduleEntry, 'tenant'> & { updateType?: string }) => void;
   canAssignMultipleAgents: boolean;
   users: IUserWithRoles[];
   currentUserId: string;
@@ -196,6 +197,9 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
     }));
   };
 
+  const [showRecurrenceDialog, setShowRecurrenceDialog] = useState(false);
+  const [pendingUpdateData, setPendingUpdateData] = useState<Omit<IScheduleEntry, 'tenant'>>();
+
   const handleSave = () => {
     // Ensure required fields are present
     if (!entryData.title) {
@@ -207,17 +211,18 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
     const savedEntryData = {
       ...entryData,
       recurrence_pattern: recurrencePattern || null,
-      // For ad-hoc entries, ensure work_item_id is null and type is 'ad_hoc'
       work_item_id: entryData.work_item_type === 'ad_hoc' ? null : entryData.work_item_id,
       status: entryData.status || 'scheduled',
-      // Ensure assigned_user_ids is an array
       assigned_user_ids: Array.isArray(entryData.assigned_user_ids) ? entryData.assigned_user_ids : []
     };
 
-    // Log the data being saved
-    console.log('Saving schedule entry:', savedEntryData);
-
-    onSave(savedEntryData);
+    // Show recurrence options only for existing recurring events
+    if (event?.is_recurring) {
+      setPendingUpdateData(savedEntryData);
+      setShowRecurrenceDialog(true);
+    } else {
+      onSave(savedEntryData);
+    }
   };
 
   return (
@@ -403,6 +408,25 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
         <Button id="save-entry-btn" onClick={handleSave}>Save</Button>
       </div>
       </DialogContent>
+      
+      <ConfirmationDialog
+        isOpen={showRecurrenceDialog}
+        onClose={() => setShowRecurrenceDialog(false)}
+        onConfirm={async (updateType) => {
+          if (pendingUpdateData) {
+            onSave({...pendingUpdateData, updateType: updateType as IEditScope});
+            setShowRecurrenceDialog(false);
+          }
+        }}
+          title="Apply Changes To"
+          message="Select which events to update:"
+          options={[
+            { value: 'single', label: 'Only this event' },
+            { value: 'future', label: 'This and future events' },
+            { value: 'all', label: 'All events' }
+          ]}
+          id="recurrence-edit-dialog"
+        />
     </Dialog>
   );
 };
