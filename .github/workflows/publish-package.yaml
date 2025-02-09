@@ -1,4 +1,10 @@
 name: Publish Docker Image
+
+# Add permissions for packages
+permissions:
+  contents: read
+  packages: write
+
 on:
   push:
     branches:
