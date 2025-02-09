@@ -88,12 +88,12 @@ jobs:
           context: .
           file: Dockerfile.prod
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/alga-psa:latest
+          tags: ghcr.io/nine-minds/alga-psa:latest
 
       - name: Test container
         run: |
           # Pull the image we just pushed
-          docker pull ghcr.io/${{ github.repository_owner }}/alga-psa:latest
+          docker pull ghcr.io/nine-minds/alga-psa:latest
 
           # Start the containers with community edition configuration
           docker compose -f docker-compose.base.yaml -f docker-compose.ce.yaml up -d
