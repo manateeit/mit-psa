@@ -71,6 +71,7 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/server/knexfile.cjs ./server/
 COPY --from=builder /app/server/migrations/ ./server/migrations/
 COPY --from=builder /app/server/seeds/ ./server/seeds/
+COPY --from=builder /app/server/src/scripts/ ./server/src/scripts/
 
 COPY --from=deps /app/node_modules ./node_modules
 
