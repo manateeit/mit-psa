@@ -22,6 +22,7 @@ interface EntryPopupProps {
   slot: any;
   onClose: () => void;
   onSave: (entryData: Omit<IScheduleEntry, 'tenant'> & { updateType?: string }) => void;
+  onDelete?: (entryId: string) => void;
   canAssignMultipleAgents: boolean;
   users: IUserWithRoles[];
   currentUserId: string;
@@ -34,7 +35,8 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
   event, 
   slot, 
   onClose, 
-  onSave, 
+  onSave,
+  onDelete,
   canAssignMultipleAgents,
   users,
   currentUserId,
@@ -198,7 +200,15 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
   };
 
   const [showRecurrenceDialog, setShowRecurrenceDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [pendingUpdateData, setPendingUpdateData] = useState<Omit<IScheduleEntry, 'tenant'>>();
+
+  const handleDelete = () => {
+    if (event && onDelete) {
+      onDelete(event.entry_id);
+      onClose();
+    }
+  };
 
   const handleSave = () => {
     // Ensure required fields are present
@@ -401,17 +411,37 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
             )}
           </div>
         )}
-      <div className="mt-6 flex justify-end space-x-3">
+      <div className="flex justify-end space-x-3 mt-6">
         <Button id="cancel-entry-btn" onClick={onClose} variant="outline">
           Cancel
         </Button>
         <Button id="save-entry-btn" onClick={handleSave}>Save</Button>
       </div>
+      {event && onDelete && (
+        <Button 
+          id="delete-entry-btn" 
+          onClick={() => setShowDeleteDialog(true)} 
+          variant="destructive"
+          className="absolute top-4 right-4"
+        >
+          Delete Entry
+        </Button>
+      )}
       </DialogContent>
       
         <ConfirmationDialog
           className="max-w-[450px]"
-        isOpen={showRecurrenceDialog}
+          isOpen={showDeleteDialog}
+          onConfirm={handleDelete}
+          onClose={() => setShowDeleteDialog(false)}
+          title="Delete Schedule Entry"
+          message="Are you sure you want to delete this schedule entry? This action cannot be undone."
+          confirmLabel="Delete"
+        />
+
+        <ConfirmationDialog
+          className="max-w-[450px]"
+          isOpen={showRecurrenceDialog}
         onClose={() => setShowRecurrenceDialog(false)}
         onConfirm={async (updateType) => {
           if (pendingUpdateData) {
