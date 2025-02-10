@@ -10,7 +10,7 @@ import { Button } from '../ui/Button';
 import EntryPopup from './EntryPopup';
 import { CalendarStyleProvider } from './CalendarStyleProvider';
 import { getCurrentUserScheduleEntries, addScheduleEntry, updateScheduleEntry, deleteScheduleEntry } from '@/lib/actions/scheduleActions';
-import { IScheduleEntry } from '@/interfaces/schedule.interfaces';
+import { IEditScope, IScheduleEntry } from '@/interfaces/schedule.interfaces';
 import { produce } from 'immer';
 import { Dialog } from '@radix-ui/react-dialog';
 import { WorkItemType, IExtendedWorkItem } from '@/interfaces/workItem.interfaces';
@@ -19,6 +19,8 @@ import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { WorkItemDrawer } from '@/components/time-management/time-entry/time-sheet/WorkItemDrawer';
 import { useDrawer } from '@/context/DrawerContext';
+import { Trash } from 'lucide-react';
+import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 
 const localizer = momentLocalizer(moment);
 
@@ -34,6 +36,21 @@ const ScheduleCalendar: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [date, setDate] = useState(new Date());
   const { openDrawer, closeDrawer } = useDrawer();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  const handleDeleteClick = (event: IScheduleEntry, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedEvent(event);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = (deleteType?: IEditScope) => {
+    if (selectedEvent) {
+      handleDeleteEntry(selectedEvent.entry_id, deleteType);
+      setShowDeleteDialog(false);
+      setSelectedEvent(null);
+    }
+  };
 
   const workItemColors: Record<WorkItemType, string> = {
     ticket: 'rgb(var(--color-primary-200))',
@@ -161,10 +178,31 @@ const ScheduleCalendar: React.FC = () => {
     setShowEntryPopup(true);
   };
 
+  const handleDeleteEntry = async (entryId: string, deleteType?: IEditScope) => {
+    try {
+      const result = await deleteScheduleEntry(entryId, deleteType);
+      if (result.success) {
+        await fetchEvents();
+      } else {
+        console.error('Failed to delete entry:', result.error);
+        alert('Failed to delete schedule entry: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error deleting schedule entry:', error);
+      alert('An error occurred while deleting the schedule entry');
+    }
+  };
+
   const handleSelectEvent = (event: object, e: React.SyntheticEvent<HTMLElement>) => {
     const scheduleEvent = event as IScheduleEntry;
     const target = e.target as HTMLElement;
     const isTicketOrTask = scheduleEvent.work_item_type === 'ticket' || scheduleEvent.work_item_type === 'project_task';
+    
+    // If it's a delete button click, don't open anything
+    if (target.closest('.delete-entry-btn')) {
+      e.stopPropagation();
+      return;
+    }
     
     // If it's a title click on a ticket or project task, open the drawer
     if (target.classList.contains('event-title') && isTicketOrTask) {
@@ -277,6 +315,7 @@ const ScheduleCalendar: React.FC = () => {
         slot={selectedSlot}
         onClose={handleEntryPopupClose}
         onSave={handleEntryPopupSave}
+        onDelete={handleDeleteEntry}
         canAssignMultipleAgents={canAssignMultipleAgents}
         users={usersLoading ? [] : (users || [])}
         currentUserId={currentUserId}
@@ -394,8 +433,17 @@ const ScheduleCalendar: React.FC = () => {
     return (
       <div style={{ height: '100%' }}>
         <div className="flex flex-col h-full">
-          <div className={`event-title ${isTicketOrTask ? 'cursor-pointer hover:underline' : ''}`}>
-            {event.title}
+          <div className="flex justify-between items-center">
+            <div className={`event-title ${isTicketOrTask ? 'cursor-pointer hover:underline' : ''}`}>
+              {event.title}
+            </div>
+            <button
+              className="delete-entry-btn absolute top-1 right-1 text-[rgb(var(--color-text-300))] hover:text-[rgb(var(--color-text-600))] pointer-events-auto"
+              title="Delete"
+              onClick={(e) => handleDeleteClick(event, e)}
+            >
+              <Trash className="w-4 h-4 pointer-events-none" />
+            </button>
           </div>
           <div className="flex-1">
             {children}
@@ -438,6 +486,26 @@ const ScheduleCalendar: React.FC = () => {
       <Dialog open={showEntryPopup} onOpenChange={setShowEntryPopup}>
         {renderEntryPopup()}
       </Dialog>
+
+      <ConfirmationDialog
+        className="max-w-[450px]"
+        isOpen={showDeleteDialog}
+        onConfirm={(value) => handleDeleteConfirm(selectedEvent?.is_recurring ? value as IEditScope : undefined)}
+        onClose={() => {
+          setShowDeleteDialog(false);
+          setSelectedEvent(null);
+        }}
+        title="Delete Schedule Entry"
+        message={selectedEvent?.is_recurring 
+          ? "Select which events to delete:"
+          : "Are you sure you want to delete this schedule entry? This action cannot be undone."}
+        options={selectedEvent?.is_recurring ? [
+          { value: IEditScope.SINGLE, label: 'Only this event' },
+          { value: IEditScope.FUTURE, label: 'This and future events' },
+          { value: IEditScope.ALL, label: 'All events' }
+        ] : undefined}
+        confirmLabel="Delete"
+      />
     </div>
   );
 };

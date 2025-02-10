@@ -1,5 +1,5 @@
 import { createTenantKnex } from '../db';
-import { IScheduleEntry, IRecurrencePattern } from '@/interfaces/schedule.interfaces';
+import { IEditScope, IScheduleEntry, IRecurrencePattern } from '@/interfaces/schedule.interfaces';
 import { v4 as uuidv4 } from 'uuid';
 import { generateOccurrences } from '../utils/recurrenceUtils';
 import { Knex } from 'knex';
@@ -245,7 +245,7 @@ class ScheduleEntry {
   static async update(
     entry_id: string, 
     entry: Partial<IScheduleEntry> & { assigned_user_ids?: string[] },
-    updateType: 'single' | 'future' | 'all'
+    updateType: IEditScope
   ): Promise<IScheduleEntry | undefined> {
     console.log('[ScheduleEntry.update] Starting update:', {
       entry_id,
@@ -319,7 +319,7 @@ class ScheduleEntry {
           };
 
           switch (updateType) {
-            case 'single':
+            case IEditScope.SINGLE:
               // Get assigned user IDs for the master entry
               const assignedUserIds = await this.getAssignedUserIds(trx, tenant, [masterEntryId]);
               
@@ -374,7 +374,7 @@ class ScheduleEntry {
                 assigned_user_ids: entry.assigned_user_ids || assignedUserIds[masterEntryId] || []
               };
 
-            case 'future':
+            case IEditScope.FUTURE:
               if (!virtualTimestamp) {
                 throw new Error('Virtual timestamp is required for future updates');
               }
@@ -438,7 +438,7 @@ class ScheduleEntry {
                 assigned_user_ids: entry.assigned_user_ids || originalEntry.assigned_user_ids
               };
 
-            case 'all':
+            case IEditScope.ALL:
               // Update all fields including the recurrence pattern
               const allUpdatePattern = entry.recurrence_pattern ? {
                 ...originalPattern,
@@ -811,18 +811,118 @@ class ScheduleEntry {
     return virtualEntries;
   }
 
-  static async delete(entry_id: string): Promise<boolean> {
+  static async delete(entry_id: string, deleteType: IEditScope = IEditScope.SINGLE): Promise<boolean> {
     const {knex: db, tenant} = await createTenantKnex();
     if (!tenant) {
       throw new Error('Tenant is required');
     }
-    
-    // Note: No need to delete from schedule_entry_assignees explicitly
-    // due to CASCADE delete in the foreign key constraint
-    const deletedCount = await db('schedule_entries')
-      .where({ tenant, entry_id })
-      .del();
-    return deletedCount > 0;
+
+    // Start transaction
+    const trx = await db.transaction();
+
+    try {
+      // Parse entry ID and determine if it's a virtual instance
+      const isVirtualId = entry_id.includes('_');
+      const [masterId, timestamp] = isVirtualId ? entry_id.split('_') : [entry_id, null];
+      const masterEntryId = masterId;
+      const virtualTimestamp = timestamp ? new Date(parseInt(timestamp, 10)) : undefined;
+
+      // Get the master entry
+      const originalEntry = await trx('schedule_entries')
+        .where({ tenant, entry_id: masterEntryId })
+        .first();
+
+      if (!originalEntry) {
+        await trx.rollback();
+        return false;
+      }
+
+      // Helper function to safely parse recurrence pattern
+      const parseRecurrencePattern = (pattern: string | IRecurrencePattern | null): IRecurrencePattern | null => {
+        if (!pattern) return null;
+        if (typeof pattern === 'object') return pattern as IRecurrencePattern;
+        try {
+          return JSON.parse(pattern) as IRecurrencePattern;
+        } catch (error) {
+          console.error('Error parsing recurrence pattern:', error);
+          return null;
+        }
+      };
+
+      // Handle recurring events
+      if (originalEntry.recurrence_pattern) {
+        const originalPattern = parseRecurrencePattern(originalEntry.recurrence_pattern);
+        
+        if (originalPattern) {
+          switch (deleteType) {
+            case IEditScope.SINGLE:
+              if (virtualTimestamp) {
+                // Add the date to exceptions
+                const exceptionDate = new Date(virtualTimestamp);
+                exceptionDate.setUTCHours(0, 0, 0, 0);
+                const updatedPattern = {
+                  ...originalPattern,
+                  exceptions: [...(originalPattern.exceptions || []), exceptionDate]
+                };
+
+                await trx('schedule_entries')
+                  .where({ tenant, entry_id: masterEntryId })
+                  .update({
+                    recurrence_pattern: JSON.stringify(updatedPattern)
+                  });
+
+                await trx.commit();
+                return true;
+              }
+              break;
+
+            case IEditScope.FUTURE:
+              if (virtualTimestamp) {
+                // Update end date to the day before
+                const endDate = new Date(virtualTimestamp);
+                endDate.setDate(endDate.getDate() - 1);
+                endDate.setHours(23, 59, 59, 999);
+
+                const updatedPattern = {
+                  ...originalPattern,
+                  endDate,
+                  exceptions: originalPattern.exceptions?.filter(d => new Date(d) < virtualTimestamp) || []
+                };
+
+                await trx('schedule_entries')
+                  .where({ tenant, entry_id: masterEntryId })
+                  .update({
+                    recurrence_pattern: JSON.stringify(updatedPattern)
+                  });
+
+                await trx.commit();
+                return true;
+              }
+              break;
+
+            case IEditScope.ALL:
+              // Delete the entire entry
+              const deletedCount = await trx('schedule_entries')
+                .where({ tenant, entry_id: masterEntryId })
+                .del();
+              
+              await trx.commit();
+              return deletedCount > 0;
+          }
+        }
+      }
+
+      // For non-recurring events or if no special handling was needed
+      const deletedCount = await trx('schedule_entries')
+        .where({ tenant, entry_id })
+        .del();
+      
+      await trx.commit();
+      return deletedCount > 0;
+    } catch (error) {
+      await trx.rollback();
+      throw error;
+    }
   }
 }
 
