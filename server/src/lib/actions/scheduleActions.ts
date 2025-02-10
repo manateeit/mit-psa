@@ -1,6 +1,6 @@
 'use server'
 import ScheduleEntry from '../models/scheduleEntry';
-import { IScheduleEntry } from '@/interfaces/schedule.interfaces';
+import { IScheduleEntry, IEditScope } from '@/interfaces/schedule.interfaces';
 import { WorkItemType } from '@/interfaces/workItem.interfaces';
 import { getCurrentUser } from './user-actions/userActions';
 
@@ -105,7 +105,7 @@ export async function updateScheduleEntry(
       const updatedEntry = await ScheduleEntry.update(entry_id, {
         ...entry,
         assigned_user_ids: entry.assigned_user_ids
-      }, entry.updateType || 'single');
+      }, entry.updateType || IEditScope.SINGLE);
     return { success: true, entry: updatedEntry };
   } catch (error) {
     console.error('Error updating schedule entry:', error);
@@ -113,9 +113,9 @@ export async function updateScheduleEntry(
   }
 }
 
-export async function deleteScheduleEntry(entry_id: string) {
+export async function deleteScheduleEntry(entry_id: string, deleteType: IEditScope = IEditScope.SINGLE) {
   try {
-    const success = await ScheduleEntry.delete(entry_id);
+    const success = await ScheduleEntry.delete(entry_id, deleteType);
     return { success };
   } catch (error) {
     console.error('Error deleting schedule entry:', error);

@@ -22,7 +22,7 @@ interface EntryPopupProps {
   slot: any;
   onClose: () => void;
   onSave: (entryData: Omit<IScheduleEntry, 'tenant'> & { updateType?: string }) => void;
-  onDelete?: (entryId: string) => void;
+  onDelete?: (entryId: string, deleteType?: IEditScope) => void;
   canAssignMultipleAgents: boolean;
   users: IUserWithRoles[];
   currentUserId: string;
@@ -203,13 +203,6 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [pendingUpdateData, setPendingUpdateData] = useState<Omit<IScheduleEntry, 'tenant'>>();
 
-  const handleDelete = () => {
-    if (event && onDelete) {
-      onDelete(event.entry_id);
-      onClose();
-    }
-  };
-
   const handleSave = () => {
     // Ensure required fields are present
     if (!entryData.title) {
@@ -243,10 +236,20 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
         'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-[95vw] w-[600px] min-w-[300px] max-h-[90vh] shadow-lg'
         }`}
       >
-       <div className="shrink-0 pb-4 border-b">
+       <div className="shrink-0 pb-4 border-b flex justify-between items-center">
         <DialogTitle className="text-xl font-bold">
           {event ? 'Edit Entry' : 'New Entry'}
         </DialogTitle>
+        {event && onDelete && (
+          <Button 
+            id="delete-entry-btn" 
+            onClick={() => setShowDeleteDialog(true)} 
+            variant="destructive"
+            size="sm"
+          >
+            Delete Entry
+          </Button>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto space-y-4 p-1">
         <div className="min-w-0">
@@ -411,31 +414,34 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
             )}
           </div>
         )}
-      <div className="flex justify-end space-x-3 mt-6">
+      <div className="mt-6 flex justify-end space-x-3">
         <Button id="cancel-entry-btn" onClick={onClose} variant="outline">
           Cancel
         </Button>
         <Button id="save-entry-btn" onClick={handleSave}>Save</Button>
       </div>
-      {event && onDelete && (
-        <Button 
-          id="delete-entry-btn" 
-          onClick={() => setShowDeleteDialog(true)} 
-          variant="destructive"
-          className="absolute top-4 right-4"
-        >
-          Delete Entry
-        </Button>
-      )}
       </DialogContent>
       
+
         <ConfirmationDialog
           className="max-w-[450px]"
           isOpen={showDeleteDialog}
-          onConfirm={handleDelete}
+          onConfirm={(value) => {
+            if (event && onDelete) {
+              onDelete(event.entry_id, event.is_recurring ? value as IEditScope : undefined);
+              onClose();
+            }
+          }}
           onClose={() => setShowDeleteDialog(false)}
           title="Delete Schedule Entry"
-          message="Are you sure you want to delete this schedule entry? This action cannot be undone."
+          message={event?.is_recurring 
+            ? "Select which events to delete:"
+            : "Are you sure you want to delete this schedule entry? This action cannot be undone."}
+          options={event?.is_recurring ? [
+            { value: IEditScope.SINGLE, label: 'Only this event' },
+            { value: IEditScope.FUTURE, label: 'This and future events' },
+            { value: IEditScope.ALL, label: 'All events' }
+          ] : undefined}
           confirmLabel="Delete"
         />
 
@@ -452,9 +458,9 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
           title="Apply Changes To"
           message="Select which events to update:"
           options={[
-            { value: 'single', label: 'Only this event' },
-            { value: 'future', label: 'This and future events' },
-            { value: 'all', label: 'All events' }
+            { value: IEditScope.SINGLE, label: 'Only this event' },
+            { value: IEditScope.FUTURE, label: 'This and future events' },
+            { value: IEditScope.ALL, label: 'All events' }
           ]}
           id="recurrence-edit-dialog"
         />
