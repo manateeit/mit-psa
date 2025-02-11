@@ -12,6 +12,7 @@ export interface IRecurrencePattern {
   endDate?: Date;
   exceptions?: Date[];
   count?: number;
+  workdaysOnly?: boolean;
 }
 
 export interface HighlightedSlot {
