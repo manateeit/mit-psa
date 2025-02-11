@@ -9,7 +9,7 @@ interface AddWorkItemDialogProps {
   onClose: () => void;
   onAdd: (workItem: IWorkItem) => void;
   availableWorkItems: IWorkItem[];
-  timePeriod: ITimePeriodView;
+  timePeriod?: ITimePeriodView;
 }
 
 export function AddWorkItemDialog({ isOpen, onClose, onAdd, availableWorkItems, timePeriod }: AddWorkItemDialogProps) {

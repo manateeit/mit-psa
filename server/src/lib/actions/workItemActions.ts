@@ -213,12 +213,42 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
       adHocQuery = adHocQuery.whereRaw('1 = 0');
     }
 
-    // Only apply date filtering to ad-hoc entries since they represent actual scheduled work
-    if (options.dateRange?.start) {
-      adHocQuery = adHocQuery.where('se.scheduled_start', '>=', options.dateRange.start);
+    // Apply date filtering if dateRange is provided
+    const startDate = options.dateRange?.start;
+    const endDate = options.dateRange?.end;
+
+    if (startDate) {
+      // For tickets, filter on closed_at if it exists
+      ticketsQuery = ticketsQuery.where(function() {
+        this.whereNull('t.closed_at')
+            .orWhere('t.closed_at', '>=', db.raw('?', [startDate]));
+      });
+      
+      // For project tasks, filter on due_date if it exists
+      projectTasksQuery = projectTasksQuery.where(function() {
+        this.whereNull('pt.due_date')
+            .orWhere('pt.due_date', '>=', db.raw('?', [startDate]));
+      });
+      
+      // For ad-hoc entries, filter on scheduled_start
+      adHocQuery = adHocQuery.where('se.scheduled_start', '>=', db.raw('?', [startDate]));
     }
-    if (options.dateRange?.end) {
-      adHocQuery = adHocQuery.where('se.scheduled_end', '<=', options.dateRange.end);
+    
+    if (endDate) {
+      // For tickets, filter on closed_at if it exists
+      ticketsQuery = ticketsQuery.where(function() {
+        this.whereNull('t.closed_at')
+            .orWhere('t.closed_at', '<=', db.raw('?', [endDate]));
+      });
+      
+      // For project tasks, filter on due_date if it exists
+      projectTasksQuery = projectTasksQuery.where(function() {
+        this.whereNull('pt.due_date')
+            .orWhere('pt.due_date', '<=', db.raw('?', [endDate]));
+      });
+      
+      // For ad-hoc entries, filter on scheduled_end
+      adHocQuery = adHocQuery.where('se.scheduled_end', '<=', db.raw('?', [endDate]));
     }
 
     // Combine queries

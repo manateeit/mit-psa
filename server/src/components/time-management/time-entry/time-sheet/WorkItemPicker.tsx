@@ -194,7 +194,23 @@ export function WorkItemPicker({ onSelect, availableWorkItems, timePeriod }: Wor
     }
   }, [availableWorkItems, includeInactive, assignedTo, assignedToMe, companyId, startDate, endDate, searchType]);
 
-  // Load initial items when component mounts
+  // Set initial date range based on time period
+  useEffect(() => {
+    if (timePeriod) {
+      const [startYear, startMonth, startDay] = timePeriod.start_date.split('-').map(Number);
+      const [endYear, endMonth, endDay] = timePeriod.end_date.split('-').map(Number);
+      
+      // Create Date objects for start and end of the time period
+      const periodStart = new Date(startYear, startMonth - 1, startDay);
+      const periodEnd = new Date(endYear, endMonth - 1, endDay);
+      periodEnd.setHours(23, 59, 59, 999); // Set to end of day
+      
+      setStartDate(periodStart);
+      setEndDate(periodEnd);
+    }
+  }, [timePeriod]);
+
+  // Load initial items when component mounts or when timePeriod changes
   useEffect(() => {
     loadWorkItems('', 1);
   }, [loadWorkItems]);
