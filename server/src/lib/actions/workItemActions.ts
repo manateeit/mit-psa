@@ -48,9 +48,12 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
           .where('tenant', tenant)
           .select('ticket_id')
           .select(db.raw('array_agg(distinct additional_user_id) as additional_user_ids'))
-          .groupBy('ticket_id')
+          .groupBy('ticket_id', 'tenant')
           .as('tr'),
-        't.ticket_id', 'tr.ticket_id'
+        function() {
+          this.on('t.ticket_id', '=', 'tr.ticket_id')
+              .andOn('t.tenant', '=', db.raw('?', [tenant]));
+        }
       )
       .whereILike('t.title', db.raw('?', [`%${searchTerm}%`]))
       .distinctOn('t.ticket_id')
@@ -93,9 +96,12 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
           .where('tenant', tenant)
           .select('task_id')
           .select(db.raw('array_agg(distinct additional_user_id) as additional_user_ids'))
-          .groupBy('task_id')
+          .groupBy('task_id', 'tenant')
           .as('tr'),
-        'pt.task_id', 'tr.task_id'
+        function() {
+          this.on('pt.task_id', '=', 'tr.task_id')
+              .andOn('pt.tenant', '=', db.raw('?', [tenant]));
+        }
       )
       .whereILike('pt.task_name', db.raw('?', [`%${searchTerm}%`]))
       .distinctOn('pt.task_id')
@@ -133,9 +139,12 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
           .where('tenant', tenant)
           .select('entry_id')
           .select(db.raw('array_agg(distinct user_id) as assigned_user_ids'))
-          .groupBy('entry_id')
+          .groupBy('entry_id', 'tenant')
           .as('sea'),
-        'se.entry_id', 'sea.entry_id'
+        function() {
+          this.on('se.entry_id', '=', 'sea.entry_id')
+              .andOn('se.tenant', '=', db.raw('?', [tenant]));
+        }
       )
       .distinctOn('se.entry_id')
       .select(
@@ -176,24 +185,24 @@ export async function searchWorkItems(options: SearchOptions): Promise<SearchRes
       // "Assigned to me" filter
       ticketsQuery = ticketsQuery.where(function() {
         this.where('t.assigned_to', options.assignedTo)
-            .orWhere('tr.additional_user_id', options.assignedTo);
+            .orWhereRaw('? = ANY(tr.additional_user_ids)', [options.assignedTo]);
       });
       projectTasksQuery = projectTasksQuery.where(function() {
         this.where('pt.assigned_to', options.assignedTo)
-            .orWhere('tr.additional_user_id', options.assignedTo);
+            .orWhereRaw('? = ANY(tr.additional_user_ids)', [options.assignedTo]);
       });
-      adHocQuery = adHocQuery.where('sea.user_id', options.assignedTo);
+      adHocQuery = adHocQuery.whereRaw('? = ANY(sea.assigned_user_ids)', [options.assignedTo]);
     } else if (options.assignedTo) {
       // Regular "Assigned to" filter
       ticketsQuery = ticketsQuery.where(function() {
         this.where('t.assigned_to', options.assignedTo)
-            .orWhere('tr.additional_user_id', options.assignedTo);
+            .orWhereRaw('? = ANY(tr.additional_user_ids)', [options.assignedTo]);
       });
       projectTasksQuery = projectTasksQuery.where(function() {
         this.where('pt.assigned_to', options.assignedTo)
-            .orWhere('tr.additional_user_id', options.assignedTo);
+            .orWhereRaw('? = ANY(tr.additional_user_ids)', [options.assignedTo]);
       });
-      adHocQuery = adHocQuery.where('sea.user_id', options.assignedTo);
+      adHocQuery = adHocQuery.whereRaw('? = ANY(sea.assigned_user_ids)', [options.assignedTo]);
     }
 
     // Filter by company
@@ -332,11 +341,14 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
             .where('tenant', tenant)
             .select('ticket_id')
             .select(db.raw('array_agg(distinct additional_user_id) as additional_user_ids'))
-            .groupBy('ticket_id')
+            .groupBy('ticket_id', 'tenant')
             .as('tr'),
-          't.ticket_id', 'tr.ticket_id'
+          function() {
+            this.on('t.ticket_id', '=', 'tr.ticket_id')
+                .andOn('t.tenant', '=', db.raw('?', [tenant]));
+          }
         )
-        .groupBy('t.ticket_id', 't.title', 't.url', 't.ticket_number', 't.assigned_to')
+        .groupBy('t.ticket_id', 't.title', 't.url', 't.ticket_number', 't.assigned_to', 't.tenant')
         .select(
           't.ticket_id as work_item_id',
           't.title as name',
@@ -357,11 +369,11 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
           'pt.task_id': workItemId,
           'pt.tenant': tenant
         })
-        .join('project_phases as pp', function() {
+        .innerJoin('project_phases as pp', function() {
           this.on('pt.phase_id', '=', 'pp.phase_id')
               .andOn('pt.tenant', '=', 'pp.tenant');
         })
-        .join('projects as p', function() {
+        .innerJoin('projects as p', function() {
           this.on('pp.project_id', '=', 'p.project_id')
               .andOn('pp.tenant', '=', 'p.tenant');
         })
@@ -370,11 +382,14 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
             .where('tenant', tenant)
             .select('task_id')
             .select(db.raw('array_agg(distinct additional_user_id) as additional_user_ids'))
-            .groupBy('task_id')
+            .groupBy('task_id', 'tenant')
             .as('tr'),
-          'pt.task_id', 'tr.task_id'
+          function() {
+            this.on('pt.task_id', '=', 'tr.task_id')
+                .andOn('pt.tenant', '=', db.raw('?', [tenant]));
+          }
         )
-        .groupBy('pt.task_id', 'pt.task_name', 'pt.description', 'p.project_name', 'pp.phase_name', 'pt.assigned_to')
+        .groupBy('pt.task_id', 'pt.task_name', 'pt.description', 'p.project_name', 'pp.phase_name', 'pt.assigned_to', 'pt.tenant')
         .select(
           'pt.task_id as work_item_id',
           'pt.task_name as name',
@@ -400,11 +415,14 @@ export async function getWorkItemById(workItemId: string, workItemType: WorkItem
             .where('tenant', tenant)
             .select('entry_id')
             .select(db.raw('array_agg(distinct user_id) as assigned_user_ids'))
-            .groupBy('entry_id')
+            .groupBy('entry_id', 'tenant')
             .as('sea'),
-          'se.entry_id', 'sea.entry_id'
+          function() {
+            this.on('se.entry_id', '=', 'sea.entry_id')
+                .andOn('se.tenant', '=', db.raw('?', [tenant]));
+          }
         )
-        .groupBy('se.entry_id', 'se.title', 'se.notes', 'se.scheduled_start', 'se.scheduled_end', 'sea.assigned_user_ids')
+        .groupBy('se.entry_id', 'se.title', 'se.notes', 'se.scheduled_start', 'se.scheduled_end', 'sea.assigned_user_ids', 'se.tenant')
         .select(
           'se.entry_id as work_item_id',
           'se.title as name',
