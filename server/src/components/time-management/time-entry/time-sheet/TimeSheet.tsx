@@ -496,12 +496,15 @@ export function TimeSheet({
                 />
             )}
 
-            <AddWorkItemDialog
-                isOpen={isAddWorkItemDialogOpen}
-                onClose={() => setIsAddWorkItemDialogOpen(false)}
-                onAdd={handleAddWorkItem}
-                availableWorkItems={Object.values(workItemsByType).flat()}
-            />
+            {timeSheet.time_period && (
+                <AddWorkItemDialog
+                    isOpen={isAddWorkItemDialogOpen}
+                    onClose={() => setIsAddWorkItemDialogOpen(false)}
+                    onAdd={handleAddWorkItem}
+                    availableWorkItems={Object.values(workItemsByType).flat()}
+                    timePeriod={timeSheet.time_period}
+                />
+            )}
         </div>
     );
 }

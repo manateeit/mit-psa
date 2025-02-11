@@ -2,9 +2,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { WorkItemList } from './WorkItemList';
 import { Filter, XCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { Input } from '@/components/ui/Input';
 import { SwitchWithLabel } from '@/components/ui/SwitchWithLabel';
 import { IWorkItem, IExtendedWorkItem, WorkItemWithStatus, WorkItemType } from '@/interfaces/workItem.interfaces';
+import { ITimePeriodView } from '@/interfaces/timeEntry.interfaces';
 import { searchWorkItems, createWorkItem } from '@/lib/actions/workItemActions';
 import { Button } from '@/components/ui/Button';
 import UserPicker from '@/components/ui/UserPicker';
@@ -22,9 +24,10 @@ interface WorkItemPickerProps {
   availableWorkItems: IWorkItem[];
   initialWorkItemId?: string | null;
   initialWorkItemType?: WorkItemType;
+  timePeriod?: ITimePeriodView;
 }
 
-export function WorkItemPicker({ onSelect, availableWorkItems }: WorkItemPickerProps) {
+export function WorkItemPicker({ onSelect, availableWorkItems, timePeriod }: WorkItemPickerProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [workItems, setWorkItems] = useState<WorkItemWithStatus[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -50,7 +53,68 @@ export function WorkItemPicker({ onSelect, availableWorkItems }: WorkItemPickerP
     date.setHours(date.getHours() + 1); // Default to 1 hour duration
     return date;
   });
+  const [dateErrors, setDateErrors] = useState<{
+    start?: string;
+    end?: string;
+  }>({});
   const [searchType, setSearchType] = useState<WorkItemType | 'all'>('all');
+
+  const validateDates = useCallback((start: Date, end: Date) => {
+    const errors: { start?: string; end?: string } = {};
+
+    // First check if end is after start
+    if (end <= start) {
+      errors.end = 'End time must be after start time';
+    }
+
+    // Then check time period constraints if provided
+    if (timePeriod) {
+      // Parse period dates (they are in YYYY-MM-DD format)
+      const [periodStartYear, periodStartMonth, periodStartDay] = timePeriod.start_date.split('-').map(Number);
+      const [periodEndYear, periodEndMonth, periodEndDay] = timePeriod.end_date.split('-').map(Number);
+
+      // Create period boundaries in local time
+      const periodStart = new Date(periodStartYear, periodStartMonth - 1, periodStartDay);
+      const periodEnd = new Date(periodEndYear, periodEndMonth - 1, periodEndDay);
+
+      // Get dates for comparison (strip time component)
+      const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+      // Ensure we're comparing just the dates
+      periodStart.setHours(0, 0, 0, 0);
+      periodEnd.setHours(23, 59, 59, 999);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+
+      // Format dates for display
+      const formatDate = (date: Date) => {
+        return date.toLocaleDateString(undefined, {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      };
+
+      const periodRange = `${formatDate(periodStart)} - ${formatDate(periodEnd)}`;
+      
+      if (startDate < periodStart || startDate > periodEnd) {
+        errors.start = `Date must be within the current period (${periodRange})`;
+      }
+
+      if (endDate < periodStart || endDate > periodEnd) {
+        errors.end = `Date must be within the current period (${periodRange})`;
+      }
+    }
+
+    setDateErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [timePeriod]);
+
+  // Validate dates whenever they change
+  useEffect(() => {
+    validateDates(startTime, endTime);
+  }, [startTime, endTime, validateDates]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -180,25 +244,48 @@ export function WorkItemPicker({ onSelect, availableWorkItems }: WorkItemPickerP
                   autoFocus
                 />
                 <div className="grid grid-cols-2 gap-2">
-                  <DateTimePicker
-                    value={startTime}
-                    onChange={setStartTime}
-                    placeholder="Start time"
-                    id="adhoc-start-time"
-                  />
-                  <DateTimePicker
-                    value={endTime}
-                    onChange={setEndTime}
-                    placeholder="End time"
-                    id="adhoc-end-time"
-                    minDate={startTime}
-                  />
+                  <div className="flex flex-col gap-1">
+                    <DateTimePicker
+                      value={startTime}
+                      onChange={setStartTime}
+                      placeholder="Start time"
+                      id="adhoc-start-time"
+                      className={dateErrors.start ? 'border-red-500' : ''}
+                    />
+                    {dateErrors.start && (
+                      <div className="text-red-500 text-sm">
+                        {dateErrors.start}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <DateTimePicker
+                      value={endTime}
+                      onChange={setEndTime}
+                      placeholder="End time"
+                      id="adhoc-end-time"
+                      minDate={startTime}
+                      className={dateErrors.end ? 'border-red-500' : ''}
+                    />
+                    {dateErrors.end && (
+                      <div className="text-red-500 text-sm">
+                        {dateErrors.end}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               <Button
                 onClick={async () => {
                   if (!adHocTitle.trim()) return;
                   
+                  // Revalidate dates before saving
+                  if (!validateDates(startTime, endTime)) {
+                    if (dateErrors.start) toast.error(dateErrors.start);
+                    if (dateErrors.end) toast.error(dateErrors.end);
+                    return;
+                  }
+
                   try {
                     const newItem = await createWorkItem({
                       type: 'ad_hoc',
@@ -226,7 +313,7 @@ export function WorkItemPicker({ onSelect, availableWorkItems }: WorkItemPickerP
                 }}
                 variant="outline"
                 className="text-sm whitespace-nowrap"
-                disabled={!adHocTitle.trim()}
+                disabled={!adHocTitle.trim() || Object.keys(dateErrors).length > 0}
                 id="save-adhoc-entry-btn"
               >
                 Save Entry

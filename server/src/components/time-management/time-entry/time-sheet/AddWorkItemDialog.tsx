@@ -2,15 +2,17 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
 import { IWorkItem } from '@/interfaces/workItem.interfaces';
 import { WorkItemPicker } from './WorkItemPicker';
+import { ITimePeriodView } from '@/interfaces/timeEntry.interfaces';
 
 interface AddWorkItemDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (workItem: IWorkItem) => void;
   availableWorkItems: IWorkItem[];
+  timePeriod: ITimePeriodView;
 }
 
-export function AddWorkItemDialog({ isOpen, onClose, onAdd, availableWorkItems }: AddWorkItemDialogProps) {
+export function AddWorkItemDialog({ isOpen, onClose, onAdd, availableWorkItems, timePeriod }: AddWorkItemDialogProps) {
   const handleSelect = (workItem: IWorkItem | null) => {
     if (workItem) {
       onAdd(workItem);
@@ -28,6 +30,7 @@ export function AddWorkItemDialog({ isOpen, onClose, onAdd, availableWorkItems }
             <WorkItemPicker 
               onSelect={handleSelect} 
               availableWorkItems={availableWorkItems}
+              timePeriod={timePeriod}
             />
           </div>
         </div>

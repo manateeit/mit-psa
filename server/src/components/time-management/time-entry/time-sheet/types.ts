@@ -1,4 +1,4 @@
-import { ITimeEntry } from '@/interfaces';
+import { ITimeEntry, ITimePeriodView } from '@/interfaces';
 import { TaxRegion } from '@/types/types.d';
 
 export interface Service {
@@ -32,6 +32,7 @@ export interface TimeEntryFormProps {
   onUpdateEntry: (index: number, entry: ITimeEntryWithNew) => void;
   onUpdateTimeInputs: (inputs: TimeInputs) => void;
   lastNoteInputRef?: React.RefObject<HTMLInputElement>;
+  timePeriod?: ITimePeriodView;
 }
 
 export interface TimeEntryReadOnlyProps {
