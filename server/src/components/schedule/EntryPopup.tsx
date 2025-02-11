@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogTitle } from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { TextArea } from '@/components/ui/TextArea';
-import { format } from 'date-fns';
+import { Switch } from '@/components/ui/Switch';
+import { format, isWeekend, addYears } from 'date-fns';
 import { IScheduleEntry, IRecurrencePattern, IEditScope } from '@/interfaces/schedule.interfaces';
 import { AddWorkItemDialog } from '@/components/time-management/time-entry/time-sheet/AddWorkItemDialog';
 import { IWorkItem } from '@/interfaces/workItem.interfaces';
@@ -181,16 +182,44 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
     { value: 'count', label: 'After' }
   ];
 
+   // US Federal Holidays for the next year (can be tied to company location later to apply holidays from different countries)
+   const getHolidays = (startDate: Date): Date[] => {
+    const year = startDate.getFullYear();
+    const nextYear = addYears(startDate, 1);
+    
+    return [
+      // New Year's Day
+      new Date(year, 0, 1),
+      new Date(nextYear.getFullYear(), 0, 1),
+      // Memorial Day (last Monday in May)
+      new Date(year, 4, 31 - new Date(year, 4, 31).getDay()),
+      // Independence Day
+      new Date(year, 6, 4),
+      // Labor Day (first Monday in September)
+      new Date(year, 8, 1 + (8 - new Date(year, 8, 1).getDay()) % 7),
+      // Thanksgiving (fourth Thursday in November)
+      new Date(year, 10, 1 + (11 - new Date(year, 10, 1).getDay()) % 7 + 21),
+      // Christmas
+      new Date(year, 11, 25)
+    ];
+  };
+
   const handleRecurrenceChange = (value: string) => {
     if (value === 'none') {
       setRecurrencePattern(null);
     } else {
+      const isDaily = value === 'daily';
       setRecurrencePattern(prev => ({
         frequency: value as IRecurrencePattern['frequency'],
         interval: 1,
         startDate: entryData.scheduled_start,
         endDate: undefined,
         count: undefined,
+        workdaysOnly: isDaily ? true : undefined,
+        // If daily and workdays only, add holidays to exceptions
+        exceptions: isDaily ? getHolidays(entryData.scheduled_start) : undefined,
+        // For daily workday events, set daysOfWeek to Mon-Fri (0-4 since RRule uses 0-based index for weekdays)
+        daysOfWeek: isDaily ? [0, 1, 2, 3, 4] : undefined
       }));
     }
   };
@@ -522,6 +551,25 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
                 />
               </div>
             )}
+            {recurrencePattern.frequency === 'daily' && (
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="workdays-only"
+                  checked={recurrencePattern.workdaysOnly ?? true}
+                  onCheckedChange={(checked) => setRecurrencePattern(prev => {
+                    if (prev === null) return null;
+                    return {
+                      ...prev,
+                      workdaysOnly: checked,
+                      // Update daysOfWeek and excludeDates based on the switch
+                      daysOfWeek: checked ? [0, 1, 2, 3, 4] : undefined,
+                      exceptions: checked ? getHolidays(entryData.scheduled_start) : undefined
+                    };
+                  })}
+                  label="Workdays only (Mon-Fri, excluding holidays)"
+                />
+              </div>
+            )}
           </div>
         )}
       <div className="mt-6 flex justify-end space-x-3">
@@ -532,7 +580,6 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
       </div>
       </DialogContent>
       
-
         <ConfirmationDialog
           className="max-w-[450px]"
           isOpen={showDeleteDialog}
