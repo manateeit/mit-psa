@@ -6,9 +6,13 @@ import { z } from 'zod';
 const Ticket = {
   getAll: async (): Promise<ITicket[]> => {
     try {
-      const { knex: db } = await createTenantKnex();
-      // RLS will automatically filter tickets based on the current user's tenant
-      const tickets = await db<ITicket>('tickets').select('*');
+      const { knex: db, tenant } = await createTenantKnex();
+      if (!tenant) {
+        throw new Error('Tenant not found');
+      }
+      const tickets = await db<ITicket>('tickets')
+        .where({ tenant })
+        .select('*');
       return tickets;
     } catch (error) {
       console.error('Error getting all tickets:', error);
@@ -17,8 +21,10 @@ const Ticket = {
   },
 
   get: async (id: string): Promise<ITicket> => {
-    const {knex: db} = await createTenantKnex();
-    // RLS will ensure that only tickets from the current user's tenant are accessible
+    const {knex: db, tenant} = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
     const [ticket] = await db('tickets')
       .select(
         'tickets.*',
@@ -28,7 +34,10 @@ const Ticket = {
         this.on('tickets.priority_id', 'priorities.priority_id')
            .andOn('tickets.tenant', 'priorities.tenant')
       })
-      .where('tickets.ticket_id', id);
+      .where({
+        'tickets.ticket_id': id,
+        'tickets.tenant': tenant
+      });
     
     return ticket;
   },
@@ -47,9 +56,16 @@ const Ticket = {
 
   update: async (id: string, ticket: Partial<ITicket>): Promise<void> => {
     try {
-      const {knex: db} = await createTenantKnex();
-      // RLS will ensure that only tickets from the current user's tenant can be updated
-      await db<ITicket>('tickets').where({ ticket_id: id }).update(ticket);
+      const {knex: db, tenant} = await createTenantKnex();
+      if (!tenant) {
+        throw new Error('Tenant not found');
+      }
+      await db<ITicket>('tickets')
+        .where({ 
+          ticket_id: id,
+          tenant: tenant 
+        })
+        .update(ticket);
     } catch (error) {
       console.error(`Error updating ticket with id ${id}:`, error);
       throw error;
@@ -58,9 +74,16 @@ const Ticket = {
 
   delete: async (id: string): Promise<void> => {
     try {
-      const {knex: db} = await createTenantKnex();
-      // RLS will ensure that only tickets from the current user's tenant can be deleted
-      await db<ITicket>('tickets').where({ ticket_id: id }).del();
+      const {knex: db, tenant} = await createTenantKnex();
+      if (!tenant) {
+        throw new Error('Tenant not found');
+      }
+      await db<ITicket>('tickets')
+        .where({ 
+          ticket_id: id,
+          tenant: tenant 
+        })
+        .del();
     } catch (error) {
       console.error(`Error deleting ticket with id ${id}:`, error);
       throw error;
