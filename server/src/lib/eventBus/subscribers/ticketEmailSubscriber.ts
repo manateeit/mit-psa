@@ -127,21 +127,25 @@ async function handleTicketCreated(event: TicketCreatedEvent): Promise<void> {
         'co.email as contact_email',
         'p.priority_name',
         's.name as status_name',
-        'u.first_name as updated_by_first_name',
-        'u.last_name as updated_by_last_name',
-        'au.email as assigned_to_email'
+        'au.email as assigned_to_email',
+        'eb.first_name',
+        'eb.last_name'
       )
       .leftJoin('companies as c', function() {
         this.on('t.company_id', 'c.company_id')
             .andOn('t.tenant', 'c.tenant');
       })
       .leftJoin('contacts as co', function() {
-        this.on('t.contact_name_id', 'co.contact_id')
+        this.on('t.contact_name_id', 'co.contact_name_id')
             .andOn('t.tenant', 'co.tenant');
       })
       .leftJoin('users as au', function() {
         this.on('t.assigned_to', 'au.user_id')
             .andOn('t.tenant', 'au.tenant');
+      })
+      .leftJoin('users as eb', function() {
+        this.on('t.entered_by', 'eb.user_id')
+            .andOn('t.tenant', 'eb.tenant');
       })
       .leftJoin('priorities as p', function() {
         this.on('t.priority_id', 'p.priority_id')
@@ -150,10 +154,6 @@ async function handleTicketCreated(event: TicketCreatedEvent): Promise<void> {
       .leftJoin('statuses as s', function() {
         this.on('t.status_id', 's.status_id')
             .andOn('t.tenant', 's.tenant');
-      })
-      .leftJoin('users as u', function() {
-        this.on('t.updated_by', 'u.user_id')
-            .andOn('t.tenant', 'u.tenant');
       })
       .where('t.ticket_id', payload.ticketId)
       .first();
@@ -426,7 +426,10 @@ async function handleTicketAssigned(event: TicketAssignedEvent): Promise<void> {
             title: ticket.title,
             priority: ticket.priority_name || 'Unknown',
             status: ticket.status_name || 'Unknown',
-            assignedBy: payload.userId,
+            assignedBy: await db('users')
+              .where({ user_id: payload.userId, tenant: tenantId })
+              .first()
+              .then(user => user ? `${user.first_name} ${user.last_name}` : 'System'),
             url: `/tickets/${ticket.ticket_number}`
           }
         }
@@ -501,7 +504,7 @@ async function handleTicketCommentAdded(event: TicketCommentAddedEvent): Promise
             .andOn('t.tenant', 'c.tenant');
       })
       .leftJoin('contacts as co', function() {
-        this.on('t.contact_name_id', 'co.contact_id')
+        this.on('t.contact_name_id', 'co.contact_name_id')
             .andOn('t.tenant', 'co.tenant');
       })
       .where('t.ticket_id', payload.ticketId)

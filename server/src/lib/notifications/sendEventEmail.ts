@@ -14,6 +14,19 @@ export interface SendEmailParams {
  * Send an email using the email service
  * @param params Email parameters
  */
+
+function flattenObject(obj: Record<string, unknown>, prefix = ''): Record<string, unknown> {
+  return Object.entries(obj).reduce((acc: Record<string, unknown>, [key, value]) => {
+    const newKey = prefix ? `${prefix}.${key}` : key;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      Object.assign(acc, flattenObject(value as Record<string, unknown>, newKey));
+    } else {
+      acc[newKey] = value;
+    }
+    return acc;
+  }, {});
+}
+
 export async function sendEventEmail(params: SendEmailParams): Promise<void> {
   try {
     logger.info('[SendEventEmail] Preparing to send email:', {
@@ -117,12 +130,30 @@ export async function sendEventEmail(params: SendEmailParams): Promise<void> {
     const emailService = await getEmailService();
     await emailService.initialize();
 
-    // Send email using the new service's templated email method
-    const success = await emailService.sendTemplatedEmail({
-      toEmail: params.to,
+    // Replace template variables with context values
+    let html = templateContent;
+    Object.entries(params.context).forEach(([contextKey, contextValue]) => {
+      if (typeof contextValue === 'object' && contextValue !== null) {
+        Object.entries(contextValue).forEach(([key, value]) => {
+          const placeholder = `{{${contextKey}.${key}}}`;
+          html = html.replace(new RegExp(placeholder, 'g'), String(value));
+        });
+      }
+    });
+
+    logger.debug('[SendEventEmail] Template variables replaced:', {
+      originalContent: templateContent,
+      finalContent: html
+    });
+
+    const text = html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+
+    // Send email using the email service
+    const success = await emailService.sendEmail({
+      to: params.to,
       subject: emailSubject,
-      templateName: params.template,
-      templateData: params.context
+      html,
+      text
     });
 
     if (!success) {
