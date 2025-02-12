@@ -84,7 +84,7 @@ export async function initializeEmailNotificationConsumer(tenantId: string) {
             's.name as status_name'
           )
           .leftJoin('contacts as co', function() {
-            this.on('t.contact_name_id', 'co.contact_id')
+            this.on('t.contact_name_id', 'co.contact_name_id')
                 .andOn('t.tenant', 'co.tenant');
           })
           .leftJoin('companies as c', function() {

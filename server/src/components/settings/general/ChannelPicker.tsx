@@ -32,6 +32,8 @@ export const ChannelPicker: React.FC<ChannelPickerProps & AutomationProps> = ({
   "data-automation-type": dataAutomationType = 'picker'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const mappedOptions = useMemo(() => 
     channels.map(channel => ({
@@ -113,8 +115,6 @@ export const ChannelPicker: React.FC<ChannelPickerProps & AutomationProps> = ({
       prevMetadataRef.current = newMetadata;
     }
   }, [selectedChannelId, channels, updateMetadata]); // updateMetadata intentionally omitted
-  const [searchTerm, setSearchTerm] = useState('');
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const selectedChannel = useMemo(() =>
     channels.find((c) => c.channel_id === selectedChannelId),
@@ -160,8 +160,11 @@ export const ChannelPicker: React.FC<ChannelPickerProps & AutomationProps> = ({
     { value: 'all', label: 'All Channels' },
   ], []);
 
+  const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent form submission
+    setIsOpen(!isOpen);
+  };
 
-  
   return (
     <ReflectionContainer id={`${id}-channel`} data-automation-type={dataAutomationType} label="Channel Picker">
       <div
@@ -173,9 +176,10 @@ export const ChannelPicker: React.FC<ChannelPickerProps & AutomationProps> = ({
         <Button
           id={`${id}-toggle`}
           variant="outline"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleToggle}
           className="w-full justify-between"
           label={selectedChannel?.channel_name || 'Select Channel'}
+          type="button" // Explicitly set type to prevent form submission
         >
           <span>{selectedChannel?.channel_name || 'Select Channel'}</span>
           <ChevronDownIcon className="ml-2 h-4 w-4" />
@@ -231,6 +235,7 @@ export const ChannelPicker: React.FC<ChannelPickerProps & AutomationProps> = ({
                     label={channel.channel_name || ''}
                     role="option"
                     aria-selected={channel.channel_id === selectedChannelId}
+                    type="button" // Explicitly set type to prevent form submission
                   >
                     {channel.channel_name || ''}
                     {channel.is_inactive && <span className="ml-2 text-gray-500">(Inactive)</span>}

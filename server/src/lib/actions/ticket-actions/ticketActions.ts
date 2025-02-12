@@ -25,6 +25,7 @@ import {
   TicketUpdatedEvent,
   TicketClosedEvent
 } from '../../../lib/eventBus/events';
+import { NumberingService } from '@/lib/services/numberingService';
 
 // Helper function to safely convert dates
 function convertDates<T extends { entered_at?: Date | string | null, updated_at?: Date | string | null, closed_at?: Date | string | null }>(record: T): T {
@@ -70,11 +71,13 @@ export async function createTicketFromAsset(data: CreateTicketFromAssetData, use
         // Validate the input data
         const validatedData = validateData(createTicketFromAssetSchema, data);
 
-        // Start a transaction
+        const numberingService = new NumberingService();
         const result = await db.transaction(async (trx) => {
+            const ticketNumber = await numberingService.getNextTicketNumber(tenant);
+            
             // Create the ticket
             const ticketData: Partial<ITicket> = {
-                ticket_number: '',
+                ticket_number: ticketNumber,
                 title: validatedData.title,
                 company_id: validatedData.company_id,
                 status_id: await getDefaultStatusId(trx, tenant),
@@ -170,47 +173,54 @@ export async function addTicket(data: FormData, user: IUser): Promise<ITicket|un
       throw new Error('Tenant not found');
     }
 
-    // Get form data and convert empty strings to null for nullable fields
-    const contact_name_id = data.get('contact_name_id');
-    const category_id = data.get('category_id');
-    const subcategory_id = data.get('subcategory_id');
-    const description = data.get('description');
+    const numberingService = new NumberingService();
+    const MAX_RETRIES = 3;
+    let retries = 0;
 
-    const formData = {
-      title: data.get('title'),
-      channel_id: data.get('channel_id'),
-      company_id: data.get('company_id'),
-      contact_name_id: contact_name_id === '' ? null : contact_name_id,
-      status_id: data.get('status_id'),
-      assigned_to: data.get('assigned_to'),
-      priority_id: data.get('priority_id'),
-      description: description,
-      category_id: category_id === '' ? null : category_id,
-      subcategory_id: subcategory_id === '' ? null : subcategory_id,
-    };
+    while (retries < MAX_RETRIES) {
+      try {
+        return await db.transaction(async (trx) => {
+          // Get form data and convert empty strings to null for nullable fields
+          const contact_name_id = data.get('contact_name_id');
+          const category_id = data.get('category_id');
+          const subcategory_id = data.get('subcategory_id');
+          const description = data.get('description');
 
-    const validatedData = validateData(ticketFormSchema, formData);
+          const formData = {
+            title: data.get('title'),
+            channel_id: data.get('channel_id'),
+            company_id: data.get('company_id'),
+            contact_name_id: contact_name_id === '' ? null : contact_name_id,
+            status_id: data.get('status_id'),
+            assigned_to: data.get('assigned_to'),
+            priority_id: data.get('priority_id'),
+            description: description,
+            category_id: category_id === '' ? null : category_id,
+            subcategory_id: subcategory_id === '' ? null : subcategory_id,
+          };
 
-    // Start a transaction to ensure both ticket and comment are created
-    const result = await db.transaction(async (trx) => {
-      const ticketData: Partial<ITicket> = {
-        ticket_number: '',
-        title: validatedData.title,
-        channel_id: validatedData.channel_id,
-        company_id: validatedData.company_id,
-        contact_name_id: validatedData.contact_name_id,
-        status_id: validatedData.status_id,
-        entered_by: user.user_id,
-        assigned_to: validatedData.assigned_to,
-        priority_id: validatedData.priority_id,
-        category_id: validatedData.category_id,
-        subcategory_id: validatedData.subcategory_id,
-        entered_at: new Date().toISOString(),
-        attributes: {
-          description: validatedData.description
-        },
-        tenant: tenant
-      };
+          const validatedData = validateData(ticketFormSchema, formData);
+
+          const ticketNumber = await numberingService.getNextTicketNumber(tenant);
+            
+          const ticketData: Partial<ITicket> = {
+            ticket_number: ticketNumber,
+            title: validatedData.title,
+            channel_id: validatedData.channel_id,
+            company_id: validatedData.company_id,
+            contact_name_id: validatedData.contact_name_id,
+            status_id: validatedData.status_id,
+            entered_by: user.user_id,
+            assigned_to: validatedData.assigned_to,
+            priority_id: validatedData.priority_id,
+            category_id: validatedData.category_id,
+            subcategory_id: validatedData.subcategory_id,
+            entered_at: new Date().toISOString(),
+            attributes: {
+              description: validatedData.description
+            },
+            tenant: tenant
+          };
 
       // Validate complete ticket data
       const validatedTicket = validateData(ticketSchema.partial(), ticketData);
@@ -252,11 +262,17 @@ export async function addTicket(data: FormData, user: IUser): Promise<ITicket|un
         });
       }
 
-      return convertDates(newTicket);
-    });
-
-    revalidatePath('/msp/tickets');
-    return result;
+          return convertDates(newTicket);
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error && 'code' in err && err.code === '40P01') { // Deadlock detected
+          retries++;
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new Error('Failed to create ticket after 3 retries');
   } catch (error) {
     console.error(error);
     throw error;

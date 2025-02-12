@@ -4,6 +4,7 @@ import { StorageService } from '@/lib/storage/StorageService';
 import { InvoiceViewModel } from '@/interfaces/invoice.interfaces';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { getTenantDetails } from '@/lib/actions/tenantActions';
+import { createTenantKnex } from '@/lib/db';
 
 interface EmailConfig {
   host: string;
@@ -231,8 +232,27 @@ export class EmailService {
   }
 
   private async getEmailTemplate(templateName: string): Promise<string | null> {
-    // TODO: Load templates from database
-    const templates: Record<string, string> = {
+    // First try to get system template from database for notification emails
+    try {
+      const { knex } = await createTenantKnex();
+      const template = await knex('system_email_templates')
+        .select('html_content')
+        .where({ name: templateName })
+        .first();
+
+      if (template?.html_content) {
+        console.log('[EmailService] Found template in database:', {
+          templateName,
+          contentLength: template.html_content.length
+        });
+        return template.html_content;
+      }
+    } catch (error) {
+      console.error('[EmailService] Error fetching email template from database:', error);
+    }
+
+    // Fall back to hardcoded templates for auth-related emails
+    const authTemplates: Record<string, string> = {
       verify_email: `
         <p>Hello {{username}},</p>
         <p>Please verify your email by clicking the link below:</p>
@@ -245,7 +265,14 @@ export class EmailService {
       `
     };
 
-    return templates[templateName] || null;
+    const template = authTemplates[templateName];
+    if (template) {
+      console.log('[EmailService] Using hardcoded auth template:', { templateName });
+      return template;
+    }
+
+    console.error('[EmailService] Template not found:', { templateName });
+    return null;
   }
 
   private renderInvoiceTemplate(template: string, data: InvoiceEmailTemplateData): string {
