@@ -82,6 +82,7 @@ export default function TaskForm({
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [pendingTicketLinks, setPendingTicketLinks] = useState<IProjectTicketLinkWithDetails[]>(task?.ticket_links || []);
   const [editingChecklistItemId, setEditingChecklistItemId] = useState<string | null>(null);
+  const [isCrossProjectMove, setIsCrossProjectMove] = useState<boolean>(false);
 
   const [selectedStatusId, setSelectedStatusId] = useState<string>(
     task?.project_status_mapping_id ||
@@ -174,16 +175,39 @@ export default function TaskForm({
 
     // Update phase ID
     setSelectedPhaseId(phaseId);
-    
+
+    // Find the project ID of the selected phase
+    const findProjectId = (options: TreeSelectOption<ProjectTreeTypes>[]): string | undefined => {
+      for (const opt of options) {
+        if (opt.type === 'project' && opt.children?.some(child => child.value === phaseId)) {
+          return opt.value;
+        }
+        if (opt.children) {
+          const found = findProjectId(opt.children);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+
+    const newProjectId = findProjectId(projectTreeOptions);
+    const currentProjectId = phase.project_id;
+    const isMovingToNewProject = Boolean(newProjectId && currentProjectId !== newProjectId);
+    setIsCrossProjectMove(isMovingToNewProject);
+
     // Update status ID based on the following priority:
-    // 1. Status from path (if provided)
-    // 2. Current task's status (if valid in new project)
-    // 3. Default status for the project
-    // 4. First available status
+    // 1. Status from path (if explicitly selected)
+    // 2. For same-project moves:
+    //    a. Current task's status (if valid)
+    //    b. Default status
+    //    c. First available status
+    // 3. For cross-project moves:
+    //    Let moveTaskToPhase handle status mapping
     if (statusId) {
+      // Status explicitly selected
       setSelectedStatusId(statusId);
-    } else {
-      // Try to keep current status if it exists in the new project
+    } else if (!isCrossProjectMove) {
+      // Same project move - try to keep current status if valid
       const currentStatusId = task?.project_status_mapping_id;
       const currentStatusValid = currentStatusId && projectStatuses.some(s => s.project_status_mapping_id === currentStatusId);
       
@@ -194,6 +218,10 @@ export default function TaskForm({
       } else if (projectStatuses.length > 0) {
         setSelectedStatusId(projectStatuses[0].project_status_mapping_id);
       }
+    } else {
+      // Cross-project move - let moveTaskToPhase handle status mapping
+      // Keep the current status ID until moveTaskToPhase determines the new one
+      setSelectedStatusId(task?.project_status_mapping_id || projectStatuses[0]?.project_status_mapping_id);
     }
     
     // Show move confirmation if it's a different phase
@@ -211,10 +239,20 @@ export default function TaskForm({
     
     setIsSubmitting(true);
     try {
-      // Move the task to the new phase with both phase and status
-      const movedTask = await moveTaskToPhase(task.task_id, selectedPhaseId, selectedStatusId);
+      // For cross-project moves, let moveTaskToPhase handle status mapping
+      const movedTask = await moveTaskToPhase(
+        task.task_id, 
+        selectedPhaseId, 
+        isCrossProjectMove ? undefined : selectedStatusId // Only pass status ID for same-project moves
+      );
       
       if (movedTask) {
+        // For cross-project moves, use the status mapping that moveTaskToPhase determined
+        // Update our local state to match the new status
+        if (isCrossProjectMove) {
+          setSelectedStatusId(movedTask.project_status_mapping_id);
+        }
+
         // Update task with all fields preserved
         const taskData: Partial<IProjectTask> = {
           task_name: taskName,
@@ -224,9 +262,8 @@ export default function TaskForm({
           actual_hours: actualHours,
           due_date: dueDate || null,
           checklist_items: checklistItems,
-          // Always include these IDs to ensure they're properly updated
           phase_id: selectedPhaseId,
-          project_status_mapping_id: selectedStatusId
+          project_status_mapping_id: movedTask.project_status_mapping_id // Always use the mapping from moveTaskToPhase
         };
         const updatedTask = await updateTaskWithChecklist(movedTask.task_id, taskData);
         onSubmit(updatedTask);
@@ -256,19 +293,29 @@ export default function TaskForm({
       const finalAssignedTo = !assignedUser || assignedUser === '' ? null : assignedUser;
 
       if (mode === 'edit' && task) {
-        // Edit mode logic remains the same
-        const movedTask = await moveTaskToPhase(task.task_id, selectedPhaseId, selectedStatusId);
+        // Edit mode - handle cross-project moves properly
+        const movedTask = await moveTaskToPhase(
+          task.task_id, 
+          selectedPhaseId, 
+          isCrossProjectMove ? undefined : selectedStatusId
+        );
         
         if (movedTask) {
+          // For cross-project moves, use the status mapping that moveTaskToPhase determined
+          // Update our local state to match the new status
+          if (isCrossProjectMove) {
+            setSelectedStatusId(movedTask.project_status_mapping_id);
+          }
+
           const taskData: Partial<IProjectTask> = {
             task_name: taskName,
             description: description,
             assigned_to: finalAssignedTo,
             estimated_hours: estimatedHours,
             actual_hours: actualHours,
-            due_date: dueDate || null, // Use selected due date or null
+            due_date: dueDate || null,
             checklist_items: checklistItems,
-            project_status_mapping_id: selectedStatusId
+            project_status_mapping_id: movedTask.project_status_mapping_id // Always use the mapping from moveTaskToPhase
           };
           resultTask = await updateTaskWithChecklist(movedTask.task_id, taskData);
         }
