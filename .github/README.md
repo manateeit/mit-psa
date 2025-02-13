@@ -38,7 +38,7 @@ A comprehensive Professional Services Automation platform designed for Managed S
 
 ## Getting Started
 
-For detailed setup instructions, please refer to our [Complete Setup Guide](/docs/setup_guide.md). The guide covers:
+For detailed setup instructions, please refer to our [Complete Setup Guide](/docs/setup_guide.md) or [Setup Guide for Windows](/docs/setup_guide_windows.md) . The guide covers:
 - Prerequisites and system requirements
 - Installation steps for both Community and Enterprise editions
 - Environment configuration
