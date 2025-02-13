@@ -10,7 +10,7 @@ import { getStatuses, createStatus, deleteStatus, updateStatus } from '@/lib/act
 import { getAllPriorities, createPriority, deletePriority, updatePriority } from '@/lib/actions/priorityActions';
 import { getTicketCategories, createTicketCategory, deleteTicketCategory, updateTicketCategory } from '@/lib/actions/ticketCategoryActions';
 import { IChannel } from '@/interfaces/channel.interface';
-import { IStatus, ItemType } from '@/interfaces/project.interfaces';
+import { IStatus, ItemType } from '@/interfaces/status.interface';
 import { IPriority, ITicketCategory } from '@/interfaces/ticket.interfaces';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import TicketNumberingSettings from './TicketNumberingSettings';

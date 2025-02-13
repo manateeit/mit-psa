@@ -1,15 +1,25 @@
-import { ItemType } from './project.interfaces';
 import { TenantEntity } from ".";
+
+export type ItemType = 'project' | 'project_task' | 'ticket';
 
 export interface IStatus extends TenantEntity {
   status_id: string;
   name: string;
   status_type: ItemType;
-  standard_status_id: string | null;
-  is_custom: boolean;
-  created_at: Date;
-  updated_at: Date;
+  item_type?: ItemType;
   is_closed: boolean;
-  created_by?: string;
   order_number?: number;
+  created_by?: string;
+  standard_status_id?: string;
+  is_custom?: boolean;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+export interface IStandardStatus extends TenantEntity {
+  standard_status_id: string;
+  name: string;
+  item_type: ItemType;
+  display_order: number;
+  is_closed: boolean;
 }

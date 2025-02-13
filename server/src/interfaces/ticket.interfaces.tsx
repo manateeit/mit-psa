@@ -45,6 +45,7 @@ export interface ITicketListFilters {
   companyId?: string;
   searchQuery?: string;
   channelFilterState: 'active' | 'inactive' | 'all';
+  showOpenOnly?: boolean;
 }
 
 export interface IPriority extends TenantEntity {

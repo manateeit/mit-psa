@@ -1,5 +1,5 @@
 import { Knex } from 'knex';
-import { IStatus } from '../../interfaces/project.interfaces';
+import { IStatus } from '../../interfaces/status.interface';
 import { createTenantKnex } from '../db';
 
 const Status = {

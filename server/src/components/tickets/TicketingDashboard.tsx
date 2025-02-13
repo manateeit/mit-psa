@@ -1,29 +1,29 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ConfirmationDialog } from '../ui/ConfirmationDialog';
+import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import Link from 'next/link';
-import { ITicket, ITicketListItem, ITicketCategory } from '../../interfaces/ticket.interfaces';
+import { ITicket, ITicketListItem, ITicketCategory } from '@/interfaces/ticket.interfaces';
 import { QuickAddTicket } from './QuickAddTicket';
 import { CategoryPicker } from './CategoryPicker';
-import CustomSelect, { SelectOption } from '../ui/CustomSelect';
-import { Button } from '../ui/Button';
-import { getAllChannels } from '../../lib/actions/channel-actions/channelActions';
-import { getTicketStatuses } from '../../lib/actions/status-actions/statusActions';
-import { getAllPriorities } from '../../lib/actions/priorityActions';
-import { getAllUsers, getCurrentUser } from '../../lib/actions/user-actions/userActions';
-import { getTicketCategories } from '../../lib/actions/ticketCategoryActions';
-import { getAllCompanies } from '../../lib/actions/companyActions';
-import { ChannelPicker } from '../settings/general/ChannelPicker';
-import { CompanyPicker } from '../companies/CompanyPicker';
-import { IChannel, ICompany } from '../../interfaces';
-import { DataTable } from '../ui/DataTable';
-import { Input } from '../ui/Input';
-import { ColumnDefinition } from '../../interfaces/dataTable.interfaces';
-import { getTicketsForList, deleteTicket } from '../../lib/actions/ticket-actions/ticketActions';
+import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
+import { Button } from '@/components/ui/Button';
+import { getAllChannels } from '@/lib/actions/channel-actions/channelActions';
+import { getTicketStatuses } from '@/lib/actions/status-actions/statusActions';
+import { getAllPriorities } from '@/lib/actions/priorityActions';
+import { getAllUsers, getCurrentUser } from '@/lib/actions/user-actions/userActions';
+import { getTicketCategories } from '@/lib/actions/ticketCategoryActions';
+import { getAllCompanies } from '@/lib/actions/companyActions';
+import { ChannelPicker } from '@/components/settings/general/ChannelPicker';
+import { CompanyPicker } from '@/components/companies/CompanyPicker';
+import { IChannel, ICompany } from '@/interfaces';
+import { DataTable } from '@/components/ui/DataTable';
+import { Input } from '@/components/ui/Input';
+import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
+import { getTicketsForList, deleteTicket } from '@/lib/actions/ticket-actions/ticketActions';
 import { MoreHorizontal, XCircle } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ReflectionContainer } from '../../types/ui-reflection/ReflectionContainer';
+import { ReflectionContainer } from '@/types/ui-reflection/ReflectionContainer';
 import { withDataAutomationId } from '@/types/ui-reflection/withDataAutomationId';
 
 interface TicketingDashboardProps {
@@ -156,7 +156,7 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [companyFilterState, setCompanyFilterState] = useState<'active' | 'inactive' | 'all'>('active');
   const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('open');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [excludedCategories, setExcludedCategories] = useState<string[]>([]);
@@ -190,11 +190,12 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({
 
       const tickets = await getTicketsForList(user, {
         channelId: selectedChannel || undefined,
-        statusId: selectedStatus !== 'all' ? selectedStatus : undefined,
+        statusId: selectedStatus === 'open' ? undefined : selectedStatus !== 'all' ? selectedStatus : undefined,
         priorityId: selectedPriority !== 'all' ? selectedPriority : undefined,
         companyId: selectedCompany || undefined,
         searchQuery,
-        channelFilterState
+        channelFilterState,
+        showOpenOnly: selectedStatus === 'open'
       });
 
       if (isSubscribed) {
@@ -303,10 +304,12 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({
         setCompanies(fetchedCompanies);
 
         setStatusOptions([
+          { value: 'open', label: 'All open statuses' },
           { value: 'all', label: 'All Statuses' },
-          ...statuses.map((status: { status_id: string; name: string | null }): SelectOption => ({
+          ...statuses.map((status: { status_id: string; name: string | null; is_closed: boolean }): SelectOption => ({
             value: status.status_id!,
-            label: status.name ?? ""
+            label: status.name ?? "",
+            className: status.is_closed ? 'bg-gray-200 text-gray-600' : undefined
           }))
         ]);
 
@@ -372,7 +375,7 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({
   const handleResetFilters = useCallback(() => {
     setSelectedChannel('');
     setSelectedCompany(null);
-    setSelectedStatus('all');
+    setSelectedStatus('open');
     setSelectedPriority('all');
     setSelectedCategories([]);
     setExcludedCategories([]);
@@ -416,7 +419,7 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({
               options={statusOptions}
               value={selectedStatus}
               onValueChange={(value) => setSelectedStatus(value)}
-              placeholder="All Statuses"
+              placeholder="Select Status"
             />
             <CustomSelect
               data-automation-id={`${id}-priority-select`}
@@ -471,7 +474,6 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({
           />
         )}
       </div>
-      {/* </ReflectionContainer> */}
 
       <QuickAddTicket
         id={`${id}-quick-add`}
@@ -491,7 +493,6 @@ const TicketingDashboard: React.FC<TicketingDashboardProps> = ({
       />
     </ReflectionContainer>
   );
-
 };
 
 export default TicketingDashboard;

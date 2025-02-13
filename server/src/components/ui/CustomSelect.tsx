@@ -7,6 +7,7 @@ import { useAutomationIdAndRegister } from '@/types/ui-reflection/useAutomationI
 export interface SelectOption {
   value: string;
   label: string | JSX.Element;
+  className?: string;
 }
 
 export interface StyleProps {
@@ -157,9 +158,10 @@ const CustomSelect: React.FC<CustomSelectProps & AutomationProps> = ({
                   value={option.value}
                   className={`
                     relative flex items-center px-3 py-2 text-sm rounded text-gray-900
-                    cursor-pointer bg-white hover:bg-gray-100 focus:bg-gray-100
+                    cursor-pointer hover:bg-gray-100 focus:bg-gray-100
                     focus:outline-none select-none whitespace-nowrap
                     data-[highlighted]:bg-gray-100
+                    ${option.className || 'bg-white'}
                     ${customStyles?.item || ''}
                   `}
                 >

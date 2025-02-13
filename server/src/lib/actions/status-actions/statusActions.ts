@@ -2,7 +2,7 @@
 
 import { createTenantKnex } from '@/lib/db';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
-import { IStatus, ItemType } from '@/interfaces/project.interfaces';
+import { IStatus, ItemType } from '@/interfaces/status.interface';
 
 export async function getStatuses(type?: ItemType) {
   try {
