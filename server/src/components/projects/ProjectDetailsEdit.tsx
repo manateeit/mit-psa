@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { IProject, IStatus } from '@/interfaces/project.interfaces';
+import { IProject } from '@/interfaces/project.interfaces';
+import { IStatus } from '@/interfaces';
 import { ICompany } from '@/interfaces/company.interfaces';
 import { IUser } from '@/interfaces/auth.interfaces';
 import { Button } from '@/components/ui/Button';

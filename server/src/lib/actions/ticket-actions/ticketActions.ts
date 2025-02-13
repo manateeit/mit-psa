@@ -501,7 +501,15 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
       query = query.whereIn('t.channel_id', channelSubquery);
     }
 
-    if (validatedFilters.statusId && validatedFilters.statusId !== 'all') {
+    if (validatedFilters.showOpenOnly) {
+      query = query.whereExists(function() {
+        this.select('*')
+            .from('statuses')
+            .whereRaw('statuses.status_id = t.status_id')
+            .andWhere('statuses.is_closed', false)
+            .andWhere('statuses.tenant', tenant);
+      });
+    } else if (validatedFilters.statusId && validatedFilters.statusId !== 'all') {
       query = query.where('t.status_id', validatedFilters.statusId);
     }
 

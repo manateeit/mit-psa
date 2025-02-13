@@ -1,6 +1,7 @@
 // server/src/lib/models/project.ts
 import { v4 as uuidv4 } from 'uuid';
-import { IProject, IProjectPhase, IProjectTask, IStatus, IProjectStatusMapping, IStandardStatus, ItemType } from '@/interfaces/project.interfaces';
+import { IProject, IProjectPhase, IProjectTask, IProjectStatusMapping } from '@/interfaces/project.interfaces';
+import { IStatus, IStandardStatus, ItemType } from '@/interfaces/status.interface'
 import { Knex } from 'knex';
 import { createTenantKnex } from '@/lib/db';
 

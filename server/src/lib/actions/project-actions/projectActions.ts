@@ -3,7 +3,8 @@
 import { Knex } from 'knex';
 import ProjectModel from '@/lib/models/project';
 import ProjectTaskModel from '@/lib/models/projectTask';
-import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink, IStatus, IProjectStatusMapping, IStandardStatus, ItemType, ITaskChecklistItem, IProjectTicketLinkWithDetails, ProjectStatus } from '@/interfaces/project.interfaces';
+import { IProject, IProjectPhase, IProjectTask, IProjectTicketLink, IProjectStatusMapping, ITaskChecklistItem, IProjectTicketLinkWithDetails, ProjectStatus } from '@/interfaces/project.interfaces';
+import { IStatus, IStandardStatus, ItemType } from '@/interfaces/status.interface';
 import { getCurrentUser, getAllUsers, findUserById } from '@/lib/actions/user-actions/userActions';
 import { IUser, IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { getContactByContactNameId } from '@/lib/actions/contact-actions/contactActions';
