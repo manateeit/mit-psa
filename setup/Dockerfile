@@ -16,7 +16,6 @@ COPY setup/config.ini ./config.ini
 
 # Copy server files
 COPY server/package.json /app/server/
-COPY server/package-lock.json /app/server/
 COPY server/setup/create_database.js /app/server/setup/
 COPY server/knexfile.cjs /app/server/
 COPY server/migrations /app/server/migrations
