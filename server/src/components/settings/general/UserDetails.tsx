@@ -52,7 +52,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId, onUpdate }) => {
       if (user) {
         // Fetch roles using policyActions to ensure proper tenant context
         const userRoles = await getUserRoles(user.user_id);
-        setIsAdmin(userRoles.some(role => role.role_name === 'admin'));
+        setIsAdmin(userRoles.some(role => role.role_name.toLowerCase() === 'admin'));
       }
     } catch (err) {
       console.error('Error fetching current user:', err);

@@ -62,7 +62,7 @@ export default function PermissionManagement() {
 
   useEffect(() => {
     if (roles.length > 0) {
-      const adminRole = roles.find(role => role.role_name === 'Admin');
+      const adminRole = roles.find(role => role.role_name.toLowerCase() === 'admin');
       if (adminRole) {
         setSelectedRole(adminRole.role_id);
         fetchRolePermissions(adminRole.role_id);
