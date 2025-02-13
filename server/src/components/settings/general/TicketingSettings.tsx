@@ -6,17 +6,19 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Plus, X, Edit2, ChevronRight, ChevronDown, Network, Search } from "lucide-react";
 import { getAllChannels, createChannel, deleteChannel, updateChannel } from '@/lib/actions/channel-actions/channelActions';
-import { getTicketStatuses, createStatus, deleteStatus, updateStatus } from '@/lib/actions/status-actions/statusActions';
+import { getStatuses, createStatus, deleteStatus, updateStatus } from '@/lib/actions/status-actions/statusActions';
 import { getAllPriorities, createPriority, deletePriority, updatePriority } from '@/lib/actions/priorityActions';
 import { getTicketCategories, createTicketCategory, deleteTicketCategory, updateTicketCategory } from '@/lib/actions/ticketCategoryActions';
 import { IChannel } from '@/interfaces/channel.interface';
-import { ITicketStatus, IPriority, ITicketCategory } from '@/interfaces/ticket.interfaces';
+import { IStatus, ItemType } from '@/interfaces/project.interfaces';
+import { IPriority, ITicketCategory } from '@/interfaces/ticket.interfaces';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import TicketNumberingSettings from './TicketNumberingSettings';
 import { Switch } from '@/components/ui/Switch';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import CustomSelect from '@/components/ui/CustomSelect';
+import { toast } from 'react-hot-toast';
 
 interface SettingSectionProps<T extends object> {
   title: string;
@@ -85,6 +87,8 @@ function SettingSection<T extends object>({
           propertyName = "channel_name";
           break;
         case "Ticket Statuses":
+        case "Project Statuses":
+        case "Project Task Statuses":
           propertyName = "name";
           break;
         case "Priorities":
@@ -112,6 +116,7 @@ function SettingSection<T extends object>({
         ...column,
         render: (value: any, record: T) => (
           editingItem === record ? (
+          <div className="p-0.5">
             <Input
               ref={editInputRef}
               defaultValue={value}
@@ -124,6 +129,7 @@ function SettingSection<T extends object>({
               }}
               className="w-full"
             />
+          </div>
           ) : (
             <span className="text-gray-700">{value}</span>
           )
@@ -222,7 +228,8 @@ function SettingSection<T extends object>({
 
 const TicketingSettings = (): JSX.Element => {
   const [channels, setChannels] = useState<IChannel[]>([]);
-  const [statuses, setStatuses] = useState<ITicketStatus[]>([]);
+  const [statuses, setStatuses] = useState<IStatus[]>([]);
+  const [selectedStatusType, setSelectedStatusType] = useState<ItemType>('ticket');
   const [priorities, setPriorities] = useState<IPriority[]>([]);
   const [categories, setCategories] = useState<ITicketCategory[]>([]);
   const [newChannel, setNewChannel] = useState('');
@@ -254,7 +261,7 @@ const TicketingSettings = (): JSX.Element => {
       try {
         const [fetchedChannels, fetchedStatuses, fetchedPriorities, fetchedCategories] = await Promise.all([
           getAllChannels(true),
-          getTicketStatuses(),
+          getStatuses(selectedStatusType),
           getAllPriorities(),
           getTicketCategories()
         ]);
@@ -268,7 +275,7 @@ const TicketingSettings = (): JSX.Element => {
     };
 
     fetchData();
-  }, []);
+  }, [selectedStatusType]);
 
     useEffect(() => {
       if (categoryChannelFilter !== 'all' && selectedParentCategory) {
@@ -324,31 +331,28 @@ const TicketingSettings = (): JSX.Element => {
       }
     };
 
-    const addStatus = async (): Promise<void> => {
-      if (newStatus.trim() === '') {
-        return;
+  const addStatus = async (): Promise<void> => {
+    if (newStatus.trim() === '') {
+      return;
+    }
+
+    try {
+      const addedStatus = await createStatus({
+        name: newStatus.trim(),
+        status_type: selectedStatusType,
+        is_closed: false,
+      });
+
+      if (addedStatus) {
+        setStatuses([...statuses, addedStatus]);
+        setNewStatus('');
       }
-
-      try {
-        const addedStatus = await createStatus({
-          name: newStatus.trim(),
-          status_type: 'ticket',
-          is_closed: false,
-        });
-
-        if (addedStatus) {
-          setStatuses([...statuses, addedStatus]);
-          setNewStatus('');
-        }
       } catch (error) {
         console.error('Error adding new status:', error);
-        if (error instanceof Error) {
-          alert(error.message);
-        } else {
-          alert('Failed to create status');
-        }
-      }
-    };
+        const message = error instanceof Error ? error.message : 'Failed to create status';
+        toast.error(message);
+    }
+  };
 
     const addPriority = async (): Promise<void> => {
       if (newPriority.trim() !== '' && userId) {
@@ -377,10 +381,22 @@ const TicketingSettings = (): JSX.Element => {
       }
     };
 
-    const updateStatusItem = async (updatedStatus: ITicketStatus): Promise<void> => {
+    const updateStatusItem = async (updatedStatus: IStatus): Promise<void> => {
+      // Prevent removing the last closed status
+      const currentStatus = statuses.find(s => s.status_id === updatedStatus.status_id);
+      if (currentStatus?.is_closed && !updatedStatus.is_closed) {
+        const otherClosedStatuses = statuses.filter(s => 
+          s.status_id !== updatedStatus.status_id && s.is_closed
+        );
+        if (otherClosedStatuses.length === 0) {
+          toast.error('At least one status must remain marked as closed');
+          return;
+        }
+      }
+
       try {
         await updateStatus(updatedStatus.status_id!, updatedStatus);
-        setStatuses(statuses.map((status): ITicketStatus =>
+        setStatuses(statuses.map((status): IStatus =>
           status.status_id === updatedStatus.status_id ? updatedStatus : status
         ));
       } catch (error) {
@@ -431,9 +447,9 @@ const TicketingSettings = (): JSX.Element => {
       } catch (error) {
         console.error('Error updating category:', error);
         if (error instanceof Error) {
-          alert(error.message);
+          toast.error(error.message);
         } else {
-          alert('Failed to update category');
+          toast.error('Failed to update category');
         }
       }
     };
@@ -454,7 +470,7 @@ const TicketingSettings = (): JSX.Element => {
           selectedChannelId = categoryChannelFilter;
         }
         else {
-          alert('Please select a specific channel from the dropdown first before adding a category.');
+          toast.error('Please select a specific channel from the dropdown first before adding a category.');
           return;
         }
       
@@ -473,9 +489,9 @@ const TicketingSettings = (): JSX.Element => {
       } catch (error) {
         console.error('Error adding new ticket category:', error);
         if (error instanceof Error) {
-          alert(error.message);
+          toast.error(error.message);
         } else {
-          alert('Failed to create ticket category');
+          toast.error('Failed to create ticket category');
         }
       }
     };
@@ -491,10 +507,27 @@ const TicketingSettings = (): JSX.Element => {
   
     const handleDeleteStatus = async (statusId: string): Promise<void> => {
       try {
+        const currentStatus = statuses.find(s => s.status_id === statusId);
+        if (currentStatus?.is_closed) {
+          const otherClosedStatuses = statuses.filter(s => 
+            s.status_id !== statusId && s.is_closed
+          );
+          if (otherClosedStatuses.length === 0) {
+            toast.error('Cannot delete the last closed status');
+            return;
+          }
+        }
+
         await deleteStatus(statusId);
         setStatuses(statuses.filter(status => status.status_id !== statusId));
+        toast.success('Status deleted successfully');
       } catch (error) {
         console.error('Error deleting status:', error);
+        toast.error(
+          error instanceof Error ? 
+          error.message : 
+          'Cannot delete status because it is currently in use'
+        );
       }
     };
   
@@ -513,7 +546,7 @@ const TicketingSettings = (): JSX.Element => {
     
       const hasSubcategories = categories.some(c => c.parent_category === categoryId);
       if (hasSubcategories) {
-        alert(`Cannot delete "${category.category_name}" because it has subcategories.\n\nPlease delete all subcategories first.`);
+        toast.error(`Cannot delete "${category.category_name}" because it has subcategories.\n\nPlease delete all subcategories first.`);
         return;
       }
     
@@ -529,12 +562,12 @@ const TicketingSettings = (): JSX.Element => {
         if (error instanceof Error) {
           const errorMessage = error.message.toLowerCase();
           if (errorMessage.includes('in use') || errorMessage.includes('referenced') || errorMessage.includes('foreign key')) {
-            alert(`Cannot delete "${category.category_name}" because it is being used by one or more tickets.\n\nPlease reassign those tickets to a different category first.`);
+            toast.error(`Cannot delete "${category.category_name}" because it is being used by one or more tickets.\n\nPlease reassign those tickets to a different category first.`);
           } else {
-            alert(`Failed to delete "${category.category_name}".\n\nError: ${error.message}`);
+            toast.error(`Failed to delete "${category.category_name}".\n\nError: ${error.message}`);
           }
         } else {
-          alert(`Failed to delete "${category.category_name}".\n\nPlease try again or contact support if the issue persists.`);
+          toast.error(`Failed to delete "${category.category_name}".\n\nPlease try again or contact support if the issue persists.`);
         }
       }
     };
@@ -608,7 +641,7 @@ const TicketingSettings = (): JSX.Element => {
     }))
   ];
 
-  const statusColumns: ColumnDefinition<ITicketStatus>[] = [
+  const statusColumns: ColumnDefinition<IStatus>[] = [
     {
       title: 'Name',
       dataIndex: 'name',
@@ -677,18 +710,20 @@ const TicketingSettings = (): JSX.Element => {
               <div className="w-6 mr-2" />
             )}
             {editingCategory === record.category_id ? (
-              <Input
-                ref={editInputRef}
-                defaultValue={value}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSaveCategory(record.category_id);
-                  } else if (e.key === 'Escape') {
-                    setEditingCategory('');
-                  }
-                }}
-                className="flex-grow"
-              />
+              <div className="p-0.5">
+                <Input
+                  ref={editInputRef}
+                  defaultValue={value}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSaveCategory(record.category_id);
+                    } else if (e.key === 'Escape') {
+                      setEditingCategory('');
+                    }
+                  }}
+                  className="flex-grow"
+                />
+              </div>
             ) : (
               <span>{value}</span>
             )}
@@ -750,33 +785,34 @@ const TicketingSettings = (): JSX.Element => {
     },
     {
       label: "Statuses",
-      content: <SettingSection<ITicketStatus>
-        title="Ticket Statuses"
-        items={statuses}
-        newItem={newStatus}
-        setNewItem={setNewStatus}
-        addItem={addStatus}
-        updateItem={updateStatusItem}
-        deleteItem={handleDeleteStatus}
-        getItemName={(status) => status.name}
-        getItemKey={(status) => status.status_id || ''}
-        columns={statusColumns}
-      />
-    },
-    {
-      label: "Priorities",
-      content: <SettingSection<IPriority>
-        title="Priorities"
-        items={priorities}
-        newItem={newPriority}
-        setNewItem={setNewPriority}
-        addItem={addPriority}
-        updateItem={updatePriorityItem}
-        deleteItem={handleDeletePriority}
-        getItemName={(priority) => priority.priority_name}
-        getItemKey={(priority) => priority.priority_id}
-        columns={priorityColumns}
-      />
+      content: (
+        <div>
+          <div className="flex justify-end mb-4 gap-6">
+            <CustomSelect
+              value={selectedStatusType}
+              onValueChange={(value: string) => setSelectedStatusType(value as ItemType)}
+              options={[
+                { value: 'ticket', label: 'Ticket Statuses' },
+                { value: 'project', label: 'Project Statuses' },
+                { value: 'project_task', label: 'Project Task Statuses' }
+              ]}
+              className="w-64"
+            />
+          </div>
+          <SettingSection<IStatus>
+            title={`${selectedStatusType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} Statuses`}
+            items={statuses}
+            newItem={newStatus}
+            setNewItem={setNewStatus}
+            addItem={addStatus}
+            updateItem={updateStatusItem}
+            deleteItem={handleDeleteStatus}
+            getItemName={(status) => status.name}
+            getItemKey={(status) => status.status_id || ''}
+            columns={statusColumns}
+          />
+        </div>
+      )
     },
     {
       label: "Categories",

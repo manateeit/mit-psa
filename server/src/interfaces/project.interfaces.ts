@@ -16,9 +16,12 @@ export interface IStatus extends TenantEntity {
   status_id: string;
   name: string;
   status_type: ItemType;
+  item_type?: ItemType;
   is_closed: boolean; 
   order_number?: number;
   created_by?: string;
+  standard_status_id?: string;
+  is_custom?: boolean;
 }
 
 export interface IProjectStatusMapping extends TenantEntity {

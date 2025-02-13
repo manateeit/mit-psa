@@ -4,6 +4,38 @@ import { createTenantKnex } from '@/lib/db';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { IStatus, ItemType } from '@/interfaces/project.interfaces';
 
+export async function getStatuses(type?: ItemType) {
+  try {
+    // Get the current user to ensure we have a valid user
+    const user = await getCurrentUser();
+    if (!user) {
+      throw new Error('Unauthorized');
+    }
+
+    // Get the database connection with tenant
+    const {knex: db, tenant} = await createTenantKnex();
+    if (!tenant) {
+      throw new Error("Tenant not found");
+    }
+
+    // Build query
+    const query = db<IStatus>('statuses')
+      .where({ tenant })
+      .select('*')
+      .orderBy('order_number');
+
+    // Add type filter if specified
+    if (type) {
+      query.where({ status_type: type });
+    }
+
+    return await query;
+  } catch (error) {
+    console.error('Error fetching ticket statuses:', error);
+    throw error;
+  }
+}
+
 export async function getTicketStatuses() {
   try {
     // Get the current user to ensure we have a valid user
@@ -123,11 +155,23 @@ export async function updateStatus(statusId: string, statusData: Partial<IStatus
 
     // Check if new name conflicts with existing status
     if (statusData.name) {
+      // Get current status to know its type if no new type provided
+      const currentStatus = await db<IStatus>('statuses')
+        .where({
+          tenant,
+          status_id: statusId
+        })
+        .first();
+
+      if (!currentStatus) {
+        throw new Error('Status not found');
+      }
+
       const existingStatus = await db('statuses')
         .where({
           tenant,
           name: statusData.name,
-          status_type: 'ticket' as ItemType
+          status_type: statusData.status_type || currentStatus.status_type
         })
         .whereNot('status_id', statusId)
         .first();
@@ -137,13 +181,30 @@ export async function updateStatus(statusId: string, statusData: Partial<IStatus
       }
     }
 
+    // Extract only updatable fields, excluding tenant
+    const {
+      name,
+      status_type,
+      order_number,
+      is_closed,
+      item_type,
+      standard_status_id,
+      is_custom
+    } = statusData;
+
     const [updatedStatus] = await db<IStatus>('statuses')
       .where({
         tenant,
         status_id: statusId
       })
       .update({
-        ...statusData,
+        ...(name && { name: name.trim() }),
+        ...(status_type && { status_type }),
+        ...(order_number && { order_number }),
+        ...(is_closed !== undefined && { is_closed }),
+        ...(item_type && { item_type }),
+        ...(standard_status_id && { standard_status_id }),
+        ...(is_custom !== undefined && { is_custom })
       })
       .returning('*');
 
@@ -177,17 +238,71 @@ export async function deleteStatus(statusId: string) {
       throw new Error("Tenant not found");
     }
 
-    // Check if status is in use
-    const ticketsCount = await db('tickets')
+    // Get the status to check its type
+    const status = await db<IStatus>('statuses')
       .where({
         tenant,
         status_id: statusId
       })
-      .count('status_id as count')
       .first();
 
-    if (ticketsCount && Number(ticketsCount.count) > 0) {
-      throw new Error('Cannot delete status that is in use by tickets');
+    if (!status) {
+      throw new Error('Status not found');
+    }
+
+    // Check if status is in use based on its type
+    let inUseCount = 0;
+    let errorMessage = '';
+
+    if (status.status_type === 'ticket') {
+      const ticketsCount = await db('tickets')
+        .where({
+          tenant,
+          status_id: statusId
+        })
+        .count('status_id as count')
+        .first();
+      inUseCount = Number(ticketsCount?.count || 0);
+      errorMessage = 'Cannot delete status that is in use by tickets';
+    } else if (status.status_type === 'project') {
+      const projectsCount = await db('projects')
+        .where({
+          tenant,
+          status: statusId
+        })
+        .count('status as count')
+        .first();
+      inUseCount = Number(projectsCount?.count || 0);
+      errorMessage = 'Cannot delete status that is in use by projects';
+    } else if (status.status_type === 'project_task') {
+      // Check if status is used in project_tasks
+      const tasksCount = await db('project_tasks')
+        .where({
+          tenant,
+          status_id: statusId
+        })
+        .count('task_id as count')
+        .first();
+      
+      // Check if status is used in project_status_mappings
+      const mappingsCount = await db('project_status_mappings')
+        .where({
+          tenant,
+          status_id: statusId
+        })
+        .orWhere({
+          tenant,
+          standard_status_id: statusId
+        })
+        .count('project_status_mapping_id as count')
+        .first();
+
+      inUseCount = Number(tasksCount?.count || 0) + Number(mappingsCount?.count || 0);
+      errorMessage = 'Cannot delete status that is in use by project tasks or status mappings';
+    }
+
+    if (inUseCount > 0) {
+      throw new Error(errorMessage);
     }
 
     await db('statuses')
