@@ -142,6 +142,7 @@ function SettingSection<T extends object>({
   const actionColumn: ColumnDefinition<T> = {
     title: 'Action',
     dataIndex: 'action',
+    width: '15%',
     render: (_, item) => (
       <div className="flex items-center justify-end space-x-2">
         {editingItem === item ? (
@@ -815,6 +816,23 @@ const TicketingSettings = (): JSX.Element => {
       )
     },
     {
+      label: "Priorities",
+      content: (
+        <SettingSection<IPriority>
+          title="Priorities"
+          items={priorities}
+          newItem={newPriority}
+          setNewItem={setNewPriority}
+          addItem={addPriority}
+          updateItem={updatePriorityItem}
+          deleteItem={handleDeletePriority}
+          getItemName={(priority) => priority.priority_name}
+          getItemKey={(priority) => priority.priority_id}
+          columns={priorityColumns}
+        />
+      )
+    },
+    {
       label: "Categories",
       content: (
         <div>
@@ -833,6 +851,7 @@ const TicketingSettings = (): JSX.Element => {
               columns={[...categoryColumns, {
                 title: 'Action',
                 dataIndex: 'action',
+                width: '15%',
                 render: (_, item) => (
                   <div className="flex items-center justify-end space-x-2">
                     {editingCategory === item.category_id ? (
