@@ -12,6 +12,7 @@ import { getTicketCategories, createTicketCategory, deleteTicketCategory, update
 import { IChannel } from '@/interfaces/channel.interface';
 import { ITicketStatus, IPriority, ITicketCategory } from '@/interfaces/ticket.interfaces';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
+import TicketNumberingSettings from './TicketNumberingSettings';
 import { Switch } from '@/components/ui/Switch';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
@@ -707,6 +708,10 @@ const TicketingSettings = (): JSX.Element => {
 
   const tabs = [
     {
+      label: "Ticket Numbering",
+      content: <TicketNumberingSettings />
+    },
+    {
       label: "Channels",
       content: (
         <div>
@@ -908,4 +913,3 @@ const TicketingSettings = (): JSX.Element => {
 };
 
 export default TicketingSettings;
-
