@@ -11,7 +11,7 @@ exports.up = async function(knex) {
         SELECT EXISTS (
           SELECT 1
           FROM citus_tables
-          WHERE table_name = 'tickets'
+          WHERE citus_tables.table_name::text = 'tickets'
         )
       `);
 
