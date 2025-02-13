@@ -24,7 +24,7 @@ import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import CompanyAssets from './CompanyAssets';
-import TextEditor from '../editor/TextEditor';
+import TextEditor, { DEFAULT_BLOCK } from '../editor/TextEditor';
 import { ITicket } from '@/interfaces';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -135,7 +135,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
   const [currentUser, setCurrentUser] = useState<IUserWithRoles | null>(null);
   const [isDocumentSelectorOpen, setIsDocumentSelectorOpen] = useState(false);
   const [hasUnsavedNoteChanges, setHasUnsavedNoteChanges] = useState(false);
-  const [currentContent, setCurrentContent] = useState<PartialBlock[]>([]); // Direct PartialBlock[] array
+  const [currentContent, setCurrentContent] = useState<PartialBlock[]>(DEFAULT_BLOCK);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { IComment, ITicket } from '../../interfaces';
 import { IDocument } from '../../interfaces/document.interface';
 import { IContact } from '../../interfaces/contact.interfaces';
-import TextEditor from '../editor/TextEditor';
+import TextEditor, { DEFAULT_BLOCK } from '../editor/TextEditor';
 import { PartialBlock } from '@blocknote/core';
 import CommentItem from './CommentItem';
 import CustomTabs from '../ui/CustomTabs';
@@ -236,7 +236,7 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
                 {...withDataAutomationId({ id: `${id}-editor` })}
                 key={editorKey}
                 roomName={`ticket-${ticket.ticket_id}`}
-                initialContent={[]}
+                initialContent={DEFAULT_BLOCK}
                 onContentChange={onNewCommentContentChange}
               >
                 {renderButtonBar()}

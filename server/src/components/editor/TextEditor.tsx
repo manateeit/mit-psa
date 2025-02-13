@@ -25,7 +25,7 @@ interface TextEditorProps {
   documentId?: string;
 }
 
-const DEFAULT_BLOCK: PartialBlock[] = [{
+export const DEFAULT_BLOCK: PartialBlock[] = [{
   type: "paragraph",
   props: {
     textAlignment: "left",

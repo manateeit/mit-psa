@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { IDocument } from '@/interfaces/document.interface';
-import TextEditor from '../editor/TextEditor';
+import TextEditor, { DEFAULT_BLOCK } from '../editor/TextEditor';
 import { PartialBlock } from '@blocknote/core';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -32,7 +32,7 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(document.document_name);
-  const [editedContent, setEditedContent] = useState<PartialBlock[]>([]);
+  const [editedContent, setEditedContent] = useState<PartialBlock[]>(DEFAULT_BLOCK);
 
   const handleSave = async () => {
     // Save logic here
