@@ -12,7 +12,7 @@ import {
   getClientInvoices, 
   getClientPaymentMethods,
   getCurrentUsage 
-} from '@/lib/actions/client-billing';
+} from '@/lib/actions/client-portal-actions/client-billing';
 import { 
   ICompanyBillingPlan, 
   IBucketUsage, 

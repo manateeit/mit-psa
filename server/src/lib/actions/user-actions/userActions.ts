@@ -3,6 +3,7 @@
 import User from '@/lib/models/user';
 import { IUser, IRole, IUserWithRoles, IRoleWithPermissions, IUserRole } from '@/interfaces/auth.interfaces';
 import { getServerSession } from "next-auth/next";
+import { options as authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { revalidatePath } from 'next/cache';
 import { createTenantKnex } from '@/lib/db';
 import { getAdminConnection } from '@/lib/db/admin';
@@ -68,7 +69,7 @@ export async function deleteUser(userId: string): Promise<void> {
 
 export async function getCurrentUser(): Promise<IUserWithRoles | null> {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) return null;
     const user = await User.findUserByEmail(session.user.email);
     if (!user) return null;

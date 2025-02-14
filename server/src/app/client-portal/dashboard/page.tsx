@@ -1,6 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
-import { getDashboardMetrics, getRecentActivity, type RecentActivity } from '@/lib/actions/dashboard';
-import { DashboardActions } from '@/components/dashboard/DashboardActions';
+import { Button } from '@/components/ui/Button';
+import { getDashboardMetrics, getRecentActivity, type RecentActivity } from '@/lib/actions/client-portal-actions/dashboard';
 
 export default async function Dashboard() {
   try {
@@ -20,8 +20,8 @@ export default async function Dashboard() {
         </div>
 
         {/* Metrics Overview */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-          <Card>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
+          <Card className="bg-white">
             <CardContent className="p-8">
               <div className="text-sm font-medium text-[rgb(var(--color-text-600))] truncate">
                 Open Support Tickets
@@ -37,7 +37,23 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white">
+            <CardContent className="p-8">
+              <div className="text-sm font-medium text-[rgb(var(--color-text-600))] truncate">
+                Open Projects
+              </div>
+              <div className="mt-2 text-4xl font-bold text-[rgb(var(--color-primary-500))]">
+                {metrics.activeProjects}
+              </div>
+              <div className="mt-4">
+                <a href="/client-portal/tickets" className="text-[rgb(var(--color-primary-500))] hover:text-[rgb(var(--color-primary-600))] text-sm font-medium">
+                  View all projects →
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white">
             <CardContent className="p-8">
               <div className="text-sm font-medium text-[rgb(var(--color-text-600))] truncate">
                 Pending Invoices
@@ -53,7 +69,7 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white">
             <CardContent className="p-8">
               <div className="text-sm font-medium text-[rgb(var(--color-text-600))] truncate">
                 Active Assets
@@ -71,7 +87,7 @@ export default async function Dashboard() {
         </div>
 
         {/* Recent Activity */}
-        <Card>
+        <Card className="bg-white">
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
@@ -118,12 +134,25 @@ export default async function Dashboard() {
         </Card>
 
         {/* Quick Actions */}
-        <Card>
+        <Card className="bg-white">
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <DashboardActions />
+            <div className="flex gap-4">
+              <Button
+                id="create-ticket-button"
+                className="bg-[rgb(var(--color-primary-500))] text-white hover:bg-[rgb(var(--color-primary-600))] px-6 py-3"
+              >
+                Create Support Ticket
+              </Button>
+              <Button
+                id="view-invoice-button"
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background relative bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-700))] hover:bg-[rgb(var(--color-primary-200))] h-10 py-2 px-4 group"
+              >
+                View Latest Invoice
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

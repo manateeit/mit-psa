@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { TextArea } from '@/components/ui/TextArea';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { X, AlertCircle } from 'lucide-react';
-import { createClientTicket } from '@/lib/actions/client-tickets';
+import { createClientTicket } from '@/lib/actions/client-portal-actions/client-tickets';
 
 interface CreateTicketDialogProps {
   open: boolean;

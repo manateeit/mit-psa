@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { X } from 'lucide-react';
-import { getClientTicketDetails } from '@/lib/actions/client-tickets';
+import { getClientTicketDetails } from '@/lib/actions/client-portal-actions/client-tickets';
 import { formatDistanceToNow } from 'date-fns';
 import { ITicket } from '@/interfaces/ticket.interfaces';
 
