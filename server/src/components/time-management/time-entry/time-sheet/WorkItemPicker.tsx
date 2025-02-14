@@ -194,9 +194,10 @@ export function WorkItemPicker({ onSelect, availableWorkItems, timePeriod }: Wor
     }
   }, [availableWorkItems, includeInactive, assignedTo, assignedToMe, companyId, startDate, endDate, searchType]);
 
-  // Set initial date range based on time period
+  // Set initial date range based on time period, but only for timesheet context
   useEffect(() => {
-    if (timePeriod) {
+    // Check if we're in a timesheet context by checking if timePeriod has a period_id
+    if (timePeriod?.period_id) {
       const [startYear, startMonth, startDay] = timePeriod.start_date.split('-').map(Number);
       const [endYear, endMonth, endDay] = timePeriod.end_date.split('-').map(Number);
       
