@@ -626,6 +626,53 @@ const TicketingSettings = (): JSX.Element => {
         </div>
       ),
     },
+    {
+      title: 'Default',
+      dataIndex: 'is_default',
+      render: (value, record) => (
+        <div className="flex items-center space-x-2 text-gray-500">
+          <Switch
+            checked={record.is_default || false}
+            onCheckedChange={async (checked) => {
+              if (checked) {
+                // First, update all other channels to not be default
+                const otherChannels = channels.filter(c => 
+                  c.channel_id !== record.channel_id && c.is_default
+                );
+                
+                try {
+                  // Update other channels first
+                  await Promise.all(
+                    otherChannels.map(channel => 
+                      updateChannelItem({ ...channel, is_default: false })
+                    )
+                  );
+                  // Then update this channel
+                  await updateChannelItem({ ...record, is_default: true });
+                  
+                  // Update local state after all database updates succeed
+                  setChannels(prevChannels => 
+                    prevChannels.map(channel => ({
+                      ...channel,
+                      is_default: channel.channel_id === record.channel_id
+                    }))
+                  );
+                } catch (error) {
+                  console.error('Error updating default channel:', error);
+                  toast.error('Failed to update default channel');
+                }
+              } else {
+                await updateChannelItem({ ...record, is_default: false });
+              }
+            }}
+            className="data-[state=checked]:bg-primary-500"
+          />
+          <span className="text-xs text-gray-400 ml-2">
+            {record.is_default ? 'Default channel for new tickets from client portal' : ''}
+          </span>
+        </div>
+      ),
+    },
   ];
 
   const filterStatusOptions = [
@@ -642,31 +689,89 @@ const TicketingSettings = (): JSX.Element => {
     }))
   ];
 
-  const statusColumns: ColumnDefinition<IStatus>[] = [
-    {
-      title: 'Name',
-      dataIndex: 'name',
-    },
-    {
-      title: 'Status',
-      dataIndex: 'is_closed',
-      render: (value, record) => (
-        <div className="flex items-center space-x-2 text-gray-500">
-          <span className="text-sm mr-2">
-            {record.is_closed ? 'Closed' : 'Open'}
-          </span>
-          <Switch
-            checked={record.is_closed}
-            onCheckedChange={() => updateStatusItem({ ...record, is_closed: !record.is_closed })}
-            className="data-[state=checked]:bg-primary-500"
-          />
-          <span className="text-xs text-gray-400 ml-2">
-            {record.is_closed ? 'Tickets with this status will be marked as closed' : 'Tickets with this status will remain open'}
-          </span>
-        </div>
-      ),
-    },
-  ];
+  const getStatusColumns = (type: ItemType): ColumnDefinition<IStatus>[] => {
+    const baseColumns: ColumnDefinition<IStatus>[] = [
+      {
+        title: 'Name',
+        dataIndex: 'name',
+      },
+      {
+        title: 'Status',
+        dataIndex: 'is_closed',
+        render: (value, record) => (
+          <div className="flex items-center space-x-2 text-gray-500">
+            <span className="text-sm mr-2">
+              {record.is_closed ? 'Closed' : 'Open'}
+            </span>
+            <Switch
+              checked={record.is_closed}
+              onCheckedChange={() => updateStatusItem({ ...record, is_closed: !record.is_closed })}
+              className="data-[state=checked]:bg-primary-500"
+            />
+            <span className="text-xs text-gray-400 ml-2">
+              {record.is_closed 
+                ? `${type === 'project' ? 'Projects' : 'Tickets'} with this status will be marked as closed` 
+                : `${type === 'project' ? 'Projects' : 'Tickets'} with this status will remain open`
+              }
+            </span>
+          </div>
+        ),
+      }
+    ];
+
+    // Only add default column for ticket statuses
+    if (type === 'ticket') {
+      baseColumns.push({
+        title: 'Default',
+        dataIndex: 'is_default',
+        render: (value, record) => (
+          <div className="flex items-center space-x-2 text-gray-500">
+            <Switch
+              checked={record.is_default || false}
+              onCheckedChange={async (checked) => {
+                if (checked) {
+                  // First, update all other statuses to not be default
+                  const otherStatuses = statuses.filter(s => 
+                    s.status_id !== record.status_id && s.is_default
+                  );
+                  
+                  try {
+                    // Update other statuses first
+                    await Promise.all(
+                      otherStatuses.map(status => 
+                        updateStatusItem({ ...status, is_default: false })
+                      )
+                    );
+                    // Then update this status
+                    await updateStatusItem({ ...record, is_default: true });
+                    
+                    // Update local state after all database updates succeed
+                    setStatuses(prevStatuses => 
+                      prevStatuses.map(status => ({
+                        ...status,
+                        is_default: status.status_id === record.status_id
+                      }))
+                    );
+                  } catch (error) {
+                    console.error('Error updating default status:', error);
+                    toast.error('Failed to update default status');
+                  }
+                } else {
+                  await updateStatusItem({ ...record, is_default: false });
+                }
+              }}
+              className="data-[state=checked]:bg-primary-500"
+            />
+            <span className="text-xs text-gray-400 ml-2">
+              {record.is_default ? 'Default status for new tickets from client portal' : ''}
+            </span>
+          </div>
+        ),
+      });
+    }
+
+    return baseColumns;
+  };
 
   const priorityColumns: ColumnDefinition<IPriority>[] = [
     {
@@ -751,23 +856,32 @@ const TicketingSettings = (): JSX.Element => {
       label: "Channels",
       content: (
         <div>
-          <div className="flex justify-end mb-4 gap-6">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search channels"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="border-2 border-gray-200 focus:border-purple-500 rounded-md pl-10 pr-4 py-2 w-64 outline-none bg-white"
+          <div className="space-y-4">
+            <div className="flex justify-end gap-6">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search channels"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="border-2 border-gray-200 focus:border-purple-500 rounded-md pl-10 pr-4 py-2 w-64 outline-none bg-white"
+                />
+                <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              </div>
+              <CustomSelect
+                value={filterStatus}
+                onValueChange={(value: string) => setFilterStatus(value as 'all' | 'active' | 'inactive')}
+                options={filterStatusOptions}
+                className="w-64"
               />
-              <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             </div>
-            <CustomSelect
-              value={filterStatus}
-              onValueChange={(value: string) => setFilterStatus(value as 'all' | 'active' | 'inactive')}
-              options={filterStatusOptions}
-              className="w-64"
-            />
+            <div className="bg-blue-50 p-4 rounded-md">
+              <p className="text-sm text-blue-700">
+                <strong>Default Channel:</strong> When clients create tickets through the client portal, 
+                they will automatically be assigned to the channel marked as default. Only one channel can 
+                be set as default at a time.
+              </p>
+            </div>
           </div>
           <SettingSection<IChannel>
             title="Channels"
@@ -788,17 +902,27 @@ const TicketingSettings = (): JSX.Element => {
       label: "Statuses",
       content: (
         <div>
-          <div className="flex justify-end mb-4 gap-6">
-            <CustomSelect
-              value={selectedStatusType}
-              onValueChange={(value: string) => setSelectedStatusType(value as ItemType)}
-              options={[
-                { value: 'ticket', label: 'Ticket Statuses' },
-                { value: 'project', label: 'Project Statuses' },
-                { value: 'project_task', label: 'Project Task Statuses' }
-              ]}
-              className="w-64"
-            />
+          <div className="space-y-4">
+            <div className="flex justify-end gap-6">
+              <CustomSelect
+                value={selectedStatusType}
+                onValueChange={(value: string) => setSelectedStatusType(value as ItemType)}
+                options={[
+                  { value: 'ticket', label: 'Ticket Statuses' },
+                  { value: 'project', label: 'Project Statuses' }
+                ]}
+                className="w-64"
+              />
+            </div>
+            {selectedStatusType === 'ticket' && (
+              <div className="bg-blue-50 p-4 rounded-md">
+                <p className="text-sm text-blue-700">
+                  <strong>Default Status:</strong> When clients create tickets through the client portal, 
+                  they will automatically be assigned the status marked as default. Only one status can 
+                  be set as default at a time.
+                </p>
+              </div>
+            )}
           </div>
           <SettingSection<IStatus>
             title={`${selectedStatusType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} Statuses`}
@@ -810,7 +934,7 @@ const TicketingSettings = (): JSX.Element => {
             deleteItem={handleDeleteStatus}
             getItemName={(status) => status.name}
             getItemKey={(status) => status.status_id || ''}
-            columns={statusColumns}
+            columns={getStatusColumns(selectedStatusType)}
           />
         </div>
       )
