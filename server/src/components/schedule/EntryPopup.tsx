@@ -377,12 +377,6 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
                 setIsEditingWorkItem(false);
               }}
               availableWorkItems={availableWorkItems}
-              timePeriod={{
-                period_id: entryData.entry_id || '',
-                start_date: entryData.scheduled_start.toISOString(),
-                end_date: entryData.scheduled_end.toISOString(),
-                tenant: ''  // Required by TenantEntity
-              }}
             />
           </div>
           </div>
