@@ -189,8 +189,30 @@ export async function updateStatus(statusId: string, statusData: Partial<IStatus
       is_closed,
       item_type,
       standard_status_id,
-      is_custom
+      is_custom,
+      is_default
     } = statusData;
+
+    // If setting as default, unset any other default status of the same type
+    if (is_default) {
+      const currentStatus = await db<IStatus>('statuses')
+        .where({
+          tenant,
+          status_id: statusId
+        })
+        .first();
+
+      if (currentStatus) {
+        await db<IStatus>('statuses')
+          .where({
+            tenant,
+            status_type: currentStatus.status_type,
+            is_default: true
+          })
+          .whereNot('status_id', statusId)
+          .update({ is_default: false });
+      }
+    }
 
     const [updatedStatus] = await db<IStatus>('statuses')
       .where({
@@ -204,7 +226,8 @@ export async function updateStatus(statusId: string, statusData: Partial<IStatus
         ...(is_closed !== undefined && { is_closed }),
         ...(item_type && { item_type }),
         ...(standard_status_id && { standard_status_id }),
-        ...(is_custom !== undefined && { is_custom })
+        ...(is_custom !== undefined && { is_custom }),
+        ...(is_default !== undefined && { is_default })
       })
       .returning('*');
 

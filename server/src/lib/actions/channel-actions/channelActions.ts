@@ -26,6 +26,7 @@ export async function getAllChannels(includeAll: boolean = true): Promise<IChann
 export async function createChannel(channelData: Omit<IChannel, 'channel_id' | 'tenant'>): Promise<IChannel> {
   try {
     channelData.is_inactive = false;
+    channelData.is_default = false;
     const newChannel = await Channel.insert(channelData);
     return newChannel;
   } catch (error) {

@@ -1,6 +1,6 @@
 import { TenantEntity } from ".";
 
-export type ItemType = 'project' | 'project_task' | 'ticket';
+export type ItemType = 'project' | 'ticket';
 
 export interface IStatus extends TenantEntity {
   status_id: string;
@@ -8,6 +8,7 @@ export interface IStatus extends TenantEntity {
   status_type: ItemType;
   item_type?: ItemType;
   is_closed: boolean;
+  is_default?: boolean;
   order_number?: number;
   created_by?: string;
   standard_status_id?: string;
@@ -22,4 +23,5 @@ export interface IStandardStatus extends TenantEntity {
   item_type: ItemType;
   display_order: number;
   is_closed: boolean;
+  is_default?: boolean;
 }

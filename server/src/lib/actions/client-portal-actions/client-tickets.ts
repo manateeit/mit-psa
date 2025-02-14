@@ -6,6 +6,7 @@ import { ITicket, ITicketListItem } from '@/interfaces/ticket.interfaces';
 import { getServerSession } from 'next-auth';
 import { options } from '@/app/api/auth/[...nextauth]/options';
 import { z } from 'zod';
+import { NumberingService } from '@/lib/services/numberingService';
 
 const clientTicketSchema = z.object({
   title: z.string().min(1),
@@ -161,18 +162,6 @@ export async function getClientTicketDetails(ticketId: string): Promise<ITicket>
   }
 }
 
-async function generateTicketNumber(db: any, tenant: string): Promise<string> {
-  // Get the current highest ticket number for the tenant
-  const result = await db('tickets')
-    .where('tenant', tenant)
-    .max('ticket_number as max')
-    .first();
-
-  const currentMax = result.max || 'T-0000';
-  const currentNumber = parseInt(currentMax.split('-')[1]);
-  const newNumber = (currentNumber + 1).toString().padStart(4, '0');
-  return `T-${newNumber}`;
-}
 
 export async function createClientTicket(data: FormData): Promise<ITicket> {
   try {
@@ -191,7 +180,7 @@ export async function createClientTicket(data: FormData): Promise<ITicket> {
       .where({ 
         tenant,
         is_default: true,
-        item_type: 'ticket'
+        status_type: 'ticket'
       })
       .first();
 
@@ -229,7 +218,8 @@ export async function createClientTicket(data: FormData): Promise<ITicket> {
     }
 
     // Generate ticket number
-    const ticketNumber = await generateTicketNumber(db, tenant);
+    const numberingService = new NumberingService();
+    const ticketNumber = await numberingService.getNextTicketNumber(tenant);
 
     // Validate input data
     const validatedData = validateData(clientTicketSchema, {
@@ -262,12 +252,35 @@ export async function createClientTicket(data: FormData): Promise<ITicket> {
       closed_at: null,
     };
 
-    // Create ticket
-    const [newTicket] = await db('tickets')
-      .insert(ticketData)
-      .returning('*');
+    // Create ticket and initial comment in a transaction
+    const result = await db.transaction(async (trx) => {
+      // Insert the ticket
+      const [newTicket] = await trx('tickets')
+        .insert(ticketData)
+        .returning('*');
 
-    return newTicket;
+      if (!newTicket.ticket_id) {
+        throw new Error('Failed to create ticket');
+      }
+
+      // Create initial description comment
+      if (validatedData.description) {
+        await trx('comments').insert({
+          tenant,
+          ticket_id: newTicket.ticket_id,
+          user_id: session.user.id,
+          author_type: 'contact',
+          note: validatedData.description,
+          is_internal: false,
+          is_resolution: false,
+          is_initial_description: true
+        });
+      }
+
+      return newTicket;
+    });
+
+    return result;
   } catch (error) {
     console.error('Failed to create client ticket:', error);
     throw new Error('Failed to create ticket');

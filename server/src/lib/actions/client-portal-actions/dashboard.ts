@@ -2,9 +2,11 @@
 
 import { createTenantKnex } from '@/lib/db';
 import { headers } from 'next/headers';
+import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 
 export interface DashboardMetrics {
   openTickets: number;
+  activeProjects: number;
   pendingInvoices: number;
   activeAssets: number;
 }
@@ -17,26 +19,77 @@ export interface RecentActivity {
 }
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
-  const { knex } = await createTenantKnex();
+  const user = await getCurrentUser();
+  
+  if (!user) {
+    throw new Error('Unauthorized: User not found');
+  }
+
+  if (user.user_type !== 'client') {
+    throw new Error('Unauthorized: Invalid user type for client portal');
+  }
+
+  if (!user.contact_id) {
+    throw new Error('Unauthorized: Contact information not found');
+  }
+
+  const { knex, tenant } = await createTenantKnex();
+
+  // Get company_id from contact
+  const contact = await knex('contacts')
+    .where({
+      'contact_name_id': user.contact_id,
+      'tenant': tenant
+    })
+    .select('company_id')
+    .first();
+
+  if (!contact) {
+    throw new Error('Unauthorized: Company information not found');
+  }
+
+  const companyId = contact.company_id;
 
   try {
     // Get open tickets count
     const [ticketCount] = await knex('tickets')
-      .where('is_closed', false)
+      .where({
+        'tickets.tenant': tenant,
+        'tickets.company_id': companyId,
+        'is_closed': false
+      })
       .count('ticket_id as count');
+    
+    // Get active projects count
+    const [projectCount] = await knex('projects')
+      .where({
+        'projects.tenant': tenant,
+        'projects.company_id': companyId,
+        'is_inactive': false
+      })
+      .count('project_id as count');
 
     // Get pending invoices count
     const [invoiceCount] = await knex('invoices')
+      .where({
+        'invoices.tenant': tenant,
+        'invoices.company_id': companyId
+      })
       .whereNull('finalized_at')
       .count('* as count');
 
     // Get active assets count
     const [assetCount] = await knex('assets')
-      .where('status', '!=', 'inactive')
+      .where({
+        'assets.tenant': tenant,
+        'assets.company_id': companyId
+      })
+      .andWhere('status', '!=', 'inactive')
       .count('* as count');
 
     return {
       openTickets: Number(ticketCount.count || 0),
+      activeProjects: Number(projectCount.count || 0),
       pendingInvoices: Number(invoiceCount.count || 0),
       activeAssets: Number(assetCount.count || 0),
     };
@@ -47,7 +100,36 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
 }
 
 export async function getRecentActivity(): Promise<RecentActivity[]> {
-  const { knex } = await createTenantKnex();
+  const user = await getCurrentUser();
+  
+  if (!user) {
+    throw new Error('Unauthorized: User not found');
+  }
+
+  if (user.user_type !== 'client') {
+    throw new Error('Unauthorized: Invalid user type for client portal');
+  }
+
+  if (!user.contact_id) {
+    throw new Error('Unauthorized: Contact information not found');
+  }
+
+  const { knex, tenant } = await createTenantKnex();
+
+  // Get company_id from contact
+  const contact = await knex('contacts')
+    .where({
+      'contact_name_id': user.contact_id,
+      'tenant': tenant
+    })
+    .select('company_id')
+    .first();
+
+  if (!contact) {
+    throw new Error('Unauthorized: Company information not found');
+  }
+
+  const companyId = contact.company_id;
 
   try {
     // Get recent tickets with their initial descriptions
@@ -62,6 +144,10 @@ export async function getRecentActivity(): Promise<RecentActivity[]> {
             .andOn('tickets.tenant', '=', 'comments.tenant')
             .andOn('comments.is_initial_description', '=', knex.raw('true'));
       })
+      .where({
+        'tickets.tenant': tenant,
+        'tickets.company_id': companyId
+      })
       .orderBy('tickets.updated_at', 'desc')
       .limit(3);
 
@@ -72,6 +158,10 @@ export async function getRecentActivity(): Promise<RecentActivity[]> {
         'total_amount as total',
         'updated_at as timestamp'
       ])
+      .where({
+        'invoices.tenant': tenant,
+        'invoices.company_id': companyId
+      })
       .orderBy('updated_at', 'desc')
       .limit(3);
 
@@ -83,8 +173,12 @@ export async function getRecentActivity(): Promise<RecentActivity[]> {
         'assets.name as asset_name'
       ])
       .join('assets', function() {
-        this.on('assets.tenant', '=', 'asset_maintenance_history.tenant')
-            .andOn('assets.asset_id', '=', 'asset_maintenance_history.asset_id');
+        this.on('assets.asset_id', '=', 'asset_maintenance_history.asset_id')
+            .andOn('assets.tenant', '=', 'asset_maintenance_history.tenant');
+      })
+      .where({
+        'asset_maintenance_history.tenant': tenant,
+        'assets.company_id': companyId
       })
       .orderBy('asset_maintenance_history.performed_at', 'desc')
       .limit(3);

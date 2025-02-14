@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { DataTable } from '@/components/ui/DataTable';
 import { formatDistanceToNow } from 'date-fns';
-import { getClientTickets } from '@/lib/actions/client-tickets';
+import { getClientTickets } from '@/lib/actions/client-portal-actions/client-tickets';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import { ITicketListItem } from '@/interfaces/ticket.interfaces';
 import { TicketDetails } from './TicketDetails';
