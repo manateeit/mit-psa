@@ -10,7 +10,7 @@ export default async function Dashboard() {
     ]);
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* Welcome Section */}
         <div>
           <h1 className="text-2xl font-semibold text-[rgb(var(--color-text-900))]">Dashboard</h1>
@@ -20,17 +20,17 @@ export default async function Dashboard() {
         </div>
 
         {/* Metrics Overview */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           <Card>
-            <CardContent className="p-6">
-              <div className="text-sm font-medium text-[rgb(var(--color-text-500))] truncate">
+            <CardContent className="p-8">
+              <div className="text-sm font-medium text-[rgb(var(--color-text-600))] truncate">
                 Open Support Tickets
               </div>
-              <div className="mt-2 text-3xl font-semibold text-[rgb(var(--color-primary-500))]">
+              <div className="mt-2 text-4xl font-bold text-[rgb(var(--color-primary-500))]">
                 {metrics.openTickets}
               </div>
-              <div className="mt-3">
-                <a href="/client-portal/tickets" className="text-[rgb(var(--color-primary-500))] hover:text-[rgb(var(--color-primary-600))] text-sm">
+              <div className="mt-4">
+                <a href="/client-portal/tickets" className="text-[rgb(var(--color-primary-500))] hover:text-[rgb(var(--color-primary-600))] text-sm font-medium">
                   View all tickets →
                 </a>
               </div>
@@ -38,15 +38,15 @@ export default async function Dashboard() {
           </Card>
 
           <Card>
-            <CardContent className="p-6">
-              <div className="text-sm font-medium text-[rgb(var(--color-text-500))] truncate">
+            <CardContent className="p-8">
+              <div className="text-sm font-medium text-[rgb(var(--color-text-600))] truncate">
                 Pending Invoices
               </div>
-              <div className="mt-2 text-3xl font-semibold text-[rgb(var(--color-primary-500))]">
+              <div className="mt-2 text-4xl font-bold text-[rgb(var(--color-secondary-500))]">
                 {metrics.pendingInvoices}
               </div>
-              <div className="mt-3">
-                <a href="/client-portal/billing" className="text-[rgb(var(--color-primary-500))] hover:text-[rgb(var(--color-primary-600))] text-sm">
+              <div className="mt-4">
+                <a href="/client-portal/billing" className="text-[rgb(var(--color-secondary-500))] hover:text-[rgb(var(--color-secondary-600))] text-sm font-medium">
                   View billing →
                 </a>
               </div>
@@ -54,15 +54,15 @@ export default async function Dashboard() {
           </Card>
 
           <Card>
-            <CardContent className="p-6">
-              <div className="text-sm font-medium text-[rgb(var(--color-text-500))] truncate">
+            <CardContent className="p-8">
+              <div className="text-sm font-medium text-[rgb(var(--color-text-600))] truncate">
                 Active Assets
               </div>
-              <div className="mt-2 text-3xl font-semibold text-[rgb(var(--color-primary-500))]">
+              <div className="mt-2 text-4xl font-bold text-[rgb(var(--color-accent-500))]">
                 {metrics.activeAssets}
               </div>
-              <div className="mt-3">
-                <a href="/client-portal/assets" className="text-[rgb(var(--color-primary-500))] hover:text-[rgb(var(--color-primary-600))] text-sm">
+              <div className="mt-4">
+                <a href="/client-portal/assets" className="text-[rgb(var(--color-accent-500))] hover:text-[rgb(var(--color-accent-600))] text-sm font-medium">
                   View assets →
                 </a>
               </div>
@@ -76,7 +76,7 @@ export default async function Dashboard() {
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-5">
               {activities.map((activity: RecentActivity, index: number): JSX.Element => {
                 let borderColor = 'border-[rgb(var(--color-primary-500))]';
                 let bgColor = 'bg-[rgb(var(--color-primary-50))]';
@@ -84,21 +84,21 @@ export default async function Dashboard() {
                 let timeColor = 'text-[rgb(var(--color-primary-500))]';
 
                 if (activity.type === 'invoice') {
-                  borderColor = 'border-[rgb(var(--color-text-400))]';
-                  bgColor = 'bg-[rgb(var(--color-text-50))]';
-                  textColor = 'text-[rgb(var(--color-text-700))]';
-                  timeColor = 'text-[rgb(var(--color-text-500))]';
-                } else if (activity.type === 'asset') {
-                  borderColor = 'border-[rgb(var(--color-secondary-500))]';
+                  borderColor = 'border-[rgb(var(--color-secondary-400))]';
                   bgColor = 'bg-[rgb(var(--color-secondary-50))]';
                   textColor = 'text-[rgb(var(--color-secondary-700))]';
                   timeColor = 'text-[rgb(var(--color-secondary-500))]';
+                } else if (activity.type === 'asset') {
+                  borderColor = 'border-[rgb(var(--color-accent-500))]';
+                  bgColor = 'bg-[rgb(var(--color-accent-50))]';
+                  textColor = 'text-[rgb(var(--color-accent-700))]';
+                  timeColor = 'text-[rgb(var(--color-accent-500))]';
                 }
 
                 return (
                   <div
                     key={`${activity.type}-${index}`}
-                    className={`border-l-4 ${borderColor} ${bgColor} p-4`}
+                    className={`border-l-4 ${borderColor} ${bgColor} p-4 rounded-r-lg`}
                   >
                     <div className="flex">
                       <div className="ml-3">
@@ -133,7 +133,7 @@ export default async function Dashboard() {
     return (
       <div className="space-y-6">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-8">
             <div className="text-center text-[rgb(var(--color-text-700))]">
               <p>There was an error loading the dashboard. Please try again later.</p>
             </div>
