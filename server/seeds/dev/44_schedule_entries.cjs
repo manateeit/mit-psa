@@ -6,9 +6,9 @@ exports.seed = async function (knex) {
     // Create schedule entries
     const entries = [
         {
-            tenant: '11111111-1111-1111-1111-111111111111',
+            tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
             title: 'Cheshire Cat Pathways',
-            work_item_id: knex('tickets').where({ tenant: '11111111-1111-1111-1111-111111111111', title: 'Missing White Rabbit' }).select('ticket_id').first(),
+            work_item_id: knex('tickets').where({ tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', title: 'Missing White Rabbit' }).select('ticket_id').first(),
             scheduled_start: knex.raw("CURRENT_TIMESTAMP - INTERVAL '1 day'"),
             scheduled_end: knex.raw("CURRENT_TIMESTAMP + INTERVAL '1 day'"),
             status: 'Scheduled',
@@ -16,9 +16,9 @@ exports.seed = async function (knex) {
             work_item_type: 'project_task'
         },
         {
-            tenant: '11111111-1111-1111-1111-111111111111',
+            tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
             title: 'Through the Looking Glass Expedition',
-            work_item_id: knex('tickets').where({ tenant: '11111111-1111-1111-1111-111111111111', title: 'Missing White Rabbit' }).select('ticket_id').first(),
+            work_item_id: knex('tickets').where({ tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', title: 'Missing White Rabbit' }).select('ticket_id').first(),
             scheduled_start: knex.raw("CURRENT_TIMESTAMP + INTERVAL '2 days'"),
             scheduled_end: knex.raw("CURRENT_TIMESTAMP + INTERVAL '2 days' + INTERVAL '2 hours'"),
             status: 'Scheduled',
@@ -26,9 +26,9 @@ exports.seed = async function (knex) {
             work_item_type: 'ticket'
         },
         {
-            tenant: '11111111-1111-1111-1111-111111111111',
+            tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
             title: 'Emerald City Garden Enchantment',
-            work_item_id: knex('tickets').where({ tenant: '11111111-1111-1111-1111-111111111111', title: 'Enhance Emerald City Gardens' }).select('ticket_id').first(),
+            work_item_id: knex('tickets').where({ tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', title: 'Enhance Emerald City Gardens' }).select('ticket_id').first(),
             scheduled_start: knex.raw("CURRENT_TIMESTAMP + INTERVAL '3 days'"),
             scheduled_end: knex.raw("CURRENT_TIMESTAMP + INTERVAL '3 days' + INTERVAL '3 hours'"),
             status: 'Scheduled',
@@ -44,7 +44,7 @@ exports.seed = async function (knex) {
 
     // Get user ID for glinda
     const glinda = await knex('users')
-        .where({ tenant: '11111111-1111-1111-1111-111111111111', username: 'glinda' })
+        .where({ tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', username: 'glinda' })
         .select('user_id')
         .first();
 

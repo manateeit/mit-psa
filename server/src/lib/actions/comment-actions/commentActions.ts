@@ -2,6 +2,8 @@
 
 import Comment from '@/lib/models/comment';
 import { IComment } from '@/interfaces/comment.interface';
+import { findUserById } from '@/lib/actions/user-actions/userActions';
+import { createTenantKnex } from '@/lib/db';
 
 export async function findCommentsByTicketId(ticketId: string) {
   try {
@@ -33,18 +35,27 @@ export async function createComment(comment: Omit<IComment, 'tenant'>): Promise<
       comment.is_initial_description = true;
     }
 
-    // Ensure author_type is set
-    if (!comment.author_type) {
-      // Default to 'user' if user_id is present, otherwise 'unknown'
-      comment.author_type = comment.user_id ? 'user' : 'unknown';
+    // Get user's type to set author_type
+    if (comment.user_id) {
+      const { knex: db, tenant } = await createTenantKnex();
+      const user = await db('users')
+        .select('user_type')
+        .where('user_id', comment.user_id)
+        .andWhere('tenant', tenant!)
+        .first();
+
+      if (user) {
+        comment.author_type = user.user_type === 'internal' ? 'internal' : 'client';
+      } else {
+        comment.author_type = 'unknown';
+      }
+    } else {
+      comment.author_type = 'unknown';
     }
 
-    // Validate author type and ID combination
-    if (comment.author_type === 'user' && !comment.user_id) {
-      throw new Error('user_id is required when author_type is "user"');
-    }
-    if (comment.author_type === 'contact' && !comment.contact_id) {
-      throw new Error('contact_id is required when author_type is "contact"');
+    // Only allow internal comments from internal users
+    if (comment.is_internal && comment.author_type !== 'internal') {
+      throw new Error('Only internal users can create internal comments');
     }
 
     // Now insert the comment
@@ -55,6 +66,7 @@ export async function createComment(comment: Omit<IComment, 'tenant'>): Promise<
     throw new Error(`Failed to create comment`);
   }
 }
+
 export async function updateComment(id: string, comment: Partial<IComment>) {
   console.log(`[updateComment] Starting update for comment ID: ${id}`, { commentData: comment });
   try {
@@ -66,42 +78,32 @@ export async function updateComment(id: string, comment: Partial<IComment>) {
     }
     console.log(`[updateComment] Found existing comment:`, existingComment);
 
-    // If changing author type, ensure the corresponding ID is provided
-    if (comment.author_type) {
-      console.log(`[updateComment] Author type change detected to: ${comment.author_type}`);
-      if (comment.author_type === 'user') {
-        console.log(`[updateComment] Validating user_id for author type 'user'`);
-        if (!comment.user_id && !existingComment.user_id) {
-          console.error(`[updateComment] Missing user_id for author type 'user'`);
-          throw new Error('user_id is required when author_type is "user"');
-        }
-        // Clear contact_id when switching to user
-        console.log(`[updateComment] Clearing contact_id as author type is 'user'`);
-        comment.contact_id = undefined;
-      } else if (comment.author_type === 'contact') {
-        console.log(`[updateComment] Validating contact_id for author type 'contact'`);
-        if (!comment.contact_id && !existingComment.contact_id) {
-          console.error(`[updateComment] Missing contact_id for author type 'contact'`);
-          throw new Error('contact_id is required when author_type is "contact"');
-        }
-        // Clear user_id when switching to contact
-        console.log(`[updateComment] Clearing user_id as author type is 'contact'`);
-        comment.user_id = undefined;
+    // If user_id is being updated, get user's type
+    if (comment.user_id) {
+      const { knex: db, tenant } = await createTenantKnex();
+      const user = await db('users')
+        .select('user_type')
+        .where('user_id', comment.user_id)
+        .andWhere('tenant', tenant!)
+        .first();
+
+      if (user) {
+        comment.author_type = user.user_type === 'internal' ? 'internal' : 'client';
+      } else {
+        comment.author_type = 'unknown';
       }
     }
 
-    // If providing a new user_id, ensure author_type is 'user'
-    if (comment.user_id && comment.author_type !== 'user') {
-      console.log(`[updateComment] New user_id provided, updating author type to 'user'`);
-      comment.author_type = 'user';
-      comment.contact_id = undefined;
-    }
-
-    // If providing a new contact_id, ensure author_type is 'contact'
-    if (comment.contact_id && comment.author_type !== 'contact') {
-      console.log(`[updateComment] New contact_id provided, updating author type to 'contact'`);
-      comment.author_type = 'contact';
-      comment.user_id = undefined;
+    // Validate internal comment permissions
+    if (comment.is_internal !== undefined) {
+      // Only allow internal comments from internal users
+      if (comment.is_internal && comment.author_type !== 'internal' && existingComment.author_type !== 'internal') {
+        throw new Error('Only internal users can set comments as internal');
+      }
+      // If a client user is updating a comment, ensure they can't make it internal
+      if (existingComment.author_type === 'client') {
+        comment.is_internal = existingComment.is_internal; // Preserve internal status
+      }
     }
 
     console.log(`[updateComment] Proceeding with update`, { finalUpdateData: comment });

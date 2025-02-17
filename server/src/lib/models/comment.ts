@@ -7,10 +7,10 @@ const Comment = {
     try {
       const {knex: db, tenant} = await createTenantKnex();
       const comments = await db<IComment>('comments')
-        .select('*')
-        .where('ticket_id', ticket_id)
-        .andWhere('tenant', tenant!)
-        .orderBy('created_at', 'asc'); // Order comments by creation time
+        .select('comments.*')
+        .where('comments.ticket_id', ticket_id)
+        .andWhere('comments.tenant', tenant!)
+        .orderBy('comments.created_at', 'asc');
       return comments;
     } catch (error) {
       console.error('Error getting all comments:', error);
@@ -22,9 +22,9 @@ const Comment = {
     try {
       const {knex: db, tenant} = await createTenantKnex();
       const comment = await db<IComment>('comments')
-        .select('*')
-        .where('comment_id', id)
-        .andWhere('tenant', tenant!)
+        .select('comments.*')
+        .where('comments.comment_id', id)
+        .andWhere('comments.tenant', tenant!)
         .first();
       return comment;
     } catch (error) {
@@ -39,16 +39,27 @@ const Comment = {
       const {knex: db, tenant} = await createTenantKnex();
       
       // Ensure author_type is valid
-      if (!['user', 'contact', 'unknown'].includes(comment.author_type)) {
+      if (!['internal', 'client', 'unknown'].includes(comment.author_type)) {
         throw new Error(`Invalid author_type: ${comment.author_type}`);
       }
 
-      // Validate author type and ID combination
-      if (comment.author_type === 'user' && !comment.user_id) {
-        throw new Error('user_id is required when author_type is "user"');
+      // Validate user_id is present for non-unknown authors
+      if (comment.author_type !== 'unknown' && !comment.user_id) {
+        throw new Error('user_id is required for internal and client authors');
       }
-      if (comment.author_type === 'contact' && !comment.contact_id) {
-        throw new Error('contact_id is required when author_type is "contact"');
+
+      // First verify user exists and get their type
+      if (comment.user_id) {
+        const user = await db('users')
+          .select('user_type')
+          .where('user_id', comment.user_id)
+          .andWhere('tenant', tenant!)
+          .first();
+
+        if (user) {
+          // Ensure author_type matches user_type
+          comment.author_type = user.user_type === 'internal' ? 'internal' : 'client';
+        }
       }
 
       const result = await db<IComment>('comments')
@@ -73,30 +84,47 @@ const Comment = {
 
   update: async (id: string, comment: Partial<IComment>): Promise<void> => {
     try {
-      const {knex: db} = await createTenantKnex();
+      const {knex: db, tenant} = await createTenantKnex();
 
-      // If author_type is being updated, validate it
-      if (comment.author_type) {
-        if (!['user', 'contact', 'unknown'].includes(comment.author_type)) {
-          throw new Error(`Invalid author_type: ${comment.author_type}`);
-        }
+      // Get existing comment first
+      const existingComment = await db<IComment>('comments')
+        .select('*')
+        .where('comment_id', id)
+        .andWhere('tenant', tenant!)
+        .first();
 
-        // Get existing comment to validate ID requirements
-        const existingComment = await Comment.get(id);
-        if (!existingComment) {
-          throw new Error(`Comment with id ${id} not found`);
-        }
+      if (!existingComment) {
+        throw new Error(`Comment with id ${id} not found`);
+      }
 
-        // Validate author type and ID combination
-        if (comment.author_type === 'user' && !comment.user_id && !existingComment.user_id) {
-          throw new Error('user_id is required when author_type is "user"');
-        }
-        if (comment.author_type === 'contact' && !comment.contact_id && !existingComment.contact_id) {
-          throw new Error('contact_id is required when author_type is "contact"');
+      // If user_id is being updated, verify user exists and get their type
+      if (comment.user_id) {
+        const user = await db('users')
+          .select('user_type')
+          .where('user_id', comment.user_id)
+          .andWhere('tenant', tenant!)
+          .first();
+
+        if (user) {
+          // Ensure author_type matches user_type
+          comment.author_type = user.user_type === 'internal' ? 'internal' : 'client';
+        } else {
+          comment.author_type = 'unknown';
         }
       }
 
-      const { tenant } = await createTenantKnex();
+      // If author_type is being updated, validate it
+      if (comment.author_type) {
+        if (!['internal', 'client', 'unknown'].includes(comment.author_type)) {
+          throw new Error(`Invalid author_type: ${comment.author_type}`);
+        }
+
+        // Validate user_id is present for non-unknown authors
+        if (comment.author_type !== 'unknown' && !comment.user_id && !existingComment.user_id) {
+          throw new Error('user_id is required for internal and client authors');
+        }
+      }
+
       await db<IComment>('comments')
         .where('comment_id', id)
         .andWhere('tenant', tenant!)

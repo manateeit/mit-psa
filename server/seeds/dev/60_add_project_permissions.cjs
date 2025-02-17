@@ -5,22 +5,22 @@ exports.seed = async function(knex) {
     // Inserts seed entries
     await knex('permissions').insert([
       {
-        tenant: '11111111-1111-1111-1111-111111111111',
+        tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         resource: 'project',
         action: 'read'
       },
       {
-        tenant: '11111111-1111-1111-1111-111111111111',
+        tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         resource: 'project',
         action: 'create'
       },
       {
-        tenant: '11111111-1111-1111-1111-111111111111',
+        tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         resource: 'project',
         action: 'update'
       },
       {
-        tenant: '11111111-1111-1111-1111-111111111111',
+        tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         resource: 'project',
         action: 'delete'
       }
@@ -37,7 +37,7 @@ exports.seed = async function(knex) {
     // Prepare role_permissions entries
     const rolePermissions = roles.flatMap(role => 
       projectPermissions.map(permission => ({
-        tenant: '11111111-1111-1111-1111-111111111111',
+        tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         role_id: role.role_id,
         permission_id: permission.permission_id
       }))

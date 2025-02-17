@@ -3,42 +3,42 @@ exports.seed = function (knex) {
         .then(() => {
             return knex('permissions').insert([
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     resource: 'ticket',
                     action: 'create'
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     resource: 'ticket',
                     action: 'read'
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     resource: 'ticket',
                     action: 'update'
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     resource: 'ticket',
                     action: 'delete'
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     resource: 'user',
                     action: 'create'
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     resource: 'user',
                     action: 'read'
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     resource: 'user',
                     action: 'update'
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     resource: 'user',
                     action: 'delete'
                 }                

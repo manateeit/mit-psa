@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { IComment, ITicket } from '../../interfaces';
 import { IDocument } from '../../interfaces/document.interface';
-import { IContact } from '../../interfaces/contact.interfaces';
 import TextEditor, { DEFAULT_BLOCK } from '../editor/TextEditor';
 import { PartialBlock } from '@blocknote/core';
 import CommentItem from './CommentItem';
@@ -12,7 +11,6 @@ import Documents from '../documents/Documents';
 import styles from './TicketDetails.module.css';
 import { Button } from '@/components/ui/Button';
 import AvatarIcon from '@/components/ui/AvatarIcon';
-import { getContactByContactNameId, getAllContacts } from '@/lib/actions/contact-actions/contactActions';
 import { withDataAutomationId } from '@/types/ui-reflection/withDataAutomationId';
 import { ReflectionContainer } from '@/types/ui-reflection/ReflectionContainer';
 
@@ -57,50 +55,6 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
   onDelete,
   onContentChange,
 }) => {
-  const [contactMap, setContactMap] = useState<Record<string, IContact>>({});
-  const [loadingContacts, setLoadingContacts] = useState<Record<string, boolean>>({});
-  const [contacts, setContacts] = useState<IContact[]>([]);
-
-  useEffect(() => {
-    const fetchAllContacts = async () => {
-      try {
-        const allContacts = await getAllContacts();
-        setContacts(allContacts);
-      } catch (error) {
-        console.error('Error fetching contacts:', error);
-      }
-    };
-
-    fetchAllContacts();
-  }, []);
-
-  useEffect(() => {
-    const fetchContactsForComments = async () => {
-      const contactIds = conversations
-        .filter(conv => conv.author_type === 'contact' && conv.contact_id)
-        .map((conv): string => conv.contact_id!)
-        .filter((id, index, self) => self.indexOf(id) === index);
-
-      for (const contactId of contactIds) {
-        if (!contactMap[contactId] && !loadingContacts[contactId]) {
-          setLoadingContacts(prev => ({ ...prev, [contactId]: true }));
-          try {
-            const contactData = await getContactByContactNameId(contactId);
-            if (contactData) {
-              setContactMap(prev => ({ ...prev, [contactId]: contactData }));
-            }
-          } catch (error) {
-            console.error(`Error fetching contact info for ${contactId}:`, error);
-          } finally {
-            setLoadingContacts(prev => ({ ...prev, [contactId]: false }));
-          }
-        }
-      }
-    };
-
-    fetchContactsForComments();
-  }, [conversations]);
-
   const renderButtonBar = (): JSX.Element => {
     const buttons = ['Comments', 'Internal', 'Resolution'];
     return (
@@ -123,23 +77,10 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
   };
 
   const getAuthorInfo = (conversation: IComment) => {
-    if (conversation.author_type === 'user' && conversation.user_id) {
+    if (conversation.user_id) {
       return userMap[conversation.user_id] || null;
     }
     return null;
-  };
-
-  const getContactInfo = (conversation: IComment): IContact | null => {
-    if (conversation.author_type === 'contact' && conversation.contact_id) {
-      return contactMap[conversation.contact_id] || null;
-    }
-    return null;
-  };
-
-  const isLoadingContact = (conversation: IComment): boolean => {
-    return conversation.author_type === 'contact' &&
-      conversation.contact_id !== undefined &&
-      loadingContacts[conversation.contact_id] === true;
   };
 
   const renderComments = (comments: IComment[]): JSX.Element[] => {
@@ -149,14 +90,10 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
         id={`${id}-comment-${conversation.comment_id}`}
         conversation={conversation}
         user={getAuthorInfo(conversation)}
-        contact={getContactInfo(conversation)}
-        isLoadingContact={isLoadingContact(conversation)}
         isEditing={isEditing && currentComment?.comment_id === conversation.comment_id}
         currentComment={currentComment}
         ticketId={ticket.ticket_id || ''}
         userMap={userMap}
-        contacts={contacts}
-        companyId={ticket.company_id}
         onContentChange={onContentChange}
         onSave={onSave}
         onClose={onClose}

@@ -7,11 +7,11 @@ exports.seed = function(knex) {
             if (tenant) {
                 return knex('contacts').insert([
                     {
-                        tenant: '11111111-1111-1111-1111-111111111111',
+                        tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                         full_name: 'Dorothy Gale',
                         company_id: knex('companies')
                             .where({
-                                tenant: '11111111-1111-1111-1111-111111111111',
+                                tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                                 company_name: 'Emerald City'
                             })
                             .select('company_id')
@@ -21,11 +21,11 @@ exports.seed = function(knex) {
                         created_at: knex.fn.now()
                     },
                     {
-                        tenant: '11111111-1111-1111-1111-111111111111',
+                        tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                         full_name: 'Alice in Wonderland',
                         company_id: knex('companies')
                             .where({
-                                tenant: '11111111-1111-1111-1111-111111111111',
+                                tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                                 company_name: 'Wonderland'
                             })
                             .select('company_id')

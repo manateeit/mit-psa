@@ -5,7 +5,7 @@ exports.seed = function(knex) {
         // Inserts seed entries
         return knex('tenants').insert([
           {
-            tenant: '11111111-1111-1111-1111-111111111111',
+            tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
             company_name: 'Oz',
             phone_number: '123-456-7899',
             email: 'oz@example.com',
@@ -18,4 +18,3 @@ exports.seed = function(knex) {
         ]);
       });
   };
-  

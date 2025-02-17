@@ -3,7 +3,7 @@ exports.seed = function (knex) {
         .then(() => {
             return knex('policies').insert([
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     policy_name: 'Admin Full Access',
                     resource: 'all',
                     action: 'all',
@@ -16,7 +16,7 @@ exports.seed = function (knex) {
                     ])
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     policy_name: 'Manager Ticket Access',
                     resource: 'ticket',
                     action: 'read',
@@ -29,7 +29,7 @@ exports.seed = function (knex) {
                     ])
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     policy_name: 'Technician Ticket View',
                     resource: 'ticket',
                     action: 'read',
@@ -42,7 +42,7 @@ exports.seed = function (knex) {
                     ])
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     policy_name: 'High Priority Ticket Edit',
                     resource: 'ticket',
                     action: 'update',

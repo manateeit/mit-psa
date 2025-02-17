@@ -3,7 +3,7 @@ exports.seed = function (knex) {
         .then(() => {
             return knex('custom_fields').insert([
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     field_id: knex.raw('gen_random_uuid()'),
                     name: 'Payment Terms',
                     type: 'text',
@@ -23,14 +23,14 @@ exports.seed = function (knex) {
                     ])
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     field_id: knex.raw('gen_random_uuid()'),
                     name: 'Customer PO',
                     type: 'text',
                     default_value: null
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     field_id: knex.raw('gen_random_uuid()'),
                     name: 'Discount',
                     type: 'number',

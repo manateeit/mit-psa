@@ -3,8 +3,8 @@ exports.seed = function (knex) {
         .then(() => {
             return knex('resources').insert([
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
-                    user_id: knex('users').where({ tenant: '11111111-1111-1111-1111-111111111111', username: 'glinda' }).select('user_id').first(),
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                    user_id: knex('users').where({ tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', username: 'glinda' }).select('user_id').first(),
                     availability: JSON.stringify([
                         {
                             monday: true,
