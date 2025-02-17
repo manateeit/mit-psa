@@ -3,7 +3,7 @@ exports.seed = function (knex) {
         .then(() => {
             return knex('invoice_templates').insert([
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     template_id: knex.raw('gen_random_uuid()'),
                     name: 'Standard Template',
                     version: 1,
@@ -37,7 +37,7 @@ exports.seed = function (knex) {
                     is_default: true
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     template_id: knex.raw('gen_random_uuid()'),
                     name: 'Detailed Template',
                     version: 1,

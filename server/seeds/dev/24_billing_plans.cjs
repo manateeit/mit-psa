@@ -3,7 +3,7 @@ exports.seed = function (knex) {
         .then(() => {
             return knex('billing_plans').insert([
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     plan_name: 'Wonderland Basic',
                     description: 'Basic services for Wonderland residents',
                     billing_frequency: 'Monthly',
@@ -11,7 +11,7 @@ exports.seed = function (knex) {
                     plan_type: 'Fixed'
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     plan_name: 'Oz Premium',
                     description: 'Premium services for Emerald City',
                     billing_frequency: 'Monthly',
@@ -19,7 +19,7 @@ exports.seed = function (knex) {
                     plan_type: 'Fixed'
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     plan_name: 'Custom Cheshire',
                     description: 'Custom plan for special clients',
                     billing_frequency: 'Quarterly',

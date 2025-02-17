@@ -53,6 +53,7 @@ exports.seed = async function(knex) {
             {
                 tenant: tenant.tenant,
                 title: 'Ruby Slippers Server Power Fluctuation',
+                ticket_number: 'TIC1006',
                 company_id: emeraldCity.company_id,
                 status_id: statuses.find(s => s.name === 'Curious Beginning').status_id,
                 channel_id: channel.channel_id,
@@ -69,6 +70,7 @@ exports.seed = async function(knex) {
             {
                 tenant: tenant.tenant,
                 title: 'Tea Time Server Performance Issues',
+                ticket_number: 'TIC1007',
                 company_id: wonderland.company_id,
                 status_id: statuses.find(s => s.name === 'Unfolding Adventure').status_id,
                 channel_id: channel.channel_id,

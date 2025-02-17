@@ -4,9 +4,9 @@ exports.seed = function (knex) {
         .then(() => {
             return knex('conditional_display_rules').insert([
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     rule_id: knex.raw('gen_random_uuid()'),
-                    template_id: knex('invoice_templates').where({ tenant: '11111111-1111-1111-1111-111111111111', name: 'Detailed Template' }).select('template_id').first(),
+                    template_id: knex('invoice_templates').where({ tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Detailed Template' }).select('template_id').first(),
                     condition: JSON.stringify([
                         {
                             field: 'total_amount',
@@ -19,9 +19,9 @@ exports.seed = function (knex) {
                     format: null
                 },
                 {
-                    tenant: '11111111-1111-1111-1111-111111111111',
+                    tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                     rule_id: knex.raw('gen_random_uuid()'),
-                    template_id: knex('invoice_templates').where({ tenant: '11111111-1111-1111-1111-111111111111', name: 'Standard Template' }).select('template_id').first(),
+                    template_id: knex('invoice_templates').where({ tenant: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Standard Template' }).select('template_id').first(),
                     condition: JSON.stringify([
                         {
                             field: 'is_overdue',

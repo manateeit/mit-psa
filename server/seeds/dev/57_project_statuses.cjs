@@ -3,7 +3,7 @@
  * @returns { Promise<void> } 
  */
 exports.seed = async function(knex) {
-  const tenant = '11111111-1111-1111-1111-111111111111';
+  const tenant = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 // Pull a user with the given tenant
 const user = await knex('users')
   .where('tenant', tenant)

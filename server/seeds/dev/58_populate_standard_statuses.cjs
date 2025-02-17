@@ -6,7 +6,7 @@ exports.seed = async function(knex) {
   // Deletes ALL existing entries
   await knex('standard_statuses').del()
 
-  const tenant = '11111111-1111-1111-1111-111111111111';
+  const tenant = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
   await knex('standard_statuses').insert([
     { name: 'Planned', item_type: 'project', display_order: 1, tenant: tenant },

@@ -1,7 +1,7 @@
 // /Users/robertisaacs/sebastian/server/seeds/dev/51_role_permissions.js
 
 exports.seed = async function (knex) {
-    const tenantId = '11111111-1111-1111-1111-111111111111';
+    const tenantId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
     return knex('role_permissions').del()
         .then(() => {
             return knex('role_permissions').insert(function () {

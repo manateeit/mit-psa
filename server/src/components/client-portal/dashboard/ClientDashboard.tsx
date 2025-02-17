@@ -72,7 +72,7 @@ export function ClientDashboard() {
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
         <Card className="bg-white">
           <CardContent className="p-8">
-            <div className="text-sm font-medium text-[rgb(var(--color-text-600))] truncate">
+            <div className="text-lg font-medium text-[rgb(var(--color-text-600))] truncate">
               Open Support Tickets
             </div>
             <div className="mt-2 text-4xl font-bold text-[rgb(var(--color-primary-500))]">
@@ -88,7 +88,7 @@ export function ClientDashboard() {
 
         <Card className="bg-white">
           <CardContent className="p-8">
-            <div className="text-sm font-medium text-[rgb(var(--color-text-600))] truncate">
+            <div className="text-lg font-medium text-[rgb(var(--color-text-600))] truncate">
               Open Projects
             </div>
             <div className="mt-2 text-4xl font-bold text-[rgb(var(--color-primary-500))]">
@@ -104,7 +104,7 @@ export function ClientDashboard() {
 
         <Card className="bg-white">
           <CardContent className="p-8">
-            <div className="text-sm font-medium text-[rgb(var(--color-text-600))] truncate">
+            <div className="text-lg font-medium text-[rgb(var(--color-text-600))] truncate">
               Pending Invoices
             </div>
             <div className="mt-2 text-4xl font-bold text-[rgb(var(--color-secondary-500))]">
@@ -120,7 +120,7 @@ export function ClientDashboard() {
 
         <Card className="bg-white">
           <CardContent className="p-8">
-            <div className="text-sm font-medium text-[rgb(var(--color-text-600))] truncate">
+            <div className="text-lg font-medium text-[rgb(var(--color-text-600))] truncate">
               Active Assets
             </div>
             <div className="mt-2 text-4xl font-bold text-[rgb(var(--color-accent-500))]">
