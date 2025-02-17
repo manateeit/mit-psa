@@ -34,7 +34,7 @@ export default function ClientPortalLayout({ children }: ClientPortalLayoutProps
             {/* Left side - Logo and Navigation */}
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Link href="/client-portal" className="flex items-center gap-2">
+                <Link href="/client-portal/dashboard" className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                     <Image
                       src="/images/avatar-purple-background.png"
@@ -51,7 +51,7 @@ export default function ClientPortalLayout({ children }: ClientPortalLayoutProps
               </div>
               <div className="ml-10 flex items-baseline space-x-4">
                 <Link 
-                  href="/client-portal" 
+                  href="/client-portal/dashboard" 
                   className="px-3 py-2 text-sm font-medium text-[rgb(var(--color-text-900))] hover:text-[rgb(var(--color-primary-500))]"
                 >
                   Dashboard

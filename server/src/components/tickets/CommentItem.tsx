@@ -70,7 +70,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
     if (!conversation.user_id) return 'Unknown User';
     const commentUser = userMap[conversation.user_id];
     if (!commentUser) return 'Unknown User';
-    return `${commentUser.first_name} ${commentUser.last_name}${commentUser.user_type === 'internal' ? ' (Staff)' : ' (Client)'}`;
+    return `${commentUser.first_name} ${commentUser.last_name}${commentUser.user_type === 'client' ? ' (Client)' : ''}`;
   };
 
   const getAuthorEmail = () => {
