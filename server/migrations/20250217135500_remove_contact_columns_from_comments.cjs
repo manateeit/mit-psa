@@ -1,6 +1,31 @@
 exports.up = function(knex) {
   return knex.transaction(async (trx) => {
-    // First get all comments with their users
+    // First update the enum type
+    await trx.raw(`
+      -- Drop the default constraint
+      ALTER TABLE comments ALTER COLUMN author_type DROP DEFAULT;
+      
+      -- Rename old type and create new one
+      ALTER TYPE comment_author_type RENAME TO comment_author_type_old;
+      CREATE TYPE comment_author_type AS ENUM ('internal', 'client', 'unknown');
+      
+      -- Update column type with conversion
+      ALTER TABLE comments 
+        ALTER COLUMN author_type TYPE comment_author_type 
+        USING CASE 
+          WHEN author_type::text = 'user' THEN 'internal'::comment_author_type
+          WHEN author_type::text = 'contact' THEN 'client'::comment_author_type
+          ELSE 'unknown'::comment_author_type
+        END;
+      
+      -- Set the new default
+      ALTER TABLE comments ALTER COLUMN author_type SET DEFAULT 'unknown'::comment_author_type;
+      
+      -- Drop old type
+      DROP TYPE comment_author_type_old;
+    `);
+
+    // Then get all comments with their users
     const commentsWithUsers = await trx('comments as c')
       .select('c.comment_id', 'c.tenant', 'c.user_id', 'u.user_type')
       .leftJoin('users as u', function() {
