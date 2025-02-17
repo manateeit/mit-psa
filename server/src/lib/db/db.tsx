@@ -1,7 +1,6 @@
 import Knex, { Knex as KnexType } from 'knex';
 import { getKnexConfig } from './knexfile';
 import { AsyncLocalStorage } from 'async_hooks';
-import { validate as uuidValidate } from 'uuid';
 
 interface PoolConfig extends KnexType.PoolConfig {
   afterCreate?: (connection: any, done: (err: Error | null, connection: any) => void) => void;
@@ -15,7 +14,7 @@ const asyncLocalStorage = new AsyncLocalStorage<string>();
 function isValidTenantId(tenantId: string | null | undefined): boolean {
   if (!tenantId) return true; // null/undefined is allowed
   if (tenantId === 'default') return true;
-  return uuidValidate(tenantId);
+  return /^[0-9a-f-]+$/i.test(tenantId);
 }
 
 async function setTenantContext(conn: any, tenantId?: string | null): Promise<void> {
