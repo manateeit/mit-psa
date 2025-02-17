@@ -213,10 +213,13 @@ export const CompanyPicker: React.FC<CompanyPickerProps & AutomationProps> = ({
 
         {isOpen && (
           <div
-            className="absolute z-[200] bg-white border rounded-md shadow-lg w-full" 
+            className="absolute z-[200] bg-white border rounded-md shadow-lg mt-1" 
             style={{
               top: '100%',
-              left: 0
+              left: 0,
+              minWidth: '100%',
+              width: 'max-content',
+              maxWidth: '400px' // Prevent extremely wide dropdowns
             }}
             onMouseDown={(e) => e.stopPropagation()}
           >
@@ -256,7 +259,7 @@ export const CompanyPicker: React.FC<CompanyPickerProps & AutomationProps> = ({
               </div>
             </div>
             <div 
-              className="max-h-60 overflow-y-auto border-t bg-white"
+              className="border-t bg-white max-h-[300px] overflow-y-auto"
               role="listbox"
               aria-label="Companies"
             >
