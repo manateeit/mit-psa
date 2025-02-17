@@ -361,7 +361,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
                 ticket_id: ticket.ticket_id || '',
                 note: JSON.stringify(newCommentContent),
                 user_id: userId,
-                author_type: 'user',
+                author_type: 'internal',
                 is_internal: activeTab === 'Internal',
                 is_resolution: activeTab === 'Resolution',
                 is_initial_description: false,
