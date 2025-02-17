@@ -3,6 +3,7 @@
 import { createTenantKnex } from '@/lib/db';
 import { validateData } from '@/lib/utils/validation';
 import { ITicket, ITicketListItem } from '@/interfaces/ticket.interfaces';
+import { IComment } from '@/interfaces/comment.interface';
 import { getServerSession } from 'next-auth';
 import { options } from '@/app/api/auth/[...nextauth]/options';
 import { z } from 'zod';
@@ -28,7 +29,10 @@ export async function getClientTickets(status: string): Promise<ITicketListItem[
 
     // Get user's company_id
     const user = await db('users')
-      .where('user_id', session.user.id)
+      .where({
+        user_id: session.user.id,
+        tenant
+      })
       .first();
 
     if (!user?.contact_id) {
@@ -36,7 +40,10 @@ export async function getClientTickets(status: string): Promise<ITicketListItem[
     }
 
     const contact = await db('contacts')
-      .where('contact_name_id', user.contact_id)
+      .where({
+        contact_name_id: user.contact_id,
+        tenant
+      })
       .first();
 
     if (!contact?.company_id) {
@@ -71,11 +78,26 @@ export async function getClientTickets(status: string): Promise<ITicketListItem[
         'cat.category_name',
         db.raw("CONCAT(u.first_name, ' ', u.last_name) as entered_by_name")
       )
-      .leftJoin('statuses as s', 't.status_id', 's.status_id')
-      .leftJoin('priorities as p', 't.priority_id', 'p.priority_id')
-      .leftJoin('channels as c', 't.channel_id', 'c.channel_id')
-      .leftJoin('categories as cat', 't.category_id', 'cat.category_id')
-      .leftJoin('users as u', 't.entered_by', 'u.user_id')
+      .leftJoin('statuses as s', function() {
+        this.on('t.status_id', '=', 's.status_id')
+            .andOn('t.tenant', '=', 's.tenant');
+      })
+      .leftJoin('priorities as p', function() {
+        this.on('t.priority_id', '=', 'p.priority_id')
+            .andOn('t.tenant', '=', 'p.tenant');
+      })
+      .leftJoin('channels as c', function() {
+        this.on('t.channel_id', '=', 'c.channel_id')
+            .andOn('t.tenant', '=', 'c.tenant');
+      })
+      .leftJoin('categories as cat', function() {
+        this.on('t.category_id', '=', 'cat.category_id')
+            .andOn('t.tenant', '=', 'cat.tenant');
+      })
+      .leftJoin('users as u', function() {
+        this.on('t.entered_by', '=', 'u.user_id')
+            .andOn('t.tenant', '=', 'u.tenant');
+      })
       .where({
         't.tenant': tenant,
         't.company_id': contact.company_id
@@ -116,7 +138,10 @@ export async function getClientTicketDetails(ticketId: string): Promise<ITicket>
 
     // Get user's company_id
     const user = await db('users')
-      .where('user_id', session.user.id)
+      .where({
+        user_id: session.user.id,
+        tenant
+      })
       .first();
 
     if (!user?.contact_id) {
@@ -124,37 +149,105 @@ export async function getClientTicketDetails(ticketId: string): Promise<ITicket>
     }
 
     const contact = await db('contacts')
-      .where('contact_name_id', user.contact_id)
+      .where({
+        contact_name_id: user.contact_id,
+        tenant
+      })
       .first();
 
     if (!contact?.company_id) {
       throw new Error('Contact not associated with a company');
     }
 
-    const ticket = await db('tickets as t')
-      .select(
-        't.*',
-        's.name as status_name',
-        'p.priority_name'
-      )
-      .leftJoin('statuses as s', 't.status_id', 's.status_id')
-      .leftJoin('priorities as p', 't.priority_id', 'p.priority_id')
-      .where({
-        't.ticket_id': ticketId,
-        't.tenant': tenant,
-        't.company_id': contact.company_id
-      })
-      .first();
+    // Get ticket details with related data
+    const [ticket, conversations, documents, users] = await Promise.all([
+      db('tickets as t')
+        .select(
+          't.*',
+          's.name as status_name',
+          'p.priority_name'
+        )
+        .leftJoin('statuses as s', function() {
+          this.on('t.status_id', '=', 's.status_id')
+              .andOn('t.tenant', '=', 's.tenant');
+        })
+        .leftJoin('priorities as p', function() {
+          this.on('t.priority_id', '=', 'p.priority_id')
+              .andOn('t.tenant', '=', 'p.tenant');
+        })
+        .where({
+          't.ticket_id': ticketId,
+          't.tenant': tenant,
+          't.company_id': contact.company_id
+        })
+        .first(),
+      
+      // Get conversations
+      db('comments')
+        .where({
+          ticket_id: ticketId,
+          tenant
+        })
+        .orderBy('created_at', 'asc'),
+      
+      // Get documents
+      db('documents as d')
+        .select('d.*')
+        .join('document_associations as da', function() {
+          this.on('d.document_id', '=', 'da.document_id')
+              .andOn('d.tenant', '=', 'da.tenant');
+        })
+        .where({
+          'da.entity_id': ticketId,
+          'da.entity_type': 'ticket',
+          'd.tenant': tenant
+        }),
+      
+      // Get all users involved in the ticket
+      db('users as u')
+        .select(
+          'u.user_id',
+          'u.first_name',
+          'u.last_name',
+          'u.email',
+          'u.user_type'
+        )
+        .join('comments as c', function() {
+          this.on('u.user_id', '=', 'c.user_id')
+              .andOn('u.tenant', '=', 'c.tenant');
+        })
+        .where({
+          'c.ticket_id': ticketId,
+          'c.tenant': tenant,
+          'u.tenant': tenant
+        })
+        .distinct()
+    ]);
 
     if (!ticket) {
       throw new Error('Ticket not found');
     }
+
+    // Create user map
+    const userMap = users.reduce((acc, user) => ({
+      ...acc,
+      [user.user_id]: {
+        first_name: user.first_name,
+        last_name: user.last_name,
+        user_id: user.user_id,
+        email: user.email,
+        user_type: user.user_type
+      }
+    }), {});
 
     return {
       ...ticket,
       entered_at: ticket.entered_at instanceof Date ? ticket.entered_at.toISOString() : ticket.entered_at,
       updated_at: ticket.updated_at instanceof Date ? ticket.updated_at.toISOString() : ticket.updated_at,
       closed_at: ticket.closed_at instanceof Date ? ticket.closed_at.toISOString() : ticket.closed_at,
+      conversations,
+      documents,
+      userMap
     };
   } catch (error) {
     console.error('Failed to fetch ticket details:', error);
@@ -162,6 +255,146 @@ export async function getClientTicketDetails(ticketId: string): Promise<ITicket>
   }
 }
 
+export async function addClientTicketComment(ticketId: string, content: string, isInternal: boolean = false): Promise<void> {
+  try {
+    const session = await getServerSession(options);
+    if (!session?.user) {
+      throw new Error('Not authenticated');
+    }
+
+    const { knex: db, tenant } = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    const user = await db('users')
+      .where({
+        user_id: session.user.id,
+        tenant
+      })
+      .first();
+
+    if (!user?.contact_id) {
+      throw new Error('User not associated with a contact');
+    }
+
+    await db('comments').insert({
+      tenant,
+      ticket_id: ticketId,
+      contact_id: user.contact_id,
+      author_type: 'contact',
+      note: content,
+      is_internal: isInternal,
+      is_resolution: false,
+      is_initial_description: false,
+      created_at: new Date().toISOString(),
+      user_id: session.user.id
+    });
+  } catch (error) {
+    console.error('Failed to add comment:', error);
+    throw new Error('Failed to add comment');
+  }
+}
+
+export async function updateClientTicketComment(commentId: string, updates: Partial<IComment>): Promise<void> {
+  try {
+    const session = await getServerSession(options);
+    if (!session?.user) {
+      throw new Error('Not authenticated');
+    }
+
+    const { knex: db, tenant } = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    const user = await db('users')
+      .where({
+        user_id: session.user.id,
+        tenant
+      })
+      .first();
+
+    if (!user?.contact_id) {
+      throw new Error('User not associated with a contact');
+    }
+
+    // Verify the comment belongs to this user
+    const comment = await db('comments')
+      .where({
+        comment_id: commentId,
+        tenant,
+        contact_id: user.contact_id
+      })
+      .first();
+
+    if (!comment) {
+      throw new Error('Comment not found or not authorized to edit');
+    }
+
+    await db('comments')
+      .where({
+        comment_id: commentId,
+        tenant
+      })
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+        updated_by: session.user.id
+      });
+  } catch (error) {
+    console.error('Failed to update comment:', error);
+    throw new Error('Failed to update comment');
+  }
+}
+
+export async function deleteClientTicketComment(commentId: string): Promise<void> {
+  try {
+    const session = await getServerSession(options);
+    if (!session?.user) {
+      throw new Error('Not authenticated');
+    }
+
+    const { knex: db, tenant } = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    const user = await db('users')
+      .where({
+        user_id: session.user.id,
+        tenant
+      })
+      .first();
+
+    if (!user?.contact_id) {
+      throw new Error('User not associated with a contact');
+    }
+
+    // Verify the comment belongs to this user
+    const comment = await db('comments')
+      .where({
+        comment_id: commentId,
+        tenant,
+        contact_id: user.contact_id
+      })
+      .first();
+
+    if (!comment) {
+      throw new Error('Comment not found or not authorized to delete');
+    }
+
+    await db('comments')
+      .where({
+        comment_id: commentId,
+        tenant
+      })
+      .del();
+  } catch (error) {
+    console.error('Failed to delete comment:', error);
+    throw new Error('Failed to delete comment');
+  }
+}
 
 export async function createClientTicket(data: FormData): Promise<ITicket> {
   try {
@@ -202,7 +435,10 @@ export async function createClientTicket(data: FormData): Promise<ITicket> {
 
     // Get user's company_id
     const user = await db('users')
-      .where('user_id', session.user.id)
+      .where({
+        user_id: session.user.id,
+        tenant
+      })
       .first();
 
     if (!user?.contact_id) {
@@ -210,7 +446,10 @@ export async function createClientTicket(data: FormData): Promise<ITicket> {
     }
 
     const contact = await db('contacts')
-      .where('contact_name_id', user.contact_id)
+      .where({
+        contact_name_id: user.contact_id,
+        tenant
+      })
       .first();
 
     if (!contact?.company_id) {
