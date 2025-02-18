@@ -27,7 +27,7 @@ export async function addUser(userData: { firstName: string; lastName: string; e
           email: userData.email,
           username: userData.email,
           is_inactive: false,
-          hashed_password: hashPassword(userData.password),
+          hashed_password: await hashPassword(userData.password),
           tenant: tenant || undefined
         }).returning('*');
 
@@ -252,9 +252,11 @@ export async function setUserPreference(userId: string, settingName: string, set
 
 export async function verifyContactEmail(email: string): Promise<{ exists: boolean; isActive: boolean; companyId?: string; tenant?: string }> {
   try {
+    console.log('Verifying contact email:', email);
     const db = await getAdminConnection();
 
     // Check if the email exists in contacts table and verify tenant through company
+    console.log('Querying contacts table...');
     const contact = await db('contacts')
       .join('companies', 'companies.company_id', 'contacts.company_id')
       .where({ 'contacts.email': email })
@@ -313,13 +315,17 @@ export async function registerClientUser(
     const lastName = nameParts.slice(1).join(' ') || '';
 
     // Create the user with client user type
+    console.log('Creating new user record...');
+    const hashedPassword = await hashPassword(password);
+    console.log('Password hashed successfully');
+    
     const [user] = await db('users')
       .insert({
         email,
         username: email,
         first_name: firstName,
         last_name: lastName,
-        hashed_password: hashPassword(password),
+        hashed_password: hashedPassword,
         tenant: contact.tenant,
         user_type: 'client',
         contact_id: contact.contact_name_id,
