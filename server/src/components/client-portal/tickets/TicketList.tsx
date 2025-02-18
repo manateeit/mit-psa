@@ -211,8 +211,18 @@ export function TicketList() {
       title: 'Title',
       dataIndex: 'title',
       width: '25%',
-      render: (value: string) => (
-        <div className="font-medium">{value}</div>
+      render: (value: string, record: ITicketListItem) => (
+        <div 
+          className="font-medium cursor-pointer hover:text-blue-600"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (record.ticket_id) {
+              setSelectedTicketId(record.ticket_id);
+            }
+          }}
+        >
+          {value}
+        </div>
       ),
     },
     {
@@ -304,12 +314,6 @@ export function TicketList() {
     }
   ];
 
-  const handleRowClick = useCallback((ticket: ITicketListItem) => {
-    if (ticket.ticket_id) {
-      setSelectedTicketId(ticket.ticket_id);
-    }
-  }, []);
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-32">
@@ -385,8 +389,7 @@ export function TicketList() {
             currentPage={currentPage}
             onPageChange={setCurrentPage}
             pageSize={10}
-            onRowClick={handleRowClick}
-            rowClassName={() => "hover:bg-gray-50 cursor-pointer"}
+            rowClassName={() => "hover:bg-gray-50"}
           />
         </div>
       </div>
