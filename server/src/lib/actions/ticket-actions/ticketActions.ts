@@ -463,7 +463,8 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
         'p.priority_name',
         'c.channel_name',
         'cat.category_name',
-        db.raw("CONCAT(u.first_name, ' ', u.last_name) as entered_by_name")
+        db.raw("CONCAT(u.first_name, ' ', u.last_name) as entered_by_name"),
+        db.raw("CONCAT(au.first_name, ' ', au.last_name) as assigned_to_name")
       )
       .leftJoin('statuses as s', function() {
         this.on('t.status_id', 's.status_id')
@@ -484,6 +485,10 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
       .leftJoin('users as u', function() {
         this.on('t.entered_by', 'u.user_id')
            .andOn('t.tenant', 'u.tenant')
+      })
+      .leftJoin('users as au', function() {
+        this.on('t.assigned_to', 'au.user_id')
+           .andOn('t.tenant', 'au.tenant')
       })
       .where({
         't.tenant': tenant
@@ -548,11 +553,11 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
         channel_name,
         category_name,
         entered_by_name,
+        assigned_to_name,
         ...rest
       } = ticket;
 
       return {
-        ...convertDates(rest),
         status_id: status_id || null,
         priority_id: priority_id || null,
         channel_id: channel_id || null,
@@ -562,7 +567,9 @@ export async function getTicketsForList(user: IUser, filters: ITicketListFilters
         priority_name: priority_name || 'Unknown',
         channel_name: channel_name || 'Unknown',
         category_name: category_name || 'Unknown',
-        entered_by_name: entered_by_name || 'Unknown'
+        entered_by_name: entered_by_name || 'Unknown',
+        assigned_to_name: assigned_to_name || 'Unknown',
+        ...convertDates(rest)
       };
     });
 
