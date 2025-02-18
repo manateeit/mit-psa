@@ -1,38 +1,89 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { DataTable } from '@/components/ui/DataTable';
-import { formatDistanceToNow } from 'date-fns';
-import { getClientTickets } from '@/lib/actions/client-portal-actions/client-tickets';
+import { format } from 'date-fns';
+import { getClientTickets, updateTicketStatus } from '@/lib/actions/client-portal-actions/client-tickets';
+import { getTicketStatuses } from '@/lib/actions/status-actions/statusActions';
+import { getAllPriorities } from '@/lib/actions/priorityActions';
+import { getTicketCategories } from '@/lib/actions/ticketCategoryActions';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
-import { ITicketListItem } from '@/interfaces/ticket.interfaces';
+import { ITicketListItem, ITicketCategory } from '@/interfaces/ticket.interfaces';
+import { IStatus } from '@/interfaces/status.interface';
 import { TicketDetails } from './TicketDetails';
+import { Button } from '@/components/ui/Button';
+import { SearchInput } from '@/components/ui/SearchInput';
+import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
+import { CategoryPicker } from '@/components/tickets/CategoryPicker';
+import { Pencil, XCircle } from 'lucide-react';
+import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
-interface TicketListProps {
-  status: string;
-  selectedCategories?: string[];
-  excludedCategories?: string[];
-  searchQuery?: string;
-}
-
-export function TicketList({ 
-  status, 
-  selectedCategories = [], 
-  excludedCategories = [], 
-  searchQuery = '' 
-}: TicketListProps) {
+export function TicketList() {
   const [tickets, setTickets] = useState<ITicketListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [sortField, setSortField] = useState<string>('entered_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [statusOptions, setStatusOptions] = useState<SelectOption[]>([]);
+  const [priorityOptions, setPriorityOptions] = useState<{ value: string; label: string }[]>([]);
+  const [categories, setCategories] = useState<ITicketCategory[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedPriority, setSelectedPriority] = useState('all');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [excludedCategories, setExcludedCategories] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [ticketToUpdateStatus, setTicketToUpdateStatus] = useState<{
+    ticketId: string;
+    newStatus: string;
+    currentStatus: string;
+  } | null>(null);
 
+  // Load statuses, priorities, and categories
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        const [statuses, priorities, categories] = await Promise.all([
+          getTicketStatuses(),
+          getAllPriorities(),
+          getTicketCategories()
+        ]);
+
+        setStatusOptions([
+          { value: 'all', label: 'All Statuses' },
+          { value: 'open', label: 'All Open Tickets' },
+          { value: 'closed', label: 'All Closed Tickets' },
+          ...statuses.map((status: { status_id: string; name: string | null; is_closed: boolean }): SelectOption => ({
+            value: status.status_id!,
+            label: status.name ?? "",
+            className: status.is_closed ? 'bg-gray-200 text-gray-600' : undefined
+          }))
+        ]);
+
+        setPriorityOptions([
+          { value: 'all', label: 'All Priorities' },
+          ...priorities.map((priority: { priority_id: string; priority_name: string }) => ({
+            value: priority.priority_id,
+            label: priority.priority_name
+          }))
+        ]);
+
+        setCategories(categories);
+      } catch (error) {
+        console.error('Failed to load options:', error);
+      }
+    };
+
+    loadOptions();
+  }, []);
+
+  // Load and filter tickets
   useEffect(() => {
     const loadTickets = async () => {
       setLoading(true);
       try {
-        const result = await getClientTickets(status);
+        const result = await getClientTickets(selectedStatus);
         
         // Apply client-side filtering
         let filteredTickets = [...result];
@@ -57,6 +108,13 @@ export function TicketList({
             return !excludedCategories.includes(ticket.category_id || '') && 
                    !excludedCategories.includes(ticket.subcategory_id || '');
           });
+        }
+
+        // Filter by priority
+        if (selectedPriority !== 'all') {
+          filteredTickets = filteredTickets.filter(ticket => 
+            ticket.priority_id === selectedPriority
+          );
         }
 
         // Filter by search query
@@ -105,16 +163,48 @@ export function TicketList({
     };
 
     loadTickets();
-  }, [status, selectedCategories, excludedCategories, searchQuery]);
+  }, [selectedStatus, selectedPriority, selectedCategories, excludedCategories, searchQuery, sortField, sortDirection]);
 
-  const handleSort = (field: string) => {
+  const handleSort = useCallback((field: string) => {
     setSortDirection(current => 
       sortField === field 
         ? current === 'asc' ? 'desc' : 'asc'
         : 'asc'
     );
     setSortField(field);
-  };
+  }, [sortField]);
+
+  const handleStatusChange = useCallback(async () => {
+    if (!ticketToUpdateStatus) return;
+
+    try {
+      await updateTicketStatus(
+        ticketToUpdateStatus.ticketId,
+        ticketToUpdateStatus.newStatus
+      );
+
+      // Refresh tickets
+      const result = await getClientTickets(selectedStatus);
+      setTickets(result);
+    } catch (error) {
+      console.error('Failed to update ticket status:', error);
+    } finally {
+      setTicketToUpdateStatus(null);
+    }
+  }, [ticketToUpdateStatus, selectedStatus]);
+
+  const handleCategorySelect = useCallback((categoryIds: string[], excludedIds: string[]) => {
+    setSelectedCategories(categoryIds);
+    setExcludedCategories(excludedIds);
+  }, []);
+
+  const handleResetFilters = useCallback(() => {
+    setSelectedStatus('all');
+    setSelectedPriority('all');
+    setSelectedCategories([]);
+    setExcludedCategories([]);
+    setSearchQuery('');
+  }, []);
 
   const columns: ColumnDefinition<ITicketListItem>[] = [
     {
@@ -128,9 +218,7 @@ export function TicketList({
       title: 'Status',
       dataIndex: 'status_name',
       render: (value: string) => (
-        <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          {value}
-        </div>
+        <div className="text-sm">{value}</div>
       ),
     },
     {
@@ -141,30 +229,79 @@ export function TicketList({
       ),
     },
     {
+      title: 'Assigned To',
+      dataIndex: 'assigned_to_name',
+      render: (value: string) => (
+        <div className="text-sm">{value || '-'}</div>
+      ),
+    },
+    {
       title: 'Created',
       dataIndex: 'entered_at',
       render: (value: string | null) => (
         <div className="text-sm text-gray-500">
-          {value ? formatDistanceToNow(new Date(value), { addSuffix: true }) : '-'}
+          {value ? format(new Date(value), 'MMM d, yyyy h:mm a') : '-'}
         </div>
       ),
     },
     {
-      title: 'Last Updated',
+      title: 'Updated',
       dataIndex: 'updated_at',
       render: (value: string | null) => (
         <div className="text-sm text-gray-500">
-          {value ? formatDistanceToNow(new Date(value), { addSuffix: true }) : '-'}
+          {value ? format(new Date(value), 'MMM d, yyyy h:mm a') : '-'}
         </div>
       ),
     },
+    {
+      title: 'Actions',
+      dataIndex: 'actions',
+      render: (_, record: ITicketListItem) => (
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <Button
+              id={`edit-ticket-${record.ticket_id}`}
+              variant="ghost"
+              className="h-8 w-8 p-0"
+            >
+              <span className="sr-only">Open menu</span>
+              <Pencil className="h-4 w-4" />
+            </Button>
+          </DropdownMenu.Trigger>
+
+          <DropdownMenu.Content
+            className="w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
+          >
+            {statusOptions
+              .filter(option => !['all', 'open', 'closed'].includes(option.value))
+              .map((status) => (
+                <DropdownMenu.Item
+                  key={status.value}
+                  className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer outline-none"
+                  onSelect={() => {
+                    if (record.status_id !== status.value) {
+                      setTicketToUpdateStatus({
+                        ticketId: record.ticket_id!,
+                        newStatus: status.value,
+                        currentStatus: record.status_name || ''
+                      });
+                    }
+                  }}
+                >
+                  {status.label}
+                </DropdownMenu.Item>
+              ))}
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+      ),
+    }
   ];
 
-  const handleRowClick = (ticket: ITicketListItem) => {
+  const handleRowClick = useCallback((ticket: ITicketListItem) => {
     if (ticket.ticket_id) {
       setSelectedTicketId(ticket.ticket_id);
     }
-  };
+  }, []);
 
   if (loading) {
     return (
@@ -175,7 +312,55 @@ export function TicketList({
   }
 
   return (
-    <div className="mt-4">
+    <div className="bg-white shadow rounded-lg">
+      <div className="p-4 border-b">
+        <div className="flex items-center gap-3 flex-wrap">
+          <CustomSelect
+            options={statusOptions}
+            value={selectedStatus}
+            onValueChange={setSelectedStatus}
+            placeholder="Select Status"
+          />
+
+          <CustomSelect
+            options={priorityOptions}
+            value={selectedPriority}
+            onValueChange={setSelectedPriority}
+            placeholder="All Priorities"
+          />
+
+          <CategoryPicker
+            categories={categories}
+            selectedCategories={selectedCategories}
+            excludedCategories={excludedCategories}
+            onSelect={handleCategorySelect}
+            placeholder="Filter by category"
+            multiSelect={true}
+            showExclude={true}
+            showReset={true}
+            allowEmpty={true}
+            className="text-sm min-w-[200px]"
+          />
+
+          <SearchInput
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search tickets..."
+            className="min-w-[200px]"
+          />
+
+          <Button
+            id="reset-filters-button"
+            variant="outline"
+            onClick={handleResetFilters}
+            className="whitespace-nowrap flex items-center gap-2 ml-auto"
+          >
+            <XCircle className="h-4 w-4" />
+            Reset Filters
+          </Button>
+        </div>
+      </div>
+
       <DataTable
         data={tickets}
         columns={columns}
@@ -184,6 +369,7 @@ export function TicketList({
         onPageChange={setCurrentPage}
         pageSize={10}
         onRowClick={handleRowClick}
+        rowClassName={() => "hover:bg-gray-50 cursor-pointer"}
       />
 
       {selectedTicketId && (
@@ -193,6 +379,16 @@ export function TicketList({
           onClose={() => setSelectedTicketId(null)}
         />
       )}
+
+      <ConfirmationDialog
+        isOpen={!!ticketToUpdateStatus}
+        onClose={() => setTicketToUpdateStatus(null)}
+        onConfirm={handleStatusChange}
+        title="Update Ticket Status"
+        message={`Are you sure you want to change the status from "${ticketToUpdateStatus?.currentStatus}" to "${statusOptions.find(s => s.value === ticketToUpdateStatus?.newStatus)?.label}"?`}
+        confirmLabel="Update"
+        cancelLabel="Cancel"
+      />
     </div>
   );
 }
