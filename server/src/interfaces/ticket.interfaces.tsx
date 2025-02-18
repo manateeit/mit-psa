@@ -35,6 +35,7 @@ export interface ITicketListItem extends Omit<ITicket, 'status_id' | 'priority_i
   channel_name: string;
   category_name: string;
   entered_by_name: string;
+  assigned_to_name: string | null;
 }
 
 export interface ITicketListFilters {

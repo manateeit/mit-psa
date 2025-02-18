@@ -76,7 +76,8 @@ export async function getClientTickets(status: string): Promise<ITicketListItem[
         'p.priority_name',
         'c.channel_name',
         'cat.category_name',
-        db.raw("CONCAT(u.first_name, ' ', u.last_name) as entered_by_name")
+        db.raw("CONCAT(u.first_name, ' ', u.last_name) as entered_by_name"),
+        db.raw("CONCAT(au.first_name, ' ', au.last_name) as assigned_to_name")
       )
       .leftJoin('statuses as s', function() {
         this.on('t.status_id', '=', 's.status_id')
@@ -98,16 +99,25 @@ export async function getClientTickets(status: string): Promise<ITicketListItem[
         this.on('t.entered_by', '=', 'u.user_id')
             .andOn('t.tenant', '=', 'u.tenant');
       })
+      .leftJoin('users as au', function() {
+        this.on('t.assigned_to', '=', 'au.user_id')
+            .andOn('t.tenant', '=', 'au.tenant');
+      })
       .where({
         't.tenant': tenant,
         't.company_id': contact.company_id
       });
 
     // Filter by status
-    if (status === 'open') {
+    if (status === 'all') {
+      // No filter, show all tickets
+    } else if (status === 'open') {
       query = query.whereNull('t.closed_at');
     } else if (status === 'closed') {
       query = query.whereNotNull('t.closed_at');
+    } else if (status) {
+      // Filter by specific status_id
+      query = query.where('t.status_id', status);
     }
 
     const tickets = await query.orderBy('t.entered_at', 'desc');
@@ -345,6 +355,59 @@ export async function updateClientTicketComment(commentId: string, updates: Part
   } catch (error) {
     console.error('Failed to update comment:', error);
     throw new Error('Failed to update comment');
+  }
+}
+
+export async function updateTicketStatus(ticketId: string, newStatusId: string): Promise<void> {
+  try {
+    const session = await getServerSession(options);
+    if (!session?.user) {
+      throw new Error('Not authenticated');
+    }
+
+    const { knex: db, tenant } = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    const user = await db('users')
+      .where({
+        user_id: session.user.id,
+        tenant
+      })
+      .first();
+
+    if (!user?.contact_id) {
+      throw new Error('User not associated with a contact');
+    }
+
+    // Verify the ticket belongs to the user's company
+    const ticket = await db('tickets')
+      .where({
+        ticket_id: ticketId,
+        tenant
+      })
+      .first();
+
+    if (!ticket) {
+      throw new Error('Ticket not found');
+    }
+
+    // Update the ticket status
+    await db('tickets')
+      .where({
+        ticket_id: ticketId,
+        tenant
+      })
+      .update({
+        status_id: newStatusId,
+        updated_at: new Date().toISOString(),
+        updated_by: session.user.id
+      });
+
+  } catch (error) {
+    console.error('Failed to update ticket status:', error);
+    throw new Error('Failed to update ticket status');
   }
 }
 

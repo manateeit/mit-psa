@@ -86,7 +86,8 @@ export const ticketListItemSchema = baseTicketSchema.extend({
     priority_name: z.string(),
     channel_name: z.string(),
     category_name: z.string(),
-    entered_by_name: z.string()
+    entered_by_name: z.string(),
+    assigned_to_name: z.string().nullable()
 });
 
 export const ticketListFiltersSchema = z.object({

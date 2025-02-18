@@ -95,7 +95,7 @@ export function ClientDashboard() {
               {metrics.activeProjects}
             </div>
             <div className="mt-4">
-              <a href="/client-portal/tickets" className="text-[rgb(var(--color-primary-500))] hover:text-[rgb(var(--color-primary-600))] text-sm font-medium">
+              <a href="/client-portal/projects" className="text-[rgb(var(--color-primary-500))] hover:text-[rgb(var(--color-primary-600))] text-sm font-medium">
                 View all projects →
               </a>
             </div>
