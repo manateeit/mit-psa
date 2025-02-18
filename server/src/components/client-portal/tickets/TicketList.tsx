@@ -210,6 +210,7 @@ export function TicketList() {
     {
       title: 'Title',
       dataIndex: 'title',
+      width: '25%',
       render: (value: string) => (
         <div className="font-medium">{value}</div>
       ),
@@ -217,6 +218,7 @@ export function TicketList() {
     {
       title: 'Status',
       dataIndex: 'status_name',
+      width: '20%',
       render: (value: string) => (
         <div className="text-sm">{value}</div>
       ),
@@ -224,6 +226,7 @@ export function TicketList() {
     {
       title: 'Priority',
       dataIndex: 'priority_name',
+      width: '15%',
       render: (value: string) => (
         <div className="capitalize">{value}</div>
       ),
@@ -231,6 +234,7 @@ export function TicketList() {
     {
       title: 'Assigned To',
       dataIndex: 'assigned_to_name',
+      width: '15%',
       render: (value: string) => (
         <div className="text-sm">{value || '-'}</div>
       ),
@@ -238,6 +242,7 @@ export function TicketList() {
     {
       title: 'Created',
       dataIndex: 'entered_at',
+      width: '15%',
       render: (value: string | null) => (
         <div className="text-sm text-gray-500">
           {value ? format(new Date(value), 'MMM d, yyyy h:mm a') : '-'}
@@ -247,6 +252,7 @@ export function TicketList() {
     {
       title: 'Updated',
       dataIndex: 'updated_at',
+      width: '15%',
       render: (value: string | null) => (
         <div className="text-sm text-gray-500">
           {value ? format(new Date(value), 'MMM d, yyyy h:mm a') : '-'}
@@ -256,6 +262,7 @@ export function TicketList() {
     {
       title: 'Actions',
       dataIndex: 'actions',
+      width: '5%',
       render: (_, record: ITicketListItem) => (
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
@@ -312,9 +319,14 @@ export function TicketList() {
   }
 
   return (
-    <div className="bg-white shadow rounded-lg">
-      <div className="p-4 border-b">
-        <div className="flex items-center gap-3 flex-wrap">
+    <div className="bg-white shadow rounded-lg p-4 w-full">
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Support Tickets</h1>
+          <p className="text-gray-600">View and manage your support tickets</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 flex-nowrap mb-4">
           <CustomSelect
             options={statusOptions}
             value={selectedStatus}
@@ -359,18 +371,25 @@ export function TicketList() {
             Reset Filters
           </Button>
         </div>
-      </div>
 
-      <DataTable
-        data={tickets}
-        columns={columns}
-        pagination={true}
-        currentPage={currentPage}
-        onPageChange={setCurrentPage}
-        pageSize={10}
-        onRowClick={handleRowClick}
-        rowClassName={() => "hover:bg-gray-50 cursor-pointer"}
-      />
+      <h2 className="text-xl font-semibold mt-6 mb-2">
+        Tickets
+      </h2>
+
+      <div className="w-full overflow-x-auto">
+        <div className="min-w-full">
+          <DataTable
+            data={tickets}
+            columns={columns}
+            pagination={true}
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            pageSize={10}
+            onRowClick={handleRowClick}
+            rowClassName={() => "hover:bg-gray-50 cursor-pointer"}
+          />
+        </div>
+      </div>
 
       {selectedTicketId && (
         <TicketDetails
