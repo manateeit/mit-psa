@@ -12,7 +12,8 @@ exports.seed = function(knex) {
                     },
                     {
                         tenant: tenant.tenant,
-                        channel_name: 'General Support'
+                        channel_name: 'General Support',
+                        is_default: true
                     },
                     {
                         tenant: tenant.tenant,

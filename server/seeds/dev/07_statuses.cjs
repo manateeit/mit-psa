@@ -13,7 +13,8 @@ exports.seed = function (knex) {
                             username: 'glinda'
                         })
                         .select('user_id'),
-                    status_type: 'ticket'
+                    status_type: 'ticket',
+                    is_default: true
                 },
                 {
                     tenant: tenant.tenant,

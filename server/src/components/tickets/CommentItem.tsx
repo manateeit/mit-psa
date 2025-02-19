@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import TextEditor from '../editor/TextEditor';
 import { PartialBlock } from '@blocknote/core';
 import ReactMarkdown from 'react-markdown';
+import { Pencil, Trash } from 'lucide-react';
 import { Pencil2Icon, TrashIcon } from '@radix-ui/react-icons';
 import AvatarIcon from '@/components/ui/AvatarIcon';
 import { IComment } from '@/interfaces/comment.interface';
@@ -197,21 +198,23 @@ const CommentItem: React.FC<CommentItemProps> = ({
             </div>
             {canEdit && (
               <div className="space-x-2">
-                <button
+                <Button
                   id={`edit-comment-${conversation.comment_id}-button`}
+                  variant="ghost"
                   onClick={() => onEdit(conversation)}
                   className="text-indigo-600 hover:text-indigo-800 font-medium p-1 rounded-full hover:bg-indigo-100 transition duration-150 ease-in-out"
                   aria-label="Edit comment"
                 >
-                  <Pencil2Icon className="w-5 h-5" />
-                </button>
+                  <Pencil className="w-4 h-4" />
+                </Button>
                 <Button
                   id='delete-comment-button'
+                  variant="ghost"
                   onClick={() => onDelete(conversation.comment_id || '')}
                   className="text-red-600 hover:text-red-800 font-medium p-1 rounded-full hover:bg-red-100 transition duration-150 ease-in-out"
                   aria-label="Delete comment"
                 >
-                  <TrashIcon className="w-5 h-5" />
+                  <Trash className="w-4 h-4" />
                 </Button>
               </div>
             )}
