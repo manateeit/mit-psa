@@ -1,15 +1,16 @@
 'use client'
 
-import { signIn } from 'next-auth/react'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import { Label } from '@/components/ui/Label'
-import { Alert, AlertDescription } from '@/components/ui/Alert'
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { useRegisterUIComponent } from '../../types/ui-reflection/useRegisterUIComponent'
-import { FormComponent, FormFieldComponent, ButtonComponent } from '../../types/ui-reflection/types'
-import { withDataAutomationId } from '../../types/ui-reflection/withDataAutomationId'
+import { signIn } from 'next-auth/react';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import { Eye, EyeClosed } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRegisterUIComponent } from '../../types/ui-reflection/useRegisterUIComponent';
+import { FormComponent, FormFieldComponent, ButtonComponent } from '../../types/ui-reflection/types';
+import { withDataAutomationId } from '../../types/ui-reflection/withDataAutomationId';
 
 interface ClientLoginFormProps {
   callbackUrl: string;
@@ -22,6 +23,7 @@ export default function ClientLoginForm({ callbackUrl, onError, onTwoFactorRequi
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false);
 
   // Register the form component
   const updateForm = useRegisterUIComponent<FormComponent>({
@@ -129,20 +131,36 @@ export default function ClientLoginForm({ callbackUrl, onError, onTwoFactorRequi
         />
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 relative">
         <Label htmlFor="client-password-field">Password</Label>
-        <Input
-          id="client-password-field"
-          name="password"
-          type="password"
-          placeholder="Enter your password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          disabled={isLoading}
-          required
-          className="w-full"
-          autoComplete="current-password"
-        />
+        <div className="relative">
+          <Input
+            id="client-password-field"
+            name="password"
+            type={showPassword ? "text" : "password"}
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={isLoading}
+            required
+            className="w-full"
+            autoComplete="current-password"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-transparent"
+            onClick={() => setShowPassword(!showPassword)}
+            id="msp-toggle-password-visibility"
+          >
+            {showPassword ? (
+              <Eye className="h-5 w-5 text-gray-400" />
+            ) : (
+              <EyeClosed className="h-5 w-5 text-gray-400" />
+            )}
+          </Button>
+        </div>
       </div>
 
       <Button
