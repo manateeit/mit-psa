@@ -15,9 +15,10 @@ import { Button } from '@/components/ui/Button';
 import { SearchInput } from '@/components/ui/SearchInput';
 import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 import { CategoryPicker } from '@/components/tickets/CategoryPicker';
-import { Pencil, XCircle } from 'lucide-react';
+import { ChevronDown, XCircle } from 'lucide-react';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { ClientAddTicket } from '@/components/client-portal/tickets/ClientAddTicket';
 
 export function TicketList() {
   const [tickets, setTickets] = useState<ITicketListItem[]>([]);
@@ -34,6 +35,7 @@ export function TicketList() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [excludedCategories, setExcludedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isAddTicketOpen, setIsAddTicketOpen] = useState(false);
   const [ticketToUpdateStatus, setTicketToUpdateStatus] = useState<{
     ticketId: string;
     newStatus: string;
@@ -229,8 +231,42 @@ export function TicketList() {
       title: 'Status',
       dataIndex: 'status_name',
       width: '20%',
-      render: (value: string) => (
-        <div className="text-sm">{value}</div>
+      render: (value: string, record: ITicketListItem) => (
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <div
+              id="change-ticket-category-button"
+              className="text-sm cursor-pointer flex items-center gap-2"
+            >
+              {value}
+              <ChevronDown className="h-3 w-3 text-gray-400" />
+            </div>
+          </DropdownMenu.Trigger>
+
+          <DropdownMenu.Content
+            className="w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
+          >
+            {statusOptions
+              .filter(option => !['all', 'open', 'closed'].includes(option.value))
+              .map((status) => (
+                <DropdownMenu.Item
+                  key={status.value}
+                  className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer outline-none"
+                  onSelect={() => {
+                    if (record.status_id !== status.value) {
+                      setTicketToUpdateStatus({
+                        ticketId: record.ticket_id!,
+                        newStatus: status.value,
+                        currentStatus: record.status_name || ''
+                      });
+                    }
+                  }}
+                >
+                  {status.label}
+                </DropdownMenu.Item>
+              ))}
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
       ),
     },
     {
@@ -269,49 +305,6 @@ export function TicketList() {
         </div>
       ),
     },
-    {
-      title: 'Actions',
-      dataIndex: 'actions',
-      width: '5%',
-      render: (_, record: ITicketListItem) => (
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger asChild>
-            <Button
-              id={`edit-ticket-${record.ticket_id}`}
-              variant="ghost"
-              className="h-8 w-8 p-0"
-            >
-              <span className="sr-only">Open menu</span>
-              <Pencil className="h-4 w-4" />
-            </Button>
-          </DropdownMenu.Trigger>
-
-          <DropdownMenu.Content
-            className="w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
-          >
-            {statusOptions
-              .filter(option => !['all', 'open', 'closed'].includes(option.value))
-              .map((status) => (
-                <DropdownMenu.Item
-                  key={status.value}
-                  className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer outline-none"
-                  onSelect={() => {
-                    if (record.status_id !== status.value) {
-                      setTicketToUpdateStatus({
-                        ticketId: record.ticket_id!,
-                        newStatus: status.value,
-                        currentStatus: record.status_name || ''
-                      });
-                    }
-                  }}
-                >
-                  {status.label}
-                </DropdownMenu.Item>
-              ))}
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
-      ),
-    }
   ];
 
   if (loading) {
@@ -329,6 +322,13 @@ export function TicketList() {
           <h1 className="text-2xl font-bold text-gray-900">Support Tickets</h1>
           <p className="text-gray-600">View and manage your support tickets</p>
         </div>
+        <Button
+          id="create-ticket-button"
+          className="bg-[rgb(var(--color-primary-500))] text-white hover:bg-[rgb(var(--color-primary-600))] px-4 py-2"
+          onClick={() => setIsAddTicketOpen(true)}
+        >
+          Create Support Ticket
+        </Button>
       </div>
       <div className="flex items-center gap-3 flex-nowrap mb-4">
           <CustomSelect
@@ -401,6 +401,11 @@ export function TicketList() {
           onClose={() => setSelectedTicketId(null)}
         />
       )}
+
+      <ClientAddTicket 
+        open={isAddTicketOpen} 
+        onOpenChange={setIsAddTicketOpen} 
+      />
 
       <ConfirmationDialog
         isOpen={!!ticketToUpdateStatus}
