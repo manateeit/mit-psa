@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
+import { toast } from 'react-hot-toast';
 import { Edit2 } from 'lucide-react';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
@@ -19,8 +20,7 @@ const NumberingSettings: React.FC<NumberingSettingsProps> = ({ entityType }) => 
   const [settings, setSettings] = useState<NumberSettings | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
+  
   // Editing state
   const [isEditing, setIsEditing] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -74,14 +74,25 @@ const NumberingSettings: React.FC<NumberingSettingsProps> = ({ entityType }) => 
   const handleSave = async () => {
     try {
       setError(null);
-      setSuccessMessage(null);
 
-      const result = await updateNumberSettings(entityType, formState);
+      // Only include fields that have actually changed
+      const changes: Partial<NumberSettings> = {};
+      if (settings) {
+        if (formState.prefix !== settings.prefix) changes.prefix = formState.prefix;
+        if (formState.padding_length !== settings.padding_length) changes.padding_length = formState.padding_length;
+        if (formState.last_number !== settings.last_number) changes.last_number = formState.last_number;
+        // Only include initial_value if it's being explicitly changed
+        if (settings.initial_value === null && formState.initial_value !== null) {
+          changes.initial_value = formState.initial_value;
+        }
+      }
+
+      const result = await updateNumberSettings(entityType, changes);
       
       if (result.success && result.settings) {
         setSettings(result.settings);
         setFormState(result.settings);
-        setSuccessMessage('Settings updated successfully');
+        toast.success('Settings updated successfully');
         setIsEditing(false);
         setShowConfirmation(false);
       } else {
@@ -123,12 +134,6 @@ const NumberingSettings: React.FC<NumberingSettingsProps> = ({ entityType }) => 
       {error && (
         <Alert variant="destructive" className="mb-4">
           <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-      
-      {successMessage && (
-        <Alert className="mb-4">
-          <AlertDescription>{successMessage}</AlertDescription>
         </Alert>
       )}
 
