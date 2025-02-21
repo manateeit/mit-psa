@@ -47,33 +47,42 @@ export async function updateNumberSettings(
       ...updates
     };
 
-    // Validate settings
-    // Validate all fields using finalSettings
-    if (!Number.isInteger(finalSettings.initial_value) || finalSettings.initial_value < 1) {
-      return { success: false, error: 'Initial value must be a positive integer' };
+    // Only validate fields that are being updated
+    if ('initial_value' in updates) {
+      if (!Number.isInteger(finalSettings.initial_value) || finalSettings.initial_value < 1) {
+        return { success: false, error: 'Initial value must be a positive integer' };
+      }
     }
 
-    if (!Number.isInteger(finalSettings.last_number) || finalSettings.last_number < 1) {
-      return { success: false, error: 'Last number must be a positive integer' };
+    if ('last_number' in updates) {
+      if (!Number.isInteger(finalSettings.last_number) || finalSettings.last_number < 1) {
+        return { success: false, error: 'Last number must be a positive integer' };
+      }
+
+      if ('initial_value' in updates || !isNewSettings) {
+        if (finalSettings.last_number < finalSettings.initial_value) {
+          return { success: false, error: 'Last number cannot be less than the initial value' };
+        }
+      }
+
+      // Only check for decreasing last_number if we're updating existing settings
+      if (!isNewSettings && currentSettings && finalSettings.last_number < currentSettings.last_number) {
+        return { success: false, error: 'New number must be greater than the current last number' };
+      }
     }
 
-    if (finalSettings.last_number < finalSettings.initial_value) {
-      return { success: false, error: 'Last number cannot be less than the initial value' };
+    if ('padding_length' in updates) {
+      if (!Number.isInteger(finalSettings.padding_length) ||
+          finalSettings.padding_length < 1 ||
+          finalSettings.padding_length > 10) {
+        return { success: false, error: 'Padding length must be a positive integer between 1 and 10' };
+      }
     }
 
-    // Only check for decreasing last_number if we're updating existing settings
-    if (!isNewSettings && currentSettings && finalSettings.last_number < currentSettings.last_number) {
-      return { success: false, error: 'New number must be greater than the current last number' };
-    }
-
-    if (!Number.isInteger(finalSettings.padding_length) ||
-        finalSettings.padding_length < 1 ||
-        finalSettings.padding_length > 10) {
-      return { success: false, error: 'Padding length must be a positive integer between 1 and 10' };
-    }
-
-    if (!finalSettings.prefix || typeof finalSettings.prefix !== 'string') {
-      return { success: false, error: 'Prefix is required' };
+    if ('prefix' in updates) {
+      if (!finalSettings.prefix || typeof finalSettings.prefix !== 'string') {
+        return { success: false, error: 'Prefix is required' };
+      }
     }
 
     // Insert or update settings
@@ -87,7 +96,7 @@ export async function updateNumberSettings(
       await db('next_number')
         .where('entity_type', entityType)
         .andWhere('tenant', tenant)
-        .update(finalSettings);
+        .update(updates);
     }
 
     const updatedSettings = await getNumberSettings(entityType);
