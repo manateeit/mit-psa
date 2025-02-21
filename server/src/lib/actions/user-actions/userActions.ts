@@ -10,6 +10,7 @@ import { getAdminConnection } from '@/lib/db/admin';
 import { hashPassword } from '@/utils/encryption/encryption';
 import Tenant from '@/lib/models/tenant';
 import UserPreferences from '@/lib/models/userPreferences';
+import { verifyEmailSuffix, getCompanyByEmailSuffix } from '@/lib/actions/company-settings/emailSettings';
 
 export async function addUser(userData: { firstName: string; lastName: string; email: string, password: string, roleId?: string }): Promise<IUser> {
   try {
@@ -252,13 +253,36 @@ export async function setUserPreference(userId: string, settingName: string, set
 
 export async function verifyContactEmail(email: string): Promise<{ exists: boolean; isActive: boolean; companyId?: string; tenant?: string }> {
   try {
-    console.log('Verifying contact email:', email);
-    const db = await getAdminConnection();
+    // First check if email matches any company email suffixes
+    const isValidSuffix = await verifyEmailSuffix(email);
+    if (isValidSuffix) {
+      const companyId = await getCompanyByEmailSuffix(email);
+      if (companyId) {
+        // Get tenant from company
+        const db = await getAdminConnection();
+        const company = await db('companies')
+          .where({ company_id: companyId })
+          .select('tenant')
+          .first();
 
-    // Check if the email exists in contacts table and verify tenant through company
-    console.log('Querying contacts table...');
+        if (company) {
+          return {
+            exists: false, // Not a contact, but valid email suffix
+            isActive: true,
+            companyId,
+            tenant: company.tenant
+          };
+        }
+      }
+    }
+
+    // If not a valid suffix, check contacts
+    const db = await getAdminConnection();
     const contact = await db('contacts')
-      .join('companies', 'companies.company_id', 'contacts.company_id')
+      .join('companies', function() {
+        this.on('companies.company_id', '=', 'contacts.company_id')
+            .andOn('companies.tenant', '=', 'contacts.tenant');
+      })
       .where({ 'contacts.email': email })
       .select('contacts.contact_name_id', 'contacts.company_id', 'contacts.is_inactive', 'contacts.tenant')
       .first();
@@ -288,8 +312,18 @@ export async function registerClientUser(
 
     // First verify the contact exists and get their tenant
     const contact = await db('contacts')
-      .where({ email })
-      .select('contact_name_id', 'company_id', 'tenant', 'is_inactive', 'full_name')
+      .join('companies', function() {
+        this.on('companies.company_id', '=', 'contacts.company_id')
+            .andOn('companies.tenant', '=', 'contacts.tenant');
+      })
+      .where({ 'contacts.email': email })
+      .select(
+        'contacts.contact_name_id',
+        'contacts.company_id',
+        'contacts.tenant',
+        'contacts.is_inactive',
+        'contacts.full_name'
+      )
       .first();
 
     if (!contact) {
@@ -399,6 +433,27 @@ export async function changeOwnPassword(
 }
 
 // Function for admins to change user passwords
+export async function getUserCompanyId(userId: string): Promise<string | null> {
+  try {
+    const { knex, tenant } = await createTenantKnex();
+    const user = await User.get(userId);
+    if (!user?.contact_id) return null;
+
+    const contact = await knex('contacts')
+      .where({ 
+        tenant,
+        contact_name_id: user.contact_id 
+      })
+      .select('company_id')
+      .first();
+
+    return contact?.company_id || null;
+  } catch (error) {
+    console.error('Error getting user company ID:', error);
+    throw new Error('Failed to get user company ID');
+  }
+}
+
 export async function adminChangeUserPassword(
   userId: string,
   newPassword: string
