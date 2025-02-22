@@ -1,80 +1,52 @@
 'use server'
 
-import { createTenantKnex } from '@/lib/db';
-import { getEmailNotificationService } from '@/lib/notifications/email';
+import { createTenantKnex, runWithTenant } from '@/lib/db';
+import { getEmailService } from '@/services/emailService';
 
 interface SendVerificationEmailParams {
   email: string;
   token: string;
   registrationId: string;
+  tenant: string;
 }
 
 export async function sendVerificationEmail({ 
   email, 
   token, 
-  registrationId 
+  registrationId,
+  tenant 
 }: SendVerificationEmailParams): Promise<boolean> {
   try {
-    const { knex, tenant } = await createTenantKnex();
-    if (!tenant) throw new Error('Tenant is required');
+    return await runWithTenant(tenant, async () => {
+      const { knex } = await createTenantKnex();
 
-    // Get company info for branding
-    const company = await knex('companies')
-      .where({ tenant })
-      .select('company_name', 'company_logo_url', 'support_email')
-      .first();
+      // Get the base URL from environment variable or default to localhost
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const verificationUrl = `${baseUrl}/auth/verify?token=${token}&registrationId=${registrationId}`;
 
-    if (!company) {
-      throw new Error('Company not found');
-    }
+      // Get email service
+      const emailService = await getEmailService();
+      await emailService.initialize();
 
-    // Get the base URL from environment variable or default to localhost
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const verificationUrl = `${baseUrl}/auth/verify?token=${token}&registrationId=${registrationId}`;
+      // Send verification email directly
+      const success = await emailService.sendTemplatedEmail({
+        toEmail: email,
+        subject: 'Verify your email address',
+        templateName: 'email-verification',
+        templateData: {
+          email,
+          verificationUrl
+        }
+      });
 
-    // Get notification service
-    const notificationService = getEmailNotificationService();
-
-    // Send email using notification system
-    await notificationService.sendNotification({
-      tenant,
-      userId: registrationId, // Use registration ID as temporary user ID
-      subtypeId: await getVerificationSubtypeId(tenant),
-      emailAddress: email,
-      templateName: 'email-verification',
-      data: {
-        companyName: company.company_name,
-        companyLogoUrl: company.company_logo_url,
-        email,
-        verificationUrl,
-        supportEmail: company.support_email || 'support@example.com',
-        currentYear: new Date().getFullYear()
+      if (!success) {
+        throw new Error('Failed to send email');
       }
-    });
 
-    return true;
+      return true;
+    });
   } catch (error) {
     console.error('Error sending verification email:', error);
     return false;
   }
-}
-
-// Helper to get verification subtype ID
-async function getVerificationSubtypeId(tenant: string): Promise<number> {
-  const { knex } = await createTenantKnex();
-  
-  const subtype = await knex('notification_subtypes')
-    .join('notification_categories', 'notification_subtypes.category_id', 'notification_categories.id')
-    .where({ 
-      'notification_categories.name': 'Registration',
-      'notification_subtypes.name': 'email-verification'
-    })
-    .select('notification_subtypes.id')
-    .first();
-
-  if (!subtype) {
-    throw new Error('Email verification notification subtype not found');
-  }
-
-  return subtype.id;
 }

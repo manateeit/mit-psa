@@ -2,6 +2,7 @@
 
 import { createTenantKnex } from '@/lib/db';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
+import { auditLog } from '@/lib/logging/auditLog';
 
 // Rate limiters for different operations
 const registrationLimiter = new RateLimiterMemory({
@@ -96,15 +97,18 @@ export async function formatRateLimitError(msBeforeNext?: number): Promise<strin
 export async function logSecurityEvent(
   tenant: string,
   eventType: string,
-  details: Record<string, any>
+  eventDetails: Record<string, any>
 ): Promise<void> {
   const { knex } = await createTenantKnex();
   
-  await knex('audit_logs').insert({
-    tenant,
-    event_type: eventType,
-    event_details: details,
-    created_at: new Date().toISOString(),
-    severity: 'security',
+  await auditLog(knex, {
+    operation: eventType,
+    tableName: 'pending_registrations',
+    recordId: eventDetails.registrationId || 'unknown',
+    changedData: {},
+    details: {
+      ...eventDetails,
+      tenant
+    }
   });
 }

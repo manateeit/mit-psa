@@ -154,7 +154,7 @@ const User = {
   },
 
   updatePassword: async (email: string, hashed_password: string): Promise<void> => {
-    const db = await getConnection();
+    const db = await getAdminConnection();
     try {
       await db<IUser>('users').where({ email }).update({ hashed_password });
       logger.system(`Password updated for user with email ${email}`);
@@ -165,7 +165,7 @@ const User = {
   },
 
   verifyPassword: async (user_id: string, password: string): Promise<boolean> => {
-    const db = await getConnection();
+    const db = await getAdminConnection();
     try {
       const user = await db<IUser>('users')
         .select('hashed_password')
