@@ -83,7 +83,7 @@ export async function checkEmailLimit(email: string): Promise<RateLimitResult> {
 }
 
 // Helper to format rate limit error message
-export function formatRateLimitError(msBeforeNext?: number): string {
+export async function formatRateLimitError(msBeforeNext?: number): Promise<string> {
   if (!msBeforeNext) {
     return 'Too many attempts. Please try again later.';
   }

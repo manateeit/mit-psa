@@ -53,9 +53,10 @@ export async function initiateRegistration(
     // Check rate limits first
     const rateLimitResult = await checkRegistrationLimit(email);
     if (!rateLimitResult.success) {
+      const errorMessage = await formatRateLimitError(rateLimitResult.msBeforeNext);
       return { 
         success: false, 
-        error: formatRateLimitError(rateLimitResult.msBeforeNext)
+        error: errorMessage
       };
     }
 
@@ -81,13 +82,14 @@ export async function initiateRegistration(
       };
     }
 
-    const companyId = await getCompanyByEmailSuffix(email);
-    if (!companyId) {
+    const companyIdResult = await getCompanyByEmailSuffix(email);
+    if (!companyIdResult) {
       return { 
         success: false, 
         error: "Could not determine company for email domain" 
       };
     }
+    const companyId = companyIdResult.toString();
 
     // Create pending registration
     const registrationId = uuid();
@@ -121,20 +123,21 @@ export async function initiateRegistration(
     // Check email sending rate limit
     const emailLimitResult = await checkEmailLimit(email);
     if (!emailLimitResult.success) {
+      const errorMessage = await formatRateLimitError(emailLimitResult.msBeforeNext);
       return { 
         success: false, 
-        error: formatRateLimitError(emailLimitResult.msBeforeNext)
+        error: errorMessage
       };
     }
 
     // Send verification email
-    const emailSent = await sendVerificationEmail({
-      email,
-      token,
-      registrationId
-    });
-
-    if (!emailSent) {
+    try {
+      await sendVerificationEmail({
+        email,
+        token,
+        registrationId
+      });
+    } catch (error) {
       // If email fails to send, clean up the registration and token
       await knex.transaction(async (trx) => {
       await trx('verification_tokens')
@@ -171,9 +174,10 @@ export async function verifyRegistrationToken(token: string): Promise<IVerificat
     // Check verification rate limit
     const rateLimitResult = await checkVerificationLimit(token);
     if (!rateLimitResult.success) {
+      const errorMessage = await formatRateLimitError(rateLimitResult.msBeforeNext);
       return { 
         success: false, 
-        error: formatRateLimitError(rateLimitResult.msBeforeNext)
+        error: errorMessage
       };
     }
 
@@ -283,7 +287,7 @@ export async function completeRegistration(registrationId: string): Promise<IReg
       .returning('*');
 
     // Check if this is the first user for the company
-    const existingUsers = await knex('users')
+    const existingUsersResult = await knex('users')
       .where({ tenant })
       .whereIn('user_id', function() {
         this.select('user_id')
@@ -298,7 +302,7 @@ export async function completeRegistration(registrationId: string): Promise<IReg
       .first();
 
     // Get appropriate role (client_admin for first user, client for others)
-    const roleName = (!existingUsers || existingUsers.count === '0') 
+    const roleName = (!existingUsersResult || existingUsersResult.count === '0') 
       ? 'client_admin' 
       : 'client';
 

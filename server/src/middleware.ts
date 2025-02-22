@@ -156,14 +156,11 @@ export async function middleware(req: NextRequest) {
 // Configure which routes the middleware applies to
 export const config = {
   matcher: [
-    // API routes
-    '/api/:path*',
-    
     // Protected routes that require authentication
     '/msp/:path*',
     '/client-portal/:path*',
     
-    // Exclude auth and static routes
-    '/((?!api/auth/(?!signin)|_next/static|_next/image|favicon.ico|auth|client-portal/auth).*)',
-  ],
+    // API routes except auth endpoints
+    '/api/((?!auth/).)*'
+  ]
 };
