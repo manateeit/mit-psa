@@ -4,7 +4,7 @@ import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { Eye, EyeClosed } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -157,7 +157,7 @@ export default function ClientLoginForm({ callbackUrl, onError, onTwoFactorRequi
             {showPassword ? (
               <Eye className="h-5 w-5 text-gray-400" />
             ) : (
-              <EyeClosed className="h-5 w-5 text-gray-400" />
+              <EyeOff className="h-5 w-5 text-gray-400" />
             )}
           </Button>
         </div>

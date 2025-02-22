@@ -37,7 +37,7 @@ exports.up = function(knex) {
         .onDelete('CASCADE');
 
       // Indexes
-      table.index('token');
+      table.index(['tenant', 'token']);
       table.index(['tenant', 'registration_id']);
       table.index(['tenant', 'company_id']); // Index for company-specific queries
     });

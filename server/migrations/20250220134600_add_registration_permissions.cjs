@@ -9,89 +9,145 @@ exports.up = async function(knex) {
 
   // For each tenant, add the permissions and roles
   for (const { tenant } of tenants) {
-    // Insert new permissions
-    await knex('permissions').insert([
-      // Profile permissions
-      { tenant, permission_id: knex.raw('gen_random_uuid()'), resource: 'profile', action: 'read' },
-      { tenant, permission_id: knex.raw('gen_random_uuid()'), resource: 'profile', action: 'update' },
-      // Asset permissions
-      { tenant, permission_id: knex.raw('gen_random_uuid()'), resource: 'asset', action: 'read' },
-      // Company settings permissions
-      { tenant, permission_id: knex.raw('gen_random_uuid()'), resource: 'company_setting', action: 'read' },
-      { tenant, permission_id: knex.raw('gen_random_uuid()'), resource: 'company_setting', action: 'update' },
-      { tenant, permission_id: knex.raw('gen_random_uuid()'), resource: 'company_setting', action: 'delete' },
-      // Client profile permissions
-      { tenant, permission_id: knex.raw('gen_random_uuid()'), resource: 'client_profile', action: 'read' },
-      { tenant, permission_id: knex.raw('gen_random_uuid()'), resource: 'client_profile', action: 'update' },
-      { tenant, permission_id: knex.raw('gen_random_uuid()'), resource: 'client_profile', action: 'delete' },
-      // Password management
-      { tenant, permission_id: knex.raw('gen_random_uuid()'), resource: 'client_password', action: 'update' },
-      // Billing permissions
-      { tenant, permission_id: knex.raw('gen_random_uuid()'), resource: 'billing', action: 'read' }
-    ]).onConflict(['tenant', 'resource', 'action']).ignore();
+    // Get existing permissions to avoid duplicates
+    const existingPerms = await knex('permissions')
+      .where({ tenant })
+      .whereIn('resource', ['profile', 'asset', 'company_setting', 'client_profile', 'client_password', 'billing'])
+      .select('resource', 'action');
 
-    // Create client_admin role if it doesn't exist
-    await knex('roles').insert({
-      tenant,
-      role_id: knex.raw('gen_random_uuid()'),
-      role_name: 'client_admin',
-      description: 'Client administrator role'
-    }).onConflict(['tenant', 'role_name']).ignore();
+    const existingMap = new Set(existingPerms.map(p => `${p.resource}:${p.action}`));
 
-    // Assign base client permissions to client role
-    await knex.raw(`
-      INSERT INTO role_permissions (tenant, role_id, permission_id)
-      SELECT ?, r.role_id, p.permission_id
-      FROM roles r
-      CROSS JOIN permissions p
-      WHERE r.tenant = ?
-      AND p.tenant = ?
-      AND r.role_name = 'client'
-      AND (
-        -- We already have ticket permissions
-        (p.resource = 'project' AND p.action = 'read')
-        OR (p.resource = 'profile' AND p.action IN ('read', 'update'))
-        OR (p.resource = 'asset' AND p.action = 'read')
-      )
-      ON CONFLICT (tenant, role_id, permission_id) DO NOTHING
-    `, [tenant, tenant, tenant]);
+    const permissionsToAdd = [
+      { resource: 'profile', action: 'read' },
+      { resource: 'profile', action: 'update' },
+      { resource: 'asset', action: 'read' },
+      { resource: 'company_setting', action: 'read' },
+      { resource: 'company_setting', action: 'update' },
+      { resource: 'company_setting', action: 'delete' },
+      { resource: 'client_profile', action: 'read' },
+      { resource: 'client_profile', action: 'update' },
+      { resource: 'client_profile', action: 'delete' },
+      { resource: 'client_password', action: 'update' },
+      { resource: 'billing', action: 'read' }
+    ].filter(p => !existingMap.has(`${p.resource}:${p.action}`))
+     .map(p => ({
+       tenant,
+       permission_id: knex.raw('gen_random_uuid()'),
+       ...p
+     }));
 
-    // Assign admin permissions to client_admin role
-    await knex.raw(`
-      INSERT INTO role_permissions (tenant, role_id, permission_id)
-      SELECT ?, r.role_id, p.permission_id
-      FROM roles r
-      CROSS JOIN permissions p
-      WHERE r.tenant = ?
-      AND p.tenant = ?
-      AND r.role_name = 'client_admin'
-      AND (
-        -- Base client permissions
-        (p.resource = 'project' AND p.action = 'read')
-        OR (p.resource = 'profile' AND p.action IN ('read', 'update'))
-        OR (p.resource = 'asset' AND p.action = 'read')
-        -- Admin-specific permissions
-        OR (p.resource = 'company_setting' AND p.action IN ('read', 'update', 'delete'))
-        OR (p.resource = 'client_profile' AND p.action IN ('read', 'update', 'delete'))
-        OR (p.resource = 'client_password' AND p.action = 'update')
-        OR (p.resource = 'billing' AND p.action = 'read')
-      )
-      ON CONFLICT (tenant, role_id, permission_id) DO NOTHING
-    `, [tenant, tenant, tenant]);
+    if (permissionsToAdd.length > 0) {
+      await knex('permissions').insert(permissionsToAdd);
+    }
 
-    // Also assign ticket permissions to client_admin role
-    await knex.raw(`
-      INSERT INTO role_permissions (tenant, role_id, permission_id)
-      SELECT ?, r.role_id, p.permission_id
-      FROM roles r
-      CROSS JOIN permissions p
-      WHERE r.tenant = ?
-      AND p.tenant = ?
-      AND r.role_name = 'client_admin'
-      AND p.resource = 'ticket'
-      AND p.action IN ('create', 'read', 'update', 'delete')
-      ON CONFLICT (tenant, role_id, permission_id) DO NOTHING
-    `, [tenant, tenant, tenant]);
+    // Check if client_admin role exists before inserting
+    const existingRole = await knex('roles')
+      .where({ tenant, role_name: 'client_admin' })
+      .first();
+    
+    if (!existingRole) {
+      await knex('roles').insert({
+        tenant,
+        role_id: knex.raw('gen_random_uuid()'),
+        role_name: 'client_admin',
+        description: 'Client administrator role'
+      });
+    }
+
+    // Get client role
+    const clientRole = await knex('roles')
+      .where({ tenant, role_name: 'client' })
+      .first();
+
+    // Get client_admin role
+    const clientAdminRole = await knex('roles')
+      .where({ tenant, role_name: 'client_admin' })
+      .first();
+
+    if (clientRole) {
+      // Get permissions for client role
+      const clientPermissions = await knex('permissions')
+        .where({ tenant })
+        .where(function() {
+          this.where('resource', 'project').andWhere('action', 'read')
+            .orWhere(function() {
+              this.where('resource', 'profile').whereIn('action', ['read', 'update']);
+            })
+            .orWhere(function() {
+              this.where('resource', 'asset').andWhere('action', 'read');
+            });
+        });
+
+      // Check existing role permissions
+      for (const perm of clientPermissions) {
+        const exists = await knex('role_permissions')
+          .where({
+            tenant,
+            role_id: clientRole.role_id,
+            permission_id: perm.permission_id
+          })
+          .first();
+
+        if (!exists) {
+          await knex('role_permissions').insert({
+            tenant,
+            role_id: clientRole.role_id,
+            permission_id: perm.permission_id
+          });
+        }
+      }
+    }
+
+    if (clientAdminRole) {
+      // Get permissions for client_admin role
+      const adminPermissions = await knex('permissions')
+        .where({ tenant })
+        .where(function() {
+          this.where(function() {
+              this.where('resource', 'project').andWhere('action', 'read');
+            })
+            .orWhere(function() {
+              this.where('resource', 'profile').whereIn('action', ['read', 'update']);
+            })
+            .orWhere(function() {
+              this.where('resource', 'asset').andWhere('action', 'read');
+            })
+            .orWhere(function() {
+              this.where('resource', 'company_setting').whereIn('action', ['read', 'update', 'delete']);
+            })
+            .orWhere(function() {
+              this.where('resource', 'client_profile').whereIn('action', ['read', 'update', 'delete']);
+            })
+            .orWhere(function() {
+              this.where('resource', 'client_password').andWhere('action', 'update');
+            })
+            .orWhere(function() {
+              this.where('resource', 'billing').andWhere('action', 'read');
+            })
+            .orWhere(function() {
+              this.where('resource', 'ticket').whereIn('action', ['create', 'read', 'update', 'delete']);
+            });
+        });
+
+      // Check existing role permissions
+      for (const perm of adminPermissions) {
+        const exists = await knex('role_permissions')
+          .where({
+            tenant,
+            role_id: clientAdminRole.role_id,
+            permission_id: perm.permission_id
+          })
+          .first();
+
+        if (!exists) {
+          await knex('role_permissions').insert({
+            tenant,
+            role_id: clientAdminRole.role_id,
+            permission_id: perm.permission_id
+          });
+        }
+      }
+    }
   }
 };
 

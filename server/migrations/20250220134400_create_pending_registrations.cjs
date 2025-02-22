@@ -35,7 +35,7 @@ exports.up = function(knex) {
         .onDelete('CASCADE');
 
       // Indexes
-      table.index('email');
+      table.index(['tenant', 'email']);
       table.index(['tenant', 'status']);
       table.index(['tenant', 'email', 'status']);
     });

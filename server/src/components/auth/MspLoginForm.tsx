@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
-import { Eye, EyeClosed } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { Label } from '@/components/ui/Label';
 import { Input } from '../ui/Input';
@@ -116,7 +116,7 @@ export default function MspLoginForm({ callbackUrl, onError, onTwoFactorRequired
             {showPassword ? (
               <Eye className="h-5 w-5 text-gray-400" />
             ) : (
-              <EyeClosed className="h-5 w-5 text-gray-400" />
+              <EyeOff className="h-5 w-5 text-gray-400" />
             )}
           </Button>
         </div>
