@@ -7,8 +7,8 @@ import { signOut } from "next-auth/react";
 import { ExitIcon, PersonIcon } from '@radix-ui/react-icons';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import AvatarIcon from '@/components/ui/AvatarIcon';
-import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
-import type { IUserWithRoles } from '@/types';
+import { getCurrentUser, getUserRolesWithPermissions } from '@/lib/actions/user-actions/userActions';
+import type { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { useRouter } from 'next/navigation';
 
 interface ClientPortalLayoutProps {
@@ -17,6 +17,7 @@ interface ClientPortalLayoutProps {
 
 export default function ClientPortalLayout({ children }: ClientPortalLayoutProps) {
   const [userData, setUserData] = useState<IUserWithRoles | null>(null);
+  const [hasCompanySettingsAccess, setHasCompanySettingsAccess] = useState(false);
   const router = useRouter();
 
   const handleSignOut = () => {
@@ -29,6 +30,20 @@ export default function ClientPortalLayout({ children }: ClientPortalLayoutProps
       const user = await getCurrentUser();      
       if (user) {
         setUserData(user);
+        
+        // Check for company_setting read permission
+        const rolesWithPermissions = await getUserRolesWithPermissions(user.user_id);
+        let foundAccess = false;
+        for (const role of rolesWithPermissions) {
+          for (const permission of role.permissions) {
+            if (permission.resource === 'company_setting' && permission.action === 'read') {
+              foundAccess = true;
+              break;
+            }
+          }
+          if (foundAccess) break;
+        }
+        setHasCompanySettingsAccess(foundAccess);
       }
     };
 
@@ -90,6 +105,14 @@ export default function ClientPortalLayout({ children }: ClientPortalLayoutProps
                 >
                   Assets
                 </Link>
+                {hasCompanySettingsAccess && (
+                  <Link 
+                    href="/client-portal/company-settings" 
+                    className="px-3 py-2 text-sm font-medium text-[rgb(var(--color-text-600))] hover:text-[rgb(var(--color-primary-500))]"
+                  >
+                    Company Settings
+                  </Link>
+                )}
               </div>
             </div>
 

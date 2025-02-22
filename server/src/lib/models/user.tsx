@@ -239,26 +239,35 @@ const User = {
       let query = db<IRole>('roles')
         .join('user_roles', function() {
           this.on('roles.role_id', '=', 'user_roles.role_id')
-              .andOn('roles.tenant', '=', 'user_roles.tenant');
+              .andOn('roles.tenant', '=', 'user_roles.tenant')
+              .andOn('user_roles.tenant', '=', db.raw('?', [tenant]));
         })
-        .where('user_roles.user_id', user_id);
+        .where('user_roles.user_id', user_id)
+        .andWhere('roles.tenant', tenant);
       
-      if (tenant !== null) {
-        query = query.andWhere('user_roles.tenant', tenant);
-      }
-      
-      const roles = await query.select('roles.*');
+      const roles = await query.select([
+        'roles.role_id',
+        'roles.role_name',
+        'roles.description',
+        'roles.tenant'
+      ]);
 
       const rolesWithPermissions = await Promise.all(roles.map(async (role): Promise<IRoleWithPermissions> => {
         let permissionQuery = db<IPermission>('permissions')
           .join('role_permissions', function() {
             this.on('permissions.permission_id', '=', 'role_permissions.permission_id')
-                .andOn('permissions.tenant', '=', 'role_permissions.tenant');
+                .andOn('permissions.tenant', '=', 'role_permissions.tenant')
+                .andOn('role_permissions.tenant', '=', db.raw('?', [tenant]));
           })
           .where('role_permissions.role_id', role.role_id)
-          .andWhere('role_permissions.tenant', tenant);
+          .andWhere('permissions.tenant', tenant);
         
-        const permissions = await permissionQuery.select('permissions.*');
+        const permissions = await permissionQuery.select([
+          'permissions.permission_id',
+          'permissions.resource',
+          'permissions.action',
+          'permissions.tenant'
+        ]);
 
         return {
           ...role,

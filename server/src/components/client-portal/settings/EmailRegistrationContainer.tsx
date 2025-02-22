@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
-import { getUserCompanyId } from '@/lib/actions/user-actions/userActions';
+import { getServerSession } from "next-auth/next";
+import { getCurrentUser, getUserRolesWithPermissions, getUserCompanyId } from '@/lib/actions/user-actions/userActions';
 import { getCompanyEmailSettings } from '@/lib/actions/company-settings/emailSettings';
 import { ICompanyEmailSettings } from '@/interfaces/company.interfaces';
+import { IRoleWithPermissions, IPermission } from '@/interfaces/auth.interfaces';
+import { Alert } from '@/components/ui/Alert';
 import EmailRegistrationSettings from './EmailRegistrationSettings';
 
 export default function EmailRegistrationContainer() {
@@ -17,10 +19,25 @@ export default function EmailRegistrationContainer() {
   useEffect(() => {
     async function loadData() {
       try {
-        // Get current user
+        // Get current user and their roles with permissions
         const user = await getCurrentUser();
         if (!user) {
           router.push('/auth/signin');
+          return;
+        }
+
+        const rolesWithPermissions = await getUserRolesWithPermissions(user.user_id);
+        
+        // Check if user has Client Admin role with required permissions
+        const hasRequiredPermissions = rolesWithPermissions.some(role => 
+          role.permissions.some((permission: IPermission) => 
+            `${permission.resource}.${permission.action}` === 'company_setting.read' || 
+            `${permission.resource}.${permission.action}` === 'company_setting.update'
+          )
+        );
+
+        if (!hasRequiredPermissions) {
+          setError('You do not have permission to access email registration settings');
           return;
         }
 
