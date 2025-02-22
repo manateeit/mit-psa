@@ -256,23 +256,14 @@ export async function verifyContactEmail(email: string): Promise<{ exists: boole
     // First check if email matches any company email suffixes
     const isValidSuffix = await verifyEmailSuffix(email);
     if (isValidSuffix) {
-      const companyId = await getCompanyByEmailSuffix(email);
-      if (companyId) {
-        // Get tenant from company
-        const db = await getAdminConnection();
-        const company = await db('companies')
-          .where({ company_id: companyId })
-          .select('tenant')
-          .first();
-
-        if (company) {
-          return {
-            exists: false, // Not a contact, but valid email suffix
-            isActive: true,
-            companyId,
-            tenant: company.tenant
-          };
-        }
+      const result = await getCompanyByEmailSuffix(email);
+      if (result) {
+        return {
+          exists: false, // Not a contact, but valid email suffix
+          isActive: true,
+          companyId: result.companyId,
+          tenant: result.tenant
+        };
       }
     }
 
@@ -435,19 +426,32 @@ export async function changeOwnPassword(
 // Function for admins to change user passwords
 export async function getUserCompanyId(userId: string): Promise<string | null> {
   try {
-    const { knex, tenant } = await createTenantKnex();
-    const user = await User.get(userId);
-    if (!user?.contact_id) return null;
+    const { knex: adminDb } = await createTenantKnex();
+    const user = await User.getForRegistration(userId);
+    if (!user) return null;
 
-    const contact = await knex('contacts')
-      .where({ 
-        tenant,
-        contact_name_id: user.contact_id 
-      })
+    // First try to get company ID from contact if user is contact-based
+    if (user.contact_id) {
+      const contact = await adminDb('contacts')
+        .where('contact_name_id', user.contact_id)
+        .select('company_id')
+        .first();
+
+      if (contact?.company_id) {
+        return contact.company_id;
+      }
+    }
+
+    // If no contact or no company found, try to get company from user's email domain
+    const emailDomain = user.email.split('@')[1];
+    if (!emailDomain) return null;
+
+    const emailSetting = await adminDb('company_email_settings')
+      .where('email_suffix', emailDomain)
       .select('company_id')
       .first();
 
-    return contact?.company_id || null;
+    return emailSetting?.company_id || null;
   } catch (error) {
     console.error('Error getting user company ID:', error);
     throw new Error('Failed to get user company ID');

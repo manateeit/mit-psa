@@ -4,17 +4,17 @@ import { createTenantKnex } from '@/lib/db';
 import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
 import { v4 as uuid4 } from 'uuid';
 import { ICompanyEmailSettings } from '@/interfaces/company.interfaces';
+import { getAdminConnection } from '@/lib/db/admin';
 
 export async function verifyEmailSuffix(email: string): Promise<boolean> {
   try {
-    const { knex, tenant } = await createTenantKnex();
+    const db = await getAdminConnection();
     
     const domain = email.split('@')[1];
     if (!domain) return false;
 
-    const settings = await knex('company_email_settings')
+    const settings = await db('company_email_settings')
       .where({ 
-        tenant: tenant!,
         email_suffix: domain,
         self_registration_enabled: true 
       })
@@ -27,22 +27,34 @@ export async function verifyEmailSuffix(email: string): Promise<boolean> {
   }
 }
 
-export async function getCompanyByEmailSuffix(email: string): Promise<string | null> {
+export async function getCompanyByEmailSuffix(email: string): Promise<{ companyId: string; tenant: string } | null> {
   try {
-    const { knex, tenant } = await createTenantKnex();
+    const db = await getAdminConnection();
     
     const domain = email.split('@')[1];
     if (!domain) return null;
 
-    const settings = await knex('company_email_settings')
+    const settings = await db('company_email_settings')
       .where({ 
-        tenant: tenant!,
         email_suffix: domain,
         self_registration_enabled: true 
       })
       .first();
 
-    return settings?.company_id || null;
+    if (!settings?.company_id) return null;
+
+    // Get tenant for this company
+    const company = await db('companies')
+      .where('company_id', settings.company_id)
+      .select('tenant')
+      .first();
+
+    if (!company?.tenant) return null;
+
+    return {
+      companyId: settings.company_id,
+      tenant: company.tenant
+    };
   } catch (error) {
     console.error('Error getting company by email suffix:', error);
     throw new Error('Failed to get company by email suffix');
@@ -52,7 +64,7 @@ export async function getCompanyByEmailSuffix(email: string): Promise<string | n
 export async function getCompanyEmailSettings(companyId: string): Promise<ICompanyEmailSettings[]> {
   try {
     const { knex, tenant } = await createTenantKnex();
-
+    
     const settings = await knex<ICompanyEmailSettings>('company_email_settings')
       .where({ 
         tenant: tenant!,

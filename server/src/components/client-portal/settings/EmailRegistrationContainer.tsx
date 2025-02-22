@@ -52,7 +52,7 @@ export default function EmailRegistrationContainer() {
 
         // Load email settings
         const settings = await getCompanyEmailSettings(userCompanyId);
-        setEmailSettings(settings);
+        setEmailSettings(settings || []);
       } catch (error) {
         console.error('Error loading email settings:', error);
         setError('Failed to load email registration settings');

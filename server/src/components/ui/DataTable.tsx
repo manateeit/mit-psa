@@ -20,6 +20,12 @@ const getNestedValue = (obj: unknown, path: string | string[]): unknown => {
     return undefined;
   }
 
+  // If path is a string and doesn't contain dots, access directly
+  if (typeof path === 'string' && !path.includes('.')) {
+    return (obj as Record<string, unknown>)[path];
+  }
+
+  // For dot notation or array paths
   const keys = Array.isArray(path) ? path : path.split('.');
   return keys.reduce((acc: unknown, key: string) => {
     if (acc && typeof acc === 'object' && key in acc) {

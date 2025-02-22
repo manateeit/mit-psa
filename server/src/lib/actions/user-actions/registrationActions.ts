@@ -46,8 +46,7 @@ export async function initiateRegistration(
   firstName: string,
   lastName: string
 ): Promise<IRegistrationResult> {
-  const { knex, tenant } = await createTenantKnex();
-  if (!tenant) throw new Error('Tenant is required');
+  const { knex: adminDb } = await createTenantKnex();
   
   try {
     // Check rate limits first
@@ -68,9 +67,23 @@ export async function initiateRegistration(
     }
     
     if (contactVerification.exists) {
-      // Proceed with contact-based registration
+      // Get contact's company and tenant
+      const contact = await adminDb('contacts')
+        .join('companies', 'contacts.company_id', 'companies.company_id')
+        .where('contacts.email', email)
+        .select('companies.company_id', 'companies.tenant')
+        .first();
+      
+      if (!contact?.tenant) {
+        return { success: false, error: "Contact company not found" };
+      }
+      
       const result = await registerContactUser(email, password);
-      return { success: result.success, error: result.error };
+      if (!result.success) {
+        return result;
+      }
+      
+      return { success: true };
     }
     
     // If not a contact, try email suffix registration
@@ -78,31 +91,30 @@ export async function initiateRegistration(
     if (!isValidSuffix) {
       return { 
         success: false, 
-        error: "Email domain not authorized for registration" 
+        error: "This email domain is not authorized for registration" 
       };
     }
 
-    const companyIdResult = await getCompanyByEmailSuffix(email);
-    if (!companyIdResult) {
+    const result = await getCompanyByEmailSuffix(email);
+    if (!result) {
       return { 
         success: false, 
         error: "Could not determine company for email domain" 
       };
     }
-    const companyId = companyIdResult.toString();
 
     // Create pending registration
     const registrationId = uuid();
     const hashedPassword = await hashPassword(password);
 
-    await knex('pending_registrations').insert({
-      tenant,
+    await adminDb('pending_registrations').insert({
+      tenant: result.tenant,
       registration_id: registrationId,
       email: email.toLowerCase(),
       hashed_password: hashedPassword,
       first_name: firstName,
       last_name: lastName,
-      company_id: companyId,
+      company_id: result.companyId,
       status: 'PENDING_VERIFICATION',
       expires_at: getExpirationTime(),
       created_at: new Date().toISOString()
@@ -110,11 +122,11 @@ export async function initiateRegistration(
 
     // Generate verification token
     const token = generateToken();
-    const [verificationToken] = await knex('verification_tokens').insert({
-      tenant,
+    const [verificationToken] = await adminDb('verification_tokens').insert({
+      tenant: result.tenant,
       token_id: uuid(),
       registration_id: registrationId,
-      company_id: companyId,
+      company_id: result.companyId,
       token,
       expires_at: getExpirationTime(),
       created_at: new Date().toISOString()
@@ -139,7 +151,7 @@ export async function initiateRegistration(
       });
     } catch (error) {
       // If email fails to send, clean up the registration and token
-      await knex.transaction(async (trx) => {
+      await adminDb.transaction(async (trx) => {
       await trx('verification_tokens')
         .where({ token_id: verificationToken.token_id })
         .delete();
@@ -167,8 +179,7 @@ export async function initiateRegistration(
 }
 
 export async function verifyRegistrationToken(token: string): Promise<IVerificationResult> {
-  const { knex, tenant } = await createTenantKnex();
-  if (!tenant) throw new Error('Tenant is required');
+  const { knex: adminDb } = await createTenantKnex();
   
   try {
     // Check verification rate limit
@@ -182,9 +193,8 @@ export async function verifyRegistrationToken(token: string): Promise<IVerificat
     }
 
     // Get token record
-    const verificationToken = await knex('verification_tokens')
+    const verificationToken = await adminDb('verification_tokens')
       .where({ 
-        tenant,
         token,
         used_at: null 
       })
@@ -199,9 +209,8 @@ export async function verifyRegistrationToken(token: string): Promise<IVerificat
     }
 
     // Get registration record
-    const registration = await knex('pending_registrations')
+    const registration = await adminDb('pending_registrations')
       .where({ 
-        tenant,
         registration_id: verificationToken.registration_id,
         status: 'PENDING_VERIFICATION'
       })
@@ -215,7 +224,7 @@ export async function verifyRegistrationToken(token: string): Promise<IVerificat
     }
 
     // Update token and registration status
-    await knex.transaction(async (trx) => {
+    await adminDb.transaction(async (trx) => {
       await trx('verification_tokens')
         .where({ token_id: verificationToken.token_id })
         .update({ 
@@ -231,7 +240,7 @@ export async function verifyRegistrationToken(token: string): Promise<IVerificat
     });
 
     // Log successful verification
-    await logSecurityEvent(tenant, 'email_verification_success', {
+    await logSecurityEvent(registration.tenant, 'email_verification_success', {
       email: registration.email,
       registrationId: registration.registration_id
     });
@@ -251,14 +260,12 @@ export async function verifyRegistrationToken(token: string): Promise<IVerificat
 }
 
 export async function completeRegistration(registrationId: string): Promise<IRegistrationResult> {
-  const { knex, tenant } = await createTenantKnex();
-  if (!tenant) throw new Error('Tenant is required');
+  const { knex: adminDb } = await createTenantKnex();
   
   try {
     // Get verified registration
-    const registration = await knex('pending_registrations')
+    const registration = await adminDb('pending_registrations')
       .where({ 
-        tenant,
         registration_id: registrationId,
         status: 'VERIFIED'
       })
@@ -271,15 +278,15 @@ export async function completeRegistration(registrationId: string): Promise<IReg
       };
     }
 
-    // Create user
-    const [user] = await knex('users')
+    // Create user with registration's tenant
+    const [user] = await adminDb('users')
       .insert({
         email: registration.email,
         username: registration.email,
         first_name: registration.first_name,
         last_name: registration.last_name,
         hashed_password: registration.hashed_password,
-        tenant,
+        tenant: registration.tenant,
         user_type: 'client',
         is_inactive: false,
         created_at: new Date().toISOString()
@@ -287,14 +294,14 @@ export async function completeRegistration(registrationId: string): Promise<IReg
       .returning('*');
 
     // Check if this is the first user for the company
-    const existingUsersResult = await knex('users')
-      .where({ tenant })
+    const existingUsersResult = await adminDb('users')
+      .where({ tenant: registration.tenant })
       .whereIn('user_id', function() {
         this.select('user_id')
           .from('user_roles')
           .join('roles', 'user_roles.role_id', 'roles.role_id')
           .where({
-            tenant,
+            tenant: registration.tenant,
             'roles.role_name': 'client_admin'
           });
       })
@@ -306,9 +313,9 @@ export async function completeRegistration(registrationId: string): Promise<IReg
       ? 'client_admin' 
       : 'client';
 
-    const role = await knex('roles')
+    const role = await adminDb('roles')
       .where({ 
-        tenant,
+        tenant: registration.tenant,
         role_name: roleName 
       })
       .first();
@@ -318,14 +325,14 @@ export async function completeRegistration(registrationId: string): Promise<IReg
     }
 
     // Assign role
-    await knex('user_roles').insert({
-      tenant,
+    await adminDb('user_roles').insert({
+      tenant: registration.tenant,
       user_id: user.user_id,
       role_id: role.role_id
     });
 
     // Update registration status
-    await knex('pending_registrations')
+    await adminDb('pending_registrations')
       .where({ registration_id: registration.registration_id })
       .update({ 
         status: 'COMPLETED',
@@ -333,7 +340,7 @@ export async function completeRegistration(registrationId: string): Promise<IReg
       });
 
     // Log successful registration completion
-    await logSecurityEvent(tenant, 'registration_completed', {
+    await logSecurityEvent(registration.tenant, 'registration_completed', {
       userId: user.user_id,
       email: registration.email,
       registrationId: registration.registration_id
@@ -354,14 +361,14 @@ async function registerContactUser(
   email: string, 
   password: string
 ): Promise<IRegistrationResult> {
-  const { knex, tenant } = await createTenantKnex();
-  if (!tenant) throw new Error('Tenant is required');
+  const { knex: adminDb } = await createTenantKnex();
   
   try {
-    // Get contact details
-    const contact = await knex('contacts')
+    // Get contact details and tenant
+    const contact = await adminDb('contacts')
+      .join('companies', 'contacts.company_id', 'companies.company_id')
       .where({ email })
-      .select('contact_name_id', 'company_id', 'is_inactive', 'full_name')
+      .select('contacts.contact_name_id', 'contacts.company_id', 'contacts.is_inactive', 'contacts.full_name', 'companies.tenant')
       .first();
 
     if (!contact) {
@@ -373,7 +380,7 @@ async function registerContactUser(
     }
 
     // Check if user already exists
-    const existingUser = await knex('users')
+    const existingUser = await adminDb('users')
       .where({ email })
       .first();
 
@@ -388,14 +395,14 @@ async function registerContactUser(
 
     // Create user
     const hashedPassword = await hashPassword(password);
-    const [user] = await knex('users')
+    const [user] = await adminDb('users')
       .insert({
         email,
         username: email,
         first_name: firstName,
         last_name: lastName,
         hashed_password: hashedPassword,
-        tenant,
+        tenant: contact.tenant,
         user_type: 'client',
         contact_id: contact.contact_name_id,
         is_inactive: false,
@@ -404,9 +411,9 @@ async function registerContactUser(
       .returning('*');
 
     // Get client role
-    const clientRole = await knex('roles')
+    const clientRole = await adminDb('roles')
       .where({ 
-        tenant,
+        tenant: contact.tenant,
         role_name: 'client' 
       })
       .first();
@@ -416,8 +423,8 @@ async function registerContactUser(
     }
 
     // Assign role
-    await knex('user_roles').insert({
-      tenant,
+    await adminDb('user_roles').insert({
+      tenant: contact.tenant,
       user_id: user.user_id,
       role_id: clientRole.role_id
     });

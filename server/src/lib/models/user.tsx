@@ -297,6 +297,21 @@ const User = {
       throw error;
     }
   },
+
+  // Special method for getting user during registration process
+  getForRegistration: async (user_id: string): Promise<IUser | undefined> => {
+    const db = await getAdminConnection();
+    try {
+      const user = await db<IUser>('users')
+        .select('*')
+        .where('user_id', user_id)
+        .first();
+      return user;
+    } catch (error) {
+      logger.error(`Error getting user for registration with id ${user_id}:`, error);
+      throw error;
+    }
+  },
 };
 
 export default User;
