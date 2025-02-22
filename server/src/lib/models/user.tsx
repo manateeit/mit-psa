@@ -14,12 +14,14 @@ interface IUserRoleWithOptionalTenant extends Omit<IUserRole, 'tenant'> {
 
 const User = {
   getAll: async (includeInactive: boolean = false): Promise<IUser[]> => {
-    const db = await getConnection();
+    const {knex: db, tenant} = await createTenantKnex();
     try {
       let query = db<IUser>('users').select('*');
+      query = query.andWhere('tenant', tenant);
       if (!includeInactive) {
-        query = query.where({ is_inactive: false });
+        query = query.andWhere('is_inactive', false);
       }
+      
       const users = await query;
       return users;
     } catch (error) {
@@ -40,9 +42,13 @@ const User = {
   },
 
   findUserByUsername: async (username: string): Promise<IUser | undefined> => {
-    const db = await getConnection();
+    const {knex: db, tenant} = await createTenantKnex();
     try {
-      const user = await db<IUser>('users').select('*').where({ username }).first();
+      const user = await db<IUser>('users')
+        .select('*')
+        .where('username', username)
+        .andWhere('tenant', tenant)
+        .first();
       return user;
     } catch (error) {
       logger.error(`Error finding user with username ${username}:`, error);
@@ -51,10 +57,11 @@ const User = {
   },
 
   findOldestUser: async (): Promise<IUser | undefined> => {
-    const db = await getConnection();
+    const {knex: db, tenant} = await createTenantKnex();
     try {
       const oldestUser = await db<IUser>('users')
         .select('*')
+        .where('tenant', tenant)
         .orderBy('created_at', 'asc')
         .first();
       console.log('oldest user ', oldestUser);
@@ -66,9 +73,13 @@ const User = {
   },
 
   get: async (user_id: string): Promise<IUser | undefined> => {
-    const db = await getConnection();
+    const {knex: db, tenant} = await createTenantKnex();
     try {
-      const user = await db<IUser>('users').select('*').where({ user_id }).first();
+      const user = await db<IUser>('users')
+        .select('*')
+        .where('user_id', user_id)
+        .andWhere('tenant', tenant)
+        .first();
       return user;
     } catch (error) {
       logger.error(`Error getting user with id ${user_id}:`, error);
@@ -113,7 +124,11 @@ const User = {
   getUserWithRoles: async (user_id: string): Promise<IUserWithRoles | undefined> => {
     const {knex: db, tenant} = await createTenantKnex();
     try {
-      const user = await db<IUser>('users').select('*').where({ user_id }).first();
+      const user = await db<IUser>('users')
+        .select('*')
+        .where('user_id', user_id)
+        .andWhere('tenant', tenant)
+        .first();
       if (user) {
         const roles = await User.getUserRoles(user_id);
         return { ...user, roles };
@@ -126,9 +141,12 @@ const User = {
   },
 
   update: async (user_id: string, user: Partial<IUser>): Promise<void> => {
-    const db = await getConnection();
+    const {knex: db, tenant} = await createTenantKnex();
     try {
-      await db<IUser>('users').where({ user_id }).update(user);
+      await db<IUser>('users')
+        .where('user_id', user_id)
+        .andWhere('tenant', tenant)
+        .update(user);
     } catch (error) {
       logger.error(`Error updating user with id ${user_id}:`, error);
       throw error;
@@ -136,7 +154,7 @@ const User = {
   },
 
   updatePassword: async (email: string, hashed_password: string): Promise<void> => {
-    const db = await getConnection();
+    const db = await getAdminConnection();
     try {
       await db<IUser>('users').where({ email }).update({ hashed_password });
       logger.system(`Password updated for user with email ${email}`);
@@ -147,7 +165,7 @@ const User = {
   },
 
   verifyPassword: async (user_id: string, password: string): Promise<boolean> => {
-    const db = await getConnection();
+    const db = await getAdminConnection();
     try {
       const user = await db<IUser>('users')
         .select('hashed_password')
@@ -166,9 +184,12 @@ const User = {
   },
 
   delete: async (user_id: string): Promise<void> => {
-    const db = await getConnection();
+    const {knex: db, tenant} = await createTenantKnex();
     try {
-      await db<IUser>('users').where({ user_id }).del();
+      await db<IUser>('users')
+        .where('user_id', user_id)
+        .andWhere('tenant', tenant)
+        .del();
     } catch (error) {
       logger.error(`Error deleting user with id ${user_id}:`, error);
       throw error;
@@ -176,9 +197,12 @@ const User = {
   },
 
   getMultiple: async (userIds: string[]): Promise<IUser[]> => {
-    const db = await getConnection();
+    const {knex: db, tenant} = await createTenantKnex();
     try {
-      const users = await db<IUser>('users').select('*').whereIn('user_id', userIds);
+      const users = await db<IUser>('users')
+        .select('*')
+        .where('tenant', tenant)
+        .whereIn('user_id', userIds);
       return users;
     } catch (error) {
       logger.error('Error getting multiple users:', error);
@@ -215,26 +239,35 @@ const User = {
       let query = db<IRole>('roles')
         .join('user_roles', function() {
           this.on('roles.role_id', '=', 'user_roles.role_id')
-              .andOn('roles.tenant', '=', 'user_roles.tenant');
+              .andOn('roles.tenant', '=', 'user_roles.tenant')
+              .andOn('user_roles.tenant', '=', db.raw('?', [tenant]));
         })
-        .where('user_roles.user_id', user_id);
+        .where('user_roles.user_id', user_id)
+        .andWhere('roles.tenant', tenant);
       
-      if (tenant !== null) {
-        query = query.andWhere('user_roles.tenant', tenant);
-      }
-      
-      const roles = await query.select('roles.*');
+      const roles = await query.select([
+        'roles.role_id',
+        'roles.role_name',
+        'roles.description',
+        'roles.tenant'
+      ]);
 
       const rolesWithPermissions = await Promise.all(roles.map(async (role): Promise<IRoleWithPermissions> => {
         let permissionQuery = db<IPermission>('permissions')
           .join('role_permissions', function() {
             this.on('permissions.permission_id', '=', 'role_permissions.permission_id')
-                .andOn('permissions.tenant', '=', 'role_permissions.tenant');
+                .andOn('permissions.tenant', '=', 'role_permissions.tenant')
+                .andOn('role_permissions.tenant', '=', db.raw('?', [tenant]));
           })
           .where('role_permissions.role_id', role.role_id)
-          .andWhere('role_permissions.tenant', tenant);
+          .andWhere('permissions.tenant', tenant);
         
-        const permissions = await permissionQuery.select('permissions.*');
+        const permissions = await permissionQuery.select([
+          'permissions.permission_id',
+          'permissions.resource',
+          'permissions.action',
+          'permissions.tenant'
+        ]);
 
         return {
           ...role,
@@ -261,6 +294,21 @@ const User = {
       await db('user_roles').insert(userRoles);
     } catch (error) {
       logger.error(`Error updating roles for user with id ${user_id}:`, error);
+      throw error;
+    }
+  },
+
+  // Special method for getting user during registration process
+  getForRegistration: async (user_id: string): Promise<IUser | undefined> => {
+    const db = await getAdminConnection();
+    try {
+      const user = await db<IUser>('users')
+        .select('*')
+        .where('user_id', user_id)
+        .first();
+      return user;
+    } catch (error) {
+      logger.error(`Error getting user for registration with id ${user_id}:`, error);
       throw error;
     }
   },

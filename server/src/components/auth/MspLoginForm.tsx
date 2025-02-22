@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
-import { EyeOpenIcon, EyeClosedIcon } from '@radix-ui/react-icons';
+import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
+import { Label } from '@/components/ui/Label';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Checkbox } from '../ui/Checkbox';
@@ -92,28 +93,30 @@ export default function MspLoginForm({ callbackUrl, onError, onTwoFactorRequired
           onChange={(e) => setEmail(e.target.value)}
           required
         />
-        <div className="relative">
+        <div className="space-y-2 relative"></div>
+          <Label htmlFor="client-password-field">Password</Label>
+          <div className="relative">
           <Input
             type={showPassword ? "text" : "password"}
             id="msp-password-field"
-            label="Password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            className="w-full"
           />
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="absolute inset-y-0 right-0 pr-3 flex items-center top-7"
+            className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-transparent"
             onClick={() => setShowPassword(!showPassword)}
             id="msp-toggle-password-visibility"
           >
             {showPassword ? (
-              <EyeOpenIcon className="h-5 w-5 text-gray-400" />
+              <Eye className="h-5 w-5 text-gray-400" />
             ) : (
-              <EyeClosedIcon className="h-5 w-5 text-gray-400" />
+              <EyeOff className="h-5 w-5 text-gray-400" />
             )}
           </Button>
         </div>

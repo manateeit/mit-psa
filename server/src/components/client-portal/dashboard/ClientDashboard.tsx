@@ -7,7 +7,7 @@ import { getDashboardMetrics, getRecentActivity, type RecentActivity } from '@/l
 import { ClientAddTicket } from '@/components/client-portal/tickets/ClientAddTicket';
 
 export function ClientDashboard() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
   const [metrics, setMetrics] = useState<any>(null);
   const [activities, setActivities] = useState<RecentActivity[]>([]);
   const [error, setError] = useState<boolean>(false);
@@ -192,13 +192,13 @@ export function ClientDashboard() {
             <Button
               id="create-ticket-button"
               className="bg-[rgb(var(--color-primary-500))] text-white hover:bg-[rgb(var(--color-primary-600))] px-6 py-3"
-              onClick={() => setIsDialogOpen(true)}
+              onClick={() => setIsTicketDialogOpen(true)}
             >
               Create Support Ticket
             </Button>
             <ClientAddTicket 
-              open={isDialogOpen} 
-              onOpenChange={setIsDialogOpen} 
+              open={isTicketDialogOpen} 
+              onOpenChange={setIsTicketDialogOpen} 
             />
             <Button
               id="view-invoice-button"

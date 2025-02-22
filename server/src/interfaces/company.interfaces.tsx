@@ -1,4 +1,5 @@
 import { BillingCycleType, TenantEntity } from './index';
+import { ISO8601String } from '@/types/types.d';
 
 export interface ICompany extends TenantEntity {
   company_id: string;
@@ -62,4 +63,13 @@ export interface ICompanyLocation extends TenantEntity {
   tax_region: string;
   created_at?: Date;
   updated_at?: Date;
+}
+
+export interface ICompanyEmailSettings extends TenantEntity {
+  company_id: string;
+  email_suffix: string;
+  self_registration_enabled: boolean;
+  user_id: string;
+  created_at: ISO8601String;
+  updated_at: ISO8601String;
 }

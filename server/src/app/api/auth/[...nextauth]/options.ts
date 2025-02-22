@@ -324,16 +324,32 @@ export const options: NextAuthOptions = {
 
 async function validateUser(token: any) {
     try {
-        // Fetch the user from the database
-        const user = await User.findUserByUsername(token.username);
+        // Fetch the user from the database using email (lowercase for consistency)
+        const user = await User.findUserByEmail(token.email.toLowerCase());
 
-        // Check if the user exists and the ID matches
-        if (!user || user.user_id !== token.id) {
-            logger.warn(`User validation failed for username: ${token.username}`);
+        // Check if the user exists and matches
+        if (!user || user.user_id !== token.id || user.username !== token.username) {
+            logger.warn(`User validation failed for email: ${token.email}`);
             return null;
         }
-        // Additional checks can be added here
-        // For example, check if the user is still active, if their role hasn't changed, etc.
+
+        // Check if user is inactive
+        if (user.is_inactive) {
+            logger.warn(`User is inactive: ${token.email}`);
+            return null;
+        }
+
+        // Verify tenant matches
+        if (user.tenant !== token.tenant) {
+            logger.warn(`Tenant mismatch for email: ${token.email}`);
+            return null;
+        }
+
+        // Verify user type matches
+        if (user.user_type !== token.user_type) {
+            logger.warn(`User type mismatch for email: ${token.email}`);
+            return null;
+        }
 
         return user;
     } catch (error) {
