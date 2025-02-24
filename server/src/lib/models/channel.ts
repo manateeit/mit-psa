@@ -37,11 +37,22 @@ const Channel = {
   insert: async (channel: Omit<IChannel, 'channel_id' | 'tenant'>): Promise<IChannel> => {
     try {
       const { knex, tenant } = await createTenantKnex();
+      
+      if (!tenant) {
+        throw new Error('Tenant context is required for creating channel');
+      }
+
+      // Check if this is the first channel - if so, make it default
+      const existingChannels = await knex('channels')
+        .where({ tenant, is_default: true });
+
       const channelToInsert = {
         ...channel,
-        tenant: tenant!,
-        is_inactive: false
+        tenant,
+        is_inactive: false,
+        is_default: existingChannels.length === 0 // Make default if no other default exists
       };
+
       const [insertedChannel] = await knex('channels').insert(channelToInsert).returning('*');
       return insertedChannel;
     } catch (error) {
@@ -53,9 +64,27 @@ const Channel = {
   delete: async (id: string): Promise<void> => {
     try {
       const {knex: db, tenant} = await createTenantKnex();
+      
+      if (!tenant) {
+        throw new Error('Tenant context is required for deleting channel');
+      }
+
+      // Check if this is a default channel
+      const channel = await db<IChannel>('channels')
+        .where({ 
+          channel_id: id,
+          tenant,
+          is_default: true
+        })
+        .first();
+
+      if (channel) {
+        throw new Error('Cannot delete the default channel');
+      }
+
       await db<IChannel>('channels')
         .where('channel_id', id)
-        .andWhere('tenant', tenant!)
+        .andWhere('tenant', tenant)
         .del();
     } catch (error) {
       console.error(`Error deleting channel with id ${id}:`, error);
@@ -66,12 +95,38 @@ const Channel = {
   update: async (id: string, updates: Partial<Omit<IChannel, 'tenant'>>): Promise<IChannel | undefined> => {
     try {
       const { knex, tenant } = await createTenantKnex();
-      const [updatedChannel] = await knex('channels')
-        .where('channel_id', id)
-        .andWhere('tenant', tenant!)
-        .update(updates)
-        .returning('*');
-      return updatedChannel;
+      
+      if (!tenant) {
+        throw new Error('Tenant context is required for updating channel');
+      }
+
+      return await knex.transaction(async (trx) => {
+        // If updating is_default to false, check if this is the last default channel
+        if (updates.is_default === false) {
+          const defaultChannels = await trx('channels')
+            .where({ tenant, is_default: true })
+            .whereNot('channel_id', id);
+          
+          if (defaultChannels.length === 0) {
+            throw new Error('Cannot remove default status from the last default channel');
+          }
+        }
+
+        // If setting as default, unset all other defaults first
+        if (updates.is_default === true) {
+          await trx('channels')
+            .where({ tenant, is_default: true })
+            .update({ is_default: false });
+        }
+
+        const [updatedChannel] = await trx('channels')
+          .where('channel_id', id)
+          .andWhere('tenant', tenant)
+          .update(updates)
+          .returning('*');
+
+        return updatedChannel;
+      });
     } catch (error) {
       console.error(`Error updating channel with id ${id}:`, error);
       throw error;

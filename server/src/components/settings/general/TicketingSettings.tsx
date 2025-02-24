@@ -635,22 +635,11 @@ const TicketingSettings = (): JSX.Element => {
             checked={record.is_default || false}
             onCheckedChange={async (checked) => {
               if (checked) {
-                // First, update all other channels to not be default
-                const otherChannels = channels.filter(c => 
-                  c.channel_id !== record.channel_id && c.is_default
-                );
-                
                 try {
-                  // Update other channels first
-                  await Promise.all(
-                    otherChannels.map(channel => 
-                      updateChannelItem({ ...channel, is_default: false })
-                    )
-                  );
-                  // Then update this channel
+                  // Update this channel first
                   await updateChannelItem({ ...record, is_default: true });
                   
-                  // Update local state after all database updates succeed
+                  // Update local state to reflect the change
                   setChannels(prevChannels => 
                     prevChannels.map(channel => ({
                       ...channel,
@@ -662,7 +651,31 @@ const TicketingSettings = (): JSX.Element => {
                   toast.error('Failed to update default channel');
                 }
               } else {
-                await updateChannelItem({ ...record, is_default: false });
+                try {
+                  // Check if this is the last default channel
+                  const defaultChannels = channels.filter(c => 
+                    c.channel_id !== record.channel_id && c.is_default
+                  );
+                  
+                  if (defaultChannels.length === 0) {
+                    toast.error('Cannot remove default status from the last default channel');
+                    return;
+                  }
+
+                  await updateChannelItem({ ...record, is_default: false });
+                  
+                  // Update local state
+                  setChannels(prevChannels => 
+                    prevChannels.map(channel => 
+                      channel.channel_id === record.channel_id ? 
+                        { ...channel, is_default: false } : 
+                        channel
+                    )
+                  );
+                } catch (error) {
+                  console.error('Error updating default channel:', error);
+                  toast.error('Failed to update default channel');
+                }
               }
             }}
             className="data-[state=checked]:bg-primary-500"
@@ -730,22 +743,11 @@ const TicketingSettings = (): JSX.Element => {
               checked={record.is_default || false}
               onCheckedChange={async (checked) => {
                 if (checked) {
-                  // First, update all other statuses to not be default
-                  const otherStatuses = statuses.filter(s => 
-                    s.status_id !== record.status_id && s.is_default
-                  );
-                  
                   try {
-                    // Update other statuses first
-                    await Promise.all(
-                      otherStatuses.map(status => 
-                        updateStatusItem({ ...status, is_default: false })
-                      )
-                    );
-                    // Then update this status
+                    // Update this status first
                     await updateStatusItem({ ...record, is_default: true });
                     
-                    // Update local state after all database updates succeed
+                    // Update local state to reflect the change
                     setStatuses(prevStatuses => 
                       prevStatuses.map(status => ({
                         ...status,
@@ -757,7 +759,33 @@ const TicketingSettings = (): JSX.Element => {
                     toast.error('Failed to update default status');
                   }
                 } else {
-                  await updateStatusItem({ ...record, is_default: false });
+                  try {
+                    // Check if this is the last default status
+                    const defaultStatuses = statuses.filter(s => 
+                      s.status_id !== record.status_id && 
+                      s.is_default &&
+                      s.status_type === record.status_type
+                    );
+                    
+                    if (defaultStatuses.length === 0) {
+                      toast.error('Cannot remove default status from the last default status');
+                      return;
+                    }
+
+                    await updateStatusItem({ ...record, is_default: false });
+                    
+                    // Update local state
+                    setStatuses(prevStatuses => 
+                      prevStatuses.map(status => 
+                        status.status_id === record.status_id ? 
+                          { ...status, is_default: false } : 
+                          status
+                      )
+                    );
+                  } catch (error) {
+                    console.error('Error updating default status:', error);
+                    toast.error('Failed to update default status');
+                  }
                 }
               }}
               className="data-[state=checked]:bg-primary-500"
