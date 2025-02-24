@@ -1,4 +1,4 @@
-'use server'
+'use server';
 
 import User from '@/lib/models/user';
 import { IUser, IRole, IUserWithRoles, IRoleWithPermissions, IUserRole } from '@/interfaces/auth.interfaces';
@@ -493,5 +493,29 @@ export async function adminChangeUserPassword(
   } catch (error) {
     console.error('Error changing user password:', error);
     return { success: false, error: 'Failed to change user password' };
+  }
+}
+
+export async function getClientUsersForCompany(companyId: string): Promise<IUser[]> {
+  try {
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    // Get all users associated with the company
+    const users = await knex('users')
+      .join('contacts', 'users.contact_id', 'contacts.contact_name_id')
+      .where({
+        'contacts.company_id': companyId,
+        'users.tenant': tenant,
+        'users.user_type': 'client'
+      })
+      .select('users.*');
+
+    return users;
+  } catch (error) {
+    console.error('Error getting client users:', error);
+    throw error;
   }
 }

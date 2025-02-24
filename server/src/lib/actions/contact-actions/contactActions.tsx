@@ -1011,3 +1011,67 @@ export async function checkExistingEmails(
     throw new Error('SYSTEM_ERROR: An unexpected error occurred while checking existing emails');
   }
 }
+
+export async function getContactByEmail(email: string, companyId: string) {
+  try {
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    const contact = await knex('contacts')
+      .where({
+        email,
+        company_id: companyId,
+        tenant
+      })
+      .first();
+
+    return contact;
+  } catch (error) {
+    console.error('Error getting contact by email:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create a new contact for a company
+ */
+export async function createCompanyContact({
+  companyId,
+  fullName,
+  email,
+  phone = '',
+  jobTitle = ''
+}: {
+  companyId: string;
+  fullName: string;
+  email: string;
+  phone?: string;
+  jobTitle?: string;
+}) {
+  try {
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    const [contact] = await knex('contacts')
+      .insert({
+        tenant,
+        company_id: companyId,
+        full_name: fullName,
+        email,
+        phone_number: phone,
+        job_title: jobTitle,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .returning('*');
+
+    return contact;
+  } catch (error) {
+    console.error('Error creating company contact:', error);
+    throw error;
+  }
+}

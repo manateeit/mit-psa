@@ -38,78 +38,6 @@ export default function EmailRegistrationSettings({
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const columns: ColumnDefinition<ICompanyEmailSettings>[] = [
-    {
-      title: 'Email Suffix',
-      dataIndex: 'email_suffix',
-    },
-    {
-      title: 'Self Registration',
-      dataIndex: 'self_registration_enabled',
-      render: (value: boolean, record: ICompanyEmailSettings) => (
-        <Switch
-          id={`enable-registration-switch-${record.email_suffix}`}
-          checked={value}
-          onCheckedChange={async (checked) => {
-            try {
-              await updateCompanyEmailSetting(
-                companyId,
-                record.email_suffix,
-                checked
-              );
-              setSuffixes(suffixes.map(suffix => 
-                suffix.email_suffix === record.email_suffix
-                  ? { ...suffix, self_registration_enabled: checked }
-                  : suffix
-              ));
-            } catch (error) {
-              setError('Failed to update registration setting');
-            }
-          }}
-        />
-      ),
-    },
-    {
-      title: 'Actions',
-      dataIndex: 'email_suffix',
-      render: (value: string) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              id={`email-suffix-actions-menu-${value}`}
-              variant="ghost"
-              className="h-8 w-8 p-0"
-            >
-              <span className="sr-only">Open menu</span>
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              id={`delete-suffix-menu-item-${value}`}
-              className="text-red-600"
-              onClick={async () => {
-                try {
-                  await deleteCompanyEmailSetting(
-                    companyId,
-                    value
-                  );
-                  setSuffixes(suffixes.filter(
-                    suffix => suffix.email_suffix !== value
-                  ));
-                } catch (error) {
-                  setError('Failed to delete email suffix');
-                }
-              }}
-            >
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
-    },
-  ];
-
   async function handleAddSuffix(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -210,13 +138,13 @@ export default function EmailRegistrationSettings({
                   },
                   {
                     title: 'Actions',
-                    dataIndex: 'email_suffix',
+                    dataIndex: 'actions',
                     width: '20%',
-                    render: (value: string) => (
+                    render: (value: string, record: ICompanyEmailSettings) => (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
-                            id={`email-suffix-actions-menu-${value}`}
+                            id={`email-suffix-actions-menu-${record.email_suffix}`}
                             variant="ghost"
                             className="h-8 w-8 p-0"
                           >
@@ -226,16 +154,16 @@ export default function EmailRegistrationSettings({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
-                            id={`delete-suffix-menu-item-${value}`}
+                            id={`delete-suffix-menu-item-${record.email_suffix}`}
                             className="text-red-600"
                             onClick={async () => {
                               try {
                                 await deleteCompanyEmailSetting(
                                   companyId,
-                                  value
+                                  record.email_suffix
                                 );
                                 setSuffixes(suffixes.filter(
-                                  suffix => suffix.email_suffix !== value
+                                  suffix => suffix.email_suffix !== record.email_suffix
                                 ));
                               } catch (error) {
                                 setError('Failed to delete email suffix');
@@ -256,7 +184,7 @@ export default function EmailRegistrationSettings({
                 No email suffixes configured
               </p>
             );
-          })()}
+          })()}  
         </div>
       </div>
     </Card>
