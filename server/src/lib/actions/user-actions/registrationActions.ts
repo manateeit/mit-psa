@@ -310,35 +310,16 @@ export async function completeRegistration(registrationId: string): Promise<IReg
         })
         .returning('*');
 
-      // Check if this is the first user for the company
-      const existingUsersResult = await trx('users')
-        .where('users.tenant', registration.tenant)
-        .whereIn('users.user_id', function() {
-          this.select('user_roles.user_id')
-            .from('user_roles')
-            .join('roles', 'user_roles.role_id', 'roles.role_id')
-            .where({
-              'roles.tenant': registration.tenant,
-              'roles.role_name': 'client_admin'
-            });
-        })
-        .count('users.user_id as count')
-        .first();
-
-      // Get appropriate role (client_admin for first user, client for others)
-      const roleName = (!existingUsersResult || existingUsersResult.count === '0') 
-        ? 'client_admin' 
-        : 'client';
-
+      // Always assign client role for portal registrations
       const role = await trx('roles')
         .where({ 
           tenant: registration.tenant,
-          role_name: roleName 
+          role_name: 'client' 
         })
         .first();
 
       if (!role) {
-        throw new Error(`Role ${roleName} not found`);
+        throw new Error('Client role not found');
       }
 
       // Assign role

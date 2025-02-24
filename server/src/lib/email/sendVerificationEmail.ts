@@ -24,18 +24,31 @@ export async function sendVerificationEmail({
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       const verificationUrl = `${baseUrl}/auth/verify?token=${token}&registrationId=${registrationId}`;
 
+      // Get both company names from their respective tables
+      const [registrationCompany, tenantCompany] = await Promise.all([
+        knex('companies').where({ tenant }).select('company_name').first(),
+        knex('tenants').where({ tenant }).select('company_name').first()
+      ]);
+
+      if (!registrationCompany || !tenantCompany) {
+        throw new Error('Company information not found');
+      }
+
       // Get email service
       const emailService = await getEmailService();
       await emailService.initialize();
 
-      // Send verification email directly
+      // Send verification email with both company names
       const success = await emailService.sendTemplatedEmail({
         toEmail: email,
         subject: 'Verify your email address',
         templateName: 'email-verification',
         templateData: {
           email,
-          verificationUrl
+          verificationUrl,
+          registrationCompanyName: registrationCompany.company_name,
+          tenantCompanyName: tenantCompany.company_name,
+          currentYear: new Date().getFullYear()
         }
       });
 

@@ -18,17 +18,38 @@ exports.up = async function(knex) {
     const existingMap = new Set(existingPerms.map(p => `${p.resource}:${p.action}`));
 
     const permissionsToAdd = [
+      { resource: 'profile', action: 'create' },
       { resource: 'profile', action: 'read' },
       { resource: 'profile', action: 'update' },
+      { resource: 'profile', action: 'delete' },
+      { resource: 'asset', action: 'create' },
       { resource: 'asset', action: 'read' },
+      { resource: 'asset', action: 'update' },
+      { resource: 'asset', action: 'delete' },
+      { resource: 'company_setting', action: 'create' },
       { resource: 'company_setting', action: 'read' },
       { resource: 'company_setting', action: 'update' },
       { resource: 'company_setting', action: 'delete' },
+      { resource: 'client_profile', action: 'create' },
       { resource: 'client_profile', action: 'read' },
       { resource: 'client_profile', action: 'update' },
       { resource: 'client_profile', action: 'delete' },
+      { resource: 'client_password', action: 'create' },
+      { resource: 'client_password', action: 'read' },
       { resource: 'client_password', action: 'update' },
-      { resource: 'billing', action: 'read' }
+      { resource: 'client_password', action: 'delete' },
+      { resource: 'billing', action: 'create' },
+      { resource: 'billing', action: 'read' },
+      { resource: 'billing', action: 'update' },
+      { resource: 'billing', action: 'delete' },
+      { resource: 'ticket', action: 'create' },
+      { resource: 'ticket', action: 'read' },
+      { resource: 'ticket', action: 'update' },
+      { resource: 'ticket', action: 'delete' },
+      { resource: 'project', action: 'create' },
+      { resource: 'project', action: 'read' },
+      { resource: 'project', action: 'update' },
+      { resource: 'project', action: 'delete' }
     ].filter(p => !existingMap.has(`${p.resource}:${p.action}`))
      .map(p => ({
        tenant,
@@ -104,7 +125,7 @@ exports.up = async function(knex) {
         .where({ tenant })
         .where(function() {
           this.where(function() {
-              this.where('resource', 'project').andWhere('action', 'read');
+              this.where('resource', 'project').whereIn('action', ['create', 'read', 'update', 'delete']);
             })
             .orWhere(function() {
               this.where('resource', 'profile').whereIn('action', ['read', 'update']);

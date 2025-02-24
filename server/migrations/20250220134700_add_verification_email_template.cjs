@@ -63,13 +63,13 @@ exports.up = async function(knex) {
   const templateData = {
     name: 'email-verification',
     notification_subtype_id: verificationSubtype.id,
-    subject: 'Verify your email address for {{companyName}}',
+    subject: 'Verify your email address for {{registrationCompanyName}}',
     created_at: new Date(),
     updated_at: new Date(),
     html_content: `
           <h2>Email Verification</h2>
           <div class="details">
-            <p><strong>Company:</strong> {{companyName}}</p>
+            <p><strong>Company:</strong> {{registrationCompanyName}}</p>
             <p><strong>Email:</strong> {{email}}</p>
           </div>
           <p>Thank you for registering. Please verify your email address by clicking the button below:</p>
@@ -81,18 +81,16 @@ exports.up = async function(knex) {
           </p>
           <p>This verification link will expire in 24 hours.</p>
           <div class="footer">
-            <p>If you didn't request this email, please ignore it or contact our support team at 
-              <a href="mailto:{{supportEmail}}">{{supportEmail}}</a>
-            </p>
-            <p>&copy; {{currentYear}} {{companyName}}. All rights reserved.</p>
+            <p>If you didn't request this email, please ignore it or contact {{tenantCompanyName}}.</p>
+            <p>&copy; {{currentYear}} {{tenantCompanyName}}. All rights reserved.</p>
           </div>
     `,
     text_content: `
   Email Verification
   
-  Thank you for registering with {{companyName}}.
+  Thank you for registering with {{registrationCompanyName}}.
   
-  Company: {{companyName}}
+  Company: {{registrationCompanyName}}
   Email: {{email}}
   
   Please verify your email address by clicking the link below:
@@ -100,9 +98,9 @@ exports.up = async function(knex) {
   
   This verification link will expire in 24 hours.
   
-  If you didn't request this email, please ignore it or contact our support team at {{supportEmail}}
+  If you didn't request this email, please ignore it or contact {{tenantCompanyName}}.
   
-  © {{currentYear}} {{companyName}}. All rights reserved.
+  © {{currentYear}} {{tenantCompanyName}}. All rights reserved.
     `
   };
 
