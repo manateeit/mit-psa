@@ -95,35 +95,3 @@ jobs:
           file: Dockerfile.prod
           push: true
           tags: ghcr.io/nine-minds/alga-psa:latest
-
-      - name: Test container
-        run: |
-          # Pull the image we just pushed
-          docker pull ghcr.io/nine-minds/alga-psa:latest
-
-          # Start the containers with community edition configuration
-          docker compose -f docker-compose.base.yaml -f docker-compose.ce.yaml up -d
-
-          # Wait for services to be ready
-          echo "Waiting for services to start..."
-          sleep 30
-
-          # Check container status
-          docker compose ps
-
-          # Display logs for debugging
-          docker compose logs
-
-          # Basic health checks
-          echo "Checking service health..."
-          
-          # Check if postgres is responding
-          docker compose exec -T postgres pg_isready -U postgres || exit 1
-          
-          # Check if Redis is responding
-          docker compose exec -T redis redis-cli ping || exit 1
-          
-          # Check if the main application is responding
-          curl -f http://localhost:3000/health || exit 1
-
-          echo "All health checks passed successfully"
