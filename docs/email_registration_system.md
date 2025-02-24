@@ -4,7 +4,14 @@
 
 The email registration system allows clients to self-register using their company email addresses. The system supports two registration flows:
 1. Contact-based registration (existing functionality)
+   - Allows existing contacts to create user accounts
+   - Automatically assigns client role
+   - Validates contact status (active/inactive)
+   - Preserves existing company and contact relationships
 2. Email suffix-based registration (new functionality)
+   - Validates email domain against allowed suffixes
+   - Creates new contact and user records
+   - Assigns roles based on company context (first user gets client_admin)
 
 ## Architecture
 
@@ -31,35 +38,57 @@ The email registration system allows clients to self-register using their compan
    - Registration attempts: 5 per hour per email
    - Verification attempts: 3 per 5 minutes per token
    - Email sending: 3 per hour per email
+   - Includes user-friendly error messages with wait times
+   - Memory-based implementation using rate-limiter-flexible
 
 2. Token Security
    - 32-byte random tokens using crypto library
    - Base64URL encoding for URL safety
    - 24-hour expiration
    - One-time use only
+   - Validation includes expiration and usage checks
+   - Transaction-based token management
 
 3. Audit Logging
-   - All security events are logged
-   - Events include registration attempts, verifications, and expirations
-   - Logs include tenant isolation
+   - Security event logging temporarily disabled (tenant context issue)
+   - Will log registration attempts, verifications, and completions
+   - Includes detailed event context and tenant isolation
+   - Uses centralized audit logging system
 
 ### Registration Flow
 
 1. User submits registration form
-   - System checks for existing contact
-   - If not a contact, validates email suffix
-   - Creates pending registration and verification token
-   - Sends verification email
+   - Validates rate limits for registration attempts
+   - For contacts:
+     * Verifies contact exists and is active
+     * Checks for existing user account
+     * Creates user with contact association
+   - For email suffix:
+     * Validates email domain against allowed suffixes
+     * Determines company from email suffix
+     * Creates pending registration with expiration
+     * Generates and stores verification token
+     * Validates email sending rate limit
+     * Sends verification email using templated system
 
 2. User verifies email
-   - Clicks link in email
-   - System validates token
+   - Clicks link in email with token and registration ID
+   - System validates token:
+     * Checks rate limits for verification attempts
+     * Verifies token exists and hasn't been used
+     * Confirms token hasn't expired
+     * Validates registration status is PENDING_VERIFICATION
+   - Updates token usage timestamp
    - Updates registration status to VERIFIED
 
 3. System completes registration
-   - Creates user account
-   - Assigns appropriate role (client_admin for first user)
-   - Updates registration status to COMPLETED
+   - Validates registration exists and is verified
+   - Executes in a database transaction:
+     * Creates contact record if needed
+     * Creates user account
+     * Assigns client role to user (client_admin role is managed separately through settings)
+     * Updates registration status to COMPLETED
+   - Handles rollback on any failure
 
 ## Maintenance
 
@@ -68,14 +97,16 @@ The email registration system allows clients to self-register using their compan
 Two cleanup jobs run hourly:
 
 1. `cleanupExpiredRegistrations`
-   - Finds registrations past expiration
+   - Finds registrations past 24-hour expiration
    - Updates status to EXPIRED
    - Logs cleanup events
+   - Maintains registration record for audit purposes
 
 2. `cleanupExpiredTokens`
    - Removes expired verification tokens
-   - Only removes unused tokens
-   - Maintains audit trail
+   - Only removes tokens that were never used
+   - Preserves used tokens for audit trail
+   - Runs after registration cleanup
 
 ### Monitoring
 
@@ -101,29 +132,64 @@ Monitor these aspects:
 Common issues and solutions:
 
 1. Rate Limit Exceeded
+   - System provides specific wait time in error message
    - Check logs for abuse patterns
-   - Verify limit configurations
-   - Consider adjusting limits if needed
+   - Verify limit configurations in rate-limiter-flexible settings
+   - Consider adjusting points or duration if needed
 
 2. Token Verification Failures
-   - Check token expiration times
-   - Verify email delivery
-   - Look for multiple attempts
+   - Check token expiration (24-hour limit)
+   - Verify email delivery through email service logs
+   - Look for multiple verification attempts
+   - Check if token was already used
+   - Validate registration ID matches token
 
 3. Role Assignment Issues
-   - Verify role existence
-   - Check tenant isolation
-   - Validate company settings
+   - Verify role existence in roles table
+   - Check tenant isolation in all related tables
+   - Validate company settings and email suffix configuration
+   - Verify first-user detection logic
 
 ## Administration
 
-### Company Settings
+### Administration Interface
 
-Administrators can:
-- Add/remove allowed email suffixes
-- Toggle self-registration per suffix
-- View registration activity
-- Manage existing registrations
+The system provides two main administration interfaces:
+
+1. Email Registration Settings
+   - Email Suffix Management:
+     * Add new email suffixes with validation
+     * Delete existing suffixes
+     * View all configured suffixes in a data table
+     * Case-insensitive suffix handling (automatically converted to lowercase)
+   - Registration Controls:
+     * Toggle self-registration per suffix using switches
+     * Immediate effect on registration availability
+     * Visual feedback for configuration status
+     * Error handling for failed operations
+   - User Interface Features:
+     * Clean, card-based layout
+     * Interactive data table for suffix management
+     * Dropdown menus for suffix actions
+     * Form validation and error messaging
+     * Loading states during operations
+   - Error Handling:
+     * Displays error alerts for failed operations
+     * Validates input before submission
+     * Maintains state consistency after errors
+     * Provides feedback for all user actions
+
+2. User Management
+   - Role Management:
+     * View and edit user roles through user details drawer
+     * Assign/remove client_admin role as needed
+     * Manage role-based permissions
+     * Maintain audit trail of role changes
+   - User Controls:
+     * Edit user details and status
+     * Reset passwords (admin only)
+     * Enable/disable user accounts
+     * View user activity and roles
 
 ### Security Settings
 

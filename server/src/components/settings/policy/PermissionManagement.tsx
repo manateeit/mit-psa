@@ -186,7 +186,7 @@ export default function PermissionManagement() {
         <DataTable
           data={filteredPermissions}
           columns={columns}
-          pagination={false}
+          pagination={true}
         />
       </Flex>
     </div>
