@@ -26,7 +26,7 @@ class ScheduleEntry {
 
     // Verify entries exist in the correct tenant
     const validEntries = await db('schedule_entries')
-      .where({ tenant })
+      .where('schedule_entries.tenant', tenant)
       .whereIn('entry_id', validEntryIds)
       .select('entry_id');
 
@@ -38,7 +38,7 @@ class ScheduleEntry {
     }
 
     const assignments = await db('schedule_entry_assignees')
-      .where({ tenant })
+      .where('schedule_entry_assignees.tenant', tenant)
       .whereIn('entry_id', validEntryIds)
       .join('users', function() {
         this.on('schedule_entry_assignees.user_id', '=', 'users.user_id')
@@ -66,7 +66,8 @@ class ScheduleEntry {
 
     // Verify entry exists in the correct tenant
     const entryExists = await db('schedule_entries')
-      .where({ tenant, entry_id })
+      .where('schedule_entries.tenant', tenant)
+      .andWhere('entry_id', entry_id)
       .first();
 
     if (!entryExists) {
@@ -75,14 +76,15 @@ class ScheduleEntry {
 
     // Delete existing assignments
     await db('schedule_entry_assignees')
-      .where({ tenant, entry_id })
+      .where('schedule_entry_assignees.tenant', tenant)
+      .andWhere('entry_id', entry_id)
       .del();
 
     // Insert new assignments
     if (userIds.length > 0) {
       // Verify all users exist in the correct tenant
       const validUsers = await db('users')
-        .where({ tenant })
+        .where('users.tenant', tenant)
         .whereIn('user_id', userIds)
         .select('user_id');
 
@@ -110,7 +112,7 @@ class ScheduleEntry {
     
     // Get all non-virtual entries (both regular and master recurring entries)
     const regularEntries = await db('schedule_entries')
-      .where({ tenant })
+      .where('schedule_entries.tenant', tenant)
       .whereNull('original_entry_id') // This ensures we get master entries but not virtual instances
       .andWhere(function() {
         // And fall within our date range
@@ -185,7 +187,7 @@ class ScheduleEntry {
       throw new Error('Tenant is required');
     }
     const entry = await db('schedule_entries')
-      .where({ tenant })
+      .where('schedule_entries.tenant', tenant)
       .orderBy('scheduled_start', 'asc')
       .first() as (IScheduleEntry & { entry_id: string }) | undefined;
 
@@ -212,7 +214,8 @@ class ScheduleEntry {
       throw new Error('Tenant is required');
     }
     const entry = await db('schedule_entries')
-      .where({ tenant, entry_id })
+      .where('schedule_entries.tenant', tenant)
+      .andWhere('entry_id', entry_id)
       .first() as (IScheduleEntry & { entry_id: string }) | undefined;
     
     if (!entry) return undefined;
@@ -327,7 +330,8 @@ class ScheduleEntry {
       // Get the master entry
       console.log('[ScheduleEntry.update] Fetching master entry:', { masterEntryId });
       const originalEntry = await trx('schedule_entries')
-        .where({ tenant, entry_id: masterEntryId })
+        .where('schedule_entries.tenant', tenant)
+        .andWhere('entry_id', masterEntryId)
         .first();
 
       if (!originalEntry) {
@@ -404,7 +408,8 @@ class ScheduleEntry {
               };
 
               await trx('schedule_entries')
-                .where({ tenant, entry_id: masterEntryId })
+                .where('schedule_entries.tenant', tenant)
+                .andWhere('entry_id', masterEntryId)
                 .update({
                   recurrence_pattern: JSON.stringify(singleUpdatedPattern)
                 });
@@ -440,7 +445,8 @@ class ScheduleEntry {
               };
               
               await trx('schedule_entries')
-                .where({ tenant, entry_id: masterEntryId })
+                .where('schedule_entries.tenant', tenant)
+                .andWhere('entry_id', masterEntryId)
                 .update({
                   recurrence_pattern: JSON.stringify(futureOriginalPattern)
                 });
@@ -496,7 +502,8 @@ class ScheduleEntry {
 
               // Update the entry with all changes
               const [updatedMasterEntry] = await trx('schedule_entries')
-                .where({ tenant, entry_id: masterEntryId })
+                .where('schedule_entries.tenant', tenant)
+                .andWhere('entry_id', masterEntryId)
                 .update({
                   title: entry.title || originalEntry.title,
                   scheduled_start: entry.scheduled_start || originalEntry.scheduled_start,
@@ -631,7 +638,8 @@ class ScheduleEntry {
             });
 
             await trx('schedule_entries')
-              .where({ tenant, entry_id: masterEntryId })
+              .where('schedule_entries.tenant', tenant)
+              .andWhere('entry_id', masterEntryId)
               .update({
                 recurrence_pattern: JSON.stringify(masterPattern)
               });
@@ -672,7 +680,8 @@ class ScheduleEntry {
         });
 
         const [updatedEntry] = await trx('schedule_entries')
-          .where({ tenant, entry_id })
+          .where('schedule_entries.tenant', tenant)
+          .andWhere('entry_id', entry_id)
           .update(updateData)
           .returning('*');
 
@@ -815,7 +824,8 @@ class ScheduleEntry {
     
     // Get master recurring entries that might have occurrences in the range
     const masterEntries = await db('schedule_entries')
-      .where({ tenant, is_recurring: true })
+      .where('schedule_entries.tenant', tenant)
+      .where('is_recurring', true)
       .whereNotNull('recurrence_pattern')
       .whereNull('original_entry_id') // Only get master entries
       .where('scheduled_start', '<=', end) // Entry must start before the end of our range
@@ -876,7 +886,8 @@ class ScheduleEntry {
 
       // Get the master entry
       const originalEntry = await trx('schedule_entries')
-        .where({ tenant, entry_id: masterEntryId })
+        .where('schedule_entries.tenant', tenant)
+        .andWhere('entry_id', masterEntryId)
         .first();
 
       if (!originalEntry) {
@@ -913,7 +924,8 @@ class ScheduleEntry {
                 };
 
                 await trx('schedule_entries')
-                  .where({ tenant, entry_id: masterEntryId })
+                  .where('schedule_entries.tenant', tenant)
+                  .andWhere('entry_id', masterEntryId)
                   .update({
                     recurrence_pattern: JSON.stringify(updatedPattern)
                   });
@@ -937,7 +949,8 @@ class ScheduleEntry {
                 };
 
                 await trx('schedule_entries')
-                  .where({ tenant, entry_id: masterEntryId })
+                  .where('schedule_entries.tenant', tenant)
+                  .andWhere('entry_id', masterEntryId)
                   .update({
                     recurrence_pattern: JSON.stringify(updatedPattern)
                   });
@@ -950,7 +963,8 @@ class ScheduleEntry {
             case IEditScope.ALL:
               // Delete the entire entry
               const deletedCount = await trx('schedule_entries')
-                .where({ tenant, entry_id: masterEntryId })
+                .where('schedule_entries.tenant', tenant)
+                .andWhere('entry_id', masterEntryId)
                 .del();
               
               await trx.commit();
@@ -961,7 +975,8 @@ class ScheduleEntry {
 
       // For non-recurring events or if no special handling was needed
       const deletedCount = await trx('schedule_entries')
-        .where({ tenant, entry_id })
+        .where('schedule_entries.tenant', tenant)
+        .andWhere('entry_id', entry_id)
         .del();
       
       await trx.commit();

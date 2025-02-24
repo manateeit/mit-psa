@@ -97,9 +97,9 @@ class InteractionModel {
           this.on('interactions.type_id', '=', 'it.type_id')
             .andOn('interactions.tenant', '=', 'it.tenant');
         })
+        // Join with system_interaction_types (non-distributed global table)
         .leftJoin('system_interaction_types as sit', function() {
-          this.on('interactions.type_id', '=', 'sit.type_id')
-            .andOn('interactions.tenant', '=', 'sit.tenant');
+          this.on('interactions.type_id', '=', 'sit.type_id');
         })
         .leftJoin('contacts', function() {
           this.on('interactions.contact_name_id', '=', 'contacts.contact_name_id')
