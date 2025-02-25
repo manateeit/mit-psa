@@ -1,16 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { IUser } from '@/interfaces/auth.interfaces';
-import { getCurrentUser } from '@/lib/actions/user-actions/userActions';
+import { IUser, IPermission } from '@/interfaces/auth.interfaces';
+import { getCurrentUser, getUserRolesWithPermissions } from '@/lib/actions/user-actions/userActions';
 import { getClientUserById, updateClientUser, resetClientUserPassword } from '@/lib/actions/client-portal-actions/clientUserActions';
 import { useDrawer } from '@/context/DrawerContext';
-import { Text, Flex } from '@radix-ui/themes';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/Switch';
-import { Card } from '@/components/ui/Card';
-import { EyeOpenIcon, EyeClosedIcon } from '@radix-ui/react-icons';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Eye, EyeOff } from 'lucide-react';
+import ClientPasswordChangeForm from './ClientPasswordChangeForm';
 
 interface ClientUserDetailsProps {
   userId: string;
@@ -28,12 +28,13 @@ const ClientUserDetails: React.FC<ClientUserDetailsProps> = ({ userId, onUpdate 
   const [error, setError] = useState<string | null>(null);
   const { closeDrawer } = useDrawer();
 
-  // Admin password reset states
-  const [isAdmin, setIsAdmin] = useState(false);
+  // Password reset states
+  const [canResetPassword, setCanResetPassword] = useState(false);
   const [adminNewPassword, setAdminNewPassword] = useState('');
   const [showAdminNewPassword, setShowAdminNewPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
 
   useEffect(() => {
     fetchUserDetails();
@@ -45,9 +46,21 @@ const ClientUserDetails: React.FC<ClientUserDetailsProps> = ({ userId, onUpdate 
       const user = await getCurrentUser();
       setCurrentUser(user);
       if (user) {
-        // Check if user has admin role
-        const userRoles = user.roles || [];
-        setIsAdmin(userRoles.some(role => role.role_name.toLowerCase() === 'admin'));
+        // Check if user has permission to reset passwords
+        const rolesWithPermissions = await getUserRolesWithPermissions(user.user_id);
+        
+        const hasPasswordResetPermission = rolesWithPermissions.some(role => 
+          role.permissions.some((permission: IPermission) => 
+            `${permission.resource}.${permission.action}` === 'client_password.update'
+          )
+        );
+        
+        setCanResetPassword(hasPasswordResetPermission);
+        setIsOwnProfile(user.user_id === userId);
+        
+        console.log('Current user roles:', user.roles?.map(r => r.role_name));
+        console.log('Has password reset permission:', hasPasswordResetPermission);
+        console.log('Is own profile:', user.user_id === userId);
       }
     } catch (err) {
       console.error('Error fetching current user:', err);
@@ -127,7 +140,9 @@ const ClientUserDetails: React.FC<ClientUserDetailsProps> = ({ userId, onUpdate 
   if (loading) {
     return (
       <Card className="p-6">
-        <Text size="2">Loading user details...</Text>
+        <CardContent>
+          <div className="text-sm">Loading user details...</div>
+        </CardContent>
       </Card>
     );
   }
@@ -135,7 +150,9 @@ const ClientUserDetails: React.FC<ClientUserDetailsProps> = ({ userId, onUpdate 
   if (error) {
     return (
       <Card className="p-6">
-        <Text size="2" color="red">Error: {error}</Text>
+        <CardContent>
+          <div className="text-sm text-red-500">Error: {error}</div>
+        </CardContent>
       </Card>
     );
   }
@@ -143,21 +160,24 @@ const ClientUserDetails: React.FC<ClientUserDetailsProps> = ({ userId, onUpdate 
   if (!user) {
     return (
       <Card className="p-6">
-        <Text size="2">No user found</Text>
+        <CardContent>
+          <div className="text-sm">No user found</div>
+        </CardContent>
       </Card>
     );
   }
 
   return (
     <Card className="space-y-6 p-6">
-      <Text size="5" weight="bold" className="mb-6">User Details</Text>
+      <h2 className="text-xl font-bold mb-6">User Details</h2>
       
-      <Flex direction="column" gap="4">
+      <div className="flex flex-col gap-4">
         <div>
-          <Text as="label" size="2" weight="medium" className="mb-2 block">
+          <label className="text-sm font-medium mb-2 block">
             First Name
-          </Text>
+          </label>
           <Input
+            id={`user-${userId}-first-name`}
             type="text"
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
@@ -167,10 +187,11 @@ const ClientUserDetails: React.FC<ClientUserDetailsProps> = ({ userId, onUpdate 
         </div>
 
         <div>
-          <Text as="label" size="2" weight="medium" className="mb-2 block">
+          <label className="text-sm font-medium mb-2 block">
             Last Name
-          </Text>
+          </label>
           <Input
+            id={`user-${userId}-last-name`}
             type="text"
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
@@ -180,10 +201,11 @@ const ClientUserDetails: React.FC<ClientUserDetailsProps> = ({ userId, onUpdate 
         </div>
 
         <div>
-          <Text as="label" size="2" weight="medium" className="mb-2 block">
+          <label className="text-sm font-medium mb-2 block">
             Email
-          </Text>
+          </label>
           <Input
+            id={`user-${userId}-email`}
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -194,13 +216,13 @@ const ClientUserDetails: React.FC<ClientUserDetailsProps> = ({ userId, onUpdate 
 
         <div className="flex items-center justify-between py-3">
           <div>
-            <Text size="2" weight="medium">Status</Text>
-            <Text size="2" color="gray">Set user account status</Text>
+            <div className="text-sm font-medium">Status</div>
+            <div className="text-sm text-gray-500">Set user account status</div>
           </div>
           <div className="flex items-center gap-2">
-            <Text size="2" color="gray">
+            <div className="text-sm text-gray-500">
               {isActive ? 'Active' : 'Inactive'}
-            </Text>
+            </div>
             <Switch
               checked={!isActive}
               onCheckedChange={(checked) => setIsActive(!checked)}
@@ -209,55 +231,63 @@ const ClientUserDetails: React.FC<ClientUserDetailsProps> = ({ userId, onUpdate 
           </div>
         </div>
 
-        {/* Password Reset Section (Admin only) */}
-        {isAdmin && (
+        {/* Password Change Section */}
+        {isOwnProfile && (
+          <ClientPasswordChangeForm className="mt-4" />
+        )}
+        
+        {/* Admin Password Reset Section - shown for users with permission when viewing other users */}
+        {canResetPassword && !isOwnProfile && (
           <Card className="p-4 mt-4">
-            <Text size="3" weight="medium" className="mb-4">Reset User Password</Text>
-            <form onSubmit={handleAdminResetPassword} className="space-y-4">
-              <div>
-                <Text as="label" size="2" weight="medium" className="mb-2 block">
-                  New Password
-                </Text>
-                <div className="relative">
-                  <Input
-                    type={showAdminNewPassword ? "text" : "password"}
-                    value={adminNewPassword}
-                    onChange={(e) => setAdminNewPassword(e.target.value)}
-                    className="w-full pr-10"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowAdminNewPassword(!showAdminNewPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    {showAdminNewPassword ? (
-                      <EyeOpenIcon className="h-5 w-5 text-gray-400" />
-                    ) : (
-                      <EyeClosedIcon className="h-5 w-5 text-gray-400" />
-                    )}
-                  </button>
+            <CardContent>
+              <h3 className="text-md font-medium mb-4">Reset User Password</h3>
+              <form onSubmit={handleAdminResetPassword} className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <Input
+                      id="admin-new-password"
+                      type={showAdminNewPassword ? "text" : "password"}
+                      value={adminNewPassword}
+                      onChange={(e) => setAdminNewPassword(e.target.value)}
+                      className="w-full pr-10"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowAdminNewPassword(!showAdminNewPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      {showAdminNewPassword ? (
+                        <Eye className="h-5 w-5 text-gray-400" />
+                      ) : (
+                        <EyeOff className="h-5 w-5 text-gray-400" />
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <Button id='reset-password-btn' type="submit" variant="default">
-                Reset Password
-              </Button>
-            </form>
+                <Button id='reset-password-btn' type="submit" variant="default">
+                  Reset Password
+                </Button>
+              </form>
+            </CardContent>
           </Card>
         )}
 
         {passwordError && (
-          <Text size="2" color="red" className="mt-2">
+          <div className="text-red-500 text-sm mt-2">
             {passwordError}
-          </Text>
+          </div>
         )}
 
         {passwordSuccess && (
-          <Text size="2" color="green" className="mt-2">
+          <div className="text-green-500 text-sm mt-2">
             {passwordSuccess}
-          </Text>
+          </div>
         )}
-      </Flex>
+      </div>
 
       <div className="flex justify-end space-x-2 mt-6">
         <Button

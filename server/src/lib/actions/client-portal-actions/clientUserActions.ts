@@ -45,14 +45,22 @@ export async function resetClientUserPassword(
       throw new Error('Tenant not found');
     }
 
+    // Check if the password field exists in the users table
+    const hasPasswordField = await knex.schema.hasColumn('users', 'password');
+    const passwordField = hasPasswordField ? 'password' : 'hashed_password';
+    
+    console.log(`Using password field: ${passwordField}`);
+    
     const hashedPassword = await hashPassword(newPassword);
+    
+    const updateData: any = {
+      updated_at: new Date().toISOString()
+    };
+    updateData[passwordField] = hashedPassword;
     
     await knex('users')
       .where({ user_id: userId, tenant })
-      .update({
-        password: hashedPassword,
-        updated_at: new Date().toISOString()
-      });
+      .update(updateData);
 
     return { success: true };
   } catch (error) {

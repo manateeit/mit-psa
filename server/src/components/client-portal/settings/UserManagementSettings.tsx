@@ -6,7 +6,13 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { Search, Edit, Trash2 } from 'lucide-react';
+import { 
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem
+} from '@/components/ui/DropdownMenu';
+import { Search, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import ClientUserDetails from './ClientUserDetails';
 import { 
   getCurrentUser, 
@@ -19,6 +25,8 @@ import { getContactByEmail, createCompanyContact } from '@/lib/actions/contact-a
 import { createClientUser } from '@/lib/actions/client-portal-actions/clientUserActions';
 import { IUser, IPermission } from '@/interfaces/auth.interfaces';
 import { useDrawer } from '@/context/DrawerContext';
+import { DataTable } from '@/components/ui/DataTable';
+import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 
 export function UserManagementSettings() {
   const router = useRouter();
@@ -29,8 +37,8 @@ export function UserManagementSettings() {
   const [showNewUserForm, setShowNewUserForm] = useState(false);
   const [newUser, setNewUser] = useState({ firstName: '', lastName: '', email: '', password: '' });
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [showUserDetails, setShowUserDetails] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<IUser | null>(null);
+  const { openDrawer } = useDrawer();
 
   useEffect(() => {
     loadData();
@@ -125,18 +133,18 @@ export function UserManagementSettings() {
     }
   };
 
-  const { openDrawer } = useDrawer();
-  const [userToDelete, setUserToDelete] = useState<IUser | null>(null);
-
   const handleEditClick = (userId: string) => {
-    setSelectedUserId(userId);
-    setShowUserDetails(true);
+    openDrawer(
+      <ClientUserDetails 
+        userId={userId} 
+        onUpdate={loadData} 
+      />
+    );
   };
 
   const handleDeleteClick = (user: IUser) => {
     setUserToDelete(user);
   };
-
 
   const confirmDelete = async () => {
     if (!userToDelete) return;
@@ -156,6 +164,82 @@ export function UserManagementSettings() {
     return fullName.includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
   });
+
+  // Define columns for DataTable
+  const columns: ColumnDefinition<IUser>[] = [
+    {
+      title: 'First Name',
+      dataIndex: 'first_name',
+      width: '20%',
+    },
+    {
+      title: 'Last Name',
+      dataIndex: 'last_name',
+      width: '20%',
+    },
+    {
+      title: 'Email',
+      dataIndex: 'email',
+      width: '25%',
+    },
+    {
+      title: 'Phone',
+      dataIndex: 'phone',
+      width: '15%',
+      render: (value, record) => (
+        <span>{record.phone || 'N/A'}</span>
+      ),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'is_inactive',
+      width: '15%',
+      render: (value, record) => (
+        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${record.is_inactive ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+          {record.is_inactive ? 'Inactive' : 'Active'}
+        </span>
+      ),
+    },
+    {
+      title: 'Actions',
+      dataIndex: 'user_id',
+      width: '5%',
+      render: (_, record) => (
+        <div className="flex justify-center">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                id={`user-actions-menu-${record.user_id}`}
+                variant="ghost"
+                className="h-8 w-8 p-0"
+              >
+                <span className="sr-only">Open menu</span>
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                id={`edit-user-menu-item-${record.user_id}`}
+                onClick={() => handleEditClick(record.user_id)}
+                className="flex items-center gap-2"
+              >
+                <Pencil className="h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                id={`delete-user-menu-item-${record.user_id}`}
+                onClick={() => handleDeleteClick(record)}
+                className="flex items-center gap-2 text-red-600"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ),
+    },
+  ];
 
   if (error) {
     return (
@@ -235,51 +319,11 @@ export function UserManagementSettings() {
         )}
 
         <div className="mt-4">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.map((user) => (
-                <tr key={user.user_id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {user.first_name} {user.last_name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.is_inactive ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                      {user.is_inactive ? 'Inactive' : 'Active'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end space-x-2">
-                      <Button
-                        id={`edit-user-${user.user_id}`}
-                        onClick={() => handleEditClick(user.user_id)}
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        id={`delete-user-${user.user_id}`}
-                        onClick={() => handleDeleteClick(user)}
-                        variant="destructive"
-                        size="sm"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable
+            id="client-users-table"
+            data={filteredUsers}
+            columns={columns}
+          />
         </div>
       </CardContent>
 
