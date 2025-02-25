@@ -1,4 +1,5 @@
-// server/src/context/DrawerContext.tsx
+'use client';
+
 import Drawer from '@/components/ui/Drawer';
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 

@@ -1,4 +1,5 @@
-// server/src/components/ui/CustomTabs.tsx
+'use client';
+
 import React from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { AutomationProps } from '../../types/ui-reflection/types';
