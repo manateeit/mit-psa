@@ -374,11 +374,18 @@ const ManualInvoicesContent: React.FC<ManualInvoicesProps> = ({
             description,
             quantity,
             rate,
-            is_discount,
+            is_discount: is_discount || false,
             discount_type,
             applies_to_item_id,
             discount_percentage,
-            item_id: uuidv4()
+            item_id: uuidv4(),
+            invoice_id: invoice.invoice_id,
+            unit_price: rate,
+            total_price: quantity * rate,
+            tax_amount: 0,
+            is_manual: true,
+            is_taxable: false,
+            net_amount: quantity * rate
           })),
           updatedItems: updatedItems.map(({ 
             item_id, service_id, description, quantity, rate, is_discount, discount_type, applies_to_item_id, discount_percentage
@@ -388,10 +395,16 @@ const ManualInvoicesContent: React.FC<ManualInvoicesProps> = ({
             description,
             quantity,
             rate,
-            is_discount,
+            is_discount: is_discount || false,
             discount_type,
             discount_percentage,
-            applies_to_item_id
+            applies_to_item_id,
+            invoice_id: invoice.invoice_id,
+            unit_price: rate,
+            total_price: quantity * rate,
+            tax_amount: 0,
+            is_manual: true,
+            is_taxable: false
           })),
           removedItemIds
         });
@@ -410,11 +423,18 @@ const ManualInvoicesContent: React.FC<ManualInvoicesProps> = ({
             description,
             quantity,
             rate,
-            is_discount,
+            is_discount: is_discount || false,
             discount_type,
             applies_to_item_id,
             discount_percentage,
-            item_id: uuidv4()
+            item_id: uuidv4(),
+            // Add missing required properties with default values
+            invoice_id: '', // Will be assigned by the server
+            unit_price: rate,
+            total_price: quantity * rate,
+            tax_amount: 0,
+            is_manual: true,
+            is_taxable: false
           }))
         });
       }

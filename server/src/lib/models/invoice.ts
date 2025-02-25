@@ -457,7 +457,8 @@ export default class Invoice {
           invoice_id: item.invoice_id || '',
           service_id: item.service_id,
           is_manual: item.is_manual || false,
-          tenant: item.tenant
+          tenant: item.tenant,
+          rate: item.rate
         };
 
         return mappedItem;

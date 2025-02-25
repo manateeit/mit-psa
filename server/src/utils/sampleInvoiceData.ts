@@ -23,7 +23,8 @@ export const sampleInvoices: InvoiceViewModel[] = [
         net_amount: 1001.00,
         item_id: 'UNBIRTH-001',
         invoice_id: 'MAD-001',
-        is_manual: false
+        is_manual: false,
+        rate: 2.75
       },
       {
         description: 'Cheshire Cat Grin Polishing',
@@ -34,7 +35,8 @@ export const sampleInvoices: InvoiceViewModel[] = [
         net_amount: 499.00,
         item_id: 'GRIN-002',
         invoice_id: 'MAD-001',
-        is_manual: false
+        is_manual: false,
+        rate: 55.44
       }
     ],
     company: {
@@ -70,7 +72,8 @@ export const sampleInvoices: InvoiceViewModel[] = [
         net_amount: 2800.00,
         item_id: 'CROQUET-001',
         invoice_id: 'RED-002',
-        is_manual: false
+        is_manual: false,
+        rate: 66.67
       },
       {
         description: 'Painting the Roses Red',
@@ -81,7 +84,8 @@ export const sampleInvoices: InvoiceViewModel[] = [
         net_amount: 200.00,
         item_id: 'ROSES-002',
         invoice_id: 'RED-002',
-        is_manual: false
+        is_manual: false,
+        rate: 2
       }
     ],
     company: {
