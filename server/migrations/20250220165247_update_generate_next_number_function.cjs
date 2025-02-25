@@ -1,4 +1,5 @@
 exports.up = function(knex) {
+  // Execute outside of a transaction for Citus compatibility
   return knex.raw(`
     CREATE OR REPLACE FUNCTION public.generate_next_number(p_tenant_id uuid, p_entity_type text)
     RETURNS text
@@ -51,10 +52,11 @@ exports.up = function(knex) {
         RETURN formatted_number;
     END;
     $function$;
-  `);
+  `, {transaction: false});
 };
 
 exports.down = function(knex) {
+  // Execute outside of a transaction for Citus compatibility
   return knex.raw(`
     CREATE OR REPLACE FUNCTION public.generate_next_number(p_tenant_id uuid, p_entity_type text)
     RETURNS text
@@ -93,5 +95,5 @@ exports.down = function(knex) {
         RETURN new_number::TEXT;
     END;
     $function$;
-  `);
+  `, {transaction: false});
 };
