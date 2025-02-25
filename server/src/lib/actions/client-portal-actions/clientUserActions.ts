@@ -1,7 +1,89 @@
 'use server';
 
 import { createTenantKnex } from '@/lib/db';
-import { hashPassword } from '@/utils/encryption/encryption'; // Ensure you have this utility
+import { hashPassword } from '@/utils/encryption/encryption';
+import { IUser } from '@/interfaces/auth.interfaces';
+
+/**
+ * Update a client user
+ */
+export async function updateClientUser(
+  userId: string,
+  userData: Partial<IUser>
+): Promise<IUser | null> {
+  try {
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    const [updatedUser] = await knex('users')
+      .where({ user_id: userId, tenant })
+      .update({
+        ...userData,
+        updated_at: new Date().toISOString()
+      })
+      .returning('*');
+
+    return updatedUser || null;
+  } catch (error) {
+    console.error('Error updating client user:', error);
+    throw error;
+  }
+}
+
+/**
+ * Reset client user password
+ */
+export async function resetClientUserPassword(
+  userId: string,
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    const hashedPassword = await hashPassword(newPassword);
+    
+    await knex('users')
+      .where({ user_id: userId, tenant })
+      .update({
+        password: hashedPassword,
+        updated_at: new Date().toISOString()
+      });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error resetting client user password:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
+
+/**
+ * Get client user by ID
+ */
+export async function getClientUserById(userId: string): Promise<IUser | null> {
+  try {
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    const user = await knex('users')
+      .where({ user_id: userId, tenant, user_type: 'client' })
+      .first();
+
+    return user || null;
+  } catch (error) {
+    console.error('Error getting client user:', error);
+    throw error;
+  }
+}
 
 /**
  * Create a client user 

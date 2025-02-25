@@ -6,7 +6,8 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { Search } from 'lucide-react';
+import { Search, Edit, Trash2 } from 'lucide-react';
+import ClientUserDetails from './ClientUserDetails';
 import { 
   getCurrentUser, 
   getUserRolesWithPermissions, 
@@ -17,6 +18,7 @@ import {
 import { getContactByEmail, createCompanyContact } from '@/lib/actions/contact-actions/contactActions';
 import { createClientUser } from '@/lib/actions/client-portal-actions/clientUserActions';
 import { IUser, IPermission } from '@/interfaces/auth.interfaces';
+import { useDrawer } from '@/context/DrawerContext';
 
 export function UserManagementSettings() {
   const router = useRouter();
@@ -27,6 +29,8 @@ export function UserManagementSettings() {
   const [showNewUserForm, setShowNewUserForm] = useState(false);
   const [newUser, setNewUser] = useState({ firstName: '', lastName: '', email: '', password: '' });
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [showUserDetails, setShowUserDetails] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -121,10 +125,26 @@ export function UserManagementSettings() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  const { openDrawer } = useDrawer();
+  const [userToDelete, setUserToDelete] = useState<IUser | null>(null);
+
+  const handleEditClick = (userId: string) => {
+    setSelectedUserId(userId);
+    setShowUserDetails(true);
+  };
+
+  const handleDeleteClick = (user: IUser) => {
+    setUserToDelete(user);
+  };
+
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+
     try {
-      await deleteUser(userId);
-      setUsers(users.filter(user => user.user_id !== userId));
+      await deleteUser(userToDelete.user_id);
+      setUsers(users.filter(user => user.user_id !== userToDelete.user_id));
+      setUserToDelete(null);
     } catch (error) {
       console.error('Error deleting user:', error);
       setError('Failed to delete user');
@@ -237,14 +257,24 @@ export function UserManagementSettings() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Button
-                      id={`delete-user-${user.user_id}`}
-                      onClick={() => handleDeleteUser(user.user_id)}
-                      variant="destructive"
-                      size="sm"
-                    >
-                      Delete
-                    </Button>
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        id={`edit-user-${user.user_id}`}
+                        onClick={() => handleEditClick(user.user_id)}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        id={`delete-user-${user.user_id}`}
+                        onClick={() => handleDeleteClick(user)}
+                        variant="destructive"
+                        size="sm"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -252,6 +282,35 @@ export function UserManagementSettings() {
           </table>
         </div>
       </CardContent>
+
+      {/* Delete Confirmation Modal */}
+      {userToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete {userToDelete.first_name} {userToDelete.last_name}?
+              This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-4">
+              <Button
+                id="cancel-delete-btn"
+                variant="outline"
+                onClick={() => setUserToDelete(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                id="confirm-delete-btn"
+                variant="destructive"
+                onClick={confirmDelete}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
