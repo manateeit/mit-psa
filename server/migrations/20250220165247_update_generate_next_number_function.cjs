@@ -97,3 +97,5 @@ exports.down = function(knex) {
     $function$;
   `, {transaction: false});
 };
+
+exports.config = { transaction: false };
