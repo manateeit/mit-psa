@@ -435,7 +435,11 @@ describe('Manual Invoice Generation', () => {
         .orderBy('created_at', 'desc');
 
       expect(transactions).toHaveLength(2);
-      expect(transactions[0]).toMatchObject({
+      
+      // Find the invoice_adjustment transaction instead of assuming its array position
+      const adjustmentTransaction = transactions.find(t => t.type === 'invoice_adjustment');
+      expect(adjustmentTransaction).toBeDefined();
+      expect(adjustmentTransaction).toMatchObject({
         company_id: context.companyId,
         type: 'invoice_adjustment',
         status: 'completed',
