@@ -76,19 +76,20 @@ export async function createTicketFromAsset(data: CreateTicketFromAssetData, use
             const ticketNumber = await numberingService.getNextTicketNumber();
             
             // Create the ticket
-            const ticketData: Partial<ITicket> = {
-                ticket_number: ticketNumber,
-                title: validatedData.title,
-                company_id: validatedData.company_id,
-                status_id: await getDefaultStatusId(trx, tenant),
-                entered_by: user.user_id,
-                priority_id: validatedData.priority_id,
-                entered_at: new Date().toISOString(),
-                attributes: {
-                    description: validatedData.description
-                },
-                tenant: tenant
-            };
+          const ticketData: Partial<ITicket> = {
+            ticket_number: ticketNumber,
+            title: validatedData.title,
+            company_id: validatedData.company_id,
+            status_id: await getDefaultStatusId(trx, tenant),
+            entered_by: user.user_id,
+            priority_id: validatedData.priority_id,
+            entered_at: new Date().toISOString(),
+            attributes: {
+              description: validatedData.description
+            },
+            estimated_hours: null,
+            tenant: tenant
+          };
 
             // Validate complete ticket data
             const validatedTicket = validateData(ticketSchema.partial(), ticketData);
@@ -219,6 +220,7 @@ export async function addTicket(data: FormData, user: IUser): Promise<ITicket|un
             attributes: {
               description: validatedData.description
             },
+            estimated_hours: null,
             tenant: tenant
           };
 

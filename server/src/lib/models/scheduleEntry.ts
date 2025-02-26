@@ -280,6 +280,149 @@ class ScheduleEntry {
       // Create assignee records
       await this.updateAssignees(trx, tenant, createdEntry.entry_id, options.assignedUserIds);
 
+      // Update estimated_hours and add user to resources for tickets and project tasks
+      if (entry.work_item_id && entry.work_item_type) {
+        // Calculate duration in hours
+        const startTime = new Date(entry.scheduled_start);
+        const endTime = new Date(entry.scheduled_end);
+        const durationMs = endTime.getTime() - startTime.getTime();
+        const durationHours = Math.ceil(durationMs / (1000 * 60 * 60)); // Convert ms to hours and round up
+
+        if (entry.work_item_type === 'ticket') {
+          // Update ticket estimated_hours
+          await trx('tickets')
+            .where({
+              ticket_id: entry.work_item_id,
+              tenant
+            })
+            .update({
+              estimated_hours: durationHours,
+              updated_at: new Date().toISOString()
+            });
+
+          // Check if any of the assigned users are already in ticket_resources
+          for (const userId of options.assignedUserIds) {
+            const existingResource = await trx('ticket_resources')
+              .where({
+                ticket_id: entry.work_item_id,
+                tenant
+              })
+              .where(function() {
+                this.where('assigned_to', userId)
+                  .orWhere('additional_user_id', userId);
+              })
+              .first();
+
+            if (!existingResource) {
+              // Get current ticket to check if it already has an assignee
+              const ticket = await trx('tickets')
+                .where({
+                  ticket_id: entry.work_item_id,
+                  tenant
+                })
+                .first();
+
+              if (ticket) {
+                // If ticket already has an assignee, add user as additional_user_id
+                if (ticket.assigned_to && ticket.assigned_to !== userId) {
+                  await trx('ticket_resources').insert({
+                    ticket_id: entry.work_item_id,
+                    assigned_to: ticket.assigned_to,
+                    additional_user_id: userId,
+                    assigned_at: new Date(),
+                    tenant
+                  });
+                } else if (!ticket.assigned_to) {
+                  // If ticket has no assignee, update the ticket and add user as assigned_to
+                  await trx('tickets')
+                    .where({
+                      ticket_id: entry.work_item_id,
+                      tenant
+                    })
+                    .update({
+                      assigned_to: userId,
+                      updated_at: new Date().toISOString()
+                    });
+
+                  await trx('ticket_resources').insert({
+                    ticket_id: entry.work_item_id,
+                    assigned_to: userId,
+                    assigned_at: new Date(),
+                    tenant
+                  });
+                }
+              }
+            }
+          }
+        } else if (entry.work_item_type === 'project_task') {
+          // Update project task estimated_hours
+          await trx('project_tasks')
+            .where({
+              task_id: entry.work_item_id,
+              tenant
+            })
+            .update({
+              estimated_hours: durationHours,
+              updated_at: new Date()
+            });
+
+          // Check if any of the assigned users are already in task_resources
+          for (const userId of options.assignedUserIds) {
+            const existingResource = await trx('task_resources')
+              .where({
+                task_id: entry.work_item_id,
+                tenant
+              })
+              .where(function() {
+                this.where('assigned_to', userId)
+                  .orWhere('additional_user_id', userId);
+              })
+              .first();
+
+            if (!existingResource) {
+              // Get current task to check if it already has an assignee
+              const task = await trx('project_tasks')
+                .where({
+                  task_id: entry.work_item_id,
+                  tenant
+                })
+                .first();
+
+              if (task) {
+                // If task already has an assignee, add user as additional_user_id
+                if (task.assigned_to && task.assigned_to !== userId) {
+                  await trx('task_resources').insert({
+                    task_id: entry.work_item_id,
+                    assigned_to: task.assigned_to,
+                    additional_user_id: userId,
+                    assigned_at: new Date(),
+                    tenant
+                  });
+                } else if (!task.assigned_to) {
+                  // If task has no assignee, update the task and add user as assigned_to
+                  await trx('project_tasks')
+                    .where({
+                      task_id: entry.work_item_id,
+                      tenant
+                    })
+                    .update({
+                      assigned_to: userId,
+                      updated_at: new Date()
+                    });
+
+                  await trx('task_resources').insert({
+                    task_id: entry.work_item_id,
+                    assigned_to: userId,
+                    assigned_at: new Date(),
+                    tenant
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+
       await trx.commit();
 
       return {

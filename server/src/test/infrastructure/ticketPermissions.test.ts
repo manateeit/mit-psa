@@ -167,7 +167,8 @@ describe('Ticket Permissions Infrastructure', () => {
       updated_at: null,
       closed_at: null,
       attributes: null,
-      priority_id: priorityId
+      priority_id: priorityId,
+      estimated_hours: null
     };
 
     await context.db('tickets').insert(testTicket);

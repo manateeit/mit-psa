@@ -8,6 +8,7 @@ import { IUser } from '@/interfaces/auth.interfaces';
 import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/Switch';
 import { TextArea } from '@/components/ui/TextArea';
+import { Input } from '@/components/ui/Input';
 import { CompanyPicker } from '@/components/companies/CompanyPicker';
 import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 import { updateProject, getProjectStatuses } from '@/lib/actions/project-actions/projectActions';
@@ -100,6 +101,7 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
         contact_name_id: project.contact_name_id,
         is_inactive: project.is_inactive,
         status: project.status,
+        budgeted_hours: project.budgeted_hours ? Number(project.budgeted_hours) : null,
       });
 
       toast.success('Project updated successfully');
@@ -268,6 +270,23 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none"
               />
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="budgeted_hours" className="block text-sm font-medium text-gray-700 mb-1">
+              Budgeted Hours
+            </label>
+            <Input
+              id="budgeted_hours"
+              name="budgeted_hours"
+              type="number"
+              value={project.budgeted_hours?.toString() || ''}
+              onChange={handleInputChange}
+              min="0"
+              step="1"
+              placeholder="Enter budgeted hours"
+              className="mb-0"
+            />
           </div>
 
           <div className="flex items-center space-x-2">

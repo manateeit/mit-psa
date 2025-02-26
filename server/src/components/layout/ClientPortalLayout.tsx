@@ -10,6 +10,7 @@ import AvatarIcon from '@/components/ui/AvatarIcon';
 import { getCurrentUser, getUserRolesWithPermissions } from '@/lib/actions/user-actions/userActions';
 import type { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import { useRouter } from 'next/navigation';
+import { DrawerProvider } from '@/context/DrawerContext';
 
 interface ClientPortalLayoutProps {
   children: ReactNode;

@@ -358,46 +358,165 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
     // Log the cleaned entry for debugging
     console.log('Cleaned entry data:', cleanedEntry);
 
-    let resultingEntry: ITimeEntry;
+    let resultingEntry: ITimeEntry | null = null;
 
-    if (entry_id) {
-      // Update existing entry
-      const [updated] = await db('time_entries')
-        .where({ entry_id })
-        .update(cleanedEntry)
-        .returning('*');
+    await db.transaction(async (trx) => {
+      if (entry_id) {
+        // Update existing entry
+        const [updated] = await trx('time_entries')
+          .where({ entry_id })
+          .update(cleanedEntry)
+          .returning('*');
 
-      if (!updated) {
-        throw new Error('Failed to update time entry');
+        if (!updated) {
+          throw new Error('Failed to update time entry');
+        }
+        
+        resultingEntry = updated;
+        console.log('Updated entry:', resultingEntry);
+      } else {
+        // Insert new entry
+        const [inserted] = await trx('time_entries')
+          .insert({
+            ...cleanedEntry,
+            entry_id: uuidv4(),
+            created_at: new Date().toISOString()
+          })
+          .returning('*');
+
+        if (!inserted) {
+          throw new Error('Failed to insert time entry');
+        }
+
+        resultingEntry = inserted;
+        console.log('Inserted entry:', resultingEntry);
+        
+        // Add user to ticket_resources or task_resources when a new time entry is created
+        if (work_item_type === 'ticket') {
+          // Check if user is already in ticket_resources for this ticket
+          const existingResource = await trx('ticket_resources')
+            .where({
+              ticket_id: work_item_id,
+              tenant,
+            })
+            .where(function() {
+              this.where('assigned_to', session.user.id)
+                .orWhere('additional_user_id', session.user.id);
+            })
+            .first();
+            
+          if (!existingResource) {
+            // Get current ticket to check if it already has an assignee
+            const ticket = await trx('tickets')
+              .where({
+                ticket_id: work_item_id,
+                tenant,
+              })
+              .first();
+              
+            if (ticket) {
+              // If ticket already has an assignee, add user as additional_user_id
+              if (ticket.assigned_to && ticket.assigned_to !== session.user.id) {
+                await trx('ticket_resources').insert({
+                  ticket_id: work_item_id,
+                  assigned_to: ticket.assigned_to,
+                  additional_user_id: session.user.id,
+                  assigned_at: new Date(),
+                  tenant,
+                });
+              } else if (!ticket.assigned_to) {
+                // If ticket has no assignee, update the ticket and add user as assigned_to
+                await trx('tickets')
+                  .where({
+                    ticket_id: work_item_id,
+                    tenant,
+                  })
+                  .update({
+                    assigned_to: session.user.id,
+                    updated_at: new Date().toISOString(),
+                    updated_by: session.user.id,
+                  });
+                  
+                await trx('ticket_resources').insert({
+                  ticket_id: work_item_id,
+                  assigned_to: session.user.id,
+                  assigned_at: new Date(),
+                  tenant,
+                });
+              }
+            }
+          }
+        } else if (work_item_type === 'project_task') {
+          // Check if user is already in task_resources for this task
+          const existingResource = await trx('task_resources')
+            .where({
+              task_id: work_item_id,
+              tenant,
+            })
+            .where(function() {
+              this.where('assigned_to', session.user.id)
+                .orWhere('additional_user_id', session.user.id);
+            })
+            .first();
+            
+          if (!existingResource) {
+            // Get current task to check if it already has an assignee
+            const task = await trx('project_tasks')
+              .where({
+                task_id: work_item_id,
+                tenant,
+              })
+              .first();
+              
+            if (task) {
+              // If task already has an assignee, add user as additional_user_id
+              if (task.assigned_to && task.assigned_to !== session.user.id) {
+                await trx('task_resources').insert({
+                  task_id: work_item_id,
+                  assigned_to: task.assigned_to,
+                  additional_user_id: session.user.id,
+                  assigned_at: new Date(),
+                  tenant,
+                });
+              } else if (!task.assigned_to) {
+                // If task has no assignee, update the task and add user as assigned_to
+                await trx('project_tasks')
+                  .where({
+                    task_id: work_item_id,
+                    tenant,
+                  })
+                  .update({
+                    assigned_to: session.user.id,
+                    updated_at: new Date(),
+                  });
+                  
+                await trx('task_resources').insert({
+                  task_id: work_item_id,
+                  assigned_to: session.user.id,
+                  assigned_at: new Date(),
+                  tenant,
+                });
+              }
+            }
+          }
+        }
       }
-      
-      resultingEntry = updated;
-      console.log('Updated entry:', resultingEntry);
-    } else {
-      // Insert new entry
-      const [inserted] = await db('time_entries')
-        .insert({
-          ...cleanedEntry,
-          entry_id: uuidv4(),
-          created_at: new Date().toISOString()
-        })
-        .returning('*');
+    });
 
-      if (!inserted) {
-        throw new Error('Failed to insert time entry');
-      }
-
-      resultingEntry = inserted;
-      console.log('Inserted entry:', resultingEntry);
+    if (!resultingEntry) {
+      throw new Error('Failed to save time entry: No entry was created or updated');
     }
+
+    // Ensure resultingEntry is treated as ITimeEntry
+    const entry = resultingEntry as ITimeEntry;
 
     // Fetch work item details based on the saved entry
     let workItemDetails: IWorkItem;
-    switch (resultingEntry.work_item_type) {
+    switch (entry.work_item_type) {
       case 'project_task': {
         const [task] = await db('project_tasks')
           .where({ 
-            task_id: resultingEntry.work_item_id,
+            task_id: entry.work_item_id,
             'project_tasks.tenant': tenant
           })
           .join('project_phases', function() {
@@ -427,12 +546,12 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
       case 'ad_hoc': {
         const schedule = await db('schedule_entries')
           .where({ 
-            entry_id: resultingEntry.work_item_id,
+            entry_id: entry.work_item_id,
             tenant
           })
           .first();
         workItemDetails = {
-          work_item_id: resultingEntry.work_item_id,
+          work_item_id: entry.work_item_id,
           name: schedule?.title || 'Ad Hoc Entry',
           description: '',
           type: 'ad_hoc',
@@ -443,7 +562,7 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
       case 'ticket': {
         const [ticket] = await db('tickets')
           .where({ 
-            ticket_id: resultingEntry.work_item_id,
+            ticket_id: entry.work_item_id,
             tenant
           })
           .select(
@@ -462,22 +581,23 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
       }
       case 'non_billable_category':
         workItemDetails = {
-          work_item_id: resultingEntry.work_item_id,
-          name: resultingEntry.work_item_id,
+          work_item_id: entry.work_item_id,
+          name: entry.work_item_id,
           description: '',
           type: 'non_billable_category',
           is_billable: false
         };
         break;
       default:
-        throw new Error(`Unknown work item type: ${resultingEntry.work_item_type}`);
+        throw new Error(`Unknown work item type: ${entry.work_item_type}`);
     }
 
     // Return the complete time entry with work item details
-    return {
-      ...resultingEntry,
+    const result: ITimeEntryWithWorkItem = {
+      ...entry,
       workItem: workItemDetails
-    } as ITimeEntryWithWorkItem;
+    };
+    return result;
 
   } catch (error) {
     console.error('Error saving time entry:', error);

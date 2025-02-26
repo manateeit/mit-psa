@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { getClientProjects } from '@/lib/actions/client-portal-actions/client-projects';
+import { useDrawer } from '@/context/DrawerContext';
+import { DrawerProvider } from '@/context/DrawerContext';
+import ProjectDetailView from './ProjectDetailView';
 import { ProjectCard } from './ProjectCard';
 import { DataTable } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
@@ -10,7 +13,6 @@ import { Search, XCircle, ExternalLink } from 'lucide-react';
 import { IProject } from '@/interfaces/project.interfaces';
 import { ColumnDefinition } from '@/interfaces/dataTable.interfaces';
 import { formatDateOnly } from '@/lib/utils/dateTimeUtils';
-import { Card } from '@/components/ui/Card';
 
 export function ProjectsOverviewPage() {
   const [projects, setProjects] = useState<IProject[]>([]);
@@ -19,8 +21,8 @@ export function ProjectsOverviewPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedProject, setSelectedProject] = useState<IProject | null>(null);
   const pageSize = 10;
+  const { openDrawer } = useDrawer();
   
   // Define columns for the DataTable
   const columns: ColumnDefinition<IProject>[] = [
@@ -63,19 +65,21 @@ export function ProjectsOverviewPage() {
       title: 'Details',
       dataIndex: 'project_id',
       width: '10%',
-      render: (_, record) => (
-        <Button 
-          id={`view-project-${record.project_id}`}
-          variant="ghost" 
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            setSelectedProject(record);
-          }}
-        >
-          <ExternalLink className="h-4 w-4" />
-        </Button>
-      )
+      render: (_, record) => {
+        return (
+          <Button 
+            id={`view-project-${record.project_id}`}
+            variant="ghost" 
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleViewProject(record);
+            }}
+          >
+            <ExternalLink className="h-4 w-4" />
+          </Button>
+        );
+      }
     }
   ];
   
@@ -108,8 +112,12 @@ export function ProjectsOverviewPage() {
     setSearchQuery('');
   };
   
+  const handleViewProject = (project: IProject) => {
+    openDrawer(<ProjectDetailView project={project} />);
+  };
+  
   const handleRowClick = (project: IProject) => {
-    setSelectedProject(project);
+    handleViewProject(project);
   };
   
   return (
@@ -176,47 +184,15 @@ export function ProjectsOverviewPage() {
         totalItems={totalItems}
         onRowClick={handleRowClick}
       />
-      
-      {/* Selected Project Card */}
-      {selectedProject && (
-        <Card className="p-6 mt-6">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h2 className="text-xl font-semibold">{selectedProject.project_name}</h2>
-              <p className="text-sm text-gray-500">#{selectedProject.wbs_code}</p>
-            </div>
-            <Button
-              id="close-project-details"
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedProject(null)}
-            >
-              <XCircle className="h-4 w-4" />
-            </Button>
-          </div>
-          
-          <div className="mb-4">
-            <p className="text-sm text-gray-700">{selectedProject.description || 'No description available'}</p>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Start Date</p>
-              <p>{selectedProject.start_date ? formatDateOnly(new Date(selectedProject.start_date)) : 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">End Date</p>
-              <p>{selectedProject.end_date ? formatDateOnly(new Date(selectedProject.end_date)) : 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Status</p>
-              <p>{selectedProject.status_name}</p>
-            </div>
-          </div>
-          
-          <ProjectCard project={selectedProject} />
-        </Card>
-      )}
     </div>
+  );
+}
+
+// Wrap the component with DrawerProvider in the parent component or page file
+export default function ProjectsOverviewPageWithDrawer() {
+  return (
+    <DrawerProvider>
+      <ProjectsOverviewPage />
+    </DrawerProvider>
   );
 }

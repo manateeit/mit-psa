@@ -34,6 +34,7 @@ export interface IProject extends TenantEntity {
   assigned_user?: IUserWithRoles | null;
   contact_name?: string | null;
   contact_name_id?: string | null;
+  budgeted_hours?: number | null;
 }
 
 export interface IProjectPhase extends TenantEntity {

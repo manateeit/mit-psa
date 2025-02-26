@@ -15,6 +15,8 @@ import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import ProjectPhases from './ProjectPhases';
 import KanbanBoard from './KanbanBoard';
 import DonutChart from './DonutChart';
+import HoursProgressBar from './HoursProgressBar';
+import { calculateProjectCompletion } from '@/lib/utils/projectUtils';
 import { ICompany } from '@/interfaces/company.interfaces';
 
 interface ProjectDetailProps {
@@ -67,6 +69,14 @@ export default function ProjectDetail({
     phaseId: string;
     phaseName: string;
   } | null>(null);
+  
+  const [projectMetrics, setProjectMetrics] = useState<{
+    taskCompletionPercentage: number;
+    hoursCompletionPercentage: number;
+    budgetedHours: number;
+    spentHours: number;
+    remainingHours: number;
+  } | null>(null);
 
   const filteredTasks = useMemo(() => {
     if (!selectedPhase) return [];
@@ -88,6 +98,27 @@ export default function ProjectDetail({
       }
     };
   }, [scrollInterval]);
+  
+  // Fetch project completion metrics
+  useEffect(() => {
+    const fetchProjectMetrics = async () => {
+      try {
+        const metrics = await calculateProjectCompletion(project.project_id);
+        setProjectMetrics({
+          taskCompletionPercentage: metrics.taskCompletionPercentage,
+          hoursCompletionPercentage: metrics.hoursCompletionPercentage,
+          budgetedHours: metrics.budgetedHours,
+          spentHours: metrics.spentHours,
+          remainingHours: metrics.remainingHours
+        });
+      } catch (error) {
+        console.error('Error fetching project metrics:', error);
+        toast.error('Failed to load project metrics');
+      }
+    };
+    
+    fetchProjectMetrics();
+  }, [project.project_id]);
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData('text/plain', taskId);
@@ -577,14 +608,40 @@ export default function ProjectDetail({
 
     return (
       <div className="flex flex-col h-full">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Kanban Board: {selectedPhase.phase_name}</h2>
-          <div className="flex items-center space-x-2">
-            <DonutChart percentage={completionPercentage} />
-            <span className="text-sm font-semibold text-gray-600">
-              {completedTasksCount} / {filteredTasks.length} Done
-            </span>
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Kanban Board: {selectedPhase.phase_name}</h2>
+            <div className="flex items-center space-x-2">
+              <DonutChart percentage={completionPercentage} />
+              <span className="text-sm font-semibold text-gray-600">
+                {completedTasksCount} / {filteredTasks.length} Done
+              </span>
+            </div>
           </div>
+          
+          {projectMetrics && (
+            <div className="bg-gray-50 p-4 rounded-lg mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-md font-semibold">Project Budget</h3>
+                <span className="text-sm text-gray-600">
+                  {projectMetrics.spentHours} of {projectMetrics.budgetedHours} hours used
+                </span>
+              </div>
+              <HoursProgressBar 
+                percentage={projectMetrics.hoursCompletionPercentage}
+                width={300}
+                height={12}
+                showTooltip={true}
+                tooltipContent={
+                  <div className="p-2">
+                    <p className="font-medium">Hours Usage</p>
+                    <p className="text-sm">{projectMetrics.spentHours} of {projectMetrics.budgetedHours} hours used</p>
+                    <p className="text-sm">{projectMetrics.remainingHours} hours remaining</p>
+                  </div>
+                }
+              />
+            </div>
+          )}
         </div>
         <div className={styles.kanbanWrapper}>
           <KanbanBoard
