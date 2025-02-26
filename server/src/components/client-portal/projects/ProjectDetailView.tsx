@@ -77,10 +77,16 @@ export default function ProjectDetailView({ project }: ProjectDetailViewProps) {
         <div className="bg-gray-50 p-4 rounded-lg">
           <h3 className="text-lg font-semibold mb-4">Budget Hours</h3>
           <div className="flex flex-col">
+            <div className="flex justify-between mb-1">
+              <p className="font-medium">{Math.round(metrics?.hoursCompletionPercentage || 0)}% of Budget Used</p>
+              <p className="text-sm text-gray-600">
+                {metrics?.spentHours || 0} of {metrics?.budgetedHours || 0} hours
+              </p>
+            </div>
             <HoursProgressBar 
               percentage={metrics?.hoursCompletionPercentage || 0}
-              width={200}
-              height={12}
+              width={100}
+              height={8}
               showTooltip={true}
               tooltipContent={
                 <div className="p-2">
@@ -90,12 +96,6 @@ export default function ProjectDetailView({ project }: ProjectDetailViewProps) {
                 </div>
               }
             />
-            <div className="mt-2">
-              <p className="font-medium">{Math.round(metrics?.hoursCompletionPercentage || 0)}% of Budget Used</p>
-              <p className="text-sm text-gray-600">
-                {metrics?.spentHours || 0} of {metrics?.budgetedHours || 0} hours used
-              </p>
-            </div>
           </div>
         </div>
       </div>

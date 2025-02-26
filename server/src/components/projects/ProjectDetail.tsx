@@ -609,39 +609,45 @@ export default function ProjectDetail({
     return (
       <div className="flex flex-col h-full">
         <div className="mb-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Kanban Board: {selectedPhase.phase_name}</h2>
-            <div className="flex items-center space-x-2">
+          <div className="grid grid-cols-12 gap-4 items-center mb-4">
+            {/* Section 1: Kanban Board Title (3/12) */}
+            <div className="col-span-3">
+              <h2 className="text-xl font-bold">Kanban Board: {selectedPhase.phase_name}</h2>
+            </div>
+            
+            {/* Section 2: Hours Progress Bar (6/12) */}
+            {projectMetrics && (
+              <div className="col-span-6 flex flex-col">
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">Project Budget:</span>
+                  <span className="text-sm text-gray-600">
+                    {projectMetrics.spentHours} of {projectMetrics.budgetedHours} hours
+                  </span>
+                </div>
+                <HoursProgressBar 
+                  percentage={projectMetrics.hoursCompletionPercentage}
+                  width="100%"
+                  height={8}
+                  showTooltip={true}
+                  tooltipContent={
+                    <div className="p-2">
+                      <p className="font-medium">Hours Usage</p>
+                      <p className="text-sm">{projectMetrics.spentHours} of {projectMetrics.budgetedHours} hours used</p>
+                      <p className="text-sm">{projectMetrics.remainingHours} hours remaining</p>
+                    </div>
+                  }
+                />
+              </div>
+            )}
+            
+            {/* Section 3: Donut Chart (3/12) */}
+            <div className="col-span-3 flex items-center justify-end space-x-2">
               <DonutChart percentage={completionPercentage} />
               <span className="text-sm font-semibold text-gray-600">
                 {completedTasksCount} / {filteredTasks.length} Done
               </span>
             </div>
           </div>
-          
-          {projectMetrics && (
-            <div className="bg-gray-50 p-4 rounded-lg mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-md font-semibold">Project Budget</h3>
-                <span className="text-sm text-gray-600">
-                  {projectMetrics.spentHours} of {projectMetrics.budgetedHours} hours used
-                </span>
-              </div>
-              <HoursProgressBar 
-                percentage={projectMetrics.hoursCompletionPercentage}
-                width={300}
-                height={12}
-                showTooltip={true}
-                tooltipContent={
-                  <div className="p-2">
-                    <p className="font-medium">Hours Usage</p>
-                    <p className="text-sm">{projectMetrics.spentHours} of {projectMetrics.budgetedHours} hours used</p>
-                    <p className="text-sm">{projectMetrics.remainingHours} hours remaining</p>
-                  </div>
-                }
-              />
-            </div>
-          )}
         </div>
         <div className={styles.kanbanWrapper}>
           <KanbanBoard

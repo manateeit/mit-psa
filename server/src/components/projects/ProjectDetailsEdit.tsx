@@ -91,6 +91,9 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
     setIsSubmitting(true);
 
     try {
+      // Convert budgeted_hours to a number or null
+      const budgetedHours = project.budgeted_hours ? Number(project.budgeted_hours) : null;
+      
       const updatedProject = await updateProject(project.project_id, {
         project_name: project.project_name,
         description: project.description,
@@ -101,8 +104,11 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
         contact_name_id: project.contact_name_id,
         is_inactive: project.is_inactive,
         status: project.status,
-        budgeted_hours: project.budgeted_hours ? Number(project.budgeted_hours) : null,
+        budgeted_hours: budgetedHours,
       });
+      
+      // Log for debugging
+      console.log('Updated project with budgeted hours:', budgetedHours);
 
       toast.success('Project updated successfully');
       onSave(updatedProject);
@@ -281,7 +287,23 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
               name="budgeted_hours"
               type="number"
               value={project.budgeted_hours?.toString() || ''}
-              onChange={handleInputChange}
+              onChange={(e) => {
+                const { name, value } = e.target;
+                // Only allow numbers and decimal point, prevent 'e'
+                if (value === '' || (/^\d*\.?\d*$/.test(value) && !value.includes('e'))) {
+                  setProject(prev => ({
+                    ...prev,
+                    [name]: value,
+                  }));
+                  setHasChanges(true);
+                }
+              }}
+              onKeyDown={(e) => {
+                // Prevent 'e' character from being entered
+                if (e.key === 'e' || e.key === 'E') {
+                  e.preventDefault();
+                }
+              }}
               min="0"
               step="1"
               placeholder="Enter budgeted hours"

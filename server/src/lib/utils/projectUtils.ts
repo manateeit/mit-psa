@@ -1,3 +1,5 @@
+'use server'
+
 import { IProject, IProjectTask } from '@/interfaces/project.interfaces';
 import { ITimeEntry } from '@/interfaces/timeEntry.interfaces';
 import { createTenantKnex } from '@/lib/db';
@@ -38,9 +40,13 @@ export async function calculateProjectCompletion(projectId: string): Promise<Pro
       this.on('project_tasks.phase_id', '=', 'project_phases.phase_id')
           .andOn('project_tasks.tenant', '=', 'project_phases.tenant');
     })
-    .join('project_status_mappings', function() {
+    .leftJoin('project_status_mappings', function() {
       this.on('project_tasks.project_status_mapping_id', '=', 'project_status_mappings.project_status_mapping_id')
           .andOn('project_tasks.tenant', '=', 'project_status_mappings.tenant');
+    })
+    .leftJoin('statuses', function() {
+      this.on('project_status_mappings.status_id', '=', 'statuses.status_id')
+          .andOn('project_status_mappings.tenant', '=', 'statuses.tenant');
     })
     .where({
       'project_phases.project_id': projectId,
@@ -48,12 +54,12 @@ export async function calculateProjectCompletion(projectId: string): Promise<Pro
     })
     .select(
       'project_tasks.*',
-      'project_status_mappings.is_closed'
+      db.raw('COALESCE(statuses.is_closed, false) as is_closed')
     );
 
   // Calculate task-based completion
   const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(task => task.is_closed).length;
+  const completedTasks = tasks.filter(task => task.is_closed === true).length;
   const taskCompletionPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
   // Get time entries for the project

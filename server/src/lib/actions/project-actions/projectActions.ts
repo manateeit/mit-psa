@@ -23,7 +23,8 @@ import {
 
 const extendedCreateProjectSchema = createProjectSchema.extend({
   assigned_to: z.string().nullable().optional(),
-  contact_name_id: z.string().nullable().optional()
+  contact_name_id: z.string().nullable().optional(),
+  budgeted_hours: z.number().nullable().optional()
 }).transform((data) => ({
   ...data,
   assigned_to: data.assigned_to || null,
@@ -32,7 +33,8 @@ const extendedCreateProjectSchema = createProjectSchema.extend({
 
 const extendedUpdateProjectSchema = updateProjectSchema.extend({
   assigned_to: z.string().nullable().optional(),
-  contact_name_id: z.string().nullable().optional()
+  contact_name_id: z.string().nullable().optional(),
+  budgeted_hours: z.number().nullable().optional()
 }).transform((data) => ({
   ...data,
   assigned_to: data.assigned_to || null,

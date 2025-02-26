@@ -3,7 +3,7 @@ import { Tooltip } from '@/components/ui/Tooltip';
 
 interface HoursProgressBarProps {
   percentage: number;
-  width?: number;
+  width?: number | string;
   height?: number;
   showTooltip?: boolean;
   tooltipContent?: React.ReactNode;
