@@ -21,7 +21,6 @@ export interface ITicket extends TenantEntity {
   closed_at: string | null;  // Changed from Date to string
   attributes: Record<string, unknown> | null; // Changed from any to unknown
   priority_id: string;
-  estimated_hours: number | null;
 }
 
 export interface ITicketListItem extends Omit<ITicket, 'status_id' | 'priority_id' | 'channel_id' | 'entered_by' | 'category_id' | 'subcategory_id'> {
@@ -70,4 +69,9 @@ export interface ITicketCategory extends TenantEntity {
   channel_id: string;
   created_by: string;
   created_at?: Date;
+}
+
+export interface IAgentSchedule {
+  userId: string;
+  minutes: number;
 }

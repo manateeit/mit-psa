@@ -289,14 +289,14 @@ class ScheduleEntry {
         const durationHours = Math.ceil(durationMs / (1000 * 60 * 60)); // Convert ms to hours and round up
 
         if (entry.work_item_type === 'ticket') {
-          // Update ticket estimated_hours
+          // Update ticket estimated_hours (convert hours to minutes for storage)
           await trx('tickets')
             .where({
               ticket_id: entry.work_item_id,
               tenant
             })
             .update({
-              estimated_hours: durationHours,
+              estimated_hours: durationHours * 60, // Convert hours to minutes for storage
               updated_at: new Date().toISOString()
             });
 

@@ -41,8 +41,7 @@ export const ticketSchema = z.object({
     updated_at: z.string().nullable(),
     closed_at: z.string().nullable(),
     attributes: z.record(z.unknown()).nullable(),
-    priority_id: z.string().uuid(),
-    estimated_hours: z.number().nullable()
+    priority_id: z.string().uuid()
 });
 
 export const ticketUpdateSchema = ticketSchema.partial().omit({
@@ -72,8 +71,7 @@ const baseTicketSchema = z.object({
     updated_at: z.string().nullable(),
     closed_at: z.string().nullable(),
     attributes: z.record(z.unknown()).nullable(),
-    updated_by: z.string().uuid().nullable(),
-    estimated_hours: z.number().nullable()
+    updated_by: z.string().uuid().nullable()
 });
 
 // Then extend it for ITicketListItem
