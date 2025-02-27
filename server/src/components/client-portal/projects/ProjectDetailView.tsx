@@ -61,17 +61,20 @@ export default function ProjectDetailView({ project }: ProjectDetailViewProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-gray-50 p-4 rounded-lg">
           <h3 className="text-lg font-semibold mb-4">Task Completion</h3>
-          <div className="flex items-center">
-            <div className="mr-4">
-              <DonutChart percentage={metrics?.taskCompletionPercentage || 0} />
+            <div className="flex items-center">
+              <div className="mr-4">
+                <DonutChart 
+                  percentage={metrics?.taskCompletionPercentage || 0} 
+                  tooltipContent="Shows the percentage of completed tasks across the entire project"
+                />
+              </div>
+              <div>
+                <p className="font-medium">{Math.round(metrics?.taskCompletionPercentage || 0)}% Complete</p>
+                <p className="text-sm text-gray-600">
+                  {metrics?.completedTasks || 0} of {metrics?.totalTasks || 0} tasks completed
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="font-medium">{Math.round(metrics?.taskCompletionPercentage || 0)}% Complete</p>
-              <p className="text-sm text-gray-600">
-                {metrics?.completedTasks || 0} of {metrics?.totalTasks || 0} tasks completed
-              </p>
-            </div>
-          </div>
         </div>
 
         <div className="bg-gray-50 p-4 rounded-lg">
@@ -80,19 +83,19 @@ export default function ProjectDetailView({ project }: ProjectDetailViewProps) {
             <div className="flex justify-between mb-1">
               <p className="font-medium">{Math.round(metrics?.hoursCompletionPercentage || 0)}% of Budget Used</p>
               <p className="text-sm text-gray-600">
-                {metrics?.spentHours || 0} of {metrics?.budgetedHours || 0} hours
+                {((metrics?.spentHours || 0) / 60).toFixed(1)} of {((metrics?.budgetedHours || 0) / 60).toFixed(1)} hours
               </p>
             </div>
             <HoursProgressBar 
               percentage={metrics?.hoursCompletionPercentage || 0}
-              width={100}
+              width={'100%'}
               height={8}
               showTooltip={true}
               tooltipContent={
                 <div className="p-2">
                   <p className="font-medium">Hours Usage</p>
-                  <p className="text-sm">{metrics?.spentHours || 0} of {metrics?.budgetedHours || 0} hours used</p>
-                  <p className="text-sm">{metrics?.remainingHours || 0} hours remaining</p>
+                  <p className="text-sm">{((metrics?.spentHours || 0) / 60).toFixed(1)} of {((metrics?.budgetedHours || 0) / 60).toFixed(1)} hours used</p>
+                  <p className="text-sm">{((metrics?.remainingHours || 0) / 60).toFixed(1)} hours remaining</p>
                 </div>
               }
             />

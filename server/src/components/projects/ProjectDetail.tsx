@@ -15,7 +15,6 @@ import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import ProjectPhases from './ProjectPhases';
 import KanbanBoard from './KanbanBoard';
 import DonutChart from './DonutChart';
-import HoursProgressBar from './HoursProgressBar';
 import { calculateProjectCompletion } from '@/lib/utils/projectUtils';
 import { ICompany } from '@/interfaces/company.interfaces';
 
@@ -610,39 +609,17 @@ export default function ProjectDetail({
       <div className="flex flex-col h-full">
         <div className="mb-4">
           <div className="grid grid-cols-12 gap-4 items-center mb-4">
-            {/* Section 1: Kanban Board Title (3/12) */}
-            <div className="col-span-3">
+            {/* Section 1: Kanban Board Title (6/12) */}
+            <div className="col-span-6">
               <h2 className="text-xl font-bold">Kanban Board: {selectedPhase.phase_name}</h2>
             </div>
             
-            {/* Section 2: Hours Progress Bar (6/12) */}
-            {projectMetrics && (
-              <div className="col-span-6 flex flex-col">
-                <div className="flex justify-between mb-1">
-                  <span className="text-sm font-medium">Project Budget:</span>
-                  <span className="text-sm text-gray-600">
-                    {projectMetrics.spentHours} of {projectMetrics.budgetedHours} hours
-                  </span>
-                </div>
-                <HoursProgressBar 
-                  percentage={projectMetrics.hoursCompletionPercentage}
-                  width="100%"
-                  height={8}
-                  showTooltip={true}
-                  tooltipContent={
-                    <div className="p-2">
-                      <p className="font-medium">Hours Usage</p>
-                      <p className="text-sm">{projectMetrics.spentHours} of {projectMetrics.budgetedHours} hours used</p>
-                      <p className="text-sm">{projectMetrics.remainingHours} hours remaining</p>
-                    </div>
-                  }
-                />
-              </div>
-            )}
-            
-            {/* Section 3: Donut Chart (3/12) */}
-            <div className="col-span-3 flex items-center justify-end space-x-2">
-              <DonutChart percentage={completionPercentage} />
+            {/* Section 2: Donut Chart (6/12) */}
+            <div className="col-span-6 flex items-center justify-end space-x-2">
+              <DonutChart 
+                percentage={completionPercentage} 
+                tooltipContent={`Shows the percentage of completed tasks for the selected phase "${selectedPhase.phase_name}" only`}
+              />
               <span className="text-sm font-semibold text-gray-600">
                 {completedTasksCount} / {filteredTasks.length} Done
               </span>

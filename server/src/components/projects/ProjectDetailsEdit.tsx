@@ -286,14 +286,16 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
               id="budgeted_hours"
               name="budgeted_hours"
               type="number"
-              value={project.budgeted_hours?.toString() || ''}
+              // Convert from minutes to hours for display
+              value={project.budgeted_hours ? (project.budgeted_hours / 60).toString() : ''}
               onChange={(e) => {
                 const { name, value } = e.target;
                 // Only allow numbers and decimal point, prevent 'e'
                 if (value === '' || (/^\d*\.?\d*$/.test(value) && !value.includes('e'))) {
                   setProject(prev => ({
                     ...prev,
-                    [name]: value,
+                    // Convert from hours to minutes for storage
+                    [name]: value ? Math.round(parseFloat(value) * 60) : '',
                   }));
                   setHasChanges(true);
                 }
@@ -305,7 +307,7 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
                 }
               }}
               min="0"
-              step="1"
+              step="0.25" // Allow quarter-hour increments
               placeholder="Enter budgeted hours"
               className="mb-0"
             />
