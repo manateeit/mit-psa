@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
-import { ITicket, ITimeSheet, ITimePeriod, ITimePeriodView, ITimeEntry } from '../../interfaces';
+import React, { useState, useEffect } from 'react';
+import { getScheduledHoursForTicket } from '@/lib/actions/ticket-actions/ticketActions';
+import { ITicket, ITimeSheet, ITimePeriod, ITimePeriodView, ITimeEntry, IAgentSchedule } from '../../interfaces';
 import { IUserWithRoles, ITeam } from '../../interfaces/auth.interfaces';
 import { ITicketResource } from '../../interfaces/ticketResource.interfaces';
 import { Button } from '../ui/Button';
 import { Label } from '../ui/Label';
 import { Input } from '../ui/Input';
-import { Clock, Edit2, Play, Pause, StopCircle, UserPlus, X } from 'lucide-react';
+import { Clock, Edit2, Play, Pause, StopCircle, UserPlus, X, AlertCircle } from 'lucide-react';
+import { formatMinutesAsHoursAndMinutes } from '@/lib/utils/dateTimeUtils';
 import styles from './TicketDetails.module.css';
 import UserPicker from '../ui/UserPicker';
 import AvatarIcon from '../ui/AvatarIcon';
@@ -95,6 +97,30 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
   const [contactFilterState, setContactFilterState] = useState<'all' | 'active' | 'inactive'>('active');
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [agentSchedules, setAgentSchedules] = useState<IAgentSchedule[]>([]);
+
+  // Fetch scheduled hours from schedule entries
+  useEffect(() => {
+    const fetchScheduledHours = async () => {
+      if (!ticket.ticket_id) return;
+      
+      try {
+        // Use the server action to get scheduled hours
+        const schedules = await getScheduledHoursForTicket(ticket.ticket_id, { user_id: userId } as any);
+        setAgentSchedules(schedules);
+      } catch (error) {
+        console.error('Error fetching scheduled hours:', error);
+      }
+    };
+    
+    fetchScheduledHours();
+  }, [ticket.ticket_id, userId]);
+
+  // Helper function to get scheduled hours for a specific agent
+  const getAgentScheduledHours = (agentId: string): number => {
+    const schedule = agentSchedules.find(s => s.userId === agentId);
+    return schedule ? schedule.minutes : 0;
+  };
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -344,17 +370,23 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
                   lastName={availableAgents.find(a => a.user_id === ticket.assigned_to)?.last_name || ''}
                   size="sm"
                 />
-                <span className="text-sm">
-                  {availableAgents.find(a => a.user_id === ticket.assigned_to)?.first_name || 'Unknown'}{' '}
-                  {availableAgents.find(a => a.user_id === ticket.assigned_to)?.last_name || 'Agent'}
-                </span>
+                <div className="flex flex-col">
+                  <span className="text-sm">
+                    {availableAgents.find(a => a.user_id === ticket.assigned_to)?.first_name || 'Unknown'}{' '}
+                    {availableAgents.find(a => a.user_id === ticket.assigned_to)?.last_name || 'Agent'}
+                  </span>
+                  <div className="flex items-center text-xs text-gray-500 mt-1">
+                    <Clock className="w-3 h-3 mr-1" />
+                    <span>Scheduled: {formatMinutesAsHoursAndMinutes(getAgentScheduledHours(ticket.assigned_to!))}</span>
+                  </div>
+                </div>
               </div>
             ) : (
               <p className="text-sm text-gray-500">No primary agent assigned</p>
             )}
           </div>
 
-          {/* Team */}
+          {/* Team - Commented out for now
           <div>
             <h5 className="font-bold mb-2">Team</h5>
             {team ? (
@@ -368,6 +400,7 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
               <p className="text-sm text-gray-500">No team assigned</p>
             )}
           </div>
+          */}
 
           {/* Additional Agents */}
           <div>
@@ -409,8 +442,8 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
                     className="flex items-center justify-between group hover:bg-gray-50 p-2 rounded"
                   >
                     <div
-                      key={agent.assignment_id}
-                      className="flex items-center justify-between group hover:bg-gray-50 p-2 rounded"
+                      className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                      onClick={() => agent.additional_user_id && onAgentClick(agent.additional_user_id)}
                     >
                       <AvatarIcon
                         userId={agent.additional_user_id!}
@@ -418,10 +451,15 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
                         lastName={agentUser?.last_name || ''}
                         size="sm"
                       />
-                      <span className="text-sm">
-                        {agentUser?.first_name || 'Unknown'} {agentUser?.last_name || 'Agent'}
-                      </span>
-
+                      <div className="flex flex-col">
+                        <span className="text-sm">
+                          {agentUser?.first_name || 'Unknown'} {agentUser?.last_name || 'Agent'}
+                        </span>
+                        <div className="flex items-center text-xs text-gray-500 mt-1">
+                          <Clock className="w-3 h-3 mr-1" />
+                          <span>Scheduled: {formatMinutesAsHoursAndMinutes(getAgentScheduledHours(agent.additional_user_id!))}</span>
+                        </div>
+                      </div>
                     </div>
                     <Button
                       {...withDataAutomationId({ id: `${id}-remove-agent-${agent.assignment_id}-btn` })}

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { TextArea } from '@/components/ui/TextArea';
+import { Input } from '@/components/ui/Input';
 import { IProject, ICompany, IStatus } from '@/interfaces';
 import { createProject, generateNextWbsCode, getProjectStatuses } from '@/lib/actions/project-actions/projectActions';
 import { CompanyPicker } from '@/components/companies/CompanyPicker';
@@ -33,6 +34,7 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
   const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
   const [statuses, setStatuses] = useState<IStatus[]>([]);
   const [selectedStatusId, setSelectedStatusId] = useState<string | null>(null);
+  const [budgetedHours, setBudgetedHours] = useState<string>('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -90,7 +92,8 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
         is_inactive: false,
         status: selectedStatusId,
         assigned_to: selectedUserId || null,
-        contact_name_id: selectedContactId || null
+        contact_name_id: selectedContactId || null,
+        budgeted_hours: budgetedHours ? Number(budgetedHours) : null
       };
 
       const newProject = await createProject(projectData);
@@ -172,6 +175,34 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
                     label: `${user.first_name} ${user.last_name}`
                   }))}
                   placeholder="Select Assignee"
+                />
+              </div>
+              <div>
+                <label htmlFor="budgeted_hours" className="block text-sm font-medium text-gray-700 mb-1">
+                  Budgeted Hours
+                </label>
+                <Input
+                  id="budgeted_hours"
+                  name="budgeted_hours"
+                  type="number"
+                  value={budgetedHours}
+                  onChange={(e) => {
+                    // Prevent 'e' character and only allow numbers and decimal point
+                    const value = e.target.value;
+                    if (value === '' || (/^\d*\.?\d*$/.test(value) && !value.includes('e'))) {
+                      setBudgetedHours(value);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    // Prevent 'e' character from being entered
+                    if (e.key === 'e' || e.key === 'E') {
+                      e.preventDefault();
+                    }
+                  }}
+                  min="0"
+                  step="1"
+                  placeholder="Enter budgeted hours"
+                  className="mb-0"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">

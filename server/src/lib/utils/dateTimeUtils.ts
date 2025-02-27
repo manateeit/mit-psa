@@ -5,6 +5,8 @@ import { parseISO } from 'date-fns';
 import { Temporal } from '@js-temporal/polyfill';
 import { ISO8601String } from '@/types/types.d';
 
+// Date conversion utilities
+
 // Function to convert UTC date to local timezone
 export function utcToLocal(utcDate: string, timeZone: string): Date {
   const date = parseISO(utcDate);
@@ -94,6 +96,58 @@ export function parseDateSafe(dateStr: string | null | undefined): Temporal.Plai
   } catch (error) {
     console.error('Error parsing date:', error);
     return null;
+  }
+}
+
+
+// Time conversion utilities
+
+/**
+ * Convert minutes to hours with decimal precision
+ * @param minutes The number of minutes to convert
+ * @param precision The decimal precision for the result (default: 2)
+ * @returns The hours as a number with specified decimal precision
+ */
+export function minutesToHours(minutes: number | null | undefined, precision: number = 2): number | null {
+  if (minutes === null || minutes === undefined) {
+    return null;
+  }
+  
+  return parseFloat((minutes / 60).toFixed(precision));
+}
+
+/**
+ * Convert hours to minutes
+ * @param hours The number of hours to convert
+ * @returns The minutes as a number
+ */
+export function hoursToMinutes(hours: number | null | undefined): number | null {
+  if (hours === null || hours === undefined) {
+    return null;
+  }
+  
+  return Math.round(hours * 60);
+}
+
+/**
+ * Format minutes as a human-readable hours and minutes string
+ * @param minutes The number of minutes to format
+ * @returns A string in the format "X hr Y min" or "X hrs Y min"
+ */
+export function formatMinutesAsHoursAndMinutes(minutes: number | null | undefined): string {
+  if (minutes === null || minutes === undefined) {
+    return '0 hrs';
+  }
+  
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = Math.round(minutes % 60);
+  
+  const hourText = hours === 1 ? 'hr' : 'hrs';
+  
+  if (remainingMinutes === 0) {
+    return `${hours} ${hourText}`;
+  } else {
+    return `${hours} ${hourText} ${remainingMinutes} min`;
   }
 }
 

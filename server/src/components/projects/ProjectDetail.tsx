@@ -15,6 +15,7 @@ import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import ProjectPhases from './ProjectPhases';
 import KanbanBoard from './KanbanBoard';
 import DonutChart from './DonutChart';
+import { calculateProjectCompletion } from '@/lib/utils/projectUtils';
 import { ICompany } from '@/interfaces/company.interfaces';
 
 interface ProjectDetailProps {
@@ -67,6 +68,14 @@ export default function ProjectDetail({
     phaseId: string;
     phaseName: string;
   } | null>(null);
+  
+  const [projectMetrics, setProjectMetrics] = useState<{
+    taskCompletionPercentage: number;
+    hoursCompletionPercentage: number;
+    budgetedHours: number;
+    spentHours: number;
+    remainingHours: number;
+  } | null>(null);
 
   const filteredTasks = useMemo(() => {
     if (!selectedPhase) return [];
@@ -88,6 +97,27 @@ export default function ProjectDetail({
       }
     };
   }, [scrollInterval]);
+  
+  // Fetch project completion metrics
+  useEffect(() => {
+    const fetchProjectMetrics = async () => {
+      try {
+        const metrics = await calculateProjectCompletion(project.project_id);
+        setProjectMetrics({
+          taskCompletionPercentage: metrics.taskCompletionPercentage,
+          hoursCompletionPercentage: metrics.hoursCompletionPercentage,
+          budgetedHours: metrics.budgetedHours,
+          spentHours: metrics.spentHours,
+          remainingHours: metrics.remainingHours
+        });
+      } catch (error) {
+        console.error('Error fetching project metrics:', error);
+        toast.error('Failed to load project metrics');
+      }
+    };
+    
+    fetchProjectMetrics();
+  }, [project.project_id]);
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData('text/plain', taskId);
@@ -577,13 +607,23 @@ export default function ProjectDetail({
 
     return (
       <div className="flex flex-col h-full">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Kanban Board: {selectedPhase.phase_name}</h2>
-          <div className="flex items-center space-x-2">
-            <DonutChart percentage={completionPercentage} />
-            <span className="text-sm font-semibold text-gray-600">
-              {completedTasksCount} / {filteredTasks.length} Done
-            </span>
+        <div className="mb-4">
+          <div className="grid grid-cols-12 gap-4 items-center mb-4">
+            {/* Section 1: Kanban Board Title (6/12) */}
+            <div className="col-span-6">
+              <h2 className="text-xl font-bold">Kanban Board: {selectedPhase.phase_name}</h2>
+            </div>
+            
+            {/* Section 2: Donut Chart (6/12) */}
+            <div className="col-span-6 flex items-center justify-end space-x-2">
+              <DonutChart 
+                percentage={completionPercentage} 
+                tooltipContent={`Shows the percentage of completed tasks for the selected phase "${selectedPhase.phase_name}" only`}
+              />
+              <span className="text-sm font-semibold text-gray-600">
+                {completedTasksCount} / {filteredTasks.length} Done
+              </span>
+            </div>
           </div>
         </div>
         <div className={styles.kanbanWrapper}>

@@ -74,8 +74,9 @@ export default function TaskForm({
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [tempTaskId] = useState<string>(`temp-${Date.now()}`);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [estimatedHours, setEstimatedHours] = useState<number>(Number(task?.estimated_hours) || 0);
-  const [actualHours, setActualHours] = useState<number>(Number(task?.actual_hours) || 0);
+  // Convert from minutes to hours for display
+  const [estimatedHours, setEstimatedHours] = useState<number>(Number(task?.estimated_hours) / 60 || 0);
+  const [actualHours, setActualHours] = useState<number>(Number(task?.actual_hours) / 60 || 0);
   const [dueDate, setDueDate] = useState<Date | undefined>(task?.due_date ? new Date(task.due_date) : undefined);
   const [taskResources, setTaskResources] = useState<any[]>(task?.task_id ? [] : []);
   const [tempTaskResources, setTempTaskResources] = useState<any[]>([]);
@@ -258,8 +259,8 @@ export default function TaskForm({
           task_name: taskName,
           description: description,
           assigned_to: assignedUser || null,
-          estimated_hours: estimatedHours,
-          actual_hours: actualHours,
+          estimated_hours: Math.round(estimatedHours * 60), // Convert hours to minutes for storage
+          actual_hours: Math.round(actualHours * 60), // Convert hours to minutes for storage
           due_date: dueDate || null,
           checklist_items: checklistItems,
           phase_id: selectedPhaseId,
@@ -311,8 +312,8 @@ export default function TaskForm({
             task_name: taskName,
             description: description,
             assigned_to: finalAssignedTo,
-            estimated_hours: estimatedHours,
-            actual_hours: actualHours,
+            estimated_hours: Math.round(estimatedHours * 60), // Convert hours to minutes for storage
+            actual_hours: Math.round(actualHours * 60), // Convert hours to minutes for storage
             due_date: dueDate || null,
             checklist_items: checklistItems,
             project_status_mapping_id: movedTask.project_status_mapping_id // Always use the mapping from moveTaskToPhase
@@ -329,8 +330,8 @@ export default function TaskForm({
           wbs_code: `${phase.wbs_code}.0`,
           description: description,
           assigned_to: finalAssignedTo,
-          estimated_hours: estimatedHours,
-          actual_hours: actualHours,
+          estimated_hours: Math.round(estimatedHours * 60), // Convert hours to minutes for storage
+          actual_hours: Math.round(actualHours * 60), // Convert hours to minutes for storage
           due_date: dueDate || null, // Use selected due date or null
           phase_id: phase.phase_id
         };
@@ -390,8 +391,8 @@ export default function TaskForm({
     if (description !== task.description) return true;
     if (selectedPhaseId !== task.phase_id) return true;
     if (selectedStatusId !== task.project_status_mapping_id) return true;
-    if (estimatedHours !== Number(task.estimated_hours)) return true;
-    if (actualHours !== Number(task.actual_hours)) return true;
+    if (estimatedHours !== Number(task.estimated_hours) / 60) return true;
+    if (actualHours !== Number(task.actual_hours) / 60) return true;
     if (assignedUser !== task.assigned_to) return true;
 
     // Compare checklist items

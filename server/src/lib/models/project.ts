@@ -135,7 +135,8 @@ const ProjectModel = {
           tenant: tenant!,
           assigned_to: insertData.assigned_to || null,
           contact_name_id: insertData.contact_name_id || null,
-          status: insertData.status || ''
+          status: insertData.status || '',
+          budgeted_hours: insertData.budgeted_hours || null
         })
         .returning('*');
 

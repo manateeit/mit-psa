@@ -8,6 +8,7 @@ import { IUser } from '@/interfaces/auth.interfaces';
 import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/Switch';
 import { TextArea } from '@/components/ui/TextArea';
+import { Input } from '@/components/ui/Input';
 import { CompanyPicker } from '@/components/companies/CompanyPicker';
 import CustomSelect, { SelectOption } from '@/components/ui/CustomSelect';
 import { updateProject, getProjectStatuses } from '@/lib/actions/project-actions/projectActions';
@@ -90,6 +91,9 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
     setIsSubmitting(true);
 
     try {
+      // Convert budgeted_hours to a number or null
+      const budgetedHours = project.budgeted_hours ? Number(project.budgeted_hours) : null;
+      
       const updatedProject = await updateProject(project.project_id, {
         project_name: project.project_name,
         description: project.description,
@@ -100,7 +104,11 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
         contact_name_id: project.contact_name_id,
         is_inactive: project.is_inactive,
         status: project.status,
+        budgeted_hours: budgetedHours,
       });
+      
+      // Log for debugging
+      console.log('Updated project with budgeted hours:', budgetedHours);
 
       toast.success('Project updated successfully');
       onSave(updatedProject);
@@ -268,6 +276,41 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none"
               />
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="budgeted_hours" className="block text-sm font-medium text-gray-700 mb-1">
+              Budgeted Hours
+            </label>
+            <Input
+              id="budgeted_hours"
+              name="budgeted_hours"
+              type="number"
+              // Convert from minutes to hours for display
+              value={project.budgeted_hours ? (project.budgeted_hours / 60).toString() : ''}
+              onChange={(e) => {
+                const { name, value } = e.target;
+                // Only allow numbers and decimal point, prevent 'e'
+                if (value === '' || (/^\d*\.?\d*$/.test(value) && !value.includes('e'))) {
+                  setProject(prev => ({
+                    ...prev,
+                    // Convert from hours to minutes for storage
+                    [name]: value ? Math.round(parseFloat(value) * 60) : '',
+                  }));
+                  setHasChanges(true);
+                }
+              }}
+              onKeyDown={(e) => {
+                // Prevent 'e' character from being entered
+                if (e.key === 'e' || e.key === 'E') {
+                  e.preventDefault();
+                }
+              }}
+              min="0"
+              step="0.25" // Allow quarter-hour increments
+              placeholder="Enter budgeted hours"
+              className="mb-0"
+            />
           </div>
 
           <div className="flex items-center space-x-2">

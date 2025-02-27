@@ -70,3 +70,8 @@ export interface ITicketCategory extends TenantEntity {
   created_by: string;
   created_at?: Date;
 }
+
+export interface IAgentSchedule {
+  userId: string;
+  minutes: number;
+}
