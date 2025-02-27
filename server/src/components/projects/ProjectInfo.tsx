@@ -116,7 +116,7 @@ export default function ProjectInfo({
               <div className="flex justify-between mb-1">
                 <span className="text-sm font-medium">Project Budget:</span>
                 <span className="text-sm text-gray-600">
-                  {(projectMetrics.spentHours / 60).toFixed(1)} of {(projectMetrics.budgetedHours / 60).toFixed(1)} hours
+                  {projectMetrics.spentHours.toFixed(1)} of {projectMetrics.budgetedHours.toFixed(1)} hours
                 </span>
               </div>
               <HoursProgressBar 
@@ -127,8 +127,8 @@ export default function ProjectInfo({
                 tooltipContent={
                   <div className="p-2">
                     <p className="font-medium">Hours Usage</p>
-                    <p className="text-sm">{(projectMetrics.spentHours / 60).toFixed(1)} of {(projectMetrics.budgetedHours / 60).toFixed(1)} hours used</p>
-                    <p className="text-sm">{(projectMetrics.remainingHours / 60).toFixed(1)} hours remaining</p>
+                    <p className="text-sm">{projectMetrics.spentHours.toFixed(1)} of {projectMetrics.budgetedHours.toFixed(1)} hours used</p>
+                    <p className="text-sm">{projectMetrics.remainingHours.toFixed(1)} hours remaining</p>
                     <p className="text-sm text-gray-300 mt-1">Shows budget hours usage for the entire project</p>
                   </div>
                 }

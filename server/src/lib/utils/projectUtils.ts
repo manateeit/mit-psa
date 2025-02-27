@@ -86,8 +86,10 @@ export async function calculateProjectCompletion(projectId: string): Promise<Pro
     .select('time_entries.billable_duration');
 
   // Calculate hours-based completion
-  const budgetedHours = project.budgeted_hours || 0;
-  const spentHours = timeEntries.reduce((total, entry) => total + entry.billable_duration, 0);
+  const budgetedHours = Number(project.budgeted_hours || 0) / 60; // Convert minutes to hours
+  // Convert billable_duration from minutes to hours
+  const spentMinutes = timeEntries.reduce((total, entry) => total + entry.billable_duration, 0);
+  const spentHours = spentMinutes / 60; // Convert minutes to hours for display
   const remainingHours = Math.max(0, budgetedHours - spentHours);
   const hoursCompletionPercentage = budgetedHours > 0 ? Math.min(100, (spentHours / budgetedHours) * 100) : 0;
 

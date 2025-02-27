@@ -361,6 +361,7 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
     let resultingEntry: ITimeEntry | null = null;
 
     await db.transaction(async (trx) => {
+      console.log('Starting transaction for time entry');
       if (entry_id) {
         // Update existing entry
         const [updated] = await trx('time_entries')
@@ -374,6 +375,32 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
         
         resultingEntry = updated;
         console.log('Updated entry:', resultingEntry);
+        
+        // If this is a project task, update the actual_hours in the project_tasks table
+        if (work_item_type === 'project_task') {
+          // Get all time entries for this task to calculate total actual hours
+          const timeEntries = await trx('time_entries')
+            .where({
+              work_item_id,
+              work_item_type: 'project_task',
+              tenant
+            })
+            .select('billable_duration');
+          
+          // Calculate total minutes from all time entries
+          const totalMinutes = timeEntries.reduce((total, entry) => total + entry.billable_duration, 0);
+          
+          // Store actual_hours as minutes in the database (integer)
+          await trx('project_tasks')
+            .where({
+              task_id: work_item_id,
+              tenant
+            })
+            .update({
+              actual_hours: totalMinutes,
+              updated_at: new Date()
+            });
+        }
       } else {
         // Insert new entry
         const [inserted] = await trx('time_entries')
@@ -392,7 +419,80 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
         console.log('Inserted entry:', resultingEntry);
         
         // Add user to ticket_resources or task_resources when a new time entry is created
-        if (work_item_type === 'ticket') {
+        // Also update actual_hours for project tasks
+        if (work_item_type === 'project_task') {
+          // Update actual_hours in project_tasks table
+          // Get all time entries for this task to calculate total actual hours
+          const timeEntries = await trx('time_entries')
+            .where({
+              work_item_id,
+              work_item_type: 'project_task',
+              tenant
+            })
+            .select('billable_duration');
+          
+          // Calculate total minutes from all time entries
+          const totalMinutes = timeEntries.reduce((total, entry) => total + entry.billable_duration, 0);
+          
+          // Store actual_hours as minutes in the database (integer)
+          await trx('project_tasks')
+            .where({
+              task_id: work_item_id,
+              tenant
+            })
+            .update({
+              actual_hours: totalMinutes,
+              updated_at: new Date()
+            });
+          
+          // Get current task to check if it already has an assignee
+          const task = await trx('project_tasks')
+            .where({
+              task_id: work_item_id,
+              tenant,
+            })
+            .first();
+            
+          if (task) {
+            // Check if user is already in task_resources for this task
+            const existingResource = await trx('task_resources')
+              .where({
+                task_id: work_item_id,
+                tenant,
+              })
+              .where(function() {
+                this.where('assigned_to', session.user.id)
+                  .orWhere('additional_user_id', session.user.id);
+              })
+              .first();
+              
+            // If task already has an assignee and it's not the current user
+            if (task.assigned_to && task.assigned_to !== session.user.id) {
+              // Only add as additional user if not already in resources
+              if (!existingResource) {
+                await trx('task_resources').insert({
+                  task_id: work_item_id,
+                  assigned_to: task.assigned_to,
+                  additional_user_id: session.user.id,
+                  assigned_at: new Date(),
+                  tenant,
+                });
+              }
+            } else if (!task.assigned_to) {
+              // If task has no assignee, only update the task's assigned_to field
+              await trx('project_tasks')
+                .where({
+                  task_id: work_item_id,
+                  tenant,
+                })
+                .update({
+                  assigned_to: session.user.id,
+                  updated_at: new Date(),
+                });
+              // No task_resources record is created when there's no additional user
+            }
+          }
+        } else if (work_item_type === 'ticket') {
           // Check if user is already in ticket_resources for this ticket
           const existingResource = await trx('ticket_resources')
             .where({
@@ -439,59 +539,6 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
                   
                 await trx('ticket_resources').insert({
                   ticket_id: work_item_id,
-                  assigned_to: session.user.id,
-                  assigned_at: new Date(),
-                  tenant,
-                });
-              }
-            }
-          }
-        } else if (work_item_type === 'project_task') {
-          // Check if user is already in task_resources for this task
-          const existingResource = await trx('task_resources')
-            .where({
-              task_id: work_item_id,
-              tenant,
-            })
-            .where(function() {
-              this.where('assigned_to', session.user.id)
-                .orWhere('additional_user_id', session.user.id);
-            })
-            .first();
-            
-          if (!existingResource) {
-            // Get current task to check if it already has an assignee
-            const task = await trx('project_tasks')
-              .where({
-                task_id: work_item_id,
-                tenant,
-              })
-              .first();
-              
-            if (task) {
-              // If task already has an assignee, add user as additional_user_id
-              if (task.assigned_to && task.assigned_to !== session.user.id) {
-                await trx('task_resources').insert({
-                  task_id: work_item_id,
-                  assigned_to: task.assigned_to,
-                  additional_user_id: session.user.id,
-                  assigned_at: new Date(),
-                  tenant,
-                });
-              } else if (!task.assigned_to) {
-                // If task has no assignee, update the task and add user as assigned_to
-                await trx('project_tasks')
-                  .where({
-                    task_id: work_item_id,
-                    tenant,
-                  })
-                  .update({
-                    assigned_to: session.user.id,
-                    updated_at: new Date(),
-                  });
-                  
-                await trx('task_resources').insert({
-                  task_id: work_item_id,
                   assigned_to: session.user.id,
                   assigned_at: new Date(),
                   tenant,
@@ -863,12 +910,53 @@ export async function deleteTimeEntry(entryId: string): Promise<void> {
   }
 
   try {
-    await db('time_entries')
-      .where({ 
-        entry_id: entryId,
-        tenant
-      })
-      .delete();
+    await db.transaction(async (trx) => {
+      // Get the time entry to be deleted
+      const timeEntry = await trx('time_entries')
+        .where({ 
+          entry_id: entryId,
+          tenant
+        })
+        .first();
+      
+      if (!timeEntry) {
+        throw new Error('Time entry not found');
+      }
+      
+      // Delete the time entry
+      await trx('time_entries')
+        .where({ 
+          entry_id: entryId,
+          tenant
+        })
+        .delete();
+      
+      // If this was a project task, update the actual_hours in the project_tasks table
+      if (timeEntry.work_item_type === 'project_task') {
+        // Get all remaining time entries for this task to calculate total actual hours
+        const timeEntries = await trx('time_entries')
+          .where({
+            work_item_id: timeEntry.work_item_id,
+            work_item_type: 'project_task',
+            tenant
+          })
+          .select('billable_duration');
+        
+        // Calculate total minutes from all time entries
+        const totalMinutes = timeEntries.reduce((total, entry) => total + entry.billable_duration, 0);
+        
+        // Store actual_hours as minutes in the database (integer)
+        await trx('project_tasks')
+          .where({
+            task_id: timeEntry.work_item_id,
+            tenant
+          })
+          .update({
+            actual_hours: totalMinutes,
+            updated_at: new Date()
+          });
+      }
+    });
   } catch (error) {
     console.error('Error deleting time entry:', error);
     throw new Error('Failed to delete time entry');

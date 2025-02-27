@@ -355,14 +355,37 @@ class ScheduleEntry {
             }
           }
         } else if (entry.work_item_type === 'project_task') {
-          // Update project task estimated_hours
+          // Get current estimated hours from all schedule entries for this task
+          const existingScheduleEntries = await trx('schedule_entries')
+            .where({
+              work_item_id: entry.work_item_id,
+              work_item_type: 'project_task',
+              tenant
+            })
+            .whereNot('entry_id', entry_id) // Exclude current entry
+            .select('scheduled_start', 'scheduled_end');
+          
+          // Calculate total duration from existing entries
+          let totalExistingHours = 0;
+          for (const existingEntry of existingScheduleEntries) {
+            const startTime = new Date(existingEntry.scheduled_start);
+            const endTime = new Date(existingEntry.scheduled_end);
+            const durationMs = endTime.getTime() - startTime.getTime();
+            const entryDurationHours = Math.ceil(durationMs / (1000 * 60 * 60)); // Convert ms to hours and round up
+            totalExistingHours += entryDurationHours;
+          }
+          
+          // Add current entry's hours to the total
+          const totalEstimatedHours = totalExistingHours + durationHours;
+          
+          // Update project task with total estimated hours (in minutes)
           await trx('project_tasks')
             .where({
               task_id: entry.work_item_id,
               tenant
             })
             .update({
-              estimated_hours: durationHours,
+              estimated_hours: totalEstimatedHours * 60, // Convert hours to minutes for storage
               updated_at: new Date()
             });
 
@@ -389,7 +412,7 @@ class ScheduleEntry {
                 .first();
 
               if (task) {
-                // If task already has an assignee, add user as additional_user_id
+                // If task already has an assignee and it's not the current user, add as additional_user_id
                 if (task.assigned_to && task.assigned_to !== userId) {
                   await trx('task_resources').insert({
                     task_id: entry.work_item_id,
@@ -399,7 +422,7 @@ class ScheduleEntry {
                     tenant
                   });
                 } else if (!task.assigned_to) {
-                  // If task has no assignee, update the task and add user as assigned_to
+                  // If task has no assignee, only update the task's assigned_to field
                   await trx('project_tasks')
                     .where({
                       task_id: entry.work_item_id,
@@ -409,13 +432,7 @@ class ScheduleEntry {
                       assigned_to: userId,
                       updated_at: new Date()
                     });
-
-                  await trx('task_resources').insert({
-                    task_id: entry.work_item_id,
-                    assigned_to: userId,
-                    assigned_at: new Date(),
-                    tenant
-                  });
+                  // No task_resources record is created when there's no additional user
                 }
               }
             }
@@ -833,6 +850,92 @@ class ScheduleEntry {
           isRecurring: updatedEntry.is_recurring,
           hasPattern: !!updatedEntry.recurrence_pattern
         });
+
+        // Update estimated_hours and task resources if work_item_type is project_task
+        if (updatedEntry.work_item_type === 'project_task' && updatedEntry.work_item_id) {
+          // Calculate duration in hours
+          const startTime = new Date(updatedEntry.scheduled_start);
+          const endTime = new Date(updatedEntry.scheduled_end);
+          const durationMs = endTime.getTime() - startTime.getTime();
+          const durationHours = Math.ceil(durationMs / (1000 * 60 * 60)); // Convert ms to hours and round up
+
+          // Get current estimated hours from all schedule entries for this task
+          const existingScheduleEntries = await trx('schedule_entries')
+            .where({
+              work_item_id: updatedEntry.work_item_id,
+              work_item_type: 'project_task',
+              tenant
+            })
+            .whereNot('entry_id', entry_id) // Exclude current entry
+            .select('scheduled_start', 'scheduled_end');
+          
+          // Calculate total duration from existing entries
+          let totalExistingHours = 0;
+          for (const existingEntry of existingScheduleEntries) {
+            const startTime = new Date(existingEntry.scheduled_start);
+            const endTime = new Date(existingEntry.scheduled_end);
+            const durationMs = endTime.getTime() - startTime.getTime();
+            const entryDurationHours = Math.ceil(durationMs / (1000 * 60 * 60)); // Convert ms to hours and round up
+            totalExistingHours += entryDurationHours;
+          }
+          
+          // Add current entry's hours to the total
+          const totalEstimatedHours = totalExistingHours + durationHours;
+          
+          // Update project task with total estimated hours (in minutes)
+          await trx('project_tasks')
+            .where({
+              task_id: updatedEntry.work_item_id,
+              tenant
+            })
+            .update({
+              estimated_hours: totalEstimatedHours * 60, // Convert hours to minutes for storage
+              updated_at: new Date()
+            });
+
+          // Update task resources if assigned_user_ids is provided
+          if (entry.assigned_user_ids && entry.assigned_user_ids.length > 0) {
+            // Get current task to check if it already has an assignee
+            const task = await trx('project_tasks')
+              .where({
+                task_id: updatedEntry.work_item_id,
+                tenant
+              })
+              .first();
+
+            if (task) {
+              // Update the task's assigned_to field with the first assigned user
+              await trx('project_tasks')
+                .where({
+                  task_id: updatedEntry.work_item_id,
+                  tenant
+                })
+                .update({
+                  assigned_to: entry.assigned_user_ids[0],
+                  updated_at: new Date()
+                });
+
+              // Clear existing task resources
+              await trx('task_resources')
+                .where({
+                  task_id: updatedEntry.work_item_id,
+                  tenant
+                })
+                .del();
+
+              // Add additional users as task resources
+              for (let i = 1; i < entry.assigned_user_ids.length; i++) {
+                await trx('task_resources').insert({
+                  task_id: updatedEntry.work_item_id,
+                  assigned_to: entry.assigned_user_ids[0],
+                  additional_user_id: entry.assigned_user_ids[i],
+                  assigned_at: new Date(),
+                  tenant
+                });
+              }
+            }
+          }
+        }
 
         // Update assignees if provided
         if (entry.assigned_user_ids) {
