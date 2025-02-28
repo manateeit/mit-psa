@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import TextEditor from '../editor/TextEditor';
 import { PartialBlock } from '@blocknote/core';
+import TextEditor from '../editor/TextEditor';
 import ReactMarkdown from 'react-markdown';
 import { Pencil, Trash } from 'lucide-react';
 import { Pencil2Icon, TrashIcon } from '@radix-ui/react-icons';
@@ -170,6 +170,27 @@ const CommentItem: React.FC<CommentItemProps> = ({
   const authorFirstName = conversation.user_id ? userMap[conversation.user_id]?.first_name || '' : '';
   const authorLastName = conversation.user_id ? userMap[conversation.user_id]?.last_name || '' : '';
 
+  // Function to extract text from BlockNote JSON structure
+  const extractTextFromBlocks = (jsonString: string): string => {
+    try {
+      const blocks = JSON.parse(jsonString);
+      if (!Array.isArray(blocks)) return jsonString;
+      
+      return blocks.map((block: any) => {
+        if (block.type === "paragraph" && Array.isArray(block.content)) {
+          return block.content
+            .filter((item: any) => item.type === "text")
+            .map((item: any) => item.text)
+            .join(" ");
+        }
+        return "";
+      }).join("\n\n");
+    } catch (e) {
+      // If parsing fails, return the original string
+      return jsonString;
+    }
+  };
+
   return (
     <div {...withDataAutomationId({ id: commentId })} className="bg-gray-50 rounded-lg p-4 mb-4 shadow-sm">
       <div className="flex items-start mb-2">
@@ -223,7 +244,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
             editorContent
           ) : (
             <div {...withDataAutomationId({ id: `${commentId}-content` })} className="prose max-w-none mt-2">
-              <ReactMarkdown>{conversation.note || ''}</ReactMarkdown>
+              <ReactMarkdown>{extractTextFromBlocks(conversation.note || '')}</ReactMarkdown>
             </div>
           )}
         </div>
