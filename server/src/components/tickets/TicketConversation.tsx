@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
+import { ArrowUpDown } from 'lucide-react';
 import { IComment, ITicket } from '../../interfaces';
 import { IDocument } from '../../interfaces/document.interface';
 import TextEditor, { DEFAULT_BLOCK } from '../editor/TextEditor';
@@ -55,6 +56,25 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
   onDelete,
   onContentChange,
 }) => {
+  const [showEditor, setShowEditor] = useState(false);
+  const [reverseOrder, setReverseOrder] = useState(false);
+
+  const handleAddCommentClick = () => {
+    setShowEditor(true);
+  };
+
+  const handleSubmitComment = async () => {
+    await onAddNewComment();
+    setShowEditor(false);
+  };
+
+  const handleCancelComment = () => {
+    setShowEditor(false);
+  };
+
+  const toggleCommentOrder = () => {
+    setReverseOrder(!reverseOrder);
+  };
   const renderButtonBar = (): JSX.Element => {
     const buttons = ['Comments', 'Internal', 'Resolution'];
     return (
@@ -84,7 +104,10 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
   };
 
   const renderComments = (comments: IComment[]): JSX.Element[] => {
-    return comments.map((conversation): JSX.Element => (
+    // Use the sorted comments based on the reverseOrder state
+    const commentsToRender = reverseOrder ? [...comments].reverse() : comments;
+    
+    return commentsToRender.map((conversation): JSX.Element => (
       <CommentItem
         key={conversation.comment_id}
         id={`${id}-comment-${conversation.comment_id}`}
@@ -153,47 +176,78 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
     activeTrigger: "data-[state=active]:border-indigo-500 data-[state=active]:text-indigo-600"
   };
 
+
   return (
     <div {...withDataAutomationId({ id })} className={`${styles['card']}`}>
       <div className="p-6">
-        <h2 className="text-xl font-bold mb-4">Comments</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Comments</h2>
+          {!showEditor && (
+            <Button
+              id={`${id}-show-comment-editor-btn`}
+              onClick={handleAddCommentClick}
+              className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Add Comment
+            </Button>
+          )}
+        </div>
         <div className='mb-6'>
-          <div className='flex items-start'>
-            <div className="mr-3">
-              <AvatarIcon
-                {...withDataAutomationId({ id: `${id}-current-user-avatar` })}
-                userId={currentUser?.id || ''}
-                firstName={currentUser?.name?.split(' ')[0] || ''}
-                lastName={currentUser?.name?.split(' ')[1] || ''}
-                size="md"
-              />
-            </div>
-            <div className='flex-grow'>
-              <TextEditor
-                {...withDataAutomationId({ id: `${id}-editor` })}
-                key={editorKey}
-                roomName={`ticket-${ticket.ticket_id}`}
-                initialContent={DEFAULT_BLOCK}
-                onContentChange={onNewCommentContentChange}
-              >
-                {renderButtonBar()}
-              </TextEditor>
-              <div className="flex justify-end mt-2">
-                <Button
-                  id={`${id}-add-comment-btn`}
-                  onClick={handleAddNewComment}
-                  className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
+          {showEditor && (
+            <div className='flex items-start'>
+              <div className="mr-3">
+                <AvatarIcon
+                  {...withDataAutomationId({ id: `${id}-current-user-avatar` })}
+                  userId={currentUser?.id || ''}
+                  firstName={currentUser?.name?.split(' ')[0] || ''}
+                  lastName={currentUser?.name?.split(' ')[1] || ''}
+                  size="md"
+                />
+              </div>
+              <div className='flex-grow'>
+                <TextEditor
+                  {...withDataAutomationId({ id: `${id}-editor` })}
+                  key={editorKey}
+                  roomName={`ticket-${ticket.ticket_id}`}
+                  initialContent={DEFAULT_BLOCK}
+                  onContentChange={onNewCommentContentChange}
                 >
-                  Add Comment
-                </Button>
+                  {renderButtonBar()}
+                </TextEditor>
+                <div className="flex justify-end space-x-2 mt-2">
+                  <Button
+                    id={`${id}-add-comment-btn`}
+                    onClick={handleSubmitComment}
+                    className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
+                  >
+                    Add Comment
+                  </Button>
+                  <Button
+                    id={`${id}-cancel-comment-btn`}
+                    onClick={handleCancelComment}
+                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded"
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
         <CustomTabs
           tabs={tabContent}
           defaultTab="All Comments"
           tabStyles={tabStyles}
+          onTabChange={onTabChange}
+          extraContent={
+            <button
+              onClick={toggleCommentOrder}
+              className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent px-4 py-2 ml-auto"
+            >
+              <ArrowUpDown className="w-4 h-4" />
+              <span>{reverseOrder ? "Newest first" : "Oldest first"}</span>
+            </button>
+          }
         />
       </div>
     </div>

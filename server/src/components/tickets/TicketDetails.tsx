@@ -398,8 +398,13 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
     };
     
     const handleEdit = (conversation: IComment) => {
-        setIsEditing(true);
-        setCurrentComment(conversation);
+        // Only allow users to edit their own comments
+        if (userId === conversation.user_id) {
+            setIsEditing(true);
+            setCurrentComment(conversation);
+        } else {
+            toast.error('You can only edit your own comments');
+        }
     };
 
     const handleSave = async (updates: Partial<IComment>) => {

@@ -49,19 +49,32 @@ const CommentItem: React.FC<CommentItemProps> = ({
   onDelete
 }) => {
   const [selectedUserId, setSelectedUserId] = useState(conversation.user_id || '');
-  const [editedContent, setEditedContent] = useState<PartialBlock[]>([{
-    type: "paragraph",
-    props: {
-      textAlignment: "left",
-      backgroundColor: "default",
-      textColor: "default"
-    },
-    content: [{
-      type: "text",
-      text: conversation.note || '',
-      styles: {}
-    }]
-  }]);
+  const [editedContent, setEditedContent] = useState<PartialBlock[]>(() => {
+    try {
+      // Try to parse the note as JSON
+      const parsedContent = JSON.parse(conversation.note || '');
+      if (Array.isArray(parsedContent) && parsedContent.length > 0) {
+        return parsedContent;
+      }
+    } catch (e) {
+      // If parsing fails, continue to the fallback
+    }
+    
+    // Fallback: create a default block with the text
+    return [{
+      type: "paragraph",
+      props: {
+        textAlignment: "left",
+        backgroundColor: "default",
+        textColor: "default"
+      },
+      content: [{
+        type: "text",
+        text: conversation.note || '',
+        styles: {}
+      }]
+    }];
+  });
 
   const commentId = useMemo(() => 
     conversation.comment_id || currentComment?.comment_id || id || 'unknown',
@@ -81,6 +94,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
     return commentUser?.email;
   };
 
+  // Only allow users to edit their own comments
   const canEdit = useMemo(() => {
     return user?.user_id === conversation.user_id;
   }, [conversation.user_id, user?.user_id]);
