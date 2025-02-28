@@ -6,6 +6,7 @@ import { extractTextFromBlocks } from '@/lib/utils/textUtils';
 import TextEditor from '../editor/TextEditor';
 import { PartialBlock } from '@blocknote/core';
 import { ITicket, IComment, ITicketCategory } from '../../interfaces';
+import { Button } from '@/components/ui/Button';
 import CustomSelect from '../ui/CustomSelect';
 import { CategoryPicker } from './CategoryPicker';
 import styles from './TicketDetails.module.css';
@@ -288,7 +289,8 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
                   onContentChange={setDescriptionContent}
                 />
                 <div className="flex justify-end space-x-2 mt-2">
-                  <button
+                  <Button
+                    id="save-description-button"
                     onClick={async () => {
                       if (onUpdateDescription) {
                         const success = await onUpdateDescription(JSON.stringify(descriptionContent));
@@ -297,19 +299,19 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
                         }
                       }
                     }}
-                    className="bg-green-500 hover:bg-green-600 text-white font-medium py-1 px-3 rounded-md transition duration-150 ease-in-out"
                   >
                     Save
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    id="cancel-description-button"
+                    variant="outline"
                     onClick={() => {
                       // Reset to original content and cancel editing
                       setIsEditingDescription(false);
                     }}
-                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-1 px-3 rounded-md transition duration-150 ease-in-out"
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (

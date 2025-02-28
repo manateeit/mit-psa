@@ -151,18 +151,17 @@ const CommentItem: React.FC<CommentItemProps> = ({
         />
 
         <div className="flex justify-end space-x-2 mt-2">
-          <button
-            {...withDataAutomationId({ id: `${commentId}-save-btn` })}
+          <Button
+            id={`${commentId}-save-btn`}
             onClick={handleSave}
-            className="bg-green-500 hover:bg-green-600 text-white font-medium py-1 px-3 rounded-md transition duration-150 ease-in-out"
             disabled={!selectedUserId}
           >
             Save
-          </button>
+          </Button>
           <Button
-            {...withDataAutomationId({ id: `${commentId}-cancel-btn` })}
+            id={`${commentId}-cancel-btn`}
+            variant="outline"
             onClick={onClose}
-            className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-1 px-3 rounded-md transition duration-150 ease-in-out"
           >
             Cancel
           </Button>
