@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import TextEditor from '../editor/TextEditor';
 import { PartialBlock } from '@blocknote/core';
+import { extractTextFromBlocks } from '@/lib/utils/textUtils';
+import TextEditor from '../editor/TextEditor';
 import ReactMarkdown from 'react-markdown';
 import { Pencil, Trash } from 'lucide-react';
 import { Pencil2Icon, TrashIcon } from '@radix-ui/react-icons';
@@ -12,6 +13,7 @@ import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import UserPicker from '@/components/ui/UserPicker';
 import { Button } from '@/components/ui/Button';
 import { withDataAutomationId } from '@/types/ui-reflection/withDataAutomationId';
+import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 
 interface CommentItemProps {
   id?: string;
@@ -30,7 +32,7 @@ interface CommentItemProps {
   onSave: (updates: Partial<IComment>) => void;
   onClose: () => void;
   onEdit: (conversation: IComment) => void;
-  onDelete: (commentId: string) => void;
+  onDelete: (comment: IComment) => void;
 }
 
 const CommentItem: React.FC<CommentItemProps> = ({
@@ -48,19 +50,33 @@ const CommentItem: React.FC<CommentItemProps> = ({
   onDelete
 }) => {
   const [selectedUserId, setSelectedUserId] = useState(conversation.user_id || '');
-  const [editedContent, setEditedContent] = useState<PartialBlock[]>([{
-    type: "paragraph",
-    props: {
-      textAlignment: "left",
-      backgroundColor: "default",
-      textColor: "default"
-    },
-    content: [{
-      type: "text",
-      text: conversation.note || '',
-      styles: {}
-    }]
-  }]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [editedContent, setEditedContent] = useState<PartialBlock[]>(() => {
+    try {
+      // Try to parse the note as JSON
+      const parsedContent = JSON.parse(conversation.note || '');
+      if (Array.isArray(parsedContent) && parsedContent.length > 0) {
+        return parsedContent;
+      }
+    } catch (e) {
+      // If parsing fails, continue to the fallback
+    }
+    
+    // Fallback: create a default block with the text
+    return [{
+      type: "paragraph",
+      props: {
+        textAlignment: "left",
+        backgroundColor: "default",
+        textColor: "default"
+      },
+      content: [{
+        type: "text",
+        text: conversation.note || '',
+        styles: {}
+      }]
+    }];
+  });
 
   const commentId = useMemo(() => 
     conversation.comment_id || currentComment?.comment_id || id || 'unknown',
@@ -80,6 +96,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
     return commentUser?.email;
   };
 
+  // Only allow users to edit their own comments
   const canEdit = useMemo(() => {
     return user?.user_id === conversation.user_id;
   }, [conversation.user_id, user?.user_id]);
@@ -136,18 +153,17 @@ const CommentItem: React.FC<CommentItemProps> = ({
         />
 
         <div className="flex justify-end space-x-2 mt-2">
-          <button
-            {...withDataAutomationId({ id: `${commentId}-save-btn` })}
+          <Button
+            id={`${commentId}-save-btn`}
             onClick={handleSave}
-            className="bg-green-500 hover:bg-green-600 text-white font-medium py-1 px-3 rounded-md transition duration-150 ease-in-out"
             disabled={!selectedUserId}
           >
             Save
-          </button>
+          </Button>
           <Button
-            {...withDataAutomationId({ id: `${commentId}-cancel-btn` })}
+            id={`${commentId}-cancel-btn`}
+            variant="outline"
             onClick={onClose}
-            className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-1 px-3 rounded-md transition duration-150 ease-in-out"
           >
             Cancel
           </Button>
@@ -169,6 +185,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
   const authorFirstName = conversation.user_id ? userMap[conversation.user_id]?.first_name || '' : '';
   const authorLastName = conversation.user_id ? userMap[conversation.user_id]?.last_name || '' : '';
+
 
   return (
     <div {...withDataAutomationId({ id: commentId })} className="bg-gray-50 rounded-lg p-4 mb-4 shadow-sm">
@@ -210,7 +227,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
                 <Button
                   id='delete-comment-button'
                   variant="ghost"
-                  onClick={() => onDelete(conversation.comment_id || '')}
+                  onClick={() => setIsDeleteDialogOpen(true)}
                   className="text-red-600 hover:text-red-800 font-medium p-1 rounded-full hover:bg-red-100 transition duration-150 ease-in-out"
                   aria-label="Delete comment"
                 >
@@ -223,11 +240,26 @@ const CommentItem: React.FC<CommentItemProps> = ({
             editorContent
           ) : (
             <div {...withDataAutomationId({ id: `${commentId}-content` })} className="prose max-w-none mt-2">
-              <ReactMarkdown>{conversation.note || ''}</ReactMarkdown>
+              <ReactMarkdown>{extractTextFromBlocks(conversation.note || '')}</ReactMarkdown>
             </div>
           )}
         </div>
       </div>
+      
+      {/* Confirmation Dialog for Delete */}
+      <ConfirmationDialog
+        id={`${commentId}-delete-dialog`}
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={async () => {
+          onDelete(conversation);
+          setIsDeleteDialogOpen(false);
+        }}
+        title="Delete Comment"
+        message="Are you sure you want to delete this comment? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+      />
     </div>
   );
 };

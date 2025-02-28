@@ -20,13 +20,15 @@ export interface CustomTabsProps {
     activeTrigger?: string;
     content?: string;
   };
+  extraContent?: React.ReactNode;
 }
 
 export const CustomTabs: React.FC<CustomTabsProps & AutomationProps> = ({ 
   tabs, 
   defaultTab, 
   onTabChange,
-  tabStyles 
+  tabStyles,
+  extraContent
 }) => {
   const [value, setValue] = React.useState(defaultTab || tabs[0].label);
 
@@ -45,7 +47,7 @@ export const CustomTabs: React.FC<CustomTabsProps & AutomationProps> = ({
         onTabChange?.(newValue);
       }}
     >
-      <Tabs.List className={`flex border-b border-gray-200 mb-4 ${tabStyles?.list || ''}`}>
+      <Tabs.List className={`flex items-center border-b border-gray-200 mb-4 ${tabStyles?.list || ''}`}>
         {tabs.map((tab): JSX.Element => (
           <Tabs.Trigger
             key={tab.label}
@@ -59,6 +61,7 @@ export const CustomTabs: React.FC<CustomTabsProps & AutomationProps> = ({
             {tab.label}
           </Tabs.Trigger>
         ))}
+        {extraContent}
       </Tabs.List>
       {tabs.map((tab): JSX.Element => (
         <Tabs.Content 

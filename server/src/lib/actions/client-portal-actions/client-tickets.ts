@@ -291,7 +291,6 @@ export async function addClientTicketComment(ticketId: string, content: string, 
     await db('comments').insert({
       tenant,
       ticket_id: ticketId,
-      contact_id: user.contact_id,
       author_type: 'client',
       note: content,
       is_internal: isInternal,
@@ -334,7 +333,7 @@ export async function updateClientTicketComment(commentId: string, updates: Part
       .where({
         comment_id: commentId,
         tenant,
-        contact_id: user.contact_id
+        user_id: session.user.id
       })
       .first();
 
@@ -349,8 +348,8 @@ export async function updateClientTicketComment(commentId: string, updates: Part
       })
       .update({
         ...updates,
-        updated_at: new Date().toISOString(),
-        updated_by: session.user.id
+        updated_at: new Date().toISOString()
+        // Removed updated_by as it doesn't exist in the comments table
       });
   } catch (error) {
     console.error('Failed to update comment:', error);
@@ -439,7 +438,7 @@ export async function deleteClientTicketComment(commentId: string): Promise<void
       .where({
         comment_id: commentId,
         tenant,
-        contact_id: user.contact_id
+        user_id: session.user.id
       })
       .first();
 

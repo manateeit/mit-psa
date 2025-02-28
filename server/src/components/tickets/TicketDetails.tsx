@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { ConfirmationDialog } from '../ui/ConfirmationDialog';
 import {
     ITicket,
     IComment,
@@ -105,6 +106,8 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
     const [isChangeCompanyDialogOpen, setIsChangeCompanyDialogOpen] = useState(false);
     const [companyFilterState, setCompanyFilterState] = useState<'all' | 'active' | 'inactive'>('all');
     const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
 
     const { openDrawer, closeDrawer } = useDrawer();
 
@@ -398,8 +401,13 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
     };
     
     const handleEdit = (conversation: IComment) => {
-        setIsEditing(true);
-        setCurrentComment(conversation);
+        // Only allow users to edit their own comments
+        if (userId === conversation.user_id) {
+            setIsEditing(true);
+            setCurrentComment(conversation);
+        } else {
+            toast.error('You can only edit your own comments');
+        }
     };
 
     const handleSave = async (updates: Partial<IComment>) => {
@@ -430,11 +438,15 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
         setCurrentComment(null);
     };
 
-    const handleDelete = async (commentId: string) => {
+    // This function is no longer used directly - we use handleDeleteRequest instead
+    // Keeping it for backward compatibility with other components that might use it
+    const handleDelete = async (comment: IComment) => {
+        if (!comment.comment_id) return;
+        
         try {
-            await deleteComment(commentId);
+            await deleteComment(comment.comment_id);
             setConversations(prevConversations =>
-                prevConversations.filter(conv => conv.comment_id !== commentId)
+                prevConversations.filter(conv => conv.comment_id !== comment.comment_id)
             );
         } catch (error) {
             console.error("Error deleting comment:", error);
@@ -444,6 +456,60 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
     const handleContentChange = (blocks: PartialBlock[]) => {
         if (currentComment) {
             setCurrentComment({ ...currentComment, note: JSON.stringify(blocks) });
+        }
+    };
+
+    const handleUpdateDescription = async (content: string) => {
+        try {
+            const user = await getCurrentUser();
+            if (!user) {
+                console.error('Failed to get user');
+                return false;
+            }
+
+            if (!ticket.ticket_id) {
+                console.error('Ticket ID is missing');
+                return false;
+            }
+
+            // Update the ticket's attributes.description field
+            const currentAttributes = ticket.attributes || {};
+            const updatedAttributes = {
+                ...currentAttributes,
+                description: content
+            };
+
+            // Update the ticket
+            await updateTicket(ticket.ticket_id, { 
+                attributes: updatedAttributes,
+                updated_by: user.user_id,
+                updated_at: new Date().toISOString()
+            }, user);
+
+            // Update the local ticket state
+            setTicket(prev => ({
+                ...prev,
+                attributes: updatedAttributes,
+                updated_by: user.user_id,
+                updated_at: new Date().toISOString()
+            }));
+
+            // Also update the initial description comment if it exists
+            const initialComment = conversations.find(conv => conv.is_initial_description);
+            if (initialComment?.comment_id) {
+                await updateComment(initialComment.comment_id, { note: content });
+                
+                // Refresh the comments
+                const updatedComments = await findCommentsByTicketId(ticket.ticket_id);
+                setConversations(updatedComments);
+            }
+
+            toast.success('Description updated successfully');
+            return true;
+        } catch (error) {
+            console.error('Error updating description:', error);
+            toast.error('Failed to update description');
+            return false;
         }
     };
 
@@ -608,9 +674,51 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
         }
     };
 
+    const handleDeleteRequest = (conversation: IComment) => {
+        // Only allow users to delete their own comments
+        if (userId === conversation.user_id) {
+            setCommentToDelete(conversation.comment_id!);
+            setIsDeleteDialogOpen(true);
+        } else {
+            toast.error('You can only delete your own comments');
+        }
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!commentToDelete) return;
+        
+        try {
+            await deleteComment(commentToDelete);
+            setConversations(prevConversations =>
+                prevConversations.filter(conv => conv.comment_id !== commentToDelete)
+            );
+            toast.success('Comment deleted successfully');
+        } catch (error) {
+            console.error("Error deleting comment:", error);
+            toast.error('Failed to delete comment');
+        } finally {
+            setIsDeleteDialogOpen(false);
+            setCommentToDelete(null);
+        }
+    };
+
     return (
         <ReflectionContainer id={id} label={`Ticket Details - ${ticket.ticket_number}`}>
             <div className="bg-gray-100">
+                {/* Confirmation Dialog for Comment Deletion */}
+                <ConfirmationDialog
+                    id={`${id}-delete-comment-dialog`}
+                    isOpen={isDeleteDialogOpen}
+                    onClose={() => {
+                        setIsDeleteDialogOpen(false);
+                        setCommentToDelete(null);
+                    }}
+                    onConfirm={handleDeleteConfirm}
+                    title="Delete Comment"
+                    message="Are you sure you want to delete this comment? This action cannot be undone."
+                    confirmLabel="Delete"
+                    cancelLabel="Cancel"
+                />
 
                 <div className="flex gap-6">
                     <div className="flex-grow col-span-2 space-y-6">
@@ -623,6 +731,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
                             channelOptions={channelOptions}
                             priorityOptions={priorityOptions}
                             onSelectChange={handleSelectChange}
+                            onUpdateDescription={handleUpdateDescription}
                         />
                         <TicketConversation
                             id={`${id}-conversation`}
@@ -641,7 +750,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
                             onEdit={handleEdit}
                             onSave={handleSave}
                             onClose={handleClose}
-                            onDelete={handleDelete}
+                            onDelete={handleDeleteRequest}
                             onContentChange={handleContentChange}
                         />
                     </div>

@@ -113,7 +113,7 @@ export default function TextEditor({
   return (
     <div className="w-full">
       {children}
-      <div className="min-h-[400px] bg-white border border-gray-200 rounded-lg p-4">
+      <div className="min-h-[100px] bg-white border border-gray-200 rounded-lg p-4">
         <BlockNoteView
           editor={editor}
           theme="light"
