@@ -13,6 +13,7 @@ import { IUserWithRoles } from '@/interfaces/auth.interfaces';
 import UserPicker from '@/components/ui/UserPicker';
 import { Button } from '@/components/ui/Button';
 import { withDataAutomationId } from '@/types/ui-reflection/withDataAutomationId';
+import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 
 interface CommentItemProps {
   id?: string;
@@ -31,7 +32,7 @@ interface CommentItemProps {
   onSave: (updates: Partial<IComment>) => void;
   onClose: () => void;
   onEdit: (conversation: IComment) => void;
-  onDelete: (commentId: string) => void;
+  onDelete: (comment: IComment) => void;
 }
 
 const CommentItem: React.FC<CommentItemProps> = ({
@@ -49,6 +50,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
   onDelete
 }) => {
   const [selectedUserId, setSelectedUserId] = useState(conversation.user_id || '');
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editedContent, setEditedContent] = useState<PartialBlock[]>(() => {
     try {
       // Try to parse the note as JSON
@@ -225,7 +227,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
                 <Button
                   id='delete-comment-button'
                   variant="ghost"
-                  onClick={() => onDelete(conversation.comment_id || '')}
+                  onClick={() => setIsDeleteDialogOpen(true)}
                   className="text-red-600 hover:text-red-800 font-medium p-1 rounded-full hover:bg-red-100 transition duration-150 ease-in-out"
                   aria-label="Delete comment"
                 >
@@ -243,6 +245,21 @@ const CommentItem: React.FC<CommentItemProps> = ({
           )}
         </div>
       </div>
+      
+      {/* Confirmation Dialog for Delete */}
+      <ConfirmationDialog
+        id={`${commentId}-delete-dialog`}
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={async () => {
+          onDelete(conversation);
+          setIsDeleteDialogOpen(false);
+        }}
+        title="Delete Comment"
+        message="Are you sure you want to delete this comment? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+      />
     </div>
   );
 };

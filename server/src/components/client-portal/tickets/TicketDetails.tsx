@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/Button';
 import { X } from 'lucide-react';
+import { extractTextFromBlocks } from '@/lib/utils/textUtils';
 import { 
   getClientTicketDetails, 
   addClientTicketComment,
@@ -147,9 +148,17 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
     setCurrentComment(null);
   };
 
-  const handleDelete = async (commentId: string) => {
+  const handleDelete = async (comment: IComment) => {
     try {
-      await deleteClientTicketComment(commentId);
+      if (!comment.comment_id) return;
+      
+      // Check if the comment belongs to the current user
+      if (comment.user_id !== currentUser?.id) {
+        setError('You can only delete your own comments');
+        return;
+      }
+      
+      await deleteClientTicketComment(comment.comment_id);
       // Refresh ticket details to remove deleted comment
       const details = await getClientTicketDetails(ticketId);
       setTicket(details);
@@ -210,7 +219,7 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
               <div className="border-t pt-4">
                 <h3 className="text-sm font-medium text-gray-900 mb-2">Description</h3>
                 <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                {(ticket.attributes?.description as string) || 'No description provided'}
+                  {extractTextFromBlocks((ticket.attributes?.description as string) || '')}
                 </p>
               </div>
 
@@ -221,13 +230,19 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
                   documents={ticket.documents || []}
                   userMap={ticket.userMap || {}}
                   currentUser={currentUser}
-                  activeTab={activeTab}
+                  activeTab={activeTab === 'Internal' ? 'Comments' : activeTab}
+                  hideInternalTab={true}
                   isEditing={isEditing}
                   currentComment={currentComment}
                   editorKey={editorKey}
                   onNewCommentContentChange={handleNewCommentContentChange}
                   onAddNewComment={handleAddNewComment}
-                  onTabChange={handleTabChange}
+                  // Override tab change to prevent 'Internal' tab selection
+                  onTabChange={(tab) => {
+                    if (tab !== 'Internal') {
+                      setActiveTab(tab);
+                    }
+                  }}
                   onEdit={handleEdit}
                   onSave={handleSave}
                   onClose={handleClose}

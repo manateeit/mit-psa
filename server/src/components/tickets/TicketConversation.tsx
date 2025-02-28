@@ -32,8 +32,9 @@ interface TicketConversationProps {
   onEdit: (conversation: IComment) => void;
   onSave: (updates: Partial<IComment>) => void;
   onClose: () => void;
-  onDelete: (commentId: string) => void;
+  onDelete: (comment: IComment) => void;
   onContentChange: (content: PartialBlock[]) => void;
+  hideInternalTab?: boolean; // Optional prop to hide the Internal tab
 }
 
 const TicketConversation: React.FC<TicketConversationProps> = ({
@@ -55,6 +56,7 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
   onClose,
   onDelete,
   onContentChange,
+  hideInternalTab = false,
 }) => {
   const [showEditor, setShowEditor] = useState(false);
   const [reverseOrder, setReverseOrder] = useState(false);
@@ -76,7 +78,15 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
     setReverseOrder(!reverseOrder);
   };
   const renderButtonBar = (): JSX.Element => {
-    const buttons = ['Comments', 'Internal', 'Resolution'];
+    // For MSP portal, always show the Internal tab
+    // For client portal, never show the Internal tab
+    const buttons = ['Comments', 'Resolution'];
+    
+    // Add Internal tab if not hidden (MSP portal)
+    if (!hideInternalTab) {
+      buttons.splice(1, 0, 'Internal');
+    }
+    
     return (
       <div className={styles.buttonBar}>
         {buttons.map((button: string): JSX.Element => (
@@ -126,16 +136,25 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
     ));
   };
 
+  // Build tab content array
   const tabContent = [
     {
       label: "All Comments",
       content: (
         <ReflectionContainer id={`${id}-all-comments`} label="All Comments">
-          {renderComments(conversations)}
+          {/* Filter out internal comments in client portal */}
+          {hideInternalTab 
+            ? renderComments(conversations.filter(conversation => !conversation.is_internal))
+            : renderComments(conversations)
+          }
         </ReflectionContainer>
       )
-    },
-    {
+    }
+  ];
+  
+  // Add Internal tab for MSP portal (not client portal)
+  if (!hideInternalTab) {
+    tabContent.push({
       label: "Internal",
       content: (
         <ReflectionContainer id={`${id}-internal-comments`} label="Internal Comments">
@@ -143,33 +162,37 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
           {renderComments(conversations.filter(conversation => conversation.is_internal))}
         </ReflectionContainer>
       )
-    },
-    {
-      label: "Resolution",
-      content: (
-        <ReflectionContainer id={`${id}-resolution-comments`} label="Resolution Comments">
-          <h3 className="text-lg font-medium mb-4">Resolution Comments</h3>
-          {renderComments(conversations.filter(conversation => conversation.is_resolution))}
-        </ReflectionContainer>
-      )
-    },
-    {
-      label: "Documents",
-      content: (
-        <ReflectionContainer id={`${id}-documents`} label="Documents">
-          <div className="mx-8">
-            <Documents
-              id={`${id}-documents-list`}
-              documents={documents}
-              userId={`${currentUser?.id}`}
-              entityId={ticket.ticket_id}
-              entityType="ticket"
-            />
-          </div>
-        </ReflectionContainer>
-      )
-    }
-  ];
+    });
+  }
+  
+  // Add Resolution tab
+  tabContent.push({
+    label: "Resolution",
+    content: (
+      <ReflectionContainer id={`${id}-resolution-comments`} label="Resolution Comments">
+        <h3 className="text-lg font-medium mb-4">Resolution Comments</h3>
+        {renderComments(conversations.filter(conversation => conversation.is_resolution))}
+      </ReflectionContainer>
+    )
+  });
+  
+  // Add Documents tab
+  tabContent.push({
+    label: "Documents",
+    content: (
+      <ReflectionContainer id={`${id}-documents`} label="Documents">
+        <div className="mx-8">
+          <Documents
+            id={`${id}-documents-list`}
+            documents={documents}
+            userId={`${currentUser?.id}`}
+            entityId={ticket.ticket_id}
+            entityType="ticket"
+          />
+        </div>
+      </ReflectionContainer>
+    )
+  });
 
   const tabStyles = {
     trigger: "px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 border-b-2 border-transparent",
