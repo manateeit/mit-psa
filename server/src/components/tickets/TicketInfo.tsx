@@ -1,6 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import { extractTextFromBlocks } from '@/lib/utils/textUtils';
+import TextEditor from '../editor/TextEditor';
+import { PartialBlock } from '@blocknote/core';
 import { ITicket, IComment, ITicketCategory } from '../../interfaces';
 import CustomSelect from '../ui/CustomSelect';
 import { CategoryPicker } from './CategoryPicker';
@@ -18,6 +22,7 @@ interface TicketInfoProps {
   channelOptions: { value: string; label: string }[];
   priorityOptions: { value: string; label: string }[];
   onSelectChange: (field: keyof ITicket, newValue: string | null) => void;
+  onUpdateDescription?: (content: string) => Promise<boolean>;
 }
 
 const TicketInfo: React.FC<TicketInfoProps> = ({
@@ -29,12 +34,61 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
   channelOptions,
   priorityOptions,
   onSelectChange,
+  onUpdateDescription,
 }) => {
   const [categories, setCategories] = useState<ITicketCategory[]>([]);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(ticket.title);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [descriptionContent, setDescriptionContent] = useState<PartialBlock[]>([{
+    type: "paragraph",
+    props: {
+      textAlignment: "left",
+      backgroundColor: "default",
+      textColor: "default"
+    },
+    content: [{
+      type: "text",
+      text: "",
+      styles: {}
+    }]
+  }]);
 
   useEffect(() => {
+    // Initialize description content from either the ticket attributes or the initial description comment
+    const ticketAttributesDescription = ticket.attributes?.description as string;
+    const initialCommentDescription = conversations.find(conv => conv.is_initial_description)?.note;
+    
+    // Prefer the initial comment description if available
+    const descriptionText = initialCommentDescription || ticketAttributesDescription || '';
+    
+    if (descriptionText) {
+      try {
+        const parsedContent = JSON.parse(descriptionText);
+        if (Array.isArray(parsedContent) && parsedContent.length > 0) {
+          setDescriptionContent(parsedContent);
+          return;
+        }
+      } catch (e) {
+        // If parsing fails, continue to the fallback
+      }
+      
+      // Fallback: create a default block with the text
+      setDescriptionContent([{
+        type: "paragraph",
+        props: {
+          textAlignment: "left",
+          backgroundColor: "default",
+          textColor: "default"
+        },
+        content: [{
+          type: "text",
+          text: descriptionText,
+          styles: {}
+        }]
+      }]);
+    }
+
     const fetchCategories = async () => {
       try {
         const fetchedCategories = await getTicketCategories();
@@ -45,7 +99,7 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
     };
 
     fetchCategories();
-  }, []);
+  }, [ticket, conversations]);
 
   useEffect(() => {
     setTitleValue(ticket.title);
@@ -213,10 +267,65 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
             </div>
           </div>
           <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-2">Description</h2>
-            <p>
-              {conversations.find(conv => conv.is_initial_description)?.note || 'No initial description found.'}
-            </p>
+            <div className="flex items-center gap-2 mb-2">
+              <h2 className="text-lg font-semibold">Description</h2>
+              {!isEditingDescription && (
+                <button
+                  onClick={() => setIsEditingDescription(true)}
+                  className="p-1 hover:bg-gray-100 rounded-full transition-colors duration-200"
+                  title="Edit description"
+                >
+                  <Pencil className="w-4 h-4 text-gray-500" />
+                </button>
+              )}
+            </div>
+            
+            {isEditingDescription ? (
+              <div>
+                <TextEditor
+                  id={`${id}-description-editor`}
+                  initialContent={descriptionContent}
+                  onContentChange={setDescriptionContent}
+                />
+                <div className="flex justify-end space-x-2 mt-2">
+                  <button
+                    onClick={async () => {
+                      if (onUpdateDescription) {
+                        const success = await onUpdateDescription(JSON.stringify(descriptionContent));
+                        if (success) {
+                          setIsEditingDescription(false);
+                        }
+                      }
+                    }}
+                    className="bg-green-500 hover:bg-green-600 text-white font-medium py-1 px-3 rounded-md transition duration-150 ease-in-out"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Reset to original content and cancel editing
+                      setIsEditingDescription(false);
+                    }}
+                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-1 px-3 rounded-md transition duration-150 ease-in-out"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="prose max-w-none">
+                {(() => {
+                  // Try to get description from initial comment first, then from ticket attributes
+                  const initialDescription = conversations.find(conv => conv.is_initial_description)?.note;
+                  const ticketAttributesDescription = ticket.attributes?.description as string;
+                  const descriptionText = initialDescription || ticketAttributesDescription;
+                  
+                  if (!descriptionText) return 'No description found.';
+                  
+                  return <ReactMarkdown>{extractTextFromBlocks(descriptionText)}</ReactMarkdown>;
+                })()}
+              </div>
+            )}
           </div>
         </div>
       </div>

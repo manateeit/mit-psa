@@ -447,6 +447,60 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
         }
     };
 
+    const handleUpdateDescription = async (content: string) => {
+        try {
+            const user = await getCurrentUser();
+            if (!user) {
+                console.error('Failed to get user');
+                return false;
+            }
+
+            if (!ticket.ticket_id) {
+                console.error('Ticket ID is missing');
+                return false;
+            }
+
+            // Update the ticket's attributes.description field
+            const currentAttributes = ticket.attributes || {};
+            const updatedAttributes = {
+                ...currentAttributes,
+                description: content
+            };
+
+            // Update the ticket
+            await updateTicket(ticket.ticket_id, { 
+                attributes: updatedAttributes,
+                updated_by: user.user_id,
+                updated_at: new Date().toISOString()
+            }, user);
+
+            // Update the local ticket state
+            setTicket(prev => ({
+                ...prev,
+                attributes: updatedAttributes,
+                updated_by: user.user_id,
+                updated_at: new Date().toISOString()
+            }));
+
+            // Also update the initial description comment if it exists
+            const initialComment = conversations.find(conv => conv.is_initial_description);
+            if (initialComment?.comment_id) {
+                await updateComment(initialComment.comment_id, { note: content });
+                
+                // Refresh the comments
+                const updatedComments = await findCommentsByTicketId(ticket.ticket_id);
+                setConversations(updatedComments);
+            }
+
+            toast.success('Description updated successfully');
+            return true;
+        } catch (error) {
+            console.error('Error updating description:', error);
+            toast.error('Failed to update description');
+            return false;
+        }
+    };
+
     const handleAddTimeEntry = async () => {
         try {
             if (!ticket.ticket_id || !userId) {
@@ -623,6 +677,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
                             channelOptions={channelOptions}
                             priorityOptions={priorityOptions}
                             onSelectChange={handleSelectChange}
+                            onUpdateDescription={handleUpdateDescription}
                         />
                         <TicketConversation
                             id={`${id}-conversation`}
