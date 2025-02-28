@@ -4,6 +4,7 @@ import { createTenantKnex } from '@/lib/db';
 import { getAdminConnection } from '@/lib/db/admin';
 import { hashPassword } from '@/utils/encryption/encryption';
 import { verifyContactEmail } from '@/lib/actions/user-actions/userActions';
+import User from '@/lib/models/user';
 import { verifyEmailSuffix, getCompanyByEmailSuffix } from '@/lib/actions/company-settings/emailSettings';
 import { v4 as uuid } from 'uuid';
 import crypto from 'crypto';
@@ -352,6 +353,41 @@ export async function completeRegistration(registrationId: string): Promise<IReg
       success: false, 
       error: 'An unexpected error occurred while completing registration' 
     };
+  }
+}
+
+// Function for getting user company ID during registration (without tenant context)
+export async function getUserCompanyIdForRegistration(userId: string): Promise<string | null> {
+  try {
+    const adminDb = await getAdminConnection();
+    const user = await User.getForRegistration(userId);
+    if (!user) return null;
+
+    // First try to get company ID from contact if user is contact-based
+    if (user.contact_id) {
+      const contact = await adminDb('contacts')
+        .where('contact_name_id', user.contact_id)
+        .select('company_id')
+        .first();
+
+      if (contact?.company_id) {
+        return contact.company_id;
+      }
+    }
+
+    // If no contact or no company found, try to get company from user's email domain
+    const emailDomain = user.email.split('@')[1];
+    if (!emailDomain) return null;
+
+    const emailSetting = await adminDb('company_email_settings')
+      .where('email_suffix', emailDomain)
+      .select('company_id')
+      .first();
+
+    return emailSetting?.company_id || null;
+  } catch (error) {
+    console.error('Error getting user company ID for registration:', error);
+    throw new Error('Failed to get user company ID for registration');
   }
 }
 

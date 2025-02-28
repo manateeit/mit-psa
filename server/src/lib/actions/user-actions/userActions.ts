@@ -426,14 +426,21 @@ export async function changeOwnPassword(
 // Function for admins to change user passwords
 export async function getUserCompanyId(userId: string): Promise<string | null> {
   try {
-    const { knex: adminDb } = await createTenantKnex();
-    const user = await User.getForRegistration(userId);
+    const { knex: db, tenant } = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+    
+    const user = await User.get(userId); // Use User.get which includes tenant context
     if (!user) return null;
 
     // First try to get company ID from contact if user is contact-based
     if (user.contact_id) {
-      const contact = await adminDb('contacts')
-        .where('contact_name_id', user.contact_id)
+      const contact = await db('contacts')
+        .where({ 
+          contact_name_id: user.contact_id,
+          tenant: tenant
+        })
         .select('company_id')
         .first();
 
@@ -446,8 +453,11 @@ export async function getUserCompanyId(userId: string): Promise<string | null> {
     const emailDomain = user.email.split('@')[1];
     if (!emailDomain) return null;
 
-    const emailSetting = await adminDb('company_email_settings')
-      .where('email_suffix', emailDomain)
+    const emailSetting = await db('company_email_settings')
+      .where({ 
+        email_suffix: emailDomain,
+        tenant: tenant
+      })
       .select('company_id')
       .first();
 
