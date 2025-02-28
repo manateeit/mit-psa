@@ -515,7 +515,10 @@ export async function getClientUsersForCompany(companyId: string): Promise<IUser
 
     // Get all users associated with the company
     const users = await knex('users')
-      .join('contacts', 'users.contact_id', 'contacts.contact_name_id')
+      .join('contacts', function() {
+        this.on('users.contact_id', '=', 'contacts.contact_name_id')
+            .andOn('contacts.tenant', '=', knex.raw('?', [tenant]));
+      })
       .where({
         'contacts.company_id': companyId,
         'users.tenant': tenant,
