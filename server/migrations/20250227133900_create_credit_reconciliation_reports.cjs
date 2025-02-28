@@ -11,7 +11,7 @@ exports.up = function(knex) {
       
       // Foreign keys
       table.uuid('company_id').notNullable();
-      table.string('tenant').notNullable();
+      table.uuid('tenant').notNullable();
       table.uuid('resolution_transaction_id').nullable();
       
       // Balance information
