@@ -5,7 +5,7 @@
 exports.up = function(knex) {
   return knex.schema.createTable('workflow_event_processing', (table) => {
     // Primary key
-    table.uuid('processing_id').primary().defaultTo(knex.raw('uuid_generate_v4()'));
+    table.uuid('processing_id').primary();
     
     // References to workflow events
     table.uuid('event_id').notNullable().references('event_id').inTable('workflow_events').onDelete('CASCADE');
@@ -33,8 +33,8 @@ exports.up = function(knex) {
     table.text('error_message').nullable();
     
     // Timestamps
-    table.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
-    table.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
+    table.timestamp('created_at').notNullable();
+    table.timestamp('updated_at').notNullable();
     
     // Indexes
     table.index('event_id');
