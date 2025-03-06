@@ -18,7 +18,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "knex": "^2.5.1",
+    "knex": "^3.1.0",
     "pg": "^8.11.3",
     "redis": "^4.6.10",
     "uuid": "^9.0.1",
