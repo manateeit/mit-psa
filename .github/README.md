@@ -6,6 +6,7 @@ A comprehensive Professional Services Automation platform designed for Managed S
 
 ### Core Functionality
 - **Asset Management**: Track and manage client assets, maintenance schedules, and relationships
+- **Automation Hub**: Create and manage TypeScript-based workflows with event-based triggers
 - **Billing & Invoicing**: Flexible billing cycles, international tax support, and automated invoicing
 - **Client Management**: Comprehensive client profiles and relationship tracking
 - **Document Management**: Centralized document repository with version control
@@ -26,12 +27,20 @@ A comprehensive Professional Services Automation platform designed for Managed S
   - Proration support
   - Approval-based time entry billing
   - Unapproved time entry rollover
+- **Automation Hub**: Powerful workflow automation system
+  - TypeScript-based workflow definitions
+  - Event-driven workflow triggers
+  - Visual workflow editor with code completion
+  - Workflow versioning and history
+  - Template library for common automation patterns
 
 ## Technical Architecture
 
 - **Frontend**: Next.js application
 - **Backend**: Node.js server
 - **Database**: PostgreSQL with row-level security
+- **Event Processing**: Redis-based event bus with Zod schema validation
+- **Workflow Engine**: Event-sourced workflow system with TypeScript support
 - **Real-time Collaboration**: Hocuspocus integration
 - **Authentication**: NextAuth.js
 - **UI Components**: Radix-based component library
@@ -64,6 +73,9 @@ For detailed setup instructions, please refer to our [Complete Setup Guide](/doc
 - [International Tax Support](/docs/international_tax_support.md)
 - [Asset Management](/docs/asset_management.md)
 - [Time Entry Guide](/docs/time_entry.md)
+- [Workflow System](/docs/workflow/workflow-system.md)
+- [TypeScript Workflow Creation](/docs/workflow/typescript-workflow-creation.md)
+- [Automation Hub Guide](/docs/workflow/automation-hub-workflow-guide.md)
 
 ## Project Structure
 

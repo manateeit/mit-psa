@@ -167,6 +167,12 @@ export default function WorkflowExecutionsTable({ initialData = [] }: WorkflowEx
     }
   };
 
+  // Fetch data when component mounts
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Set up polling for active workflows
   useEffect(() => {
     if (hasActiveWorkflows(data)) {
       intervalRef.current = setInterval(fetchData, 5000);
