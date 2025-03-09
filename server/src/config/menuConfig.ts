@@ -75,9 +75,31 @@ export const menuItems: MenuItem[] = [
     href: '/msp/technician-dispatch'
   },
   {
-    name: 'Workflows',
-    icon: RadixIcons.ArrowRightIcon,
-    href: '/msp/workflows'
+    name: 'Automation Hub',
+    icon: RadixIcons.RocketIcon,
+    href: '/msp/automation-hub',
+    subItems: [
+      {
+        name: 'Template Library',
+        icon: RadixIcons.LayoutIcon,
+        href: '/msp/automation-hub/template-library'
+      },
+      {
+        name: 'Workflows',
+        icon: RadixIcons.CodeIcon,
+        href: '/msp/automation-hub/workflows'
+      },
+      {
+        name: 'Events Catalog',
+        icon: RadixIcons.BellIcon,
+        href: '/msp/automation-hub/events-catalog'
+      },
+      {
+        name: 'Logs & History',
+        icon: RadixIcons.ClockIcon,
+        href: '/msp/automation-hub/logs-history'
+      }
+    ]
   },
   {
     name: 'System',

@@ -11,14 +11,11 @@ exports.up = async function(knex) {
     table.text('description');
     table.uuid('parent_category_id').references('category_id').inTable('workflow_template_categories').onDelete('CASCADE');
     table.integer('display_order').notNullable().defaultTo(0);
-    table.timestamp('created_at').withTimeZone().notNullable().defaultTo(knex.fn.now());
-    table.timestamp('updated_at').withTimeZone().notNullable().defaultTo(knex.fn.now());
+    table.timestamp('created_at', { useTz: true }).notNullable().defaultTo(knex.fn.now());
+    table.timestamp('updated_at', { useTz: true }).notNullable().defaultTo(knex.fn.now());
     
     // Row-level security for CitusDB compatibility
-    table.checkConstraint(
-      "tenant_id = current_setting('app.current_tenant')::text",
-      'workflow_template_categories_tenant_rls'
-    );
+    // Note: Check constraints will be added after table creation
   });
 
   // Create unique index on tenant and name
@@ -38,8 +35,8 @@ exports.up = async function(knex) {
     table.text('version').notNullable();
     table.text('status').notNullable(); // draft, published, deprecated
     table.uuid('created_by');
-    table.timestamp('created_at').withTimeZone().notNullable().defaultTo(knex.fn.now());
-    table.timestamp('updated_at').withTimeZone().notNullable().defaultTo(knex.fn.now());
+    table.timestamp('created_at', { useTz: true }).notNullable().defaultTo(knex.fn.now());
+    table.timestamp('updated_at', { useTz: true }).notNullable().defaultTo(knex.fn.now());
     
     // Template definition (serialized workflow definition)
     table.jsonb('definition').notNullable();
@@ -54,10 +51,7 @@ exports.up = async function(knex) {
     table.jsonb('ui_metadata');
     
     // Row-level security for CitusDB compatibility
-    table.checkConstraint(
-      "tenant_id = current_setting('app.current_tenant')::text",
-      'workflow_templates_tenant_rls'
-    );
+    // Note: Check constraints will be added after table creation
   });
 
   // Create indexes for workflow_templates
@@ -79,8 +73,8 @@ exports.up = async function(knex) {
     table.text('status').notNullable(); // draft, active, disabled
     table.uuid('source_template_id').references('template_id').inTable('workflow_templates').onDelete('SET NULL');
     table.uuid('created_by');
-    table.timestamp('created_at').withTimeZone().notNullable().defaultTo(knex.fn.now());
-    table.timestamp('updated_at').withTimeZone().notNullable().defaultTo(knex.fn.now());
+    table.timestamp('created_at', { useTz: true }).notNullable().defaultTo(knex.fn.now());
+    table.timestamp('updated_at', { useTz: true }).notNullable().defaultTo(knex.fn.now());
     
     // Workflow definition (serialized workflow definition)
     table.jsonb('definition').notNullable();
@@ -92,10 +86,7 @@ exports.up = async function(knex) {
     table.jsonb('execution_config');
     
     // Row-level security for CitusDB compatibility
-    table.checkConstraint(
-      "tenant_id = current_setting('app.current_tenant')::text",
-      'workflow_registrations_tenant_rls'
-    );
+    // Note: Check constraints will be added after table creation
   });
 
   // Create indexes for workflow_registrations
@@ -117,13 +108,10 @@ exports.up = async function(knex) {
     table.jsonb('parameters');
     table.jsonb('execution_config');
     table.uuid('created_by');
-    table.timestamp('created_at').withTimeZone().notNullable().defaultTo(knex.fn.now());
+    table.timestamp('created_at', { useTz: true }).notNullable().defaultTo(knex.fn.now());
     
     // Row-level security for CitusDB compatibility
-    table.checkConstraint(
-      "tenant_id = current_setting('app.current_tenant')::text",
-      'workflow_registration_versions_tenant_rls'
-    );
+    // Note: Check constraints will be added after table creation
   });
 
   // Create indexes for workflow_registration_versions
@@ -134,6 +122,25 @@ exports.up = async function(knex) {
     CREATE UNIQUE INDEX idx_workflow_registration_versions_current
       ON workflow_registration_versions(registration_id)
       WHERE is_current = TRUE;
+  `);
+  
+  // Add check constraints for row-level security
+  await knex.raw(`
+    ALTER TABLE workflow_template_categories
+    ADD CONSTRAINT workflow_template_categories_tenant_rls
+    CHECK (tenant_id = current_setting('app.current_tenant')::text);
+    
+    ALTER TABLE workflow_templates
+    ADD CONSTRAINT workflow_templates_tenant_rls
+    CHECK (tenant_id = current_setting('app.current_tenant')::text);
+    
+    ALTER TABLE workflow_registrations
+    ADD CONSTRAINT workflow_registrations_tenant_rls
+    CHECK (tenant_id = current_setting('app.current_tenant')::text);
+    
+    ALTER TABLE workflow_registration_versions
+    ADD CONSTRAINT workflow_registration_versions_tenant_rls
+    CHECK (tenant_id = current_setting('app.current_tenant')::text);
   `);
 };
 
