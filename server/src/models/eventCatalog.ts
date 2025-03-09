@@ -183,7 +183,7 @@ export class EventCatalogModel {
       .count('* as count')
       .first();
     
-    if (existingEvents && existingEvents.count > 0) {
+    if (existingEvents && Number(existingEvents.count) > 0) {
       return; // System events already initialized
     }
 
