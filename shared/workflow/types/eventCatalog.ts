@@ -20,6 +20,7 @@ export const EventTypeEnum = z.enum([
   'TIME_ENTRY_APPROVED',
   'INVOICE_GENERATED',
   'INVOICE_FINALIZED',
+  'UNKNOWN'
 ]);
 
 export type EventType = z.infer<typeof EventTypeEnum>;

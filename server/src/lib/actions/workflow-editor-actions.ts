@@ -14,6 +14,7 @@ import {
   validateWorkflowCode,
   checkWorkflowSecurity,
 } from "../utils/workflowValidation";
+import { EventType, EventTypeEnum, ICreateEventCatalogEntry } from "@shared/workflow/types/eventCatalog";
 
 // Zod schema for workflow data
 
@@ -669,6 +670,18 @@ export async function testWorkflow(code: string): Promise<{ success: boolean; ou
   }
 }
 
+// Helper function to safely convert string to EventType
+const getEventType = (name: string): EventType => {
+  // Try to parse the event name as a valid EventType
+  const result = EventTypeEnum.safeParse(name);
+  if (result.success) {
+    return result.data;
+  }
+  // If not a standard event type, use a custom event approach
+  // This is acceptable for testing purposes
+  return 'UNKNOWN' as EventType;
+};
+
 /**
  * Execute a workflow test with the provided event data
  * This function uses version_id in the event payload to directly trigger
@@ -747,7 +760,7 @@ export async function executeWorkflowTest(
         } else {
           // Create a new event catalog entry
           eventCatalogEntry = await EventCatalogModel.create(knex, {
-            event_type: eventName, // Use the event name as the type
+            event_type: getEventType(eventName), // Use the helper function
             name: eventName,
             description: `Test event for workflow test`,
             category: 'test',
@@ -769,12 +782,12 @@ export async function executeWorkflowTest(
       logger.warn("Error handling event catalog entry, continuing with workflow test:", error);
     }
     
+
+
     // Submit the event to trigger the workflow
-    // We use 'as any' to bypass the strict event type checking
-    // This is acceptable for testing purposes
     const eventResult = await submitWorkflowEventAction({
       event_name: eventName,
-      event_type: eventName as any,
+      event_type: getEventType(eventName),
       tenant: tenant || '',
       payload: {
         ...eventPayload,
