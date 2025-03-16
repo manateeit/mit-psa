@@ -14,7 +14,7 @@ A comprehensive Professional Services Automation platform designed for Managed S
 - **Document Management**: Centralized document repository with version control
 - **Project Management**: Project tracking, task management, and resource allocation
 - **Support Ticketing**: Incident tracking and resolution management
-- **Time Management**: Time tracking, timesheet approval, and utilization reporting
+- **Time Management**: Time tracking with automatic interval tracking, timesheet approval, and utilization reporting
 - **Reporting & Analytics**: Customizable reports and business intelligence
 - **Security**: Role-based access control (RBAC) and attribute-based access control (ABAC)
 
@@ -29,6 +29,12 @@ A comprehensive Professional Services Automation platform designed for Managed S
   - Proration support
   - Approval-based time entry billing
   - Unapproved time entry rollover
+- **Automatic Interval Tracking**: Intelligent time tracking for ticket work
+  - Automatic capture of ticket viewing sessions
+  - Local browser storage with IndexedDB
+  - Interval management with merging and adjustment capabilities
+  - Seamless conversion to billable time entries
+  - Auto-close mechanism for abandoned intervals
 - **Automation Hub**: Powerful workflow automation system
   - TypeScript-based workflow definitions
   - Event-driven workflow triggers

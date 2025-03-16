@@ -153,7 +153,26 @@ This document provides a high-level architectural overview of the open-source MS
 
 * **Support Ticketing:** Manages support tickets. See `server/src/lib/models/ticket.tsx` and components under `server/src/components/tickets`.
 
-* **Time Management:** Tracks time entries and manages timesheets. Key files include `server/src/lib/models/timeEntry.interfaces.ts` and components under `server/src/components/time-management`.
+* **Time Management:** Tracks time entries and manages timesheets with both manual entry and automatic interval tracking:
+  * Core Components:
+    - Time entry management and approval workflows
+    - Automatic interval tracking for ticket viewing sessions
+    - Configurable time period settings
+    - Timesheet submission and approval process
+  * Key Files:
+    - `server/src/lib/models/timeEntry.interfaces.ts`: Core time entry data structures
+    - `server/src/services/IntervalTrackingService.ts`: Service for managing ticket viewing intervals
+    - `server/src/hooks/useTicketTimeTracking.ts`: React hook for automatic interval tracking
+    - `server/src/components/time-management/interval-tracking/`: Interval management components
+    - `server/src/components/time-management/time-entry/`: Time entry components
+  * Features:
+    - Automatic tracking of time spent viewing tickets
+    - Local storage of intervals using IndexedDB
+    - Interval management with selection, merging, and adjustment capabilities
+    - Conversion of intervals to billable time entries
+    - Auto-close mechanism for abandoned intervals
+    - Integration with time sheets and ticketing dashboard
+    - Continuous tracking with intelligent session handling
 
 * **Workflows:** Provides a graphical interface for designing and automating workflows within the system. Core components are located under `ee/server/src/components/flow`. Notable files include:
   * `ee/server/src/components/flow/DnDFlow.tsx`: Main drag-and-drop workflow editor.
