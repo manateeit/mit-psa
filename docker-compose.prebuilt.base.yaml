@@ -116,6 +116,21 @@ services:
       - redis_password
     networks:
       - app-network
+      
+  pgbouncer:
+    extends:
+      file: ./pgbouncer/docker-compose.yaml
+      service: pgbouncer
+    environment:
+      <<: *shared-environment
+    secrets:
+      - postgres_password
+      - db_password_server
+    networks:
+      - app-network
+    depends_on:
+      postgres:
+        condition: service_started
 
 networks:
   app-network:
