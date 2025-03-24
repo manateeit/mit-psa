@@ -2,7 +2,7 @@
 
 ## System Purpose
 
-The flexible billing system is designed to support various billing models commonly used by Managed Service Providers (MSPs). It allows for complex billing scenarios, including fixed-price plans, time-based billing, usage-based billing, hybrid models, bucket of hours/retainer models, discounts and promotions, multi-currency support, tax handling, service bundling, refunds and adjustments, and approval workflows. The system supports multiple simultaneous billing plans per client, enabling granular and flexible billing arrangements.
+The flexible billing system is designed to support various billing models commonly used by Managed Service Providers (MSPs). It allows for complex billing scenarios, including fixed-price plans, time-based billing, usage-based billing, hybrid models, bucket of hours/retainer models, discounts and promotions, multi-currency support, tax handling, service bundling, plan bundles, refunds and adjustments, and approval workflows. The system supports multiple simultaneous billing plans per client, enabling granular and flexible billing arrangements. Plan bundles provide a way to group related billing plans together for easier management and clearer client invoicing.
 
 ## Manual Invoicing
 
@@ -103,6 +103,114 @@ await updateManualInvoice(invoiceId, {
 - Assign Meaningful Descriptions to line items for future reference or audits.
 - Leverage the Service Catalog to pre-fill default rates and descriptions, ensuring consistency.
 - Use Transactions as the single source of truth for any financial adjustments made via manual invoices.
+
+## Plan Bundles
+
+### Purpose
+Plan Bundles allow MSPs to create named collections of billing plans that can be managed as a single entity. They provide a higher-level abstraction over the existing billing plans system, making it easier to manage complex billing arrangements while maintaining flexibility. Plan Bundles are especially useful for:
+
+- Grouping related services that are commonly sold together
+- Simplifying the assignment of multiple plans to clients
+- Creating standardized service packages with consistent pricing
+- Providing clearer organization on client invoices
+- Managing multiple billing plans as a cohesive unit
+
+### Key Characteristics
+
+#### Bundle Structure
+- Each bundle has a unique ID, name, and optional description
+- Bundles contain one or more billing plans
+- Plans within a bundle maintain their individual configuration
+- Plans can have custom rates when included in a bundle
+- Bundles can be assigned to companies with specific start and end dates
+
+#### Bundle Assignment
+- When a bundle is assigned to a company, all plans within the bundle are automatically assigned
+- Bundle assignments create individual company billing plan entries for each plan in the bundle
+- All plans in a bundle share the same start and end dates when assigned
+- Plans from bundles are clearly identified on invoices with bundle information
+
+#### Billing Integration
+- The billing engine recognizes plans that are part of bundles
+- Invoice items from bundled plans are grouped together on invoices
+- Bundle information is included in billing calculations and reports
+- Custom rates can be applied to plans within bundles
+
+### Usage
+- Creating standardized service packages
+- Simplifying client onboarding with predefined plan collections
+- Organizing related services for clearer client billing
+- Managing multiple billing plans as a single unit
+
+### Implementation Details
+
+#### Creating and Managing Bundles
+```typescript
+import { createPlanBundle, addPlanToBundle } from 'lib/actions/planBundleActions';
+
+// Create a new bundle
+const bundle = await createPlanBundle({
+  bundle_name: 'Standard MSP Package',
+  bundle_description: 'Basic monitoring and support services',
+  is_active: true
+});
+
+// Add plans to the bundle
+await addPlanToBundle({
+  bundle_id: bundle.bundle_id,
+  plan_id: 'monitoring-plan-id',
+  display_order: 1
+});
+
+await addPlanToBundle({
+  bundle_id: bundle.bundle_id,
+  plan_id: 'support-plan-id',
+  display_order: 2,
+  custom_rate: 125.00 // Optional custom rate for this plan in this bundle
+});
+```
+
+#### Assigning Bundles to Companies
+```typescript
+import { assignBundleToCompany } from 'lib/actions/companyPlanBundleActions';
+
+await assignBundleToCompany({
+  company_id: 'client-company-id',
+  bundle_id: 'standard-msp-package-id',
+  start_date: '2025-01-01T00:00:00Z',
+  end_date: '2025-12-31T23:59:59Z',
+  is_active: true
+});
+```
+
+#### UI Components
+- `PlanBundles.tsx`: Main component for managing plan bundles
+- `PlanBundlesList.tsx`: Lists all available plan bundles
+- `PlanBundleDetail.tsx`: Shows details of a specific bundle and its plans
+- `PlanBundleForm.tsx`: Form for creating and editing bundles
+- `CompanyBundleAssignment.tsx`: Component for assigning bundles to companies
+
+#### Database Fields (relevant to plan bundles):
+- `plan_bundles.bundle_id` (UUID)
+- `plan_bundles.bundle_name` (string)
+- `plan_bundles.bundle_description` (text)
+- `bundle_billing_plans.bundle_id` (UUID)
+- `bundle_billing_plans.plan_id` (UUID)
+- `bundle_billing_plans.display_order` (integer)
+- `bundle_billing_plans.custom_rate` (decimal)
+- `company_plan_bundles.company_bundle_id` (UUID)
+- `company_plan_bundles.company_id` (UUID)
+- `company_plan_bundles.bundle_id` (UUID)
+- `company_plan_bundles.start_date` (timestamp)
+- `company_plan_bundles.end_date` (timestamp)
+- `company_billing_plans.company_bundle_id` (UUID)
+
+### Best Practices
+- **Create Logical Groupings**: Bundle plans that naturally belong together or are commonly sold as a package
+- **Use Descriptive Names**: Give bundles clear, descriptive names that indicate their purpose or target client type
+- **Maintain Consistent Pricing**: When using custom rates in bundles, ensure they align with your overall pricing strategy
+- **Consider Bundle Lifecycle**: Plan for how bundles will be updated or retired over time
+- **Document Bundle Contents**: Keep clear documentation of what each bundle includes for sales and support teams
 
 ## Tax Calculation and Allocation
 
@@ -357,6 +465,21 @@ This typing ensures that only valid service types can be assigned, maintaining d
 
 ## Database Schema
 
+### Plan Bundle Tables
+
+1. **`plan_bundles`**
+   - **Purpose:** Stores information about plan bundles
+   - **Key Fields:** `tenant` (UUID, PK), `bundle_id` (UUID, PK), `bundle_name`, `bundle_description`, `is_active`
+
+2. **`bundle_billing_plans`**
+   - **Purpose:** Maps billing plans to bundles
+   - **Key Fields:** `tenant` (UUID, PK), `bundle_id` (UUID, PK), `plan_id` (UUID, PK), `display_order`, `custom_rate`
+
+3. **`company_plan_bundles`**
+   - **Purpose:** Associates companies with plan bundles
+   - **Key Fields:** `tenant` (UUID, PK), `company_bundle_id` (UUID, PK), `company_id`, `bundle_id`, `start_date`, `end_date`, `is_active`
+
+
 ### Core Tables
 
 1. **`tenants`** *(From Original Plan)*
@@ -487,6 +610,9 @@ This typing ensures that only valid service types can be assigned, maintaining d
 ### Key Relationships (Updated)
 
 - **`companies`** are associated with multiple **`billing_plans`** through the **`company_billing_plans`** table.
+- **`companies`** are associated with **`plan_bundles`** through the **`company_plan_bundles`** table.
+- **`plan_bundles`** contain multiple **`billing_plans`** through the **`bundle_billing_plans`** table.
+- **`company_billing_plans`** can be linked to **`company_plan_bundles`** through the `company_bundle_id` field.
 - **`billing_plans`** are composed of services defined in **`service_catalog`** through the **`plan_services`** table.
 - **`service_catalog`** items are categorized using **`service_categories`**, can have dependencies (**`service_dependencies`**), and can be bundled (**`service_bundles`**, **`bundle_services`**).
 - **`time_entries`** and **`usage_tracking`** are linked to **`companies`** and **`service_catalog`** for billing calculations, and may require approval (**`approvals`**).
@@ -544,7 +670,54 @@ interface ICompanyBillingPlan {
   billingCycle: 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'annually';
   period_start_date: Date;
   period_end_date: Date;
+  company_bundle_id?: string; // Reference to a plan bundle assignment
   // ... existing code ...
+}
+```
+
+### IPlanBundle
+
+This interface represents a plan bundle.
+
+```typescript
+interface IPlanBundle {
+  bundle_id: string;
+  bundle_name: string;
+  bundle_description?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+```
+
+### IBundleBillingPlan
+
+This interface represents a billing plan within a bundle.
+
+```typescript
+interface IBundleBillingPlan {
+  bundle_id: string;
+  plan_id: string;
+  display_order?: number;
+  custom_rate?: number;
+  created_at?: string;
+}
+```
+
+### ICompanyPlanBundle
+
+This interface represents a bundle assigned to a company.
+
+```typescript
+interface ICompanyPlanBundle {
+  company_bundle_id: string;
+  company_id: string;
+  bundle_id: string;
+  start_date: string;
+  end_date?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 ```
 
@@ -556,10 +729,15 @@ These interfaces are interconnected and form the backbone of the billing system:
 - **`invoices`** track their source data through **`invoice_time_entries`** and **`invoice_usage_records`**
 - **`invoices`** can have multiple **`invoice_annotations`** for comments and notes
 - **`invoice_items`** include detailed tax information through **`tax_rates`**
+- **`plan_bundles`** contain multiple **`billing_plans`** through the **`bundle_billing_plans`** relationship
+- **`companies`** are associated with **`plan_bundles`** through **`company_plan_bundles`**
+- **`company_billing_plans`** can be linked to **`company_plan_bundles`** through the `company_bundle_id` field
 
 An ICompanyBillingPlan determines how IBillingCharges are calculated.
 Multiple IBillingCharges are combined to create IInvoiceItems.
 IInvoiceItems are grouped into an IInvoice for final billing presentation.
+IPlanBundle provides a way to group related billing plans together.
+ICompanyPlanBundle associates bundles with companies for easier plan management.
 Understanding these data structures is essential for developers working on the billing system, as they dictate how information flows through the various components of the system.
 
 ## Credit System and Reconciliation
