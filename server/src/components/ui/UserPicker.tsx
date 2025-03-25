@@ -1,9 +1,8 @@
 // server/src/components/ui/UserPicker.tsx
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import AvatarIcon from 'server/src/components/ui/AvatarIcon';
 import { IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
-import * as RadixSelect from '@radix-ui/react-select';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import { AutomationProps } from '../../types/ui-reflection/types';
 
 interface UserPickerProps {
@@ -16,110 +15,142 @@ interface UserPickerProps {
 }
 
 const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value, onValueChange, size = 'sm', users, disabled }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  
   // Filter for internal users only
   const internalUsers = users.filter(user => user.user_type === 'internal');
   
   const currentUser = internalUsers.find(user => user.user_id === value);
   
-  const options = [
-    { value: 'unassigned', label: 'Not assigned' },
-    ...internalUsers.map((user): { value: string; label: string; } => ({
-      value: user.user_id,
-      label: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unnamed User',
-    }))
-  ];
+  // Filter users based on search query
+  const filteredUsers = internalUsers.filter(user => {
+    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim().toLowerCase();
+    return fullName.includes(searchQuery.toLowerCase());
+  });
 
-  // Convert empty string to 'unassigned' and vice versa
-  const handleValueChange = (newValue: string) => {
-    onValueChange(newValue === 'unassigned' ? '' : newValue);
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 10);
+    }
+  }, [isOpen]);
+
+  const toggleDropdown = () => {
+    if (!disabled) {
+      setIsOpen(!isOpen);
+      if (!isOpen) {
+        setSearchQuery('');
+      }
+    }
   };
 
-  const CustomTrigger = React.forwardRef<HTMLButtonElement, RadixSelect.SelectTriggerProps>((props, forwardedRef) => {
-    const selectedOption = options.find(option => option.value === (value || 'unassigned'));
-    const user = internalUsers.find(u => u.user_id === value);
+  const handleSelectUser = (userId: string) => {
+    onValueChange(userId === 'unassigned' ? '' : userId);
+    setIsOpen(false);
+  };
 
-    return (
-      <RadixSelect.Trigger
-        ref={forwardedRef}
+  const selectedUserName = currentUser 
+    ? `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || 'Unnamed User'
+    : 'Not assigned';
+
+  return (
+    <div className="relative inline-block" ref={dropdownRef}>
+      {label && <h5 className="font-bold mb-1">{label}</h5>}
+      
+      {/* Trigger Button */}
+      <button
+        type="button"
+        onClick={toggleDropdown}
+        disabled={disabled}
         className="inline-flex items-center justify-between border border-gray-200 rounded-lg p-2 bg-white cursor-pointer min-h-[38px] hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm w-fit min-w-[150px]"
-        {...props}
       >
         <div className="flex items-center gap-2 flex-1">
-          {user && (
+          {currentUser && (
             <AvatarIcon
-              userId={user.user_id}
-              firstName={user.first_name || ''}
-              lastName={user.last_name || ''}
+              userId={currentUser.user_id}
+              firstName={currentUser.first_name || ''}
+              lastName={currentUser.last_name || ''}
               size={size === 'sm' ? 'sm' : 'md'}
             />
           )}
-          <RadixSelect.Value placeholder="Select user...">
-            {selectedOption?.label}
-          </RadixSelect.Value>
+          <span>{selectedUserName}</span>
         </div>
-        <RadixSelect.Icon>
-          <ChevronDown className="w-4 h-4 text-gray-500" />
-        </RadixSelect.Icon>
-      </RadixSelect.Trigger>
-    );
-  });
-
-  const CustomItem = React.forwardRef<HTMLDivElement, CustomItemProps>(
-    ({ children, className, user, ...props }, forwardedRef) => {
-      return (
-        <RadixSelect.Item
-          className={`
-            relative flex items-center px-3 py-2 text-sm rounded text-gray-900
-            cursor-pointer bg-white hover:bg-gray-100 focus:bg-gray-100
-            focus:outline-none select-none whitespace-nowrap
-            ${className || ''}
-          `}
-          {...props}
-          ref={forwardedRef}
-        >
-          <div className="flex items-center gap-2">
-            {user && (
-              <AvatarIcon
-                userId={user.user_id}
-                firstName={user.first_name || ''}
-                lastName={user.last_name || ''}
-                size={size === 'sm' ? 'sm' : 'md'}
+        <ChevronDown className="w-4 h-4 text-gray-500" />
+      </button>
+      
+      {/* Dropdown */}
+      {isOpen && (
+        <div className="absolute z-50 mt-1 w-full min-w-[220px] bg-white rounded-md shadow-lg border border-gray-200 overflow-hidden">
+          {/* Search Input */}
+          <div className="p-2 border-b border-gray-200">
+            <div className="relative">
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search users..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3 py-2 pl-9 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                autoComplete="off"
               />
-            )}
-            <RadixSelect.ItemText>{children}</RadixSelect.ItemText>
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+            </div>
           </div>
-        </RadixSelect.Item>
-      );
-    }
-  );
-
-  interface CustomItemProps extends RadixSelect.SelectItemProps {
-    user?: IUserWithRoles;
-  }
-
-  return (
-    <div className="relative inline-block">
-      {label && <h5 className="font-bold mb-1">{label}</h5>}
-      <RadixSelect.Root value={value || 'unassigned'} onValueChange={handleValueChange} disabled={disabled}>
-        <CustomTrigger />
-        <RadixSelect.Portal>
-          <RadixSelect.Content
-            className="overflow-hidden bg-white rounded-md shadow-lg border border-gray-200 mt-1 z-[100]"
-            position="popper"
-            sideOffset={4}
-            align="start"
-          >
-            <RadixSelect.Viewport className="p-1">
-              <CustomItem value="unassigned">Not assigned</CustomItem>
-              {internalUsers.map((user): JSX.Element => (
-                <CustomItem key={user.user_id} value={user.user_id} user={user}>
-                  {`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unnamed User'}
-                </CustomItem>
-              ))}
-            </RadixSelect.Viewport>
-          </RadixSelect.Content>
-        </RadixSelect.Portal>
-      </RadixSelect.Root>
+          
+          {/* User List */}
+          <div className="max-h-[250px] overflow-y-auto p-1">
+            {/* Not assigned option */}
+            <div
+              className="relative flex items-center px-3 py-2 text-sm rounded text-gray-900 cursor-pointer hover:bg-gray-100 focus:bg-gray-100"
+              onClick={() => handleSelectUser('unassigned')}
+            >
+              Not assigned
+            </div>
+            
+            {/* User options */}
+            {filteredUsers.map((user) => (
+              <div
+                key={user.user_id}
+                className="relative flex items-center px-3 py-2 text-sm rounded text-gray-900 cursor-pointer hover:bg-gray-100 focus:bg-gray-100"
+                onClick={() => handleSelectUser(user.user_id)}
+              >
+                <div className="flex items-center gap-2">
+                  <AvatarIcon
+                    userId={user.user_id}
+                    firstName={user.first_name || ''}
+                    lastName={user.last_name || ''}
+                    size={size === 'sm' ? 'sm' : 'md'}
+                  />
+                  <span>{`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unnamed User'}</span>
+                </div>
+              </div>
+            ))}
+            
+            {filteredUsers.length === 0 && searchQuery && (
+              <div className="px-3 py-2 text-sm text-gray-500">No users found</div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
