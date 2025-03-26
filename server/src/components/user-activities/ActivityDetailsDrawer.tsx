@@ -14,13 +14,15 @@ interface ActivityDetailsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onActionComplete?: () => void;
+  isInDrawer?: boolean;
 }
 
 export function ActivityDetailsDrawer({ 
   activity, 
   isOpen, 
   onClose,
-  onActionComplete
+  onActionComplete,
+  isInDrawer = false
 }: ActivityDetailsDrawerProps) {
   // Format date to a readable format
   const formatDate = (dateString?: string) => {
@@ -315,6 +317,7 @@ export function ActivityDetailsDrawer({
       id={`activity-details-drawer-${activity.id}`}
       isOpen={isOpen}
       onClose={onClose}
+      isInDrawer={isInDrawer}
     >
       <div className="min-w-[640px] max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
@@ -325,9 +328,6 @@ export function ActivityDetailsDrawer({
               onActionComplete={onActionComplete}
               onViewDetails={() => {}} // Self-reference to prevent navigation
             />
-            <Button id="close-drawer-button" variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </div>
         

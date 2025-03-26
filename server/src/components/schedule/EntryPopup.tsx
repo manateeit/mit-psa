@@ -575,9 +575,12 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
           </div>
         )}
       <div className="mt-6 flex justify-end space-x-3">
-        <Button id="cancel-entry-btn" onClick={onClose} variant="outline">
-          Cancel
-        </Button>
+        {/* Only show Cancel button if not in a drawer, since the drawer will have its own close button */}
+        {!isInDrawer && (
+          <Button id="cancel-entry-btn" onClick={onClose} variant="outline">
+            Cancel
+          </Button>
+        )}
         <Button id="save-entry-btn" onClick={handleSave}>Save</Button>
       </div>
       </DialogContent>
