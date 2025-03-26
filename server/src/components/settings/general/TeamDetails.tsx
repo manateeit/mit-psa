@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { getTeamById, updateTeam, removeUserFromTeam, assignManagerToTeam, addUserToTeam } from 'server/src/lib/actions/team-actions/teamActions';
 import { getAllUsers, getMultipleUsersWithRoles } from 'server/src/lib/actions/user-actions/userActions';
 import { ITeam, IUser, IRole, IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
-import CustomSelect from 'server/src/components/ui/CustomSelect';
+import UserPicker from 'server/src/components/ui/UserPicker';
 
 interface TeamDetailsProps {
   teamId: string;
@@ -13,7 +13,7 @@ interface TeamDetailsProps {
 const TeamDetails: React.FC<TeamDetailsProps> = ({ teamId, onUpdate }): JSX.Element => {
   const [team, setTeam] = useState<ITeam | null>(null);
   const [teamName, setTeamName] = useState('');
-  const [allUsers, setAllUsers] = useState<IUser[]>([]);
+  const [allUsers, setAllUsers] = useState<IUserWithRoles[]>([]);
   const [selectedManagerId, setSelectedManagerId] = useState<string | undefined>(undefined);
   const [selectedUserId, setSelectedUserId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -164,10 +164,13 @@ const TeamDetails: React.FC<TeamDetailsProps> = ({ teamId, onUpdate }): JSX.Elem
             : 'No manager assigned'}
         </div>
         <div className="flex gap-2">
-          <CustomSelect
+          <UserPicker
             value={selectedManagerId || ''}
             onValueChange={setSelectedManagerId}
-            options={managerOptions}
+            users={allUsers}
+            labelStyle="none"
+            buttonWidth="fit"
+            size="sm"
             placeholder="Select a manager"
             className="flex-1"
           />
@@ -184,10 +187,13 @@ const TeamDetails: React.FC<TeamDetailsProps> = ({ teamId, onUpdate }): JSX.Elem
       <div>
         <label className="block text-sm font-medium text-text-700 mb-1">Add Team Member</label>
         <div className="flex gap-2">
-          <CustomSelect
+          <UserPicker
             value={selectedUserId || ''}
             onValueChange={setSelectedUserId}
-            options={memberOptions}
+            users={allUsers.filter(user => !team.members.some(member => member.user_id === user.user_id))}
+            labelStyle="none"
+            buttonWidth="fit"
+            size="sm"
             placeholder="Select a user"
             className="flex-1"
           />

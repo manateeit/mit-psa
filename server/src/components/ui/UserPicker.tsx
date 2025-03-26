@@ -12,9 +12,24 @@ interface UserPickerProps {
   size?: 'sm' | 'lg';
   users: IUserWithRoles[];
   disabled?: boolean;
+  className?: string; 
+  labelStyle?: 'bold' | 'medium' | 'normal' | 'none'; 
+  buttonWidth?: 'fit' | 'full'; 
+  placeholder?: string;
 }
 
-const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value, onValueChange, size = 'sm', users, disabled }) => {
+const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ 
+  label, 
+  value, 
+  onValueChange, 
+  size = 'sm', 
+  users, 
+  disabled, 
+  className,
+  labelStyle = 'bold',
+  buttonWidth = 'fit',
+  placeholder = 'Not assigned'
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
@@ -124,11 +139,17 @@ const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value,
 
   const selectedUserName = currentUser 
     ? `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || 'Unnamed User'
-    : 'Not assigned';
+    : placeholder;
 
   return (
-    <div className="relative inline-block" ref={dropdownRef} onClick={(e) => e.stopPropagation()}>
-      {label && <h5 className="font-bold mb-1">{label}</h5>}
+    <div className={`relative inline-block ${buttonWidth === 'full' ? 'w-full' : ''} ${className || ''}`} ref={dropdownRef} onClick={(e) => e.stopPropagation()}>
+      {label && labelStyle !== 'none' && (
+        <h5 className={`mb-1 ${
+          labelStyle === 'bold' ? 'font-bold' : 
+          labelStyle === 'medium' ? 'font-medium' : 
+          'font-normal'
+        }`}>{label}</h5>
+      )}
       
       {/* Trigger Button */}
       <button
@@ -136,7 +157,9 @@ const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value,
         type="button"
         onClick={toggleDropdown}
         disabled={disabled}
-        className="inline-flex items-center justify-between border border-gray-200 rounded-lg p-2 bg-white cursor-pointer min-h-[38px] hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm w-fit min-w-[150px]"
+        className={`inline-flex items-center justify-between border border-gray-200 rounded-lg p-2 bg-white cursor-pointer min-h-[38px] hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm ${
+          buttonWidth === 'full' ? 'w-full' : 'w-fit min-w-[150px]'
+        }`}
       >
         <div className="flex items-center gap-2 flex-1">
           {currentUser && (
@@ -200,7 +223,9 @@ const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value,
               {filteredUsers.map((user) => (
                 <div
                   key={user.user_id}
-                  className="relative flex items-center px-3 py-2 text-sm rounded text-gray-900 cursor-pointer hover:bg-gray-100 focus:bg-gray-100"
+                  className={`relative flex items-center px-3 py-2 text-sm rounded cursor-pointer hover:bg-gray-100 focus:bg-gray-100 ${
+                    user.is_inactive ? 'text-gray-400 bg-gray-50' : 'text-gray-900'
+                  }`}
                   onClick={(e) => handleSelectUser(user.user_id, e)}
                 >
                   <div className="flex items-center gap-2">
@@ -211,6 +236,9 @@ const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value,
                       size={size === 'sm' ? 'sm' : 'md'}
                     />
                     <span>{`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unnamed User'}</span>
+                    {user.is_inactive && (
+                      <span className="ml-1 text-xs text-gray-400">(Inactive)</span>
+                    )}
                   </div>
                 </div>
               ))}

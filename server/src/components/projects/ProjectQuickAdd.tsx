@@ -10,9 +10,10 @@ import { toast } from 'react-hot-toast';
 import { createProject, generateNextWbsCode, getProjectStatuses } from 'server/src/lib/actions/project-actions/projectActions';
 import { CompanyPicker } from 'server/src/components/companies/CompanyPicker';
 import CustomSelect from 'server/src/components/ui/CustomSelect';
+import UserPicker from 'server/src/components/ui/UserPicker';
 import { getContactsByCompany, getAllContacts } from 'server/src/lib/actions/contact-actions/contactActions';
 import { getCurrentUser, getAllUsers } from 'server/src/lib/actions/user-actions/userActions';
-import { IUser } from 'server/src/interfaces/auth.interfaces';
+import { IUser, IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
 
 interface ProjectQuickAddProps {
   onClose: () => void;
@@ -26,7 +27,7 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [contacts, setContacts] = useState<{ value: string; label: string }[]>([]);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
-  const [users, setUsers] = useState<IUser[]>([]);
+  const [users, setUsers] = useState<IUserWithRoles[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -180,13 +181,13 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Project Manager</label>
-                <CustomSelect
+                <UserPicker
                   value={selectedUserId || ''}
                   onValueChange={setSelectedUserId}
-                  options={users.map((user): { value: string; label: string } => ({
-                    value: user.user_id,
-                    label: `${user.first_name} ${user.last_name}`
-                  }))}
+                  users={users}
+                  labelStyle="none"
+                  buttonWidth="full"
+                  size="sm"
                   placeholder="Select Assignee"
                 />
               </div>
