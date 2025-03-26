@@ -376,15 +376,18 @@ export const DrawerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 )}
-                <Button
-                  id="drawer-close-button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={closeDrawer}
-                  aria-label="Close drawer"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                {/* Only show the close button if this is the root drawer (not nested) */}
+                {state.history.length <= 1 && (
+                  <Button
+                    id="drawer-close-button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={closeDrawer}
+                    aria-label="Close drawer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
             <div className="flex-1 overflow-auto">
