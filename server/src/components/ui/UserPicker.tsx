@@ -17,7 +17,9 @@ interface UserPickerProps {
 const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value, onValueChange, size = 'sm', users, disabled }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   
   // Filter for internal users only
@@ -54,7 +56,58 @@ const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value,
     }
   }, [isOpen]);
 
-  const toggleDropdown = () => {
+  // Function to update dropdown position
+  const updateDropdownPosition = () => {
+    if (!buttonRef.current) return;
+    
+    const buttonRect = buttonRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - buttonRect.bottom;
+    const spaceAbove = buttonRect.top;
+    
+    // Estimate dropdown height based on number of items
+    // Base height: search input (40px) + padding (20px) + "Not assigned" option (36px)
+    const baseHeight = 40 + 20 + 36;
+    // Add height for each user (up to 5 visible at once)
+    const itemsHeight = Math.min(filteredUsers.length, 5) * 36;
+    // Total estimated height with some buffer
+    const estimatedDropdownHeight = baseHeight + itemsHeight + 10;
+    
+    // More aggressive check for limited space below
+    // If there's less than 250px below or the dropdown would be cut off, position it above
+    if (spaceBelow < 250 || spaceBelow < estimatedDropdownHeight) {
+      // Only position above if there's enough space above
+      if (spaceAbove > 150) {
+        setDropdownPosition('top');
+      } else {
+        // If there's not enough space above either, use bottom but with reduced height
+        setDropdownPosition('bottom');
+      }
+    } else {
+      setDropdownPosition('bottom');
+    }
+  };
+
+  // Calculate dropdown position when it opens
+  useEffect(() => {
+    if (isOpen) {
+      updateDropdownPosition();
+      
+      // Update position on scroll and resize
+      window.addEventListener('scroll', updateDropdownPosition, true);
+      window.addEventListener('resize', updateDropdownPosition);
+      
+      return () => {
+        window.removeEventListener('scroll', updateDropdownPosition, true);
+        window.removeEventListener('resize', updateDropdownPosition);
+      };
+    }
+  }, [isOpen, filteredUsers.length]);
+
+  const toggleDropdown = (e: React.MouseEvent) => {
+    // Stop event propagation to prevent parent handlers from being triggered
+    e.stopPropagation();
+    
     if (!disabled) {
       setIsOpen(!isOpen);
       if (!isOpen) {
@@ -63,7 +116,8 @@ const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value,
     }
   };
 
-  const handleSelectUser = (userId: string) => {
+  const handleSelectUser = (userId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     onValueChange(userId === 'unassigned' ? '' : userId);
     setIsOpen(false);
   };
@@ -73,11 +127,12 @@ const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value,
     : 'Not assigned';
 
   return (
-    <div className="relative inline-block" ref={dropdownRef}>
+    <div className="relative inline-block" ref={dropdownRef} onClick={(e) => e.stopPropagation()}>
       {label && <h5 className="font-bold mb-1">{label}</h5>}
       
       {/* Trigger Button */}
       <button
+        ref={buttonRef}
         type="button"
         onClick={toggleDropdown}
         disabled={disabled}
@@ -97,11 +152,23 @@ const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value,
         <ChevronDown className="w-4 h-4 text-gray-500" />
       </button>
       
-      {/* Dropdown */}
+      {/* Dropdown - Using absolute positioning relative to the parent container */}
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full min-w-[220px] bg-white rounded-md shadow-lg border border-gray-200 overflow-hidden">
-          {/* Search Input */}
-          <div className="p-2 border-b border-gray-200">
+        <div 
+          className="absolute z-[9999]"
+          style={{
+            width: buttonRef.current ? Math.max(buttonRef.current.offsetWidth, 220) + 'px' : '220px',
+            ...(dropdownPosition === 'top' 
+              ? { bottom: '100%', marginBottom: '2px' } // Position directly above with a small gap
+              : { top: '100%', marginTop: '2px' }) // Position directly below with a small gap
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div 
+            className="bg-white rounded-md shadow-lg border border-gray-200 overflow-hidden w-full"
+          >
+            {/* Search Input */}
+            <div className="p-2 border-b border-gray-200">
             <div className="relative">
               <input
                 ref={searchInputRef}
@@ -109,6 +176,7 @@ const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value,
                 placeholder="Search users..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
                 className="w-full px-3 py-2 pl-9 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 autoComplete="off"
               />
@@ -116,38 +184,41 @@ const UserPicker: React.FC<UserPickerProps & AutomationProps> = ({ label, value,
             </div>
           </div>
           
-          {/* User List */}
-          <div className="max-h-[250px] overflow-y-auto p-1">
-            {/* Not assigned option */}
-            <div
-              className="relative flex items-center px-3 py-2 text-sm rounded text-gray-900 cursor-pointer hover:bg-gray-100 focus:bg-gray-100"
-              onClick={() => handleSelectUser('unassigned')}
-            >
-              Not assigned
-            </div>
-            
-            {/* User options */}
-            {filteredUsers.map((user) => (
+            {/* User List - Adjust max height to prevent overflow */}
+            <div className="overflow-y-auto p-1" style={{ 
+              maxHeight: dropdownPosition === 'bottom' ? '200px' : '250px' 
+            }}>
+              {/* Not assigned option */}
               <div
-                key={user.user_id}
                 className="relative flex items-center px-3 py-2 text-sm rounded text-gray-900 cursor-pointer hover:bg-gray-100 focus:bg-gray-100"
-                onClick={() => handleSelectUser(user.user_id)}
+                onClick={(e) => handleSelectUser('unassigned', e)}
               >
-                <div className="flex items-center gap-2">
-                  <AvatarIcon
-                    userId={user.user_id}
-                    firstName={user.first_name || ''}
-                    lastName={user.last_name || ''}
-                    size={size === 'sm' ? 'sm' : 'md'}
-                  />
-                  <span>{`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unnamed User'}</span>
-                </div>
+                Not assigned
               </div>
-            ))}
-            
-            {filteredUsers.length === 0 && searchQuery && (
-              <div className="px-3 py-2 text-sm text-gray-500">No users found</div>
-            )}
+              
+              {/* User options */}
+              {filteredUsers.map((user) => (
+                <div
+                  key={user.user_id}
+                  className="relative flex items-center px-3 py-2 text-sm rounded text-gray-900 cursor-pointer hover:bg-gray-100 focus:bg-gray-100"
+                  onClick={(e) => handleSelectUser(user.user_id, e)}
+                >
+                  <div className="flex items-center gap-2">
+                    <AvatarIcon
+                      userId={user.user_id}
+                      firstName={user.first_name || ''}
+                      lastName={user.last_name || ''}
+                      size={size === 'sm' ? 'sm' : 'md'}
+                    />
+                    <span>{`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unnamed User'}</span>
+                  </div>
+                </div>
+              ))}
+              
+              {filteredUsers.length === 0 && searchQuery && (
+                <div className="px-3 py-2 text-sm text-gray-500">No users found</div>
+              )}
+            </div>
           </div>
         </div>
       )}

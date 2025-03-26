@@ -158,7 +158,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </p>
       )}
       <div className="flex items-center gap-2">
-        <div>
+        <div onClick={(e) => e.stopPropagation()}>
           <UserPicker
             value={task.assigned_to || ''}
             onValueChange={(newAssigneeId: string) => onAssigneeChange(task.task_id, newAssigneeId)}
