@@ -61,30 +61,27 @@ const BillingPlanServices: React.FC<BillingPlanServicesProps> = ({ plan }) => {
     setError(null);
     
     try {
-      // Get services and plan services
-      const [services, planServicesData] = await Promise.all([
+      // Get all available services and the configurations for services linked to this plan
+      const [allAvailableServices, servicesWithConfigurations] = await Promise.all([
         getServices(),
-        getPlanServices(plan.plan_id)
+        getPlanServicesWithConfigurations(plan.plan_id)
       ]);
       
-      // Get configurations for services
-      const servicesWithConfigurations = await getPlanServicesWithConfigurations(plan.plan_id);
-      
-      // Enhance plan services with configuration data
-      const enhancedServices: EnhancedPlanService[] = planServicesData.map(ps => {
-        const configInfo = servicesWithConfigurations.find(
-          sc => sc.configuration.service_id === ps.service_id
-        );
-        
-        return {
-          ...ps,
-          configuration: configInfo?.configuration,
-          configurationType: configInfo?.configuration.configuration_type
-        };
-      });
+      // Map the configuration data to the EnhancedPlanService format
+      const enhancedServices: EnhancedPlanService[] = servicesWithConfigurations.map(configInfo => ({
+        plan_id: plan.plan_id!,
+        service_id: configInfo.configuration.service_id,
+        quantity: configInfo.configuration.quantity,
+        custom_rate: configInfo.configuration.custom_rate,
+        tenant: configInfo.configuration.tenant, // Assuming tenant is available on configuration
+        created_at: configInfo.configuration.created_at, // Assuming created_at is available
+        updated_at: configInfo.configuration.updated_at, // Assuming updated_at is available
+        configuration: configInfo.configuration,
+        configurationType: configInfo.configuration.configuration_type
+      }));
       
       setPlanServices(enhancedServices);
-      setAvailableServices(services);
+      setAvailableServices(allAvailableServices);
       
       // Initialize with empty selection
       setSelectedServicesToAdd([]);
