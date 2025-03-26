@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { createTeam, deleteTeam } from 'server/src/lib/actions/team-actions/teamActions';
 import { getAllUsers } from 'server/src/lib/actions/user-actions/userActions';
-import { ITeam, IUser } from 'server/src/interfaces/auth.interfaces';
-import CustomSelect from 'server/src/components/ui/CustomSelect';
+import { ITeam, IUser, IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
+import UserPicker from 'server/src/components/ui/UserPicker';
 import { ConfirmationDialog } from 'server/src/components/ui/ConfirmationDialog';
 
 interface TeamListProps {
@@ -15,7 +15,7 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onSelectTeam }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   const [selectedManagerId, setSelectedManagerId] = useState<string>('');
-  const [allUsers, setAllUsers] = useState<IUser[]>([]);
+  const [allUsers, setAllUsers] = useState<IUserWithRoles[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [teamToDelete, setTeamToDelete] = useState<ITeam | null>(null);
 
@@ -94,13 +94,12 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onSelectTeam }) => {
             className="w-full p-2 border border-border-200 rounded focus:outline-none focus:border-primary-500"
             placeholder="Enter new team name"
           />
-          <CustomSelect
+          <UserPicker
             value={selectedManagerId}
             onValueChange={setSelectedManagerId}
-            options={allUsers.map((user): { value: string; label: string } => ({
-              value: user.user_id,
-              label: `${user.first_name} ${user.last_name}`
-            }))}
+            users={allUsers}
+            buttonWidth="full"
+            size="sm"
             placeholder="Select a manager"
             className="mt-2"
           />

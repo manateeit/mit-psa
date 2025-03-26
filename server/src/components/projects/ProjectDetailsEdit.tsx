@@ -4,12 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { IProject } from 'server/src/interfaces/project.interfaces';
 import { IStatus } from 'server/src/interfaces';
 import { ICompany } from 'server/src/interfaces/company.interfaces';
-import { IUser } from 'server/src/interfaces/auth.interfaces';
+import { IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
 import { Button } from 'server/src/components/ui/Button';
 import { Switch } from 'server/src/components/ui/Switch';
 import { TextArea } from 'server/src/components/ui/TextArea';
 import { Input } from 'server/src/components/ui/Input';
 import { CompanyPicker } from 'server/src/components/companies/CompanyPicker';
+import UserPicker from 'server/src/components/ui/UserPicker';
 import CustomSelect, { SelectOption } from 'server/src/components/ui/CustomSelect';
 import { updateProject, getProjectStatuses } from 'server/src/lib/actions/project-actions/projectActions';
 import { getContactsByCompany, getAllContacts } from 'server/src/lib/actions/contact-actions/contactActions';
@@ -45,7 +46,7 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [contacts, setContacts] = useState<{ value: string; label: string }[]>([]);
-  const [users, setUsers] = useState<IUser[]>([]);
+  const [users, setUsers] = useState<IUserWithRoles[]>([]);
   const [statuses, setStatuses] = useState<IStatus[]>([]);
 
   // Move these to component state to prevent re-renders
@@ -173,21 +174,6 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <TextArea
-              id="description"
-              name="description"
-              value={project.description || ''}
-              onChange={handleInputChange}
-              placeholder="Enter project description..."
-              className="w-full p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-              rows={4}
-            />
-          </div>
-
-          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
             <CustomSelect
               value={project.status}
@@ -233,18 +219,19 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Project Manager</label>
-            <CustomSelect
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Project Manager
+            </label>
+            <UserPicker
               value={project.assigned_to || ''}
               onValueChange={(value) => {
-                setProject(prev => ({ ...prev, assigned_to: value }));
+                setProject(prev => ({ ...prev, assigned_to: value || null }));
                 setHasChanges(true);
               }}
-              options={users.map((user): SelectOption => ({
-                value: user.user_id,
-                label: `${user.first_name} ${user.last_name}`
-              }))}
-              placeholder="Select Assignee"
+              users={users}
+              size="sm"
+              labelStyle="none"
+              buttonWidth="full"
             />
           </div>
 
