@@ -157,7 +157,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
 
   return (
-    <div {...withDataAutomationId({ id: commentId })} className="bg-gray-50 rounded-lg p-4 mb-4 shadow-sm">
+    <div {...withDataAutomationId({ id: commentId })} className="rounded-lg p-4 mb-4 shadow-sm border border-gray-200 hover:border-gray-300 bg-white">
       <div className="flex items-start mb-2">
         <div className="mr-3">
           <AvatarIcon 
@@ -174,13 +174,25 @@ const CommentItem: React.FC<CommentItemProps> = ({
               <p {...withDataAutomationId({ id: `${commentId}-author-name` })} className="font-semibold text-gray-800">
                 {getAuthorName()}
               </p>
-              {getAuthorEmail() && (
-                <p {...withDataAutomationId({ id: `${commentId}-author-email` })} className="text-sm text-gray-600">
-                  <a href={`mailto:${getAuthorEmail()}`} className="hover:text-indigo-600">
-                    {getAuthorEmail()}
-                  </a>
+              <div className="flex flex-col">
+                {getAuthorEmail() && (
+                  <p {...withDataAutomationId({ id: `${commentId}-author-email` })} className="text-sm text-gray-600">
+                    <a href={`mailto:${getAuthorEmail()}`} className="hover:text-indigo-600">
+                      {getAuthorEmail()}
+                    </a>
+                  </p>
+                )}
+                <p {...withDataAutomationId({ id: `${commentId}-timestamp` })} className="text-xs text-gray-500">
+                  {conversation.created_at && (
+                    <span>
+                      {new Date(conversation.created_at).toLocaleString()}
+                      {conversation.updated_at && 
+                       new Date(conversation.updated_at).getTime() > new Date(conversation.created_at).getTime() && 
+                       " (edited)"}
+                    </span>
+                  )}
                 </p>
-              )}
+              </div>
             </div>
             {canEdit && (
               <div className="space-x-2">
@@ -209,7 +221,26 @@ const CommentItem: React.FC<CommentItemProps> = ({
             editorContent
           ) : (
               <div {...withDataAutomationId({ id: `${commentId}-content` })} className="prose max-w-none mt-2">
-              <RichTextViewer content={JSON.parse(conversation.note || '[]')} />
+              <RichTextViewer content={(() => {
+                try {
+                  return JSON.parse(conversation.note || '[]');
+                } catch (e) {
+                  // If parsing fails, return a simple paragraph with the text
+                  return [{
+                    type: "paragraph",
+                    props: {
+                      textAlignment: "left",
+                      backgroundColor: "default",
+                      textColor: "default"
+                    },
+                    content: [{
+                      type: "text",
+                      text: conversation.note || '',
+                      styles: {}
+                    }]
+                  }];
+                }
+              })()} />
             </div>
           )}
         </div>

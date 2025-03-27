@@ -80,14 +80,11 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
     setReverseOrder(!reverseOrder);
   };
   const renderButtonBar = (): JSX.Element => {
-    // For MSP portal, always show the Internal tab
-    // For client portal, never show the Internal tab
-    const buttons = ['Comments', 'Resolution'];
-    
-    // Add Internal tab if not hidden (MSP portal)
-    if (!hideInternalTab) {
-      buttons.splice(1, 0, 'Internal');
-    }
+    // For MSP portal, use "Client Visible", "Internal", "Resolution"
+    // For client portal, use "Comment", "Resolution"
+    const buttons = hideInternalTab 
+      ? ['Comment', 'Resolution'] 
+      : ['Client Visible', 'Internal', 'Resolution'];
     
     return (
       <div className={styles.buttonBar}>
@@ -139,20 +136,31 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
   };
 
   // Build tab content array
-  const tabContent = [
-    {
-      label: "All Comments",
+  const tabContent = [];
+  
+  // For MSP portal, add Client Visible tab
+  if (!hideInternalTab) {
+    tabContent.push({
+      label: "Client Visible",
       content: (
-        <ReflectionContainer id={`${id}-all-comments`} label="All Comments">
-          {/* Filter out internal comments in client portal */}
-          {hideInternalTab 
-            ? renderComments(conversations.filter(conversation => !conversation.is_internal))
-            : renderComments(conversations)
-          }
+        <ReflectionContainer id={`${id}-client-visible-comments`} label="Client Visible Comments">
+          {renderComments(conversations.filter(conversation => !conversation.is_internal))}
         </ReflectionContainer>
       )
-    }
-  ];
+    });
+  }
+  
+  // For client portal, start with Comments tab
+  if (hideInternalTab) {
+    tabContent.push({
+      label: "Comments",
+      content: (
+        <ReflectionContainer id={`${id}-client-comments`} label="Comments">
+          {renderComments(conversations.filter(conversation => !conversation.is_internal))}
+        </ReflectionContainer>
+      )
+    });
+  }
   
   // Add Internal tab for MSP portal (not client portal)
   if (!hideInternalTab) {
@@ -177,6 +185,18 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
       </ReflectionContainer>
     )
   });
+  
+  // Add All Comments tab for MSP portal
+  if (!hideInternalTab) {
+    tabContent.push({
+      label: "All Comments",
+      content: (
+        <ReflectionContainer id={`${id}-all-comments`} label="All Comments">
+          {renderComments(conversations)}
+        </ReflectionContainer>
+      )
+    });
+  }
   
   // Add Documents tab
   tabContent.push({
@@ -261,7 +281,7 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
         </div>
         <CustomTabs
           tabs={tabContent}
-          defaultTab="All Comments"
+          defaultTab={hideInternalTab ? "Comments" : "Client Visible"}
           tabStyles={tabStyles}
           onTabChange={onTabChange}
           extraContent={

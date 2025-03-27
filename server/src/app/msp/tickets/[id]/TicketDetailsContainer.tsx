@@ -89,7 +89,7 @@ export default function TicketDetailsContainer({ ticketData }: TicketDetailsCont
         return;
       }
       
-      await addTicketCommentWithCache(
+      const newComment = await addTicketCommentWithCache(
         ticketData.ticket.ticket_id,
         content,
         isInternal,
@@ -97,6 +97,10 @@ export default function TicketDetailsContainer({ ticketData }: TicketDetailsCont
         false, // not initial description
         currentUser
       );
+
+      // Update the local state with the new comment
+      ticketData.comments.push(newComment);
+      
       toast.success('Comment added successfully');
     } catch (error) {
       console.error('Error adding comment:', error);
