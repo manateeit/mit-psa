@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { generateAvatarColor } from '../../utils/colorUtils';
 
 interface AvatarIconProps {
   userId: string;
@@ -15,22 +16,10 @@ const AvatarIcon: React.FC<AvatarIconProps> = ({ userId, firstName, lastName, si
     return '?';
   };
 
-  const getUserColor = useMemo(() => {
-    const colors = [
-      'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 
-      'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'
-    ];
-    
-    if (!userId) return colors[0]; // Default color if no user
-
-    // Generate a hash from the userId
-    let hash = 0;
-    for (let i = 0; i < userId.length; i++) {
-      hash = userId.charCodeAt(i) + ((hash << 5) - hash);
-    }
-
-    // Use the hash to pick a color
-    return colors[Math.abs(hash) % colors.length];
+  // Generate consistent colors based on userId
+  const avatarColors = useMemo(() => {
+    // Provide a default/fallback color if userId is missing, though it shouldn't happen in practice
+    return generateAvatarColor(userId || 'default');
   }, [userId]);
 
   const sizeClasses = {
@@ -41,7 +30,10 @@ const AvatarIcon: React.FC<AvatarIconProps> = ({ userId, firstName, lastName, si
   };
 
   return (
-    <div className={`${getUserColor} ${sizeClasses[size]} rounded-full flex items-center justify-center text-white font-bold`}>
+    <div
+      className={`${sizeClasses[size]} rounded-full flex items-center justify-center text-white font-bold`}
+      style={{ backgroundColor: avatarColors.background }}
+    >
       {getInitial()}
     </div>
   );

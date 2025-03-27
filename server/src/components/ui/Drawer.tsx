@@ -1,7 +1,7 @@
 // server/src/components/ui/Drawer.tsx
 import React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Cross2Icon } from '@radix-ui/react-icons';
+import { X } from 'lucide-react';
 import { SessionProvider } from "next-auth/react";
 import { Theme } from '@radix-ui/themes';
 
@@ -58,7 +58,7 @@ const Drawer: React.FC<DrawerProps & AutomationProps> = ({
             aria-label="Close"
             onClick={onClose}
           >
-            <Cross2Icon />
+            <X />
           </button>
         </Dialog.Content>
       </Dialog.Portal>
