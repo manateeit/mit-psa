@@ -30,6 +30,12 @@ import BillingPlanServiceForm from './BillingPlanServiceForm';
 import { Badge } from 'server/src/components/ui/Badge';
 import { IPlanServiceConfiguration } from 'server/src/interfaces/planServiceConfiguration.interfaces';
 
+// Define billing method options
+const BILLING_METHOD_OPTIONS: Array<{ value: 'fixed' | 'per_unit'; label: string }> = [
+  { value: 'fixed', label: 'Fixed Price' },
+  { value: 'per_unit', label: 'Per Unit' }
+];
+
 interface BillingPlanServicesProps {
   plan: IBillingPlan;
 }
@@ -61,30 +67,27 @@ const BillingPlanServices: React.FC<BillingPlanServicesProps> = ({ plan }) => {
     setError(null);
     
     try {
-      // Get services and plan services
-      const [services, planServicesData] = await Promise.all([
+      // Get all available services and the configurations for services linked to this plan
+      const [allAvailableServices, servicesWithConfigurations] = await Promise.all([
         getServices(),
-        getPlanServices(plan.plan_id)
+        getPlanServicesWithConfigurations(plan.plan_id)
       ]);
       
-      // Get configurations for services
-      const servicesWithConfigurations = await getPlanServicesWithConfigurations(plan.plan_id);
-      
-      // Enhance plan services with configuration data
-      const enhancedServices: EnhancedPlanService[] = planServicesData.map(ps => {
-        const configInfo = servicesWithConfigurations.find(
-          sc => sc.configuration.service_id === ps.service_id
-        );
-        
-        return {
-          ...ps,
-          configuration: configInfo?.configuration,
-          configurationType: configInfo?.configuration.configuration_type
-        };
-      });
+      // Map the configuration data to the EnhancedPlanService format
+      const enhancedServices: EnhancedPlanService[] = servicesWithConfigurations.map(configInfo => ({
+        plan_id: plan.plan_id!,
+        service_id: configInfo.configuration.service_id,
+        quantity: configInfo.configuration.quantity,
+        custom_rate: configInfo.configuration.custom_rate,
+        tenant: configInfo.configuration.tenant, // Assuming tenant is available on configuration
+        created_at: configInfo.configuration.created_at, // Assuming created_at is available
+        updated_at: configInfo.configuration.updated_at, // Assuming updated_at is available
+        configuration: configInfo.configuration,
+        configurationType: configInfo.configuration.configuration_type
+      }));
       
       setPlanServices(enhancedServices);
-      setAvailableServices(services);
+      setAvailableServices(allAvailableServices);
       
       // Initialize with empty selection
       setSelectedServicesToAdd([]);
@@ -165,6 +168,22 @@ const BillingPlanServices: React.FC<BillingPlanServicesProps> = ({ plan }) => {
       render: (value, record) => {
         const service = availableServices.find(s => s.service_id === value);
         return service?.service_name || 'Unknown Service';
+      },
+    },
+    {
+      title: 'Category',
+      dataIndex: 'service_id',
+      render: (value) => {
+        const service = availableServices.find(s => s.service_id === value);
+        return service?.service_type_id || 'N/A';
+      },
+    },
+    {
+      title: 'Billing Method',
+      dataIndex: 'service_id',
+      render: (value) => {
+        const service = availableServices.find(s => s.service_id === value);
+        return BILLING_METHOD_OPTIONS.find(opt => opt.value === service?.billing_method)?.label || service?.billing_method || 'N/A';
       },
     },
     {
@@ -285,11 +304,16 @@ const BillingPlanServices: React.FC<BillingPlanServicesProps> = ({ plan }) => {
                             }
                           }}
                         />
-                        <label htmlFor={`service-${service.service_id}`} className="flex-grow">
-                          {service.service_name}
-                          {isAlreadyInPlan && <span className="ml-2 text-xs text-blue-600">(Already in plan)</span>}
+                        <label htmlFor={`service-${service.service_id}`} className="flex-grow cursor-pointer flex flex-col">
+                          <span>
+                            {service.service_name}
+                            {isAlreadyInPlan && <span className="ml-2 text-xs text-blue-600">(Already in plan)</span>}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            Category: {service.service_type_id} | Method: {BILLING_METHOD_OPTIONS.find(opt => opt.value === service.billing_method)?.label || service.billing_method}
+                          </span>
                         </label>
-                        <span className="text-sm text-gray-500">${parseFloat(service.default_rate.toString()).toFixed(2)}</span>
+                        <span className="text-sm text-gray-600">${(service.default_rate / 100).toFixed(2)}</span> {/* Display rate in dollars */}
                       </div>
                     );
                   })}

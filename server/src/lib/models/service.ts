@@ -23,7 +23,8 @@ export const serviceSchema = z.object({
   service_id: z.string(),
   tenant: z.string().min(1, 'Tenant is required'),
   service_name: z.string(),
-  service_type: z.enum(['Fixed', 'Time', 'Usage']),
+  service_type_id: z.string(), // Changed from service_type
+  billing_method: z.enum(['fixed', 'per_unit']), // Added billing_method
   default_rate: z.number(),
   unit_of_measure: z.string(),
   category_id: z.string().nullable()
@@ -54,7 +55,8 @@ const Service = {
         .select(
           'service_id',
           'service_name',
-          'service_type',
+          'service_type_id', // Changed from service_type
+          'billing_method', // Added billing_method
           db.raw('CAST(default_rate AS FLOAT) as default_rate'),
           'unit_of_measure',
           'category_id',
@@ -96,7 +98,8 @@ const Service = {
         .select(
           'service_id',
           'service_name',
-          'service_type',
+          'service_type_id', // Changed from service_type
+          'billing_method', // Added billing_method
           db.raw('CAST(default_rate AS FLOAT) as default_rate'),
           'unit_of_measure',
           'category_id',
@@ -131,17 +134,18 @@ const Service = {
       service_id: uuidv4(),
       tenant: tenant!,
       service_name: serviceData.service_name,
-      service_type: serviceData.service_type, // Required field
+      service_type_id: serviceData.service_type_id, // Changed from service_type
       default_rate: serviceData.default_rate,
       unit_of_measure: serviceData.unit_of_measure,
       category_id: serviceData.category_id || null,
       // Optional fields
       is_taxable: serviceData.is_taxable || false,
-      tax_region: serviceData.tax_region || null
+      tax_region: serviceData.tax_region || null,
+      billing_method: serviceData.billing_method // Added billing_method
     };
 
     log.info('[Service.create] Constructed newService object:', newService);
-    log.info('[Service.create] About to execute insert with service_type:', newService.service_type);
+    log.info('[Service.create] About to execute insert with service_type_id:', newService.service_type_id); // Changed from service_type
 
     try {
       const [createdService] = await db('service_catalog')
@@ -178,7 +182,8 @@ const Service = {
         .returning([
           'service_id',
           'service_name',
-          'service_type',
+          'service_type_id', // Changed from service_type
+          'billing_method', // Added billing_method
           db.raw('CAST(default_rate AS FLOAT) as default_rate'),
           'unit_of_measure',
           'category_id',
@@ -242,7 +247,8 @@ const Service = {
         .select(
           'service_id',
           'service_name',
-          'service_type',
+          'service_type_id', // Changed from service_type
+          'billing_method', // Added billing_method
           db.raw('CAST(default_rate AS FLOAT) as default_rate'),
           'unit_of_measure',
           'category_id',

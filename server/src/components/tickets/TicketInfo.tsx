@@ -6,8 +6,10 @@ import { extractTextFromBlocks } from 'server/src/lib/utils/textUtils';
 import TextEditor from '../editor/TextEditor';
 import { PartialBlock } from '@blocknote/core';
 import { ITicket, IComment, ITicketCategory } from '../../interfaces';
+import { IUserWithRoles } from '../../interfaces/auth.interfaces';
 import { Button } from 'server/src/components/ui/Button';
 import CustomSelect from '../ui/CustomSelect';
+import UserPicker from '../ui/UserPicker';
 import { CategoryPicker } from './CategoryPicker';
 import styles from './TicketDetails.module.css';
 import { getTicketCategories } from '../../lib/actions/ticketCategoryActions';
@@ -24,7 +26,8 @@ interface TicketInfoProps {
   priorityOptions: { value: string; label: string }[];
   onSelectChange: (field: keyof ITicket, newValue: string | null) => void;
   onUpdateDescription?: (content: string) => Promise<boolean>;
-  isSubmitting?: boolean; // Flag to indicate if a submission is in progress
+  isSubmitting?: boolean;
+  users?: IUserWithRoles[];
 }
 
 const TicketInfo: React.FC<TicketInfoProps> = ({
@@ -38,6 +41,7 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
   onSelectChange,
   onUpdateDescription,
   isSubmitting = false,
+  users = [],
 }) => {
   const [categories, setCategories] = useState<ITicketCategory[]>([]);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -172,6 +176,20 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
     itemIndicator: "absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600",
   };
 
+  // If we don't have users data but have agentOptions, convert agentOptions to users format
+  const usersList = users.length > 0 ? users : agentOptions.map(agent => ({
+    user_id: agent.value,
+    username: agent.value,
+    first_name: agent.label.split(' ')[0] || '',
+    last_name: agent.label.split(' ').slice(1).join(' ') || '',
+    email: '',
+    hashed_password: '',
+    is_inactive: false,
+    tenant: '',
+    user_type: 'internal',
+    roles: []
+  }));
+
   return (
     <ReflectionContainer id={id} label={`Info for ticket ${ticket.ticket_number}`}>
       <div className={`${styles['card']}`}>
@@ -228,12 +246,15 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
             </div>
             <div>
               <h5 className="font-bold mb-2">Assigned To</h5>
-              <CustomSelect
+              <UserPicker
                 value={ticket.assigned_to || ''}
-                options={agentOptions}
                 onValueChange={(value) => onSelectChange('assigned_to', value)}
-                customStyles={customStyles}
+                users={usersList}
+                labelStyle="none"
+                buttonWidth="fit"
+                size="sm"
                 className="!w-fit"
+                placeholder="Not assigned"
               />
             </div>
             <div>

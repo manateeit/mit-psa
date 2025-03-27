@@ -10,11 +10,13 @@ import { getContactsByCompany } from 'server/src/lib/actions/contact-actions/con
 import { getTicketFormData } from 'server/src/lib/actions/ticket-actions/ticketFormActions';
 import { getTicketCategoriesByChannel } from 'server/src/lib/actions/categoryActions';
 import { IUser, IChannel, ITicketStatus, IPriority, ICompany, IContact, ITicket, ITicketCategory } from 'server/src/interfaces';
+import { IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
 import { TicketFormData } from 'server/src/lib/actions/ticket-actions/ticketFormActions';
 import { ChannelPicker } from 'server/src/components/settings/general/ChannelPicker';
 import { CompanyPicker } from 'server/src/components/companies/CompanyPicker';
 import { CategoryPicker } from './CategoryPicker';
 import CustomSelect, { SelectOption } from 'server/src/components/ui/CustomSelect';
+import UserPicker from 'server/src/components/ui/UserPicker';
 import { Input } from 'server/src/components/ui/Input';
 import { TextArea } from 'server/src/components/ui/TextArea';
 import { toast } from 'react-hot-toast';
@@ -433,14 +435,18 @@ export function QuickAddTicket({
                   )}
 
                   <div className="relative z-30">
-                    <CustomSelect
-                      id={`${id}-assigned-to`}
+                    <UserPicker
                       value={assignedTo}
                       onValueChange={(value) => {
                         setAssignedTo(value);
                         clearErrorIfSubmitted();
                       }}
-                      options={memoizedUserOptions}
+                      users={users.map(user => ({
+                        ...user,
+                        roles: []
+                      }))}
+                      buttonWidth="full"
+                      size="sm"
                       placeholder="Assign To"
                     />
                   </div>

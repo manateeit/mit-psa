@@ -7,9 +7,10 @@ import CustomSelect from 'server/src/components/ui/CustomSelect';
 import { UnitOfMeasureInput } from './UnitOfMeasureInput';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/Dialog';
 import { ConfirmationDialog } from '../ui/ConfirmationDialog';
-import { getServices, updateService, deleteService } from 'server/src/lib/actions/serviceActions';
+// Import new action and type
+import { getServices, updateService, deleteService, getServiceTypesForSelection } from 'server/src/lib/actions/serviceActions';
 import { getServiceCategories } from 'server/src/lib/actions/serviceCategoryActions';
-import { IService, IServiceCategory, ServiceType } from 'server/src/interfaces/billing.interfaces';
+import { IService, IServiceCategory, IServiceType } from 'server/src/interfaces/billing.interfaces'; // Added IServiceType
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Switch } from '../ui/Switch';
 import { DataTable } from 'server/src/components/ui/DataTable';
@@ -23,13 +24,25 @@ import {
   DropdownMenuItem,
 } from 'server/src/components/ui/DropdownMenu';
 
-// Define service type options
-const SERVICE_TYPE_OPTIONS = [
-  { value: 'Fixed', label: 'Fixed Price' },
-  { value: 'Time', label: 'Time Based' },
-  { value: 'Usage', label: 'Usage Based' },
-  { value: 'Product', label: 'Product' },
-  { value: 'License', label: 'Software License' }
+// Removed old SERVICE_TYPE_OPTIONS
+
+// Define billing method options (as per plan)
+const BILLING_METHOD_OPTIONS = [
+  { value: 'fixed', label: 'Fixed Price' },
+  { value: 'per_unit', label: 'Per Unit' }
+];
+
+// Define service category options (as per plan)
+const SERVICE_CATEGORY_OPTIONS = [
+  { value: 'Labor - Support', label: 'Labor - Support' },
+  { value: 'Labor - Project', label: 'Labor - Project' },
+  { value: 'Managed Service - Server', label: 'Managed Service - Server' },
+  { value: 'Managed Service - Workstation', label: 'Managed Service - Workstation' },
+  { value: 'Software License', label: 'Software License' },
+  { value: 'Hardware', label: 'Hardware' },
+  { value: 'Hosting', label: 'Hosting' },
+  { value: 'Consulting', label: 'Consulting' },
+  // Add others if needed, ensure these match backend expectations
 ];
 
 const LICENSE_TERM_OPTIONS = [
@@ -41,21 +54,43 @@ const LICENSE_TERM_OPTIONS = [
 const ServiceCatalogManager: React.FC = () => {
   const [services, setServices] = useState<IService[]>([]);
   const [categories, setCategories] = useState<IServiceCategory[]>([]);
+  // Add state for all service types
+  const [allServiceTypes, setAllServiceTypes] = useState<(IServiceType & { is_standard?: boolean })[]>([]);
   const [editingService, setEditingService] = useState<IService | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
-  const [selectedServiceType, setSelectedServiceType] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedBillingMethod, setSelectedBillingMethod] = useState<string>('all');
 
-  const filteredServices = services.filter(service =>
-    selectedServiceType === 'all' || service.service_type === selectedServiceType
-  );
+  const filteredServices = services.filter(service => {
+    // Assuming selectedCategory now holds the service_type_id
+    const categoryMatch = selectedCategory === 'all' || service.service_type_id === selectedCategory;
+    const billingMethodMatch = selectedBillingMethod === 'all' || service.billing_method === selectedBillingMethod;
+    return categoryMatch && billingMethodMatch;
+  });
 
   useEffect(() => {
     fetchServices();
     fetchCategories();
+    fetchAllServiceTypes(); // Fetch service types
   }, []);
+
+  // Function to fetch all service types
+  const fetchAllServiceTypes = async () => {
+    try {
+      const types = await getServiceTypesForSelection();
+      setAllServiceTypes(types);
+    } catch (fetchError) {
+      console.error('Error fetching service types:', fetchError);
+      if (fetchError instanceof Error) {
+        setError(fetchError.message);
+      } else {
+        setError('An unknown error occurred while fetching service types');
+      }
+    }
+  };
 
   const fetchServices = async () => {
     try {
@@ -81,7 +116,8 @@ const ServiceCatalogManager: React.FC = () => {
 
   const handleUpdateService = async () => {
     if (!editingService) return;
-    if (!editingService.service_type) {
+    // Check for service_type_id instead of service_type
+    if (!editingService.service_type_id) {
       setError('Service Type is required');
       return;
     }
@@ -104,7 +140,7 @@ const ServiceCatalogManager: React.FC = () => {
 
   const confirmDeleteService = async () => {
     if (!serviceToDelete) return;
-    
+
     try {
       await deleteService(serviceToDelete);
       await fetchServices();
@@ -125,8 +161,17 @@ const ServiceCatalogManager: React.FC = () => {
         dataIndex: 'service_name',
       },
       {
-        title: 'Service Type',
-        dataIndex: 'service_type',
+        title: 'Service Type', // Changed title back
+        dataIndex: 'service_type_id', // Use the ID
+        render: (value) => { // Render the name using the fetched types
+          const type = allServiceTypes.find(t => t.id === value);
+          return type?.name || 'N/A';
+        },
+      },
+      {
+        title: 'Billing Method',
+        dataIndex: 'billing_method',
+        render: (value) => BILLING_METHOD_OPTIONS.find(opt => opt.value === value)?.label || value,
       },
       {
         title: 'Default Rate',
@@ -139,8 +184,9 @@ const ServiceCatalogManager: React.FC = () => {
         render: (value, record) => categories.find(cat => cat.category_id === value)?.category_name || 'N/A',
       },
       {
-        title: 'Unit of Measure',
+        title: 'Unit', // Shortened title
         dataIndex: 'unit_of_measure',
+        render: (value, record) => record.billing_method === 'per_unit' ? value || 'N/A' : 'N/A',
       },
       {
         title: 'Is Taxable',
@@ -154,37 +200,42 @@ const ServiceCatalogManager: React.FC = () => {
       }
     ];
 
-    // Only add product-specific columns if we're filtering specifically by products
-    if (selectedServiceType === 'Product') {
-      baseColumns.push(
-        {
-          title: 'SKU',
-          dataIndex: 'sku',
-          render: (value) => value || 'N/A',
+    // Removed conditional columns based on old service_type
+    // TODO: Re-add conditional columns based on new category/billing method if needed
+    baseColumns.push(
+      {
+        title: 'SKU',
+        dataIndex: 'sku',
+        render: (value, record) => {
+          const type = allServiceTypes.find(t => t.id === record.service_type_id);
+          return type?.name === 'Hardware' ? value || 'N/A' : 'N/A';
         },
-        {
-          title: 'Inventory',
-          dataIndex: 'inventory_count',
-          render: (value) => value || '0',
-        }
-      );
-    }
-
-    // Only add license-specific columns if we're filtering specifically by licenses
-    if (selectedServiceType === 'License') {
-      baseColumns.push(
-        {
-          title: 'Seat Limit',
-          dataIndex: 'seat_limit',
-          render: (value) => value || 'Unlimited',
+      },
+      {
+        title: 'Inventory',
+        dataIndex: 'inventory_count',
+        render: (value, record) => {
+          const type = allServiceTypes.find(t => t.id === record.service_type_id);
+          return type?.name === 'Hardware' ? (value ?? 'N/A') : 'N/A'; // Use ?? for 0
         },
-        {
-          title: 'License Term',
-          dataIndex: 'license_term',
-          render: (value) => value || 'N/A',
+      },
+      {
+        title: 'Seat Limit',
+        dataIndex: 'seat_limit',
+        render: (value, record) => {
+          const type = allServiceTypes.find(t => t.id === record.service_type_id);
+          return type?.name === 'Software License' ? (value ?? 'N/A') : 'N/A'; // Use ?? for 0\
+        },
+      },
+      {
+        title: 'License Term',
+        dataIndex: 'license_term',
+        render: (value, record) => {
+          const type = allServiceTypes.find(t => t.id === record.service_type_id);
+          return type?.name === 'Software License' ? (value ?? 'N/A') : 'N/A'; // Use ?? for 0
         }
-      );
-    }
+      }
+    );
 
     // Always add actions column at the end
     baseColumns.push({
@@ -239,18 +290,23 @@ const ServiceCatalogManager: React.FC = () => {
           {error && <div className="text-red-500 mb-4">{error}</div>}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <div className="w-64">
+              <div className="flex space-x-2">
                 <CustomSelect
-                  options={[
-                    { value: 'all', label: 'All Services' },
-                    ...SERVICE_TYPE_OPTIONS
-                  ]}
-                  value={selectedServiceType}
-                  onValueChange={setSelectedServiceType}
-                  placeholder="Filter by type..."
+                  options={[{ value: 'all', label: 'All Categories' }, ...SERVICE_CATEGORY_OPTIONS]}
+                  value={selectedCategory}
+                  onValueChange={setSelectedCategory}
+                  placeholder="Filter by category..."
+                  className="w-[200px]"
+                />
+                <CustomSelect
+                  options={[{ value: 'all', label: 'All Billing Methods' }, ...BILLING_METHOD_OPTIONS]}
+                  value={selectedBillingMethod}
+                  onValueChange={setSelectedBillingMethod}
+                  placeholder="Filter by billing method..."
+                  className="w-[200px]"
                 />
               </div>
-              <QuickAddService onServiceAdded={fetchServices} />
+              <QuickAddService onServiceAdded={fetchServices} allServiceTypes={allServiceTypes} /> {/* Pass prop */}
             </div>
             <DataTable
               data={filteredServices}
@@ -275,15 +331,19 @@ const ServiceCatalogManager: React.FC = () => {
               value={editingService?.service_name || ''}
               onChange={(e) => setEditingService({ ...editingService!, service_name: e.target.value })}
             />
+            {/* Updated CustomSelect to use service_type_id and allServiceTypes */}
             <CustomSelect
-              options={SERVICE_TYPE_OPTIONS}
-              value={editingService?.service_type || 'Fixed'}
-              onValueChange={(value) => {
-                if (value === 'Fixed' || value === 'Time' || value === 'Usage' || value === 'Product' || value === 'License') {
-                  setEditingService({ ...editingService!, service_type: value as ServiceType })
-                }
-              }}
-              placeholder="Select service type..."
+              options={allServiceTypes.map(type => ({ value: type.id, label: type.name }))} // Use fetched types
+              value={editingService?.service_type_id || ''} // Use ID for value
+              onValueChange={(value) => setEditingService({ ...editingService!, service_type_id: value })} // Set ID on change
+              placeholder="Select service type..." // Updated placeholder
+            />
+            {/* Added Billing Method dropdown */}
+            <CustomSelect
+              options={BILLING_METHOD_OPTIONS}
+              value={editingService?.billing_method || 'fixed'}
+              onValueChange={(value) => setEditingService({ ...editingService!, billing_method: value as 'fixed' | 'per_unit' })}
+              placeholder="Select billing method..."
             />
             <Input
               type="number"
@@ -300,12 +360,15 @@ const ServiceCatalogManager: React.FC = () => {
               value={editingService?.category_id || 'unassigned'}
               placeholder="Select category..."
             />
-            <UnitOfMeasureInput
-              value={editingService?.unit_of_measure || ''}
-              onChange={(value) => setEditingService({ ...editingService!, unit_of_measure: value })}
-              placeholder="Unit of Measure"
-              className="w-full"
-            />
+            {/* Conditional Unit of Measure */}
+            {editingService?.billing_method === 'per_unit' && (
+              <UnitOfMeasureInput
+                value={editingService?.unit_of_measure || ''}
+                onChange={(value) => setEditingService({ ...editingService!, unit_of_measure: value })}
+                placeholder="Unit of Measure"
+                className="w-full"
+              />
+            )}
             <div className="flex items-center space-x-2">
               <Switch
                 checked={editingService?.is_taxable ?? true}
@@ -319,8 +382,9 @@ const ServiceCatalogManager: React.FC = () => {
               onChange={(e) => setEditingService({ ...editingService!, tax_region: e.target.value })}
             />
 
-            {/* Product-specific fields */}
-            {editingService?.service_type === 'Product' && (
+            {/* Removed conditional rendering based on old service_type */}
+            {/* Conditional Fields based on Service Type Name */}
+            {allServiceTypes.find(t => t.id === editingService?.service_type_id)?.name === 'Hardware' && (
               <>
                 <Input
                   placeholder="SKU"
@@ -330,20 +394,18 @@ const ServiceCatalogManager: React.FC = () => {
                 <Input
                   type="number"
                   placeholder="Inventory Count"
-                  value={editingService?.inventory_count || ''}
-                  onChange={(e) => setEditingService({ ...editingService!, inventory_count: parseInt(e.target.value) })}
+                  value={editingService?.inventory_count ?? ''} // Use ?? for 0
+                  onChange={(e) => setEditingService({ ...editingService!, inventory_count: parseInt(e.target.value) || 0 })}
                 />
               </>
             )}
-
-            {/* License-specific fields */}
-            {editingService?.service_type === 'License' && (
+            {allServiceTypes.find(t => t.id === editingService?.service_type_id)?.name === 'Software License' && (
               <>
                 <Input
                   type="number"
                   placeholder="Seat Limit"
-                  value={editingService?.seat_limit || ''}
-                  onChange={(e) => setEditingService({ ...editingService!, seat_limit: parseInt(e.target.value) })}
+                  value={editingService?.seat_limit ?? ''} // Use ?? for 0
+                  onChange={(e) => setEditingService({ ...editingService!, seat_limit: parseInt(e.target.value) || 0 })}
                 />
                 <CustomSelect
                   options={LICENSE_TERM_OPTIONS}

@@ -371,13 +371,15 @@ const Documents = ({
               <h2 className="text-lg font-semibold">
                 {isCreatingNew ? 'New Document' : 'Edit Document'}
               </h2>
-              <Button
-                id={`${id}-close-drawer-btn`}
-                onClick={() => setIsDrawerOpen(false)}
-                variant="ghost"
-              >
-                ×
-              </Button>
+              {!isInDrawer && (
+                <Button
+                  id={`${id}-close-drawer-btn`}
+                  onClick={() => setIsDrawerOpen(false)}
+                  variant="ghost"
+                >
+                  ×
+                </Button>
+              )}
             </div>
 
             <div className="flex-1 overflow-hidden flex flex-col">

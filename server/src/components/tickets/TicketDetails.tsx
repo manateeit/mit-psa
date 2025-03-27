@@ -879,6 +879,7 @@ const handleClose = () => {
                                 onSelectChange={handleSelectChange}
                                 onUpdateDescription={handleUpdateDescription}
                                 isSubmitting={isSubmitting}
+                                users={availableAgents}
                             />
                         </Suspense>
                         <Suspense fallback={<div id="ticket-conversation-skeleton" className="animate-pulse bg-gray-200 h-96 rounded-lg mb-6"></div>}>
