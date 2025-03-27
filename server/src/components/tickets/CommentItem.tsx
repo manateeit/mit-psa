@@ -2,15 +2,12 @@
 
 import React, { useMemo, useState } from 'react';
 import { PartialBlock } from '@blocknote/core';
-import { extractTextFromBlocks } from 'server/src/lib/utils/textUtils';
 import TextEditor from '../editor/TextEditor';
-import ReactMarkdown from 'react-markdown';
+import RichTextViewer from '../editor/RichTextViewer';
 import { Pencil, Trash } from 'lucide-react';
-import { Pencil2Icon, TrashIcon } from '@radix-ui/react-icons';
 import AvatarIcon from 'server/src/components/ui/AvatarIcon';
 import { IComment } from 'server/src/interfaces/comment.interface';
 import { IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
-import UserPicker from 'server/src/components/ui/UserPicker';
 import { Button } from 'server/src/components/ui/Button';
 import { withDataAutomationId } from 'server/src/types/ui-reflection/withDataAutomationId';
 import { ConfirmationDialog } from 'server/src/components/ui/ConfirmationDialog';
@@ -49,7 +46,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
   onEdit,
   onDelete
 }) => {
-  const [selectedUserId, setSelectedUserId] = useState(conversation.user_id || '');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editedContent, setEditedContent] = useState<PartialBlock[]>(() => {
     try {
@@ -102,11 +98,8 @@ const CommentItem: React.FC<CommentItemProps> = ({
   }, [conversation.user_id, user?.user_id]);
 
   const handleSave = () => {
-    const selectedUser = userMap[selectedUserId];
     const updates: Partial<IComment> = {
-      note: JSON.stringify(editedContent),
-      user_id: selectedUserId,
-      author_type: selectedUser?.user_type === 'internal' ? 'internal' : 'client'
+      note: JSON.stringify(editedContent)
     };
 
     onSave(updates);
@@ -122,29 +115,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
     return (
       <div>
-        <div className="mb-4">
-          <UserPicker
-            label="Select User"
-            value={selectedUserId}
-            onValueChange={setSelectedUserId}
-            users={Object.entries(userMap).map(([id, user]): IUserWithRoles => ({
-              user_id: id,
-              username: id,
-              first_name: user.first_name,
-              last_name: user.last_name,
-              email: user.email || '',
-              hashed_password: '',
-              is_inactive: false,
-              tenant: '',
-              roles: [],
-              created_at: new Date(),
-              two_factor_enabled: false,
-              is_google_user: false,
-              user_type: user.user_type
-            }))}
-          />
-        </div>
-
         <TextEditor
           {...withDataAutomationId({ id: `${commentId}-text-editor` })}
           roomName={`ticket-${ticketId}-comment-${currentComment.comment_id}`}
@@ -156,7 +126,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
           <Button
             id={`${commentId}-save-btn`}
             onClick={handleSave}
-            disabled={!selectedUserId}
+            disabled={false}
           >
             Save
           </Button>
@@ -173,7 +143,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
   }, [
     currentComment,
     isEditing,
-    selectedUserId,
     commentId,
     ticketId,
     editedContent,
@@ -239,8 +208,8 @@ const CommentItem: React.FC<CommentItemProps> = ({
           {isEditing && currentComment?.comment_id === conversation.comment_id ? (
             editorContent
           ) : (
-            <div {...withDataAutomationId({ id: `${commentId}-content` })} className="prose max-w-none mt-2">
-              <ReactMarkdown>{extractTextFromBlocks(conversation.note || '')}</ReactMarkdown>
+              <div {...withDataAutomationId({ id: `${commentId}-content` })} className="prose max-w-none mt-2">
+              <RichTextViewer content={JSON.parse(conversation.note || '[]')} />
             </div>
           )}
         </div>
