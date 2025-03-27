@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from 'server/src/components/ui/Button';
 import { X } from 'lucide-react';
-import { extractTextFromBlocks } from 'server/src/lib/utils/textUtils';
+import RichTextViewer from 'server/src/components/editor/RichTextViewer';
 import { 
   getClientTicketDetails, 
   addClientTicketComment,
@@ -218,9 +218,13 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
 
               <div className="border-t pt-4">
                 <h3 className="text-sm font-medium text-gray-900 mb-2">Description</h3>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                  {extractTextFromBlocks((ticket.attributes?.description as string) || '')}
-                </p>
+                <div className="text-sm text-gray-700">
+                  {(ticket.attributes?.description as string) ? (
+                    <RichTextViewer content={(ticket.attributes?.description as string)} />
+                  ) : (
+                    'No description found.'
+                  )}
+                </div>
               </div>
 
               {ticket.conversations && (

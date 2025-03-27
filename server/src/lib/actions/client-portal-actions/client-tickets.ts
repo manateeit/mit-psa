@@ -564,20 +564,6 @@ export async function createClientTicket(data: FormData): Promise<ITicket> {
         throw new Error('Failed to create ticket');
       }
 
-      // Create initial description comment
-      if (validatedData.description) {
-        await trx('comments').insert({
-          tenant,
-          ticket_id: newTicket.ticket_id,
-          user_id: session.user.id,
-          author_type: 'client',
-          note: validatedData.description,
-          is_internal: false,
-          is_resolution: false,
-          is_initial_description: true
-        });
-      }
-
       return newTicket;
     });
 
