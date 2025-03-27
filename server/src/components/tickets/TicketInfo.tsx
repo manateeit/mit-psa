@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import { extractTextFromBlocks } from 'server/src/lib/utils/textUtils';
+import RichTextViewer from '../editor/RichTextViewer';
 import TextEditor from '../editor/TextEditor';
 import { PartialBlock } from '@blocknote/core';
 import { ITicket, IComment, ITicketCategory } from '../../interfaces';
@@ -62,13 +61,9 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
   }]);
 
   useEffect(() => {
-    // Initialize description content from either the ticket attributes or the initial description comment
-    const ticketAttributesDescription = ticket.attributes?.description as string;
-    const initialCommentDescription = conversations.find(conv => conv.is_initial_description)?.note;
-    
-    // Prefer the initial comment description if available
-    const descriptionText = initialCommentDescription || ticketAttributesDescription || '';
-    
+    // Initialize description content from the ticket attributes
+    const descriptionText = (ticket.attributes?.description as string) || '';
+
     if (descriptionText) {
       try {
         const parsedContent = JSON.parse(descriptionText);
@@ -342,14 +337,12 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
             ) : (
               <div className="prose max-w-none">
                 {(() => {
-                  // Try to get description from initial comment first, then from ticket attributes
-                  const initialDescription = conversations.find(conv => conv.is_initial_description)?.note;
-                  const ticketAttributesDescription = ticket.attributes?.description as string;
-                  const descriptionText = initialDescription || ticketAttributesDescription;
-                  
+                  // Get description from ticket attributes
+                  const descriptionText = ticket.attributes?.description as string;
+
                   if (!descriptionText) return 'No description found.';
-                  
-                  return <ReactMarkdown>{extractTextFromBlocks(descriptionText)}</ReactMarkdown>;
+
+                  return <RichTextViewer content={descriptionText} />;
                 })()}
               </div>
             )}

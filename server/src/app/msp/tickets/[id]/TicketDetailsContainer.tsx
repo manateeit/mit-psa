@@ -89,7 +89,7 @@ export default function TicketDetailsContainer({ ticketData }: TicketDetailsCont
         return;
       }
       
-      await addTicketCommentWithCache(
+      const newComment = await addTicketCommentWithCache(
         ticketData.ticket.ticket_id,
         content,
         isInternal,
@@ -97,6 +97,10 @@ export default function TicketDetailsContainer({ ticketData }: TicketDetailsCont
         false, // not initial description
         currentUser
       );
+
+      // Update the local state with the new comment
+      ticketData.comments.push(newComment);
+      
       toast.success('Comment added successfully');
     } catch (error) {
       console.error('Error adding comment:', error);
@@ -139,19 +143,6 @@ export default function TicketDetailsContainer({ ticketData }: TicketDetailsCont
         },
         currentUser
       );
-
-      // Also update the initial description comment if it exists
-      const initialComment = ticketData.comments.find(comment => comment.is_initial_description);
-      if (initialComment?.comment_id) {
-        await addTicketCommentWithCache(
-          ticketData.ticket.ticket_id,
-          content,
-          false, // not internal
-          false, // not resolution
-          true,  // is initial description
-          currentUser
-        );
-      }
 
       toast.success('Description updated successfully');
       return true;

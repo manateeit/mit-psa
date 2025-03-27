@@ -402,7 +402,7 @@ async function registerContactUser(
     // Get contact details and tenant
     const contact = await adminDb('contacts')
       .join('companies', 'contacts.company_id', 'companies.company_id')
-      .where({ email })
+      .where({ 'contacts.email': email })
       .select('contacts.contact_name_id', 'contacts.company_id', 'contacts.is_inactive', 'contacts.full_name', 'companies.tenant')
       .first();
 

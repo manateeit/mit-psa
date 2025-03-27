@@ -102,20 +102,6 @@ export async function createTicketFromAsset(data: CreateTicketFromAssetData, use
                 throw new Error('Failed to create ticket');
             }
 
-            // Create initial description comment
-            if (validatedData.description) {
-                await trx('comments').insert({
-                    tenant,
-                    ticket_id: newTicket.ticket_id,
-                    user_id: user.user_id,
-                    author_type: 'internal',
-                    note: validatedData.description,
-                    is_internal: false,
-                    is_resolution: false,
-                    is_initial_description: true
-                });
-            }
-
             // Create the asset association
             await AssetAssociationModel.create({
                 asset_id: validatedData.asset_id,
@@ -230,20 +216,6 @@ export async function addTicket(data: FormData, user: IUser): Promise<ITicket|un
 
       if (!newTicket.ticket_id) {
         throw new Error('Failed to create a new ticket');
-      }
-
-      // Create the initial description comment
-      if (validatedData.description) {
-        await trx('comments').insert({
-          tenant,
-          ticket_id: newTicket.ticket_id,
-          user_id: user.user_id,
-          author_type: 'internal',
-          note: validatedData.description,
-          is_internal: false,
-          is_resolution: false,
-          is_initial_description: true
-        });
       }
 
       // Publish ticket created event

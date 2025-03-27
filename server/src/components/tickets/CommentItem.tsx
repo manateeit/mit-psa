@@ -2,15 +2,12 @@
 
 import React, { useMemo, useState } from 'react';
 import { PartialBlock } from '@blocknote/core';
-import { extractTextFromBlocks } from 'server/src/lib/utils/textUtils';
 import TextEditor from '../editor/TextEditor';
-import ReactMarkdown from 'react-markdown';
+import RichTextViewer from '../editor/RichTextViewer';
 import { Pencil, Trash } from 'lucide-react';
-import { Pencil2Icon, TrashIcon } from '@radix-ui/react-icons';
 import AvatarIcon from 'server/src/components/ui/AvatarIcon';
 import { IComment } from 'server/src/interfaces/comment.interface';
 import { IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
-import UserPicker from 'server/src/components/ui/UserPicker';
 import { Button } from 'server/src/components/ui/Button';
 import { withDataAutomationId } from 'server/src/types/ui-reflection/withDataAutomationId';
 import { ConfirmationDialog } from 'server/src/components/ui/ConfirmationDialog';
@@ -49,7 +46,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
   onEdit,
   onDelete
 }) => {
-  const [selectedUserId, setSelectedUserId] = useState(conversation.user_id || '');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editedContent, setEditedContent] = useState<PartialBlock[]>(() => {
     try {
@@ -102,11 +98,8 @@ const CommentItem: React.FC<CommentItemProps> = ({
   }, [conversation.user_id, user?.user_id]);
 
   const handleSave = () => {
-    const selectedUser = userMap[selectedUserId];
     const updates: Partial<IComment> = {
-      note: JSON.stringify(editedContent),
-      user_id: selectedUserId,
-      author_type: selectedUser?.user_type === 'internal' ? 'internal' : 'client'
+      note: JSON.stringify(editedContent)
     };
 
     onSave(updates);
@@ -122,29 +115,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
     return (
       <div>
-        <div className="mb-4">
-          <UserPicker
-            label="Select User"
-            value={selectedUserId}
-            onValueChange={setSelectedUserId}
-            users={Object.entries(userMap).map(([id, user]): IUserWithRoles => ({
-              user_id: id,
-              username: id,
-              first_name: user.first_name,
-              last_name: user.last_name,
-              email: user.email || '',
-              hashed_password: '',
-              is_inactive: false,
-              tenant: '',
-              roles: [],
-              created_at: new Date(),
-              two_factor_enabled: false,
-              is_google_user: false,
-              user_type: user.user_type
-            }))}
-          />
-        </div>
-
         <TextEditor
           {...withDataAutomationId({ id: `${commentId}-text-editor` })}
           roomName={`ticket-${ticketId}-comment-${currentComment.comment_id}`}
@@ -156,7 +126,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
           <Button
             id={`${commentId}-save-btn`}
             onClick={handleSave}
-            disabled={!selectedUserId}
+            disabled={false}
           >
             Save
           </Button>
@@ -173,7 +143,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
   }, [
     currentComment,
     isEditing,
-    selectedUserId,
     commentId,
     ticketId,
     editedContent,
@@ -188,7 +157,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
 
   return (
-    <div {...withDataAutomationId({ id: commentId })} className="bg-gray-50 rounded-lg p-4 mb-4 shadow-sm">
+    <div {...withDataAutomationId({ id: commentId })} className="rounded-lg p-4 mb-4 shadow-sm border border-gray-200 hover:border-gray-300 bg-white">
       <div className="flex items-start mb-2">
         <div className="mr-3">
           <AvatarIcon 
@@ -205,13 +174,25 @@ const CommentItem: React.FC<CommentItemProps> = ({
               <p {...withDataAutomationId({ id: `${commentId}-author-name` })} className="font-semibold text-gray-800">
                 {getAuthorName()}
               </p>
-              {getAuthorEmail() && (
-                <p {...withDataAutomationId({ id: `${commentId}-author-email` })} className="text-sm text-gray-600">
-                  <a href={`mailto:${getAuthorEmail()}`} className="hover:text-indigo-600">
-                    {getAuthorEmail()}
-                  </a>
+              <div className="flex flex-col">
+                {getAuthorEmail() && (
+                  <p {...withDataAutomationId({ id: `${commentId}-author-email` })} className="text-sm text-gray-600">
+                    <a href={`mailto:${getAuthorEmail()}`} className="hover:text-indigo-600">
+                      {getAuthorEmail()}
+                    </a>
+                  </p>
+                )}
+                <p {...withDataAutomationId({ id: `${commentId}-timestamp` })} className="text-xs text-gray-500">
+                  {conversation.created_at && (
+                    <span>
+                      {new Date(conversation.created_at).toLocaleString()}
+                      {conversation.updated_at && 
+                       new Date(conversation.updated_at).getTime() > new Date(conversation.created_at).getTime() && 
+                       " (edited)"}
+                    </span>
+                  )}
                 </p>
-              )}
+              </div>
             </div>
             {canEdit && (
               <div className="space-x-2">
@@ -239,8 +220,27 @@ const CommentItem: React.FC<CommentItemProps> = ({
           {isEditing && currentComment?.comment_id === conversation.comment_id ? (
             editorContent
           ) : (
-            <div {...withDataAutomationId({ id: `${commentId}-content` })} className="prose max-w-none mt-2">
-              <ReactMarkdown>{extractTextFromBlocks(conversation.note || '')}</ReactMarkdown>
+              <div {...withDataAutomationId({ id: `${commentId}-content` })} className="prose max-w-none mt-2">
+              <RichTextViewer content={(() => {
+                try {
+                  return JSON.parse(conversation.note || '[]');
+                } catch (e) {
+                  // If parsing fails, return a simple paragraph with the text
+                  return [{
+                    type: "paragraph",
+                    props: {
+                      textAlignment: "left",
+                      backgroundColor: "default",
+                      textColor: "default"
+                    },
+                    content: [{
+                      type: "text",
+                      text: conversation.note || '',
+                      styles: {}
+                    }]
+                  }];
+                }
+              })()} />
             </div>
           )}
         </div>
