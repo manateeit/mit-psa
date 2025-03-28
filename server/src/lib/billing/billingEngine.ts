@@ -840,7 +840,7 @@ export class BillingEngine {
       
       // Apply minimum usage if configured
       let quantity = record.quantity;
-      if (serviceConfig && quantity < serviceConfig.config.minimum_usage) {
+      if (serviceConfig && quantity < (serviceConfig.config.minimum_usage ?? 0)) {
         quantity = serviceConfig.config.minimum_usage;
       }
       
