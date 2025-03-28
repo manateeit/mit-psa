@@ -948,6 +948,8 @@ const handleClose = () => {
                                 onClientTypeFilterChange={setClientTypeFilter}
                             />
                         </Suspense>
+                        
+                        {/* Assets - commented out for now
                         {ticket.company_id && ticket.ticket_id && (
                             <div className="mt-6" id="associated-assets-container">
                                 <Suspense fallback={<div id="associated-assets-skeleton" className="animate-pulse bg-gray-200 h-32 rounded-lg"></div>}>
@@ -960,6 +962,7 @@ const handleClose = () => {
                                 </Suspense>
                             </div>
                         )}
+                        */}
                     </div>
                 </div>
             </div>
