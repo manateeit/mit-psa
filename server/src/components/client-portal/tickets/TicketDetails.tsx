@@ -220,7 +220,19 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
                 <h3 className="text-sm font-medium text-gray-900 mb-2">Description</h3>
                 <div className="text-sm text-gray-700">
                   {(ticket.attributes?.description as string) ? (
-                    <RichTextViewer content={(ticket.attributes?.description as string)} />
+                    <RichTextViewer
+                      content={(() => {
+                        try {
+                          const parsed = JSON.parse(ticket.attributes?.description as string);
+                          if (Array.isArray(parsed)) {
+                            return parsed;
+                          }
+                        } catch {
+                          return ticket.attributes?.description as string;
+                        }
+                        return ticket.attributes?.description as string;
+                      })()}
+                    />
                   ) : (
                     'No description found.'
                   )}

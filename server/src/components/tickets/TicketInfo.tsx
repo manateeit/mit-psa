@@ -285,7 +285,7 @@ const TicketInfo: React.FC<TicketInfoProps> = ({
               </div>
             </div>
           </div>
-          <div className="mb-6">
+          <div>
             <div className="flex items-center gap-2 mb-2">
               <h2 className="text-lg font-semibold">Description</h2>
               {!isEditingDescription && (

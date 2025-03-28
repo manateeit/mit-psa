@@ -22,47 +22,80 @@ export default function RichTextViewer({
   content,
   className = '',
 }: RichTextViewerProps) {
-  // Parse content
+  // Parse content and remove empty trailing blocks
   const parsedContent = (() => {
+    let blocks: PartialBlock[] = [];
+    
     if (Array.isArray(content)) {
-      return content;
+      blocks = content;
+    } else {
+      try {
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          blocks = parsed;
+        }
+      } catch {
+        // If string can't be parsed as JSON, create a text block with it
+        blocks = [{
+          type: "paragraph" as const,
+          props: {
+            textAlignment: "left" as const,
+            backgroundColor: "default" as const,
+            textColor: "default" as const
+          },
+          content: [{
+            type: "text" as const,
+            text: content,
+            styles: {}
+          }]
+        }];
+      }
     }
 
-    try {
-      const parsed = JSON.parse(content);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    } catch {
-      // If string can't be parsed as JSON, create a text block with it
+    // If we still have no blocks, return a single empty paragraph
+    if (blocks.length === 0) {
       return [{
-        type: "paragraph",
+        type: "paragraph" as const,
         props: {
-          textAlignment: "left",
-          backgroundColor: "default",
-          textColor: "default"
+          textAlignment: "left" as const,
+          backgroundColor: "default" as const,
+          textColor: "default" as const
         },
         content: [{
-          type: "text",
-          text: content,
+          type: "text" as const,
+          text: "",
           styles: {}
         }]
       }];
     }
 
-    return [{
-      type: "paragraph",
-      props: {
-        textAlignment: "left",
-        backgroundColor: "default",
-        textColor: "default"
-      },
-      content: [{
-        type: "text",
-        text: "",
-        styles: {}
-      }]
-    }];
+    // Type guard for text content
+    const isTextContent = (content: any): content is { type: "text"; text: string; styles: {} } => {
+      return content?.type === "text";
+    };
+
+    // Remove empty trailing blocks
+    let i = blocks.length - 1;
+    while (i >= 0) {
+      const block = blocks[i];
+      const hasContent = (block: PartialBlock): boolean => {
+        if (!block.content) return false;
+        if (Array.isArray(block.content)) {
+          return block.content.some(item => {
+            if (isTextContent(item)) {
+              return item.text.trim() !== "";
+            }
+            return true; // Keep non-text content
+          });
+        }
+        return false;
+      };
+      
+      if (hasContent(block)) break;
+      i--;
+    }
+
+    return blocks.slice(0, i + 1);
   })();
 
   // Create editor instance with content
