@@ -30,8 +30,8 @@ interface ActivityCardProps {
 export function ActivityCard({ activity, onViewDetails, renderExtra }: ActivityCardProps) {
   // Color mapping based on activity type
   const typeColorMap = {
-    [ActivityType.SCHEDULE]: 'border-blue-500',
-    [ActivityType.PROJECT_TASK]: 'border-green-500',
+    [ActivityType.SCHEDULE]: 'border-green-500',
+    [ActivityType.PROJECT_TASK]: 'border-blue-500',
     [ActivityType.TICKET]: 'border-purple-500',
     [ActivityType.TIME_ENTRY]: 'border-orange-500',
     [ActivityType.WORKFLOW_TASK]: 'border-red-500',

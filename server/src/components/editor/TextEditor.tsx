@@ -111,7 +111,9 @@ export default function TextEditor({
       i--;
     }
 
-    return blocks.slice(0, i + 1);
+    // If all blocks were empty (i is -1), return DEFAULT_BLOCK
+    // Otherwise return the non-empty blocks
+    return i >= 0 ? blocks.slice(0, i + 1) : DEFAULT_BLOCK;
   })();
 
   // Create editor instance with initial content
