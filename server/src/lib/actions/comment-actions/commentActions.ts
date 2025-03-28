@@ -4,6 +4,7 @@ import Comment from 'server/src/lib/models/comment';
 import { IComment } from 'server/src/interfaces/comment.interface';
 import { findUserById } from 'server/src/lib/actions/user-actions/userActions';
 import { createTenantKnex } from 'server/src/lib/db';
+import { convertBlockNoteToMarkdown } from 'server/src/lib/utils/blocknoteUtils';
 
 export async function findCommentsByTicketId(ticketId: string) {
   try {
@@ -24,17 +25,8 @@ export async function findCommentById(ticketId: string) {
     throw new Error(`Failed to find comments for ticket id: ${ticketId}`);
   }
 }
-
 export async function createComment(comment: Omit<IComment, 'tenant'>): Promise<string> {
   try {
-    // First, check if there are any existing comments for this ticket
-    const existingComments = await Comment.getAllbyTicketId(comment.ticket_id || '');
-
-    // If this is the first comment, set is_initial_description to true
-    if (existingComments.length === 0) {
-      comment.is_initial_description = true;
-    }
-
     // Get user's type to set author_type
     if (comment.user_id) {
       const { knex: db, tenant } = await createTenantKnex();
@@ -58,8 +50,14 @@ export async function createComment(comment: Omit<IComment, 'tenant'>): Promise<
       throw new Error('Only internal users can create internal comments');
     }
 
+    // Convert BlockNote JSON to Markdown if note exists
+    if (comment.note) {
+      comment.markdown_content = await convertBlockNoteToMarkdown(comment.note);
+    }
+
     // Now insert the comment
     const commentId = await Comment.insert(comment);
+    return commentId;
     return commentId;
   } catch (error) {
     console.error(`Failed to create comment:`, error);
@@ -104,6 +102,11 @@ export async function updateComment(id: string, comment: Partial<IComment>) {
       if (existingComment.author_type === 'client') {
         comment.is_internal = existingComment.is_internal; // Preserve internal status
       }
+    }
+
+    // Convert BlockNote JSON to Markdown if note is being updated
+    if (comment.note !== undefined) {
+      comment.markdown_content = await convertBlockNoteToMarkdown(comment.note);
     }
 
     console.log(`[updateComment] Proceeding with update`, { finalUpdateData: comment });

@@ -451,7 +451,6 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
                     author_type: 'internal',
                     is_internal: activeTab === 'Internal',
                     is_resolution: activeTab === 'Resolution',
-                    is_initial_description: false,
                 };
         
                 const commentId = await createComment(newComment);
@@ -602,15 +601,6 @@ const handleClose = () => {
                     updated_at: new Date().toISOString()
                 }));
 
-                // Also update the initial description comment if it exists
-                const initialComment = conversations.find(conv => conv.is_initial_description);
-                if (initialComment?.comment_id) {
-                    await updateComment(initialComment.comment_id, { note: content });
-                    
-                    // Refresh the comments
-                    const updatedComments = await findCommentsByTicketId(ticket.ticket_id);
-                    setConversations(updatedComments);
-                }
 
                 toast.success('Description updated successfully');
                 return true;

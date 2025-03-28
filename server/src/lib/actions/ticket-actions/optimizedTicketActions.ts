@@ -782,11 +782,10 @@ export async function updateTicketWithCache(id: string, data: Partial<ITicket>, 
  * Add comment to ticket with proper caching
  */
 export async function addTicketCommentWithCache(
-  ticketId: string, 
-  content: string, 
-  isInternal: boolean, 
+  ticketId: string,
+  content: string,
+  isInternal: boolean,
   isResolution: boolean,
-  isInitialDescription: boolean,
   user: IUser
 ): Promise<IComment> {
   if (!await hasPermission(user, 'ticket', 'update')) {
@@ -820,7 +819,6 @@ export async function addTicketCommentWithCache(
       note: content,
       is_internal: isInternal,
       is_resolution: isResolution,
-      is_initial_description: isInitialDescription,
       created_at: new Date().toISOString()
     }).returning('*');
 
