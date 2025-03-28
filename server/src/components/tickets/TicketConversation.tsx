@@ -236,10 +236,10 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
             </Button>
           )}
         </div>
-        <div className='mb-6'>
+        <div className='mb-3'>
           {showEditor && (
             <div className='flex items-start'>
-              <div className="mr-3">
+              <div className="mr-2">
                 <AvatarIcon
                   {...withDataAutomationId({ id: `${id}-current-user-avatar` })}
                   userId={currentUser?.id || ''}
@@ -258,7 +258,7 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
                 >
                   {renderButtonBar()}
                 </TextEditor>
-                <div className="flex justify-end space-x-2 mt-2">
+                <div className="flex justify-end space-x-2 mt-1">
                   <Button
                     id={`${id}-add-comment-btn`}
                     onClick={handleSubmitComment}

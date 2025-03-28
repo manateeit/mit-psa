@@ -122,7 +122,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
           onContentChange={handleContentChange}
         />
 
-        <div className="flex justify-end space-x-2 mt-2">
+        <div className="flex justify-end space-x-2 mt-1">
           <Button
             id={`${commentId}-save-btn`}
             onClick={handleSave}
@@ -157,9 +157,9 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
 
   return (
-    <div {...withDataAutomationId({ id: commentId })} className="rounded-lg p-4 mb-4 shadow-sm border border-gray-200 hover:border-gray-300 bg-white">
-      <div className="flex items-start mb-2">
-        <div className="mr-3">
+    <div {...withDataAutomationId({ id: commentId })} className="rounded-lg p-2 mb-2 shadow-sm border border-gray-200 hover:border-gray-300 bg-white">
+      <div className="flex items-start mb-1">
+        <div className="mr-2">
           <AvatarIcon 
             {...withDataAutomationId({ id: `${commentId}-avatar` })}
             userId={conversation.user_id || ''}
@@ -220,7 +220,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
           {isEditing && currentComment?.comment_id === conversation.comment_id ? (
             editorContent
           ) : (
-              <div {...withDataAutomationId({ id: `${commentId}-content` })} className="prose max-w-none mt-2">
+              <div {...withDataAutomationId({ id: `${commentId}-content` })} className="prose max-w-none mt-1">
               <RichTextViewer content={(() => {
                 try {
                   return JSON.parse(conversation.note || '[]');

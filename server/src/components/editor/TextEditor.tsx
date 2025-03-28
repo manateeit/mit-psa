@@ -48,37 +48,70 @@ export default function TextEditor({
   editorRef,
   documentId
 }: TextEditorProps) {
-  // Parse initial content
+  // Parse initial content and remove empty trailing blocks
   const initialContent = (() => {
+    let blocks: PartialBlock[] = [];
+    
     if (!propInitialContent) return DEFAULT_BLOCK;
     
     if (Array.isArray(propInitialContent)) {
-      return propInitialContent;
-    }
-
-    try {
-      const parsed = JSON.parse(propInitialContent);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+      blocks = propInitialContent;
+    } else {
+      try {
+        const parsed = JSON.parse(propInitialContent);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          blocks = parsed;
+        }
+      } catch {
+        // If string can't be parsed as JSON, create a text block with it
+        blocks = [{
+          type: "paragraph" as const,
+          props: {
+            textAlignment: "left" as const,
+            backgroundColor: "default" as const,
+            textColor: "default" as const
+          },
+          content: [{
+            type: "text" as const,
+            text: propInitialContent,
+            styles: {}
+          }]
+        }];
       }
-    } catch {
-      // If string can't be parsed as JSON, create a text block with it
-      return [{
-        type: "paragraph",
-        props: {
-          textAlignment: "left",
-          backgroundColor: "default",
-          textColor: "default"
-        },
-        content: [{
-          type: "text",
-          text: propInitialContent,
-          styles: {}
-        }]
-      }];
     }
 
-    return DEFAULT_BLOCK;
+    // If we still have no blocks, return default
+    if (blocks.length === 0) {
+      return DEFAULT_BLOCK;
+    }
+
+    // Type guard for text content
+    const isTextContent = (content: any): content is { type: "text"; text: string; styles: {} } => {
+      return content?.type === "text";
+    };
+
+    // Remove empty trailing blocks
+    let i = blocks.length - 1;
+    while (i >= 0) {
+      const block = blocks[i];
+      const hasContent = (block: PartialBlock): boolean => {
+        if (!block.content) return false;
+        if (Array.isArray(block.content)) {
+          return block.content.some(item => {
+            if (isTextContent(item)) {
+              return item.text.trim() !== "";
+            }
+            return true; // Keep non-text content
+          });
+        }
+        return false;
+      };
+      
+      if (hasContent(block)) break;
+      i--;
+    }
+
+    return blocks.slice(0, i + 1);
   })();
 
   // Create editor instance with initial content
