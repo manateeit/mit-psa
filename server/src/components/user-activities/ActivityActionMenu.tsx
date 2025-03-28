@@ -72,7 +72,7 @@ export function ActivityActionMenu({ activity, onActionComplete, onViewDetails }
         router.push(`/projects/tasks/${activity.id}`);
         break;
       case ActivityType.TICKET:
-        router.push(`/tickets/${activity.id}`);
+        router.push(`/msp/tickets/${activity.id}`);
         break;
       case ActivityType.TIME_ENTRY:
         router.push(`/time-entries/${activity.id}`);

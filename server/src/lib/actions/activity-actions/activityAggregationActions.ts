@@ -168,7 +168,9 @@ export async function fetchProjectActivities(
         "project_tasks.*",
         "project_phases.phase_name",
         "project_phases.project_id",
-        "projects.project_name"
+        "projects.project_name",
+        "standard_statuses.name as status_name",
+        db.raw("'#3b82f6' as status_color") // Blue color for consistency
       )
       .leftJoin("project_phases", function() {
         this.on("project_tasks.phase_id", "project_phases.phase_id")
@@ -177,6 +179,14 @@ export async function fetchProjectActivities(
       .leftJoin("projects", function() {
         this.on("project_phases.project_id", "projects.project_id")
             .andOn("project_phases.tenant", "projects.tenant");
+      })
+      .leftJoin("project_status_mappings", function() {
+        this.on("project_tasks.project_status_mapping_id", "project_status_mappings.project_status_mapping_id")
+            .andOn("project_tasks.tenant", "project_status_mappings.tenant");
+      })
+      .leftJoin("standard_statuses", function() {
+        this.on("project_status_mappings.standard_status_id", "standard_statuses.standard_status_id")
+            .andOn("project_status_mappings.tenant", "standard_statuses.tenant");
       })
       .where("project_tasks.tenant", tenant)
       .where(function() {
@@ -198,16 +208,15 @@ export async function fetchProjectActivities(
       // Apply status filter if provided
       .modify(function(queryBuilder) {
         if (filters.status && filters.status.length > 0) {
-          queryBuilder.whereExists(function() {
-            this.select(db.raw(1))
+          queryBuilder.whereIn("project_tasks.project_status_mapping_id", function() {
+            this.select("project_status_mappings.project_status_mapping_id")
               .from("project_status_mappings")
-              .join("statuses", function() {
-                this.on("project_status_mappings.status_id", "statuses.status_id")
-                    .andOn("project_status_mappings.tenant", "statuses.tenant");
+              .join("standard_statuses", function() {
+                this.on("project_status_mappings.standard_status_id", "standard_statuses.standard_status_id")
+                    .andOn("project_status_mappings.tenant", "standard_statuses.tenant");
               })
-              .whereRaw("project_tasks.project_status_mapping_id = project_status_mappings.project_status_mapping_id")
-              .andWhere("project_status_mappings.tenant", tenant)
-              .whereIn("statuses.name", filters.status || []);
+              .where("project_status_mappings.tenant", tenant)
+              .whereIn("standard_statuses.name", filters.status || []);
           });
         }
         
@@ -222,24 +231,49 @@ export async function fetchProjectActivities(
         
         // Apply closed filter if provided
         if (filters.isClosed !== undefined) {
-          queryBuilder.whereExists(function() {
-            this.select(db.raw(1))
+          queryBuilder.whereIn("project_tasks.project_status_mapping_id", function() {
+            this.select("project_status_mappings.project_status_mapping_id")
               .from("project_status_mappings")
-              .join("statuses", function() {
-                this.on("project_status_mappings.status_id", "statuses.status_id")
-                    .andOn("project_status_mappings.tenant", "statuses.tenant");
+              .join("standard_statuses", function() {
+                this.on("project_status_mappings.standard_status_id", "standard_statuses.standard_status_id")
+                    .andOn("project_status_mappings.tenant", "standard_statuses.tenant");
               })
-              .whereRaw("project_tasks.project_status_mapping_id = project_status_mappings.project_status_mapping_id")
-              .andWhere("project_status_mappings.tenant", tenant)
-              .where("statuses.is_closed", filters.isClosed);
+              .where("project_status_mappings.tenant", tenant)
+              .where("standard_statuses.is_closed", filters.isClosed);
           });
         }
       });
 
     // Convert to activities
-    return tasks.map((task: any) => 
-      projectTaskToActivity(task, task.project_name, task.phase_name)
-    );
+    return tasks.map((task: any) => {
+      return {
+        id: task.task_id,
+        title: task.task_name,
+        description: task.description || undefined,
+        type: ActivityType.PROJECT_TASK,
+        status: task.status_name || 'To Do', // Use the status name from standard_statuses
+        statusColor: task.status_color || '#3b82f6', // Use the blue color for consistency
+        priority: ActivityPriority.MEDIUM, // Default priority if not specified
+        dueDate: task.due_date ? new Date(task.due_date).toISOString() : undefined,
+        assignedTo: task.assigned_to ? [task.assigned_to] : [],
+        sourceId: task.task_id,
+        sourceType: ActivityType.PROJECT_TASK,
+        projectId: task.project_id || task.phase_id,
+        phaseId: task.phase_id,
+        projectName: task.project_name,
+        phaseName: task.phase_name,
+        estimatedHours: task.estimated_hours || undefined,
+        actualHours: task.actual_hours || undefined,
+        wbsCode: task.wbs_code,
+        actions: [
+          { id: 'view', label: 'View Details' },
+          { id: 'edit', label: 'Edit' }
+        ],
+        tenant: task.tenant,
+        createdAt: task.created_at ? new Date(task.created_at).toISOString() : new Date().toISOString(),
+        updatedAt: task.updated_at ? new Date(task.updated_at).toISOString() : new Date().toISOString()
+      };
+    });
   } catch (error) {
     console.error("Error fetching project activities:", error);
     return [];
