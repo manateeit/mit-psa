@@ -74,10 +74,15 @@ export default function RichTextViewer({
       return content?.type === "text";
     };
 
-    // Remove empty trailing blocks
+    // Remove empty trailing blocks, but only if they're paragraph blocks
+    // This preserves tables and other non-paragraph blocks even if they're at the end
     let i = blocks.length - 1;
     while (i >= 0) {
       const block = blocks[i];
+      
+      // Always keep non-paragraph blocks (tables, images, etc.)
+      if (block.type !== "paragraph") break;
+      
       const hasContent = (block: PartialBlock): boolean => {
         if (!block.content) return false;
         if (Array.isArray(block.content)) {
@@ -95,6 +100,7 @@ export default function RichTextViewer({
       i--;
     }
 
+    // Return all blocks up to and including the last non-empty block
     return blocks.slice(0, i + 1);
   })();
 

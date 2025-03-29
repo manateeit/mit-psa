@@ -654,8 +654,7 @@ export async function addTicketComment(ticketId: string, comment: string, isInte
       author_type: 'internal',
       note: comment,
       is_internal: isInternal,
-      is_resolution: false,
-      is_initial_description: false
+      is_resolution: false
     }).returning('*');
 
     // Publish comment added event

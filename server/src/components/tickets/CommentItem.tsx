@@ -206,7 +206,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
                   <Pencil className="w-4 h-4" />
                 </Button>
                 <Button
-                  id='delete-comment-button'
+                  id={`delete-comment-${conversation.comment_id}-button`}
                   variant="ghost"
                   onClick={() => setIsDeleteDialogOpen(true)}
                   className="text-red-600 hover:text-red-800 font-medium p-1 rounded-full hover:bg-red-100 transition duration-150 ease-in-out"

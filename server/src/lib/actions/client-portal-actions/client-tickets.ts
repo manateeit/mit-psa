@@ -295,7 +295,6 @@ export async function addClientTicketComment(ticketId: string, content: string, 
       note: content,
       is_internal: isInternal,
       is_resolution: false,
-      is_initial_description: false,
       created_at: new Date().toISOString(),
       user_id: session.user.id
     });

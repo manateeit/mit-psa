@@ -141,8 +141,7 @@ export async function getRecentActivity(): Promise<RecentActivity[]> {
       ])
       .leftJoin('comments', function() {
         this.on('tickets.ticket_id', '=', 'comments.ticket_id')
-            .andOn('tickets.tenant', '=', 'comments.tenant')
-            .andOn('comments.is_initial_description', '=', knex.raw('true'));
+            .andOn('tickets.tenant', '=', 'comments.tenant');
       })
       .where({
         'tickets.tenant': tenant,

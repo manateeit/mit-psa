@@ -15,6 +15,7 @@ import { hasPermission } from 'server/src/lib/auth/rbac';
 import { z } from 'zod';
 import { validateData } from 'server/src/lib/utils/validation';
 import { getEventBus } from '../../../lib/eventBus';
+import { convertBlockNoteToMarkdown } from 'server/src/lib/utils/blocknoteUtils';
 import { 
   ticketFormSchema, 
   ticketSchema, 
@@ -782,11 +783,10 @@ export async function updateTicketWithCache(id: string, data: Partial<ITicket>, 
  * Add comment to ticket with proper caching
  */
 export async function addTicketCommentWithCache(
-  ticketId: string, 
-  content: string, 
-  isInternal: boolean, 
+  ticketId: string,
+  content: string,
+  isInternal: boolean,
   isResolution: boolean,
-  isInitialDescription: boolean,
   user: IUser
 ): Promise<IComment> {
   if (!await hasPermission(user, 'ticket', 'update')) {
@@ -811,7 +811,18 @@ export async function addTicketCommentWithCache(
       throw new Error('Ticket not found');
     }
 
-    // Insert comment
+    // Use the centralized utility to convert BlockNote JSON to markdown
+    let markdownContent = "";
+    try {
+      markdownContent = await convertBlockNoteToMarkdown(content);
+      console.log("Converted markdown content for optimized comment:", markdownContent);
+    } catch (e) {
+      console.error("Error converting content to markdown:", e);
+      // If conversion fails, use a fallback message
+      markdownContent = "[Error converting content to markdown]";
+    }
+    
+    // Insert comment with markdown_content
     const [newComment] = await db('comments').insert({
       tenant,
       ticket_id: ticketId,
@@ -820,7 +831,7 @@ export async function addTicketCommentWithCache(
       note: content,
       is_internal: isInternal,
       is_resolution: isResolution,
-      is_initial_description: isInitialDescription,
+      markdown_content: markdownContent, // Add markdown content
       created_at: new Date().toISOString()
     }).returning('*');
 

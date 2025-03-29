@@ -94,7 +94,6 @@ export default function TicketDetailsContainer({ ticketData }: TicketDetailsCont
         content,
         isInternal,
         isResolution,
-        false, // not initial description
         currentUser
       );
 
