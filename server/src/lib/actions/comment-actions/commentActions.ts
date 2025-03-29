@@ -2,7 +2,6 @@
 
 import Comment from 'server/src/lib/models/comment';
 import { IComment } from 'server/src/interfaces/comment.interface';
-import { findUserById } from 'server/src/lib/actions/user-actions/userActions';
 import { createTenantKnex } from 'server/src/lib/db';
 import { convertBlockNoteToMarkdown } from 'server/src/lib/utils/blocknoteUtils';
 
@@ -16,15 +15,16 @@ export async function findCommentsByTicketId(ticketId: string) {
   }
 }
 
-export async function findCommentById(ticketId: string) {
+export async function findCommentById(commentId: string) {
   try {
-    const comments = await Comment.get(ticketId);
-    return comments;
+    const comment = await Comment.get(commentId);
+    return comment;
   } catch (error) {
     console.error(error);
-    throw new Error(`Failed to find comments for ticket id: ${ticketId}`);
+    throw new Error(`Failed to find comment with id: ${commentId}`);
   }
 }
+
 export async function createComment(comment: Omit<IComment, 'tenant'>): Promise<string> {
   try {
     console.log(`[createComment] Starting with comment:`, {
@@ -57,43 +57,32 @@ export async function createComment(comment: Omit<IComment, 'tenant'>): Promise<
       throw new Error('Only internal users can create internal comments');
     }
 
-    // IMPORTANT: First convert BlockNote JSON to Markdown if note exists
-    // We'll do this BEFORE any database operations to ensure it's complete
+    // Convert BlockNote JSON to Markdown if note exists
     if (comment.note) {
       console.log(`[createComment] Converting note to markdown for new comment`);
-      console.log(`[createComment] Note content:`, comment.note);
       
       try {
-        // Convert the note to markdown - this is a synchronous operation now
-        // We'll wait for it to complete before proceeding
         comment.markdown_content = await convertBlockNoteToMarkdown(comment.note);
         
-        // Verify we have markdown content
         if (!comment.markdown_content || comment.markdown_content.trim() === '') {
           console.warn(`[createComment] Markdown conversion returned empty result, using fallback`);
           comment.markdown_content = "[Fallback markdown content]";
         }
         
         console.log(`[createComment] Markdown conversion successful:`, {
-          length: comment.markdown_content.length,
-          content: comment.markdown_content
+          length: comment.markdown_content.length
         });
       } catch (conversionError) {
         console.error(`[createComment] Error during markdown conversion:`, conversionError);
         comment.markdown_content = "[Error during content conversion]";
       }
     } else {
-      // Explicitly set markdown_content for comments without notes
       comment.markdown_content = "[No content]";
     }
-
-    // Now that we have the markdown content, insert the comment
-    console.log(`[createComment] Inserting comment with markdown_content:`, comment.markdown_content);
     
     // Create a copy of the comment object to ensure markdown_content is included
     const commentToInsert = {
       ...comment,
-      // Double-check that markdown_content is set
       markdown_content: comment.markdown_content || "[No markdown content]"
     };
     
@@ -103,58 +92,18 @@ export async function createComment(comment: Omit<IComment, 'tenant'>): Promise<
       markdown_content_length: commentToInsert.markdown_content ? commentToInsert.markdown_content.length : 0
     });
     
-    // Explicitly log the exact object being passed to the database
-    console.log(`[createComment] Raw object being passed to database:`, JSON.stringify({
-      ...commentToInsert,
-      note: '[truncated]',
-      markdown_content: commentToInsert.markdown_content
-    }));
-    
-    // Directly use knex to insert the comment to ensure markdown_content is included
-    const { knex: db, tenant } = await createTenantKnex();
-    
-    const result = await db('comments')
-      .insert({
-        ...commentToInsert,
-        tenant: tenant!,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        markdown_content: commentToInsert.markdown_content // Explicitly include markdown_content
-      })
-      .returning(['comment_id', 'markdown_content']);
-    
-    const commentId = result[0].comment_id;
-    console.log(`[createComment] Comment inserted with ID:`, commentId, 'and markdown_content:', result[0].markdown_content);
+    // Use the Comment model to insert the comment
+    const commentId = await Comment.insert(commentToInsert);
+    console.log(`[createComment] Comment inserted with ID:`, commentId);
     
     // Verify the comment was inserted correctly
-    try {
-      const insertedComment = await Comment.get(commentId);
-      if (insertedComment) {
-        console.log(`[createComment] Verification - inserted comment:`, {
-          comment_id: insertedComment.comment_id,
-          has_markdown: !!insertedComment.markdown_content,
-          markdown_length: insertedComment.markdown_content ? insertedComment.markdown_content.length : 0,
-          markdown_content: insertedComment.markdown_content
-        });
-        
-        // If markdown_content is still null, try to update it directly
-        if (!insertedComment.markdown_content) {
-          console.warn(`[createComment] Markdown content is null after insertion, attempting direct update`);
-          await db('comments')
-            .where('comment_id', commentId)
-            .andWhere('tenant', tenant!)
-            .update({
-              markdown_content: commentToInsert.markdown_content,
-              updated_at: new Date().toISOString()
-            });
-          
-          console.log(`[createComment] Direct update of markdown_content completed`);
-        }
-      } else {
-        console.log(`[createComment] Verification - comment not found after insertion`);
-      }
-    } catch (verifyError) {
-      console.error(`[createComment] Error verifying inserted comment:`, verifyError);
+    const insertedComment = await Comment.get(commentId);
+    if (insertedComment) {
+      console.log(`[createComment] Verification - inserted comment:`, {
+        comment_id: insertedComment.comment_id,
+        has_markdown: !!insertedComment.markdown_content,
+        markdown_length: insertedComment.markdown_content ? insertedComment.markdown_content.length : 0
+      });
     }
     
     return commentId;
@@ -165,25 +114,38 @@ export async function createComment(comment: Omit<IComment, 'tenant'>): Promise<
 }
 
 export async function updateComment(id: string, comment: Partial<IComment>) {
-  console.log(`[updateComment] Starting update for comment ID: ${id}`, { commentData: comment });
+  console.log(`[updateComment] Starting update for comment ID: ${id}`, {
+    commentData: {
+      ...comment,
+      note: comment.note ? `${comment.note.substring(0, 50)}...` : undefined
+    }
+  });
+  
   try {
-    console.log(`[updateComment] Fetching existing comment with ID: ${id}`);
+    // Fetch existing comment to verify it exists
     const existingComment = await Comment.get(id);
     if (!existingComment) {
       console.error(`[updateComment] Comment with ID ${id} not found`);
       throw new Error(`Comment with id ${id} not found`);
     }
     console.log(`[updateComment] Found existing comment:`, existingComment);
-
-    // If user_id is being updated, get user's type
-    if (comment.user_id) {
+    
+    // Verify user permissions - only allow users to edit their own comments
+    // or internal users to edit any comment
+    if (comment.user_id && comment.user_id !== existingComment.user_id) {
       const { knex: db, tenant } = await createTenantKnex();
       const user = await db('users')
         .select('user_type')
         .where('user_id', comment.user_id)
         .andWhere('tenant', tenant!)
         .first();
-
+      
+      // Only internal users can edit other users' comments
+      if (!user || user.user_type !== 'internal') {
+        throw new Error('You can only edit your own comments');
+      }
+      
+      // Set author_type based on user type
       if (user) {
         comment.author_type = user.user_type === 'internal' ? 'internal' : 'client';
       } else {
@@ -203,26 +165,20 @@ export async function updateComment(id: string, comment: Partial<IComment>) {
       }
     }
 
-    // IMPORTANT: First convert BlockNote JSON to Markdown if note is being updated
-    // We'll do this BEFORE any database operations to ensure it's complete
+    // Convert BlockNote JSON to Markdown if note is being updated
     if (comment.note !== undefined) {
       console.log(`[updateComment] Converting note to markdown for comment update`);
-      console.log(`[updateComment] Note content:`, comment.note);
       
       try {
-        // Convert the note to markdown - this is a synchronous operation now
-        // We'll wait for it to complete before proceeding
         comment.markdown_content = await convertBlockNoteToMarkdown(comment.note);
         
-        // Verify we have markdown content
         if (!comment.markdown_content || comment.markdown_content.trim() === '') {
           console.warn(`[updateComment] Markdown conversion returned empty result, using fallback`);
           comment.markdown_content = "[Fallback markdown content]";
         }
         
         console.log(`[updateComment] Markdown conversion successful:`, {
-          length: comment.markdown_content.length,
-          content: comment.markdown_content
+          length: comment.markdown_content.length
         });
       } catch (conversionError) {
         console.error(`[updateComment] Error during markdown conversion:`, conversionError);
@@ -233,63 +189,32 @@ export async function updateComment(id: string, comment: Partial<IComment>) {
     // Create a copy of the comment object to ensure markdown_content is included
     const commentToUpdate = {
       ...comment,
-      // Double-check that markdown_content is set if note was updated
-      markdown_content: comment.note !== undefined ? 
-        (comment.markdown_content || "[No markdown content]") : 
+      markdown_content: comment.note !== undefined ?
+        (comment.markdown_content || "[No markdown content]") :
         comment.markdown_content
     };
 
-    console.log(`[updateComment] Proceeding with update`, { 
-      finalUpdateData: commentToUpdate,
+    console.log(`[updateComment] Proceeding with update`, {
+      finalUpdateData: {
+        ...commentToUpdate,
+        note: commentToUpdate.note ? `${commentToUpdate.note.substring(0, 50)}...` : undefined
+      },
       hasMarkdownContent: commentToUpdate.markdown_content !== undefined,
       markdownContentLength: commentToUpdate.markdown_content ? commentToUpdate.markdown_content.length : 0
     });
     
-    // Directly use knex to update the comment to ensure markdown_content is included
-    const { knex: db, tenant } = await createTenantKnex();
-    
-    const result = await db('comments')
-      .where('comment_id', id)
-      .andWhere('tenant', tenant!)
-      .update({
-        ...commentToUpdate,
-        updated_at: new Date().toISOString(),
-        markdown_content: commentToUpdate.markdown_content // Explicitly include markdown_content
-      })
-      .returning(['comment_id', 'markdown_content']);
-    
-    console.log(`[updateComment] Successfully updated comment with ID: ${id}`, 
-      result.length > 0 ? `and markdown_content: ${result[0].markdown_content}` : '');
+    // Use the Comment model to update the comment
+    await Comment.update(id, commentToUpdate);
+    console.log(`[updateComment] Successfully updated comment with ID: ${id}`);
     
     // Verify the comment was updated correctly
-    try {
-      const updatedComment = await Comment.get(id);
-      if (updatedComment) {
-        console.log(`[updateComment] Verification - updated comment:`, {
-          comment_id: updatedComment.comment_id,
-          has_markdown: !!updatedComment.markdown_content,
-          markdown_length: updatedComment.markdown_content ? updatedComment.markdown_content.length : 0,
-          markdown_content: updatedComment.markdown_content
-        });
-        
-        // If markdown_content is still null, try to update it directly
-        if (!updatedComment.markdown_content && commentToUpdate.markdown_content) {
-          console.warn(`[updateComment] Markdown content is null after update, attempting direct update`);
-          await db('comments')
-            .where('comment_id', id)
-            .andWhere('tenant', tenant!)
-            .update({
-              markdown_content: commentToUpdate.markdown_content,
-              updated_at: new Date().toISOString()
-            });
-          
-          console.log(`[updateComment] Direct update of markdown_content completed`);
-        }
-      } else {
-        console.log(`[updateComment] Verification - comment not found after update`);
-      }
-    } catch (verifyError) {
-      console.error(`[updateComment] Error verifying updated comment:`, verifyError);
+    const updatedComment = await Comment.get(id);
+    if (updatedComment) {
+      console.log(`[updateComment] Verification - updated comment:`, {
+        comment_id: updatedComment.comment_id,
+        has_markdown: !!updatedComment.markdown_content,
+        markdown_length: updatedComment.markdown_content ? updatedComment.markdown_content.length : 0
+      });
     }
   } catch (error) {
     console.error(`[updateComment] Failed to update comment with ID ${id}:`, error);

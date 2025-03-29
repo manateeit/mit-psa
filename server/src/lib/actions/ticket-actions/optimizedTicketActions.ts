@@ -15,6 +15,7 @@ import { hasPermission } from 'server/src/lib/auth/rbac';
 import { z } from 'zod';
 import { validateData } from 'server/src/lib/utils/validation';
 import { getEventBus } from '../../../lib/eventBus';
+import { convertBlockNoteToMarkdown } from 'server/src/lib/utils/blocknoteUtils';
 import { 
   ticketFormSchema, 
   ticketSchema, 
@@ -810,33 +811,16 @@ export async function addTicketCommentWithCache(
       throw new Error('Ticket not found');
     }
 
-    // Extract plain text for markdown content
+    // Use the centralized utility to convert BlockNote JSON to markdown
     let markdownContent = "";
     try {
-      const contentObj = JSON.parse(content);
-      markdownContent = contentObj.map((block: any) => {
-        if (!block.content) return '';
-        
-        if (Array.isArray(block.content)) {
-          return block.content
-            .filter((item: any) => item && item.type === 'text')
-            .map((item: any) => item.text || '')
-            .join('');
-        }
-        
-        if (typeof block.content === 'string') {
-          return block.content;
-        }
-        
-        return '';
-      }).filter((text: string) => text.trim() !== '').join('\n\n');
+      markdownContent = await convertBlockNoteToMarkdown(content);
+      console.log("Converted markdown content for optimized comment:", markdownContent);
     } catch (e) {
-      console.error("Error parsing content JSON:", e);
-      // If parsing fails, use the content as is
-      markdownContent = content;
+      console.error("Error converting content to markdown:", e);
+      // If conversion fails, use a fallback message
+      markdownContent = "[Error converting content to markdown]";
     }
-    
-    console.log("Extracted markdown content for optimized comment:", markdownContent);
     
     // Insert comment with markdown_content
     const [newComment] = await db('comments').insert({

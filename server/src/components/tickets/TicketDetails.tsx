@@ -48,6 +48,7 @@ import { PartialBlock, StyledText } from '@blocknote/core';
 import { useTicketTimeTracking } from '../../hooks/useTicketTimeTracking';
 import { IntervalTrackingService } from '../../services/IntervalTrackingService';
 import { IntervalManagement } from '../time-management/interval-tracking/IntervalManagement';
+import { convertBlockNoteToMarkdown } from '../../lib/utils/blocknoteUtils';
 
 interface TicketDetailsProps {
     id?: string; // Made optional to maintain backward compatibility
@@ -420,29 +421,9 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
                 return;
             }
             
-            // Extract plain text from the content for markdown
-            const extractPlainText = (blocks: PartialBlock[]): string => {
-                return blocks.map(block => {
-                    if (!block.content) return '';
-                    
-                    if (Array.isArray(block.content)) {
-                        return block.content
-                            .filter((item: any) => item && item.type === 'text')
-                            .map((item: any) => item.text || '')
-                            .join('');
-                    }
-                    
-                    if (typeof block.content === 'string') {
-                        return block.content;
-                    }
-                    
-                    return '';
-                }).filter(text => text.trim() !== '').join('\n\n');
-            };
-            
-            // Extract markdown content directly
-            const markdownContent = extractPlainText(newCommentContent);
-            console.log("Extracted markdown content:", markdownContent);
+            // Use the centralized utility to convert BlockNote content to markdown
+            const markdownContent = await convertBlockNoteToMarkdown(newCommentContent);
+            console.log("Converted markdown content:", markdownContent);
     
             // Use the optimized handler if provided
             if (onAddComment) {
