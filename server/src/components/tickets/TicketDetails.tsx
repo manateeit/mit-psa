@@ -419,6 +419,30 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
                 console.error("No valid user ID found");
                 return;
             }
+            
+            // Extract plain text from the content for markdown
+            const extractPlainText = (blocks: PartialBlock[]): string => {
+                return blocks.map(block => {
+                    if (!block.content) return '';
+                    
+                    if (Array.isArray(block.content)) {
+                        return block.content
+                            .filter((item: any) => item && item.type === 'text')
+                            .map((item: any) => item.text || '')
+                            .join('');
+                    }
+                    
+                    if (typeof block.content === 'string') {
+                        return block.content;
+                    }
+                    
+                    return '';
+                }).filter(text => text.trim() !== '').join('\n\n');
+            };
+            
+            // Extract markdown content directly
+            const markdownContent = extractPlainText(newCommentContent);
+            console.log("Extracted markdown content:", markdownContent);
     
             // Use the optimized handler if provided
             if (onAddComment) {
@@ -451,6 +475,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
                     author_type: 'internal',
                     is_internal: activeTab === 'Internal',
                     is_resolution: activeTab === 'Resolution',
+                    markdown_content: markdownContent // Explicitly set markdown content
                 };
         
                 const commentId = await createComment(newComment);
@@ -498,6 +523,39 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
         if (!currentComment) return;
 
         try {
+            // Extract plain text from the content for markdown
+            const extractPlainText = (noteStr: string): string => {
+                try {
+                    const blocks = JSON.parse(noteStr);
+                    return blocks.map((block: any) => {
+                        if (!block.content) return '';
+                        
+                        if (Array.isArray(block.content)) {
+                            return block.content
+                                .filter((item: any) => item && item.type === 'text')
+                                .map((item: any) => item.text || '')
+                                .join('');
+                        }
+                        
+                        if (typeof block.content === 'string') {
+                            return block.content;
+                        }
+                        
+                        return '';
+                    }).filter((text: string) => text.trim() !== '').join('\n\n');
+                } catch (e) {
+                    console.error("Error parsing note JSON:", e);
+                    return noteStr || "";
+                }
+            };
+            
+            // Extract markdown content directly if note is being updated
+            if (updates.note) {
+                const markdownContent = extractPlainText(updates.note);
+                console.log("Extracted markdown content for update:", markdownContent);
+                updates.markdown_content = markdownContent;
+            }
+
             await updateComment(currentComment.comment_id!, updates);
 
             const updatedCommentData = await findCommentById(currentComment.comment_id!);

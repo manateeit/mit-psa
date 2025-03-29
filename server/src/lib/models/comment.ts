@@ -62,12 +62,14 @@ const Comment = {
         }
       }
 
+      // Explicitly include markdown_content in the insert operation
       const result = await db<IComment>('comments')
         .insert({
           ...comment,
           tenant: tenant!,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          markdown_content: comment.markdown_content || "[No markdown content]" // Explicitly include this field
         })
         .returning('comment_id');
 
@@ -125,13 +127,23 @@ const Comment = {
         }
       }
 
+      // Explicitly include markdown_content in the update operation if it exists in the comment object
+      const updateData = {
+        ...comment,
+        updated_at: new Date().toISOString()
+      };
+
+      // Log the update data for debugging
+      logger.info('Updating comment with data:', {
+        ...updateData,
+        note: updateData.note ? `${updateData.note.substring(0, 50)}...` : undefined,
+        markdown_content_length: updateData.markdown_content ? updateData.markdown_content.length : 0
+      });
+
       await db<IComment>('comments')
         .where('comment_id', id)
         .andWhere('tenant', tenant!)
-        .update({
-          ...comment,
-          updated_at: new Date().toISOString()
-        });
+        .update(updateData);
     } catch (error) {
       console.error(`Error updating comment with id ${id}:`, error);
       throw error;

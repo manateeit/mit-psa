@@ -810,7 +810,35 @@ export async function addTicketCommentWithCache(
       throw new Error('Ticket not found');
     }
 
-    // Insert comment
+    // Extract plain text for markdown content
+    let markdownContent = "";
+    try {
+      const contentObj = JSON.parse(content);
+      markdownContent = contentObj.map((block: any) => {
+        if (!block.content) return '';
+        
+        if (Array.isArray(block.content)) {
+          return block.content
+            .filter((item: any) => item && item.type === 'text')
+            .map((item: any) => item.text || '')
+            .join('');
+        }
+        
+        if (typeof block.content === 'string') {
+          return block.content;
+        }
+        
+        return '';
+      }).filter((text: string) => text.trim() !== '').join('\n\n');
+    } catch (e) {
+      console.error("Error parsing content JSON:", e);
+      // If parsing fails, use the content as is
+      markdownContent = content;
+    }
+    
+    console.log("Extracted markdown content for optimized comment:", markdownContent);
+    
+    // Insert comment with markdown_content
     const [newComment] = await db('comments').insert({
       tenant,
       ticket_id: ticketId,
@@ -819,6 +847,7 @@ export async function addTicketCommentWithCache(
       note: content,
       is_internal: isInternal,
       is_resolution: isResolution,
+      markdown_content: markdownContent, // Add markdown content
       created_at: new Date().toISOString()
     }).returning('*');
 

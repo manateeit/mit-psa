@@ -68,8 +68,17 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
   };
 
   const handleSubmitComment = async () => {
-    await onAddNewComment();
-    setShowEditor(false);
+    try {
+      // Call the onAddNewComment function and wait for it to complete
+      await onAddNewComment();
+      
+      // Only hide the editor after the comment has been successfully added
+      console.log('Comment added successfully, closing editor');
+      setShowEditor(false);
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      // Don't close the editor if there was an error
+    }
   };
 
   const handleCancelComment = () => {
