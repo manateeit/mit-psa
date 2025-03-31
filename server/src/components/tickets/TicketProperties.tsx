@@ -243,12 +243,10 @@ const TicketProperties: React.FC<TicketPropertiesProps> = ({
                     <ContactPicker
                       {...withDataAutomationId({ id: `${id}-contact-picker` })}
                       contacts={contacts}
-                      onSelect={setSelectedContactId}
-                      selectedContactId={selectedContactId || contactInfo?.contact_name_id || ''}
+                      value={selectedContactId ?? contactInfo?.contact_name_id ?? ''}
+                      onValueChange={setSelectedContactId}
                       companyId={company?.company_id}
-                      filterState={contactFilterState}
-                      onFilterStateChange={setContactFilterState}
-                      fitContent={false}
+                      placeholder="Select or change contact"
                     />
                   </div>
                   <div className="flex justify-end space-x-2">

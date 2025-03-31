@@ -16,7 +16,7 @@ const CompanyPage = async ({ params }: { params: { id: string } }) => {
     const [company, documents, contacts] = await Promise.all([
       Company.getById(id),
       getDocumentByCompanyId(id),
-      getContactsByCompany(id)
+      getContactsByCompany(id, 'all')
     ]);
 
     if (!company) {

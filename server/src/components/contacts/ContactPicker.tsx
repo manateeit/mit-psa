@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Input } from '../ui/Input';
-import CustomSelect from '../ui/CustomSelect';
-import { ChevronDownIcon, Cross2Icon } from '@radix-ui/react-icons';
+import { ChevronDown, Search } from 'lucide-react';
 import { IContact } from '../../interfaces/contact.interfaces';
 import { ReflectionContainer } from '../../types/ui-reflection/ReflectionContainer';
 import { useAutomationIdAndRegister } from 'server/src/types/ui-reflection/useAutomationIdAndRegister';
@@ -12,60 +11,75 @@ import { withDataAutomationId } from 'server/src/types/ui-reflection/withDataAut
 
 interface ContactPickerProps {
   id?: string;
-  contacts?: IContact[];
-  onSelect: (contactId: string) => void;
-  selectedContactId: string | null;
+  contacts: IContact[];
+  value: string;
+  onValueChange: (value: string) => void;
   companyId?: string;
-  filterState: 'all' | 'active' | 'inactive';
-  onFilterStateChange: (state: 'all' | 'active' | 'inactive') => void;
-  fitContent?: boolean;
   label?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+  buttonWidth?: 'fit' | 'full';
+  size?: 'sm' | 'lg';
+  labelStyle?: 'bold' | 'medium' | 'normal' | 'none';
 }
 
 export const ContactPicker: React.FC<ContactPickerProps & AutomationProps> = ({
   id = 'contact-picker',
-  contacts = [],
-  onSelect,
-  selectedContactId,
+  contacts,
+  value,
+  onValueChange,
   companyId,
-  filterState,
-  onFilterStateChange,
-  fitContent = false,
   label = 'Contact',
+  placeholder = 'Select Contact',
+  disabled = false,
+  className = '',
+  buttonWidth = 'full',
   "data-automation-type": dataAutomationType = 'picker',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownContentRef = useRef<HTMLDivElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const selectedContact = useMemo(() =>
-    contacts.find((c) => c.contact_name_id === selectedContactId),
-    [contacts, selectedContactId]
+    contacts.find((c) => c.contact_name_id === value),
+    [contacts, value]
   );
 
-  const filteredContacts = useMemo(() => {
-    return contacts.filter(contact => {
-      const matchesSearch = (
-        contact.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      const matchesState =
-        filterState === 'all' ? true :
-          filterState === 'active' ? !contact.is_inactive :
-            filterState === 'inactive' ? contact.is_inactive :
-              true;
-      const matchesCompany = companyId ? contact.company_id === companyId : true;
 
-      return matchesSearch && matchesState && matchesCompany;
-    });
-  }, [contacts, filterState, searchTerm, companyId]);
+  const filteredContacts = useMemo(() => {
+    let results = contacts;
+
+    if (searchTerm) {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      results = results.filter(contact =>
+        contact.full_name.toLowerCase().includes(lowerSearchTerm) ||
+        contact.email.toLowerCase().includes(lowerSearchTerm)
+      );
+    }
+
+    if (companyId) {
+      results = results.filter(contact => contact.company_id === companyId);
+    }
+
+    return results;
+  }, [contacts, searchTerm, companyId]); // Removed internalFilterState from dependencies
 
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (!dropdownRef.current?.contains(target) && target.nodeName !== 'SELECT') {
+      if (
+        buttonRef.current &&
+        !buttonRef.current.contains(target) &&
+        dropdownContentRef.current &&
+        !dropdownContentRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     };
@@ -74,21 +88,64 @@ export const ContactPicker: React.FC<ContactPickerProps & AutomationProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 10);
+    }
+  }, [isOpen]);
+
+  const updateDropdownPosition = () => {
+    if (!buttonRef.current || !dropdownRef.current) return;
+
+    const buttonRect = buttonRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - buttonRect.bottom;
+    const spaceAbove = buttonRect.top;
+
+    const baseHeight = 40 + 40 + 16;
+    const itemsHeight = Math.min(filteredContacts.length, 5) * 36;
+    const estimatedDropdownHeight = baseHeight + itemsHeight + 10;
+
+    if (spaceBelow < estimatedDropdownHeight && spaceAbove > spaceBelow && spaceAbove > 150) {
+      setDropdownPosition('top');
+    } else {
+      setDropdownPosition('bottom');
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      updateDropdownPosition();
+
+      window.addEventListener('scroll', updateDropdownPosition, true);
+      window.addEventListener('resize', updateDropdownPosition);
+
+      return () => {
+        window.removeEventListener('scroll', updateDropdownPosition, true);
+        window.removeEventListener('resize', updateDropdownPosition);
+      };
+    }
+  }, [isOpen, filteredContacts.length]);
+
+  const toggleDropdown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!disabled) {
+      const closing = isOpen;
+      setIsOpen(!isOpen);
+      if (closing) {
+        setSearchTerm('');
+      }
+    }
+  };
+
   const handleSelect = (contactId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    onSelect(contactId);
+    onValueChange(contactId);
     setIsOpen(false);
   };
 
-  const handleFilterStateChange = (value: string) => {
-    onFilterStateChange(value as 'all' | 'active' | 'inactive');
-  };
-
-  const opts = useMemo(() => [
-    { value: 'active', label: 'Active Contacts' },
-    { value: 'inactive', label: 'Inactive Contacts' },
-    { value: 'all', label: 'All Contacts' },
-  ], []);
 
   const mappedOptions = useMemo(() => contacts.map((opt): { value: string; label: string } => ({
     value: opt.contact_name_id,
@@ -98,9 +155,9 @@ export const ContactPicker: React.FC<ContactPickerProps & AutomationProps> = ({
   const { automationIdProps: contactPickerProps, updateMetadata } = useAutomationIdAndRegister<FormFieldComponent>({
     type: 'formField',
     fieldType: 'select',
-    id: `${id}-picker`,
-    value: selectedContactId || '',
-    disabled: false,
+    id: `contact-picker-${label.replace(/\s+/g, '-').toLowerCase()}`,
+    value: value || '',
+    disabled: disabled,
     required: false,
     options: mappedOptions
   });
@@ -117,9 +174,9 @@ export const ContactPicker: React.FC<ContactPickerProps & AutomationProps> = ({
     if (!updateMetadata) return;
 
     const newMetadata = {
-      value: selectedContactId || '',
-      label: selectedContact?.full_name || '',
-      disabled: false,
+      value: value || '',
+      label: selectedContact?.full_name || placeholder,
+      disabled: disabled,
       required: false,
       options: mappedOptions
     };
@@ -154,118 +211,116 @@ export const ContactPicker: React.FC<ContactPickerProps & AutomationProps> = ({
       updateMetadata(newMetadata);
       prevMetadataRef.current = newMetadata;
     }
-  }, [selectedContactId, contacts, updateMetadata]);
+  }, [value, contacts, updateMetadata, selectedContact, placeholder, disabled]);
 
   return (
-    <ReflectionContainer id={`${id}`} label="Contact Picker">
+    <ReflectionContainer id={`contact-picker-container-${label.replace(/\s+/g, '-').toLowerCase()}`} label={label || "Contact Picker"}>
       <div className="mb-4">
-        {label && (
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {label}
-          </label>
-        )}
         <div
-          className={`${fitContent ? 'inline-flex' : 'w-full'} relative`}
+          className={`${className} ${buttonWidth === 'fit' ? 'inline-flex' : 'w-full'} relative`}
           ref={dropdownRef}
-          {...withDataAutomationId({ id: `${id}-picker` })}
+          {...withDataAutomationId({ id: `contact-picker-${label.replace(/\s+/g, '-').toLowerCase()}` })}
           data-automation-type={dataAutomationType}
         >
           <button
+            ref={buttonRef}
             type="button"
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={toggleDropdown}
             className={`
               inline-flex items-center justify-between
               border border-gray-200 rounded-lg p-2
               bg-white cursor-pointer min-h-[38px]
               hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent
-              text-sm w-full
+              text-sm ${buttonWidth === 'full' ? 'w-full' : ''} ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white cursor-pointer'}
             `}
           >
             <span className="flex-1 text-left">
-              {selectedContact ? (
-                <span>
-                  {selectedContact.full_name}
-                  <span className="text-gray-500 ml-2">({selectedContact.email})</span>
-                </span>
-              ) : (
-                'Select Contact'
-              )}
+              {selectedContact ? selectedContact.full_name : placeholder}
             </span>
-            <div className="flex items-center gap-2">
-              {selectedContact && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelect('');
-                  }}
-                  className="p-1 hover:bg-gray-100 rounded-full"
-                >
-                  <Cross2Icon className="h-3 w-3 text-gray-500" />
-                </button>
-              )}
-              <ChevronDownIcon className="h-4 w-4" />
+            <div className="flex items-center">
+              <ChevronDown className={`h-4 w-4 ${disabled ? 'text-gray-400' : ''}`} />
             </div>
           </button>
 
           {isOpen && (
             <div
-              className={`
-                absolute z-[200] w-full min-w-max
-                overflow-hidden bg-white rounded-md shadow-lg
-                border border-gray-200 mt-1
-              `}
+              ref={dropdownContentRef}
+              className="absolute z-[999] overflow-hidden bg-white rounded-md shadow-lg border border-gray-200"
               style={{
-                top: 'calc(100% + 4px)',
-                left: 0
+                width: buttonRef.current ? Math.max(buttonRef.current.offsetWidth, 250) + 'px' : '250px',
+                ...(dropdownPosition === 'top'
+                  ? { bottom: '100%', marginBottom: '4px' }
+                  : { top: '100%', marginTop: '4px' }),
+                left: 0,
               }}
               onMouseDown={(e) => e.stopPropagation()}
             >
-              <div className="p-2 space-y-2 bg-white border-b border-gray-100">
-                <CustomSelect
-                  value={filterState}
-                  onValueChange={handleFilterStateChange}
-                  options={opts}
-                  placeholder="Filter by status"
-                />
-                <Input
-                  id={`${id}-search`}
-                  placeholder="Search contacts..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    setSearchTerm(e.target.value);
-                  }}
-                  className="mb-0"
-                />
+              {/* Search Input Container */}
+              <div className="p-2 border-b border-gray-200">
+                <div className="relative">
+                  <Input
+                    ref={searchInputRef}
+                    id={`contact-picker-search-${label.replace(/\s+/g, '-').toLowerCase()}`}
+                    placeholder="Search contacts..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setSearchTerm(e.target.value);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full px-3 py-2 pl-9 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    autoComplete="off"
+                  />
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                </div>
               </div>
               <div
-                className="max-h-60 overflow-y-auto"
+                className="overflow-y-auto"
+                style={{ maxHeight: '200px' }}
                 role="listbox"
                 aria-label="Contacts"
               >
+                {/* "None" Option */}
+                <div
+                  onClick={(e) => handleSelect('', e)}
+                  className="relative flex items-center px-3 py-2 text-sm rounded text-gray-700 cursor-pointer hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                  role="option"
+                  aria-selected={value === ''}
+                  tabIndex={0}
+                  onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Enter' || e.key === ' ') { onValueChange(''); setIsOpen(false); } }} // Handle keyboard selection
+                >
+                  None
+                </div>
+
+                {/* Contact List */}
                 {isOpen && filteredContacts.length === 0 ? (
                   <div className="px-4 py-2 text-gray-500">No contacts found</div>
                 ) : (
-                  filteredContacts.map((contact): JSX.Element => (
-                    <button
+                  filteredContacts.map((contact) => (
+                    <div
                       key={contact.contact_name_id}
-                      type="button"
                       onClick={(e) => handleSelect(contact.contact_name_id, e)}
                       className={`
-                        w-full text-left px-3 py-2 text-sm
+                        relative flex items-center justify-between px-3 py-2 text-sm rounded cursor-pointer
                         hover:bg-gray-100 focus:bg-gray-100 focus:outline-none
-                        ${contact.contact_name_id === selectedContactId ? 'bg-gray-100' : ''}
+                        ${contact.is_inactive
+                          ? 'text-gray-400 bg-gray-50'
+                          : contact.contact_name_id === value
+                            ? 'bg-gray-100 font-medium text-gray-900'
+                            : 'text-gray-900'
+                        }
                       `}
                       role="option"
-                      aria-selected={contact.contact_name_id === selectedContactId}
+                      aria-selected={contact.contact_name_id === value}
+                      tabIndex={0} // Make it focusable
+                      onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Enter' || e.key === ' ') { onValueChange(contact.contact_name_id); setIsOpen(false); } }} // Handle keyboard selection
                     >
                       <div>
                         <div>{contact.full_name}</div>
-                        <div className="text-sm text-gray-500">{contact.email}</div>
+                        <div className={`text-xs ${contact.is_inactive ? 'text-gray-400' : 'text-gray-500'}`}>{contact.email}</div>
                       </div>
-                      {contact.is_inactive && <span className="ml-2 text-gray-500">(Inactive)</span>}
-                    </button>
+                      {contact.is_inactive && <span className="text-xs text-gray-400">(Inactive)</span>}
+                    </div>
                   ))
                 )}
               </div>

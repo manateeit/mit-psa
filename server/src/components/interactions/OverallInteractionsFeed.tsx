@@ -3,6 +3,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { IInteraction, IInteractionType, ISystemInteractionType } from 'server/src/interfaces/interaction.interfaces';
+import { IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
+import { IContact } from 'server/src/interfaces';
 import { Calendar, Phone, Mail, FileText, CheckSquare, Filter, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { getRecentInteractions } from 'server/src/lib/actions/interactionActions';
@@ -10,13 +12,15 @@ import { getAllInteractionTypes } from 'server/src/lib/actions/interactionTypeAc
 import { useDrawer } from "server/src/context/DrawerContext";
 import InteractionDetails from './InteractionDetails';
 import CustomSelect from 'server/src/components/ui/CustomSelect';
+import UserPicker from 'server/src/components/ui/UserPicker';
+import { ContactPicker } from 'server/src/components/contacts/ContactPicker';
 import { Input } from 'server/src/components/ui/Input';
 import { Button } from 'server/src/components/ui/Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from 'server/src/components/ui/Dialog';
 
 interface OverallInteractionsFeedProps {
-  users: { id: string; name: string }[];
-  contacts: { id: string; name: string }[];
+  users: IUserWithRoles[];
+  contacts: IContact[];
 }
 
 const InteractionIcon = ({ type }: { type: string }) => {
@@ -27,7 +31,7 @@ const InteractionIcon = ({ type }: { type: string }) => {
     case 'meeting': return <Calendar className="text-gray-500" />;
     case 'note': return <FileText className="text-gray-500" />;
     case 'task': return <CheckSquare className="text-gray-500" />;
-    default: return <FileText className="text-gray-500" />; // Default to note icon
+    default: return <FileText className="text-gray-500" />;
   }
 };
 
@@ -100,6 +104,14 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
     );
   }, [interactions, searchTerm, selectedUser, selectedContact, interactionTypeId, startDate, endDate]);
 
+  const isFilterActive = useMemo(() => {
+    return selectedUser !== 'all' ||
+           selectedContact !== 'all' ||
+           interactionTypeId !== 'all' ||
+           startDate !== '' ||
+           endDate !== '';
+  }, [selectedUser, selectedContact, interactionTypeId, startDate, endDate]);
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
@@ -120,6 +132,17 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
     setIsFilterDialogOpen(false);
   };
 
+  const handleUserChange = (userId: string) => {
+    setSelectedUser(userId === '' ? 'all' : userId);
+  };
+
+  const userPickerValue = selectedUser === 'all' ? '' : selectedUser;
+  
+  const handleContactChange = (contactId: string) => {
+    setSelectedContact(contactId === '' ? 'all' : contactId);
+  };
+  const contactPickerValue = selectedContact === 'all' ? '' : selectedContact;
+
   return (
     <div className="bg-white shadow rounded-lg p-6">
       <h2 className="text-xl font-bold mb-4">Recent Interactions</h2>
@@ -135,15 +158,28 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
             />
           </div>
         </div>
-        <Button 
-          id="open-filter-button"
-          onClick={() => setIsFilterDialogOpen(true)} 
-          size="lg"
-          className="flex-shrink-0 whitespace-nowrap"
-        >
-          <Filter className="mr-2" />
-          Filter
-        </Button>
+        {isFilterActive ? (
+          <Button
+            id="reset-filters-outside-button"
+            onClick={resetFilters}
+            size="lg"
+            variant="outline"
+            className="flex-shrink-0 whitespace-nowrap"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Reset
+          </Button>
+        ) : (
+          <Button
+            id="open-filter-button"
+            onClick={() => setIsFilterDialogOpen(true)}
+            size="lg"
+            className="flex-shrink-0 whitespace-nowrap"
+          >
+            <Filter className="mr-2" />
+            Filter
+          </Button>
+        )}
       </div>
 
       <Dialog isOpen={isFilterDialogOpen} onClose={() => setIsFilterDialogOpen(false)}>
@@ -164,17 +200,21 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
               onValueChange={setInteractionTypeId}
               placeholder="Interaction Type"
             />
-            <CustomSelect
-              options={[{ value: 'all', label: 'All Users' }, ...users.map((user): { value: string; label: string } => ({ value: user.id, label: user.name }))]}
-              value={selectedUser}
-              onValueChange={setSelectedUser}
-              placeholder="Filter by User"
+            <UserPicker
+              label="Filter by User"
+              users={users}
+              value={userPickerValue}
+              onValueChange={handleUserChange}
+              placeholder="All Users"
+              buttonWidth="full"
             />
-            <CustomSelect
-              options={[{ value: 'all', label: 'All Contacts' }, ...contacts.map((contact): { value: string; label: string } => ({ value: contact.id, label: contact.name }))]}
-              value={selectedContact}
-              onValueChange={setSelectedContact}
-              placeholder="Filter by Contact"
+            <ContactPicker
+              label="Filter by Contact"
+              contacts={contacts}
+              value={contactPickerValue}
+              onValueChange={handleContactChange}
+              placeholder="All Contacts"
+              buttonWidth="full"
             />
             <Input
               type="date"

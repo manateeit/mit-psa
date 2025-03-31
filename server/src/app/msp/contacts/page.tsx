@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import ContactModel from 'server/src/lib/models/contact';
 import UserModel from 'server/src/lib/models/user';
 import { User } from 'next-auth';
-import { IContact } from 'server/src/interfaces';
+import { IContact, IUserWithRoles } from 'server/src/interfaces';
 import Contacts from 'server/src/components/contacts/Contacts';
 import OverallInteractionsFeed from 'server/src/components/interactions/OverallInteractionsFeed';
 
@@ -12,7 +12,15 @@ type IdName = { id: string; name: string };
 
 export default async function ContactsPage() {
   const contacts = await ContactModel.getAll(true);
-  const users = await UserModel.getAll(); 
+  const usersData = await UserModel.getAll(true);
+
+  // Fetch roles for each user and combine data
+  const usersWithRoles: IUserWithRoles[] = await Promise.all(
+    usersData.map(async (user) => {
+      const roles = await UserModel.getUserRoles(user.user_id);
+      return { ...user, roles };
+    })
+  );
 
   // Filter out any duplicate contacts based on contact_name_id
   const uniqueContacts = Array.from(
@@ -29,11 +37,8 @@ export default async function ContactsPage() {
       <div className="w-full md:w-1/3">
       <Suspense fallback={<div>Loading...</div>}>
         <OverallInteractionsFeed 
-          users={users.map((user):IdName => ({ id: user.user_id, name: user.username }))}
-          contacts={uniqueContacts.map((contact):IdName => ({ 
-            id: contact.contact_name_id,
-            name: contact.full_name 
-          }))}
+          users={usersWithRoles}
+          contacts={uniqueContacts}
         />
         </Suspense>
       </div>

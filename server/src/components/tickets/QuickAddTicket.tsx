@@ -15,6 +15,7 @@ import { TicketFormData } from 'server/src/lib/actions/ticket-actions/ticketForm
 import { ChannelPicker } from 'server/src/components/settings/general/ChannelPicker';
 import { CompanyPicker } from 'server/src/components/companies/CompanyPicker';
 import { CategoryPicker } from './CategoryPicker';
+import { ContactPicker } from 'server/src/components/contacts/ContactPicker';
 import CustomSelect, { SelectOption } from 'server/src/components/ui/CustomSelect';
 import UserPicker from 'server/src/components/ui/UserPicker';
 import { Input } from 'server/src/components/ui/Input';
@@ -145,7 +146,7 @@ export function QuickAddTicket({
     const fetchContacts = async () => {
       if (companyId && !isPrefilledCompany) {
         try {
-          const contactsData = await getContactsByCompany(companyId);
+          const contactsData = await getContactsByCompany(companyId, 'all');
           setContacts(contactsData || []);
         } catch (error) {
           console.error('Error fetching contacts:', error);
@@ -343,15 +344,6 @@ export function QuickAddTicket({
     [statuses]
   );
 
-  const memoizedContactOptions = useMemo(
-    () =>
-      contacts.map((contact): SelectOption => ({
-        value: contact.contact_name_id,
-        label: contact.full_name
-      })),
-    [contacts]
-  );
-
   const memoizedPriorityOptions = useMemo(
     () =>
       priorities.map((priority): SelectOption => ({
@@ -419,37 +411,35 @@ export function QuickAddTicket({
                   />
 
                   {selectedCompanyType === 'company' && contacts.length > 0 && (
-                    <div className="relative z-20">
-                      <CustomSelect
-                        id={`${id}-contact`}
-                        value={contactId || ''}
-                        onValueChange={(value) => {
-                          setContactId(value || null);
-                          clearErrorIfSubmitted();
-                        }}
-                        options={memoizedContactOptions}
-                        placeholder="Select Contact"
-                        disabled={!companyId || selectedCompanyType !== 'company'}
-                      />
-                    </div>
-                  )}
-
-                  <div className="relative z-30">
-                    <UserPicker
-                      value={assignedTo}
+                    <ContactPicker
+                      id={`${id}-contact`}
+                      contacts={contacts}
+                      value={contactId || ''}
                       onValueChange={(value) => {
-                        setAssignedTo(value);
+                        setContactId(value || null);
                         clearErrorIfSubmitted();
                       }}
-                      users={users.map(user => ({
-                        ...user,
-                        roles: []
-                      }))}
+                      companyId={companyId}
+                      placeholder="Select Contact"
+                      disabled={!companyId || selectedCompanyType !== 'company'}
                       buttonWidth="full"
-                      size="sm"
-                      placeholder="Assign To"
                     />
-                  </div>
+                  )}
+
+                  <UserPicker
+                    value={assignedTo}
+                    onValueChange={(value) => {
+                      setAssignedTo(value);
+                      clearErrorIfSubmitted();
+                    }}
+                    users={users.map(user => ({
+                      ...user,
+                      roles: []
+                    }))}
+                    buttonWidth="full"
+                    size="sm"
+                    placeholder="Assign To"
+                  />
 
                   <ChannelPicker
                     id={`${id}-channel-picker`}
@@ -473,31 +463,27 @@ export function QuickAddTicket({
                     className="w-full"
                   />
 
-                  <div className="relative z-20">
-                    <CustomSelect
-                      id={`${id}`}
-                      value={statusId}
-                      onValueChange={(value) => {
-                        setStatusId(value);
-                        clearErrorIfSubmitted();
-                      }}
-                      options={memoizedStatusOptions}
-                      placeholder="Select Status"
-                    />
-                  </div>
+                  <CustomSelect
+                    id={`${id}`}
+                    value={statusId}
+                    onValueChange={(value) => {
+                      setStatusId(value);
+                      clearErrorIfSubmitted();
+                    }}
+                    options={memoizedStatusOptions}
+                    placeholder="Select Status"
+                  />
 
-                  <div className="relative z-10">
-                    <CustomSelect
-                      id={`${id}-priority`}
-                      value={priorityId}
-                      onValueChange={(value) => {
-                        setPriorityId(value);
-                        clearErrorIfSubmitted();
-                      }}
-                      options={memoizedPriorityOptions}
-                      placeholder="Select Priority"
-                    />
-                  </div>
+                  <CustomSelect
+                    id={`${id}-priority`}
+                    value={priorityId}
+                    onValueChange={(value) => {
+                      setPriorityId(value);
+                      clearErrorIfSubmitted();
+                    }}
+                    options={memoizedPriorityOptions}
+                    placeholder="Select Priority"
+                  />
 
                   <DialogFooter>
                     <Button

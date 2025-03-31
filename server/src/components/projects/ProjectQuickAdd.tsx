@@ -11,7 +11,9 @@ import { createProject, generateNextWbsCode, getProjectStatuses } from 'server/s
 import { CompanyPicker } from 'server/src/components/companies/CompanyPicker';
 import CustomSelect from 'server/src/components/ui/CustomSelect';
 import UserPicker from 'server/src/components/ui/UserPicker';
+import { ContactPicker } from 'server/src/components/contacts/ContactPicker'; // Import ContactPicker
 import { getContactsByCompany, getAllContacts } from 'server/src/lib/actions/contact-actions/contactActions';
+import { IContact } from 'server/src/interfaces';
 import { getCurrentUser, getAllUsers } from 'server/src/lib/actions/user-actions/userActions';
 import { IUser, IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
 
@@ -25,7 +27,7 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
   const [projectName, setProjectName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
-  const [contacts, setContacts] = useState<{ value: string; label: string }[]>([]);
+  const [contacts, setContacts] = useState<IContact[]>([]); 
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [users, setUsers] = useState<IUserWithRoles[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -61,12 +63,9 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
     const fetchContacts = async () => {
       try {
         const contactsData = selectedCompanyId 
-          ? await getContactsByCompany(selectedCompanyId)
-          : await getAllContacts();
-        setContacts(contactsData.map((contact): { value: string; label: string } => ({
-          value: contact.contact_name_id,
-          label: contact.full_name
-        })));
+          ? await getContactsByCompany(selectedCompanyId, 'all')
+          : await getAllContacts('all'); 
+        setContacts(contactsData);
       } catch (error) {
         console.error('Error fetching contacts:', error);
         setContacts([]);
@@ -172,11 +171,14 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contact</label>
-                <CustomSelect
+                <ContactPicker
+                  id='contact-picker'
+                  contacts={contacts}
                   value={selectedContactId || ''}
                   onValueChange={setSelectedContactId}
-                  options={contacts}
+                  companyId={selectedCompanyId || undefined} 
                   placeholder="Select Contact"
+                  buttonWidth="full"
                 />
               </div>
               <div>
