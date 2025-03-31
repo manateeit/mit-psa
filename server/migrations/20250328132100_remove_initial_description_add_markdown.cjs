@@ -14,6 +14,9 @@ exports.up = async function(knex) {
     `);
     
     if (hasColumn.rows[0].exists) {
+      // Drop the view that depends on the column first
+      await trx.raw('DROP VIEW IF EXISTS v_ticket_comments');
+      
       // For Citus compatibility, we need to use ALTER TABLE directly
       // This is safe because dropping a column is a metadata operation in PostgreSQL
       await trx.raw('ALTER TABLE comments DROP COLUMN is_initial_description');
