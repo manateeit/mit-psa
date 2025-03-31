@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { IInteraction, IInteractionType, ISystemInteractionType } from 'server/src/interfaces/interaction.interfaces';
+import { IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
 import { Calendar, Phone, Mail, FileText, CheckSquare, Filter, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { getRecentInteractions } from 'server/src/lib/actions/interactionActions';
@@ -10,12 +11,13 @@ import { getAllInteractionTypes } from 'server/src/lib/actions/interactionTypeAc
 import { useDrawer } from "server/src/context/DrawerContext";
 import InteractionDetails from './InteractionDetails';
 import CustomSelect from 'server/src/components/ui/CustomSelect';
+import UserPicker from 'server/src/components/ui/UserPicker';
 import { Input } from 'server/src/components/ui/Input';
 import { Button } from 'server/src/components/ui/Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from 'server/src/components/ui/Dialog';
 
 interface OverallInteractionsFeedProps {
-  users: { id: string; name: string }[];
+  users: IUserWithRoles[];
   contacts: { id: string; name: string }[];
 }
 
@@ -120,6 +122,12 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
     setIsFilterDialogOpen(false);
   };
 
+  const handleUserChange = (userId: string) => {
+    setSelectedUser(userId === '' ? 'all' : userId);
+  };
+
+  const userPickerValue = selectedUser === 'all' ? '' : selectedUser;
+
   return (
     <div className="bg-white shadow rounded-lg p-6">
       <h2 className="text-xl font-bold mb-4">Recent Interactions</h2>
@@ -164,11 +172,13 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
               onValueChange={setInteractionTypeId}
               placeholder="Interaction Type"
             />
-            <CustomSelect
-              options={[{ value: 'all', label: 'All Users' }, ...users.map((user): { value: string; label: string } => ({ value: user.id, label: user.name }))]}
-              value={selectedUser}
-              onValueChange={setSelectedUser}
-              placeholder="Filter by User"
+            <UserPicker
+              label="Filter by User"
+              users={users}
+              value={userPickerValue}
+              onValueChange={handleUserChange}
+              placeholder="All Users"
+              buttonWidth="full"
             />
             <CustomSelect
               options={[{ value: 'all', label: 'All Contacts' }, ...contacts.map((contact): { value: string; label: string } => ({ value: contact.id, label: contact.name }))]}
