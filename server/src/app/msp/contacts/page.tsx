@@ -38,10 +38,7 @@ export default async function ContactsPage() {
       <Suspense fallback={<div>Loading...</div>}>
         <OverallInteractionsFeed 
           users={usersWithRoles}
-          contacts={uniqueContacts.map((contact):IdName => ({ 
-            id: contact.contact_name_id,
-            name: contact.full_name 
-          }))}
+          contacts={uniqueContacts}
         />
         </Suspense>
       </div>

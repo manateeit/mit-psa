@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { IInteraction, IInteractionType, ISystemInteractionType } from 'server/src/interfaces/interaction.interfaces';
 import { IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
+import { IContact } from 'server/src/interfaces';
 import { Calendar, Phone, Mail, FileText, CheckSquare, Filter, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { getRecentInteractions } from 'server/src/lib/actions/interactionActions';
@@ -12,13 +13,14 @@ import { useDrawer } from "server/src/context/DrawerContext";
 import InteractionDetails from './InteractionDetails';
 import CustomSelect from 'server/src/components/ui/CustomSelect';
 import UserPicker from 'server/src/components/ui/UserPicker';
+import { ContactPicker } from 'server/src/components/contacts/ContactPicker';
 import { Input } from 'server/src/components/ui/Input';
 import { Button } from 'server/src/components/ui/Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from 'server/src/components/ui/Dialog';
 
 interface OverallInteractionsFeedProps {
   users: IUserWithRoles[];
-  contacts: { id: string; name: string }[];
+  contacts: IContact[];
 }
 
 const InteractionIcon = ({ type }: { type: string }) => {
@@ -29,7 +31,7 @@ const InteractionIcon = ({ type }: { type: string }) => {
     case 'meeting': return <Calendar className="text-gray-500" />;
     case 'note': return <FileText className="text-gray-500" />;
     case 'task': return <CheckSquare className="text-gray-500" />;
-    default: return <FileText className="text-gray-500" />; // Default to note icon
+    default: return <FileText className="text-gray-500" />;
   }
 };
 
@@ -127,6 +129,11 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
   };
 
   const userPickerValue = selectedUser === 'all' ? '' : selectedUser;
+  
+  const handleContactChange = (contactId: string) => {
+    setSelectedContact(contactId === '' ? 'all' : contactId);
+  };
+  const contactPickerValue = selectedContact === 'all' ? '' : selectedContact;
 
   return (
     <div className="bg-white shadow rounded-lg p-6">
@@ -180,11 +187,13 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
               placeholder="All Users"
               buttonWidth="full"
             />
-            <CustomSelect
-              options={[{ value: 'all', label: 'All Contacts' }, ...contacts.map((contact): { value: string; label: string } => ({ value: contact.id, label: contact.name }))]}
-              value={selectedContact}
-              onValueChange={setSelectedContact}
-              placeholder="Filter by Contact"
+            <ContactPicker
+              label="Filter by Contact"
+              contacts={contacts}
+              value={contactPickerValue}
+              onValueChange={handleContactChange}
+              placeholder="All Contacts"
+              buttonWidth="full"
             />
             <Input
               type="date"
