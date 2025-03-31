@@ -245,7 +245,7 @@ export const ContactPicker: React.FC<ContactPickerProps & AutomationProps> = ({
           {isOpen && (
             <div
               ref={dropdownContentRef}
-              className="absolute z-[200] overflow-hidden bg-white rounded-md shadow-lg border border-gray-200"
+              className="absolute z-[999] overflow-hidden bg-white rounded-md shadow-lg border border-gray-200"
               style={{
                 width: buttonRef.current ? Math.max(buttonRef.current.offsetWidth, 250) + 'px' : '250px',
                 ...(dropdownPosition === 'top'
