@@ -12,7 +12,7 @@ type IdName = { id: string; name: string };
 
 export default async function ContactsPage() {
   const contacts = await ContactModel.getAll(true);
-  const usersData = await UserModel.getAll();
+  const usersData = await UserModel.getAll(true);
 
   // Fetch roles for each user and combine data
   const usersWithRoles: IUserWithRoles[] = await Promise.all(

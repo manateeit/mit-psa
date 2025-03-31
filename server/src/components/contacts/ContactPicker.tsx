@@ -303,8 +303,12 @@ export const ContactPicker: React.FC<ContactPickerProps & AutomationProps> = ({
                       className={`
                         relative flex items-center justify-between px-3 py-2 text-sm rounded cursor-pointer
                         hover:bg-gray-100 focus:bg-gray-100 focus:outline-none
-                        ${contact.contact_name_id === value ? 'bg-gray-100 font-medium' : 'text-gray-900'}
-                        ${contact.is_inactive ? 'text-gray-400' : ''}
+                        ${contact.is_inactive
+                          ? 'text-gray-400 bg-gray-50'
+                          : contact.contact_name_id === value
+                            ? 'bg-gray-100 font-medium text-gray-900'
+                            : 'text-gray-900'
+                        }
                       `}
                       role="option"
                       aria-selected={contact.contact_name_id === value}
@@ -313,7 +317,7 @@ export const ContactPicker: React.FC<ContactPickerProps & AutomationProps> = ({
                     >
                       <div>
                         <div>{contact.full_name}</div>
-                        <div className="text-xs text-gray-500">{contact.email}</div>
+                        <div className={`text-xs ${contact.is_inactive ? 'text-gray-400' : 'text-gray-500'}`}>{contact.email}</div>
                       </div>
                       {contact.is_inactive && <span className="text-xs text-gray-400">(Inactive)</span>}
                     </div>

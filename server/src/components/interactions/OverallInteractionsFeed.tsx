@@ -104,6 +104,14 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
     );
   }, [interactions, searchTerm, selectedUser, selectedContact, interactionTypeId, startDate, endDate]);
 
+  const isFilterActive = useMemo(() => {
+    return selectedUser !== 'all' ||
+           selectedContact !== 'all' ||
+           interactionTypeId !== 'all' ||
+           startDate !== '' ||
+           endDate !== '';
+  }, [selectedUser, selectedContact, interactionTypeId, startDate, endDate]);
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
@@ -150,15 +158,28 @@ const OverallInteractionsFeed: React.FC<OverallInteractionsFeedProps> = ({ users
             />
           </div>
         </div>
-        <Button 
-          id="open-filter-button"
-          onClick={() => setIsFilterDialogOpen(true)} 
-          size="lg"
-          className="flex-shrink-0 whitespace-nowrap"
-        >
-          <Filter className="mr-2" />
-          Filter
-        </Button>
+        {isFilterActive ? (
+          <Button
+            id="reset-filters-outside-button"
+            onClick={resetFilters}
+            size="lg"
+            variant="outline"
+            className="flex-shrink-0 whitespace-nowrap"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Reset
+          </Button>
+        ) : (
+          <Button
+            id="open-filter-button"
+            onClick={() => setIsFilterDialogOpen(true)}
+            size="lg"
+            className="flex-shrink-0 whitespace-nowrap"
+          >
+            <Filter className="mr-2" />
+            Filter
+          </Button>
+        )}
       </div>
 
       <Dialog isOpen={isFilterDialogOpen} onClose={() => setIsFilterDialogOpen(false)}>
