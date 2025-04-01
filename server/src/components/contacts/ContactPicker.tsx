@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Input } from '../ui/Input';
 import { ChevronDown, Search } from 'lucide-react';
+import AvatarIcon from 'server/src/components/ui/AvatarIcon'; // Added import
 import { IContact } from '../../interfaces/contact.interfaces';
 import { ReflectionContainer } from '../../types/ui-reflection/ReflectionContainer';
 import { useAutomationIdAndRegister } from 'server/src/types/ui-reflection/useAutomationIdAndRegister';
@@ -44,6 +45,15 @@ export const ContactPicker: React.FC<ContactPickerProps & AutomationProps> = ({
   const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
   const buttonRef = useRef<HTMLButtonElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Helper to get name parts for AvatarIcon
+  const getContactNameParts = (fullName: string | undefined | null): { firstName: string; lastName: string } => {
+    if (!fullName) return { firstName: '', lastName: '' };
+    const parts = fullName.trim().split(' ');
+    const firstName = parts[0] || '';
+    const lastName = parts.length > 1 ? parts.slice(1).join(' ') : '';
+    return { firstName, lastName };
+  };
 
   const selectedContact = useMemo(() =>
     contacts.find((c) => c.contact_name_id === value),
@@ -234,9 +244,18 @@ export const ContactPicker: React.FC<ContactPickerProps & AutomationProps> = ({
               text-sm ${buttonWidth === 'full' ? 'w-full' : ''} ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white cursor-pointer'}
             `}
           >
-            <span className="flex-1 text-left">
-              {selectedContact ? selectedContact.full_name : placeholder}
-            </span>
+            <div className="flex items-center gap-2 flex-1">
+              {selectedContact && (
+                <AvatarIcon
+                  // Use contact_name_id as a unique identifier, similar to userId
+                  userId={selectedContact.contact_name_id}
+                  firstName={getContactNameParts(selectedContact.full_name).firstName}
+                  lastName={getContactNameParts(selectedContact.full_name).lastName}
+                  size="sm" // Match UserPicker default or adjust as needed
+                />
+              )}
+              <span>{selectedContact ? selectedContact.full_name : placeholder}</span>
+            </div>
             <div className="flex items-center">
               <ChevronDown className={`h-4 w-4 ${disabled ? 'text-gray-400' : ''}`} />
             </div>
@@ -315,10 +334,18 @@ export const ContactPicker: React.FC<ContactPickerProps & AutomationProps> = ({
                       tabIndex={0} // Make it focusable
                       onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Enter' || e.key === ' ') { onValueChange(contact.contact_name_id); setIsOpen(false); } }} // Handle keyboard selection
                     >
-                      <div>
-                        <div>{contact.full_name}</div>
-                        <div className={`text-xs ${contact.is_inactive ? 'text-gray-400' : 'text-gray-500'}`}>{contact.email}</div>
-                      </div>
+                      <div className="flex items-center gap-2 flex-1">
+                         <AvatarIcon
+                           userId={contact.contact_name_id}
+                           firstName={getContactNameParts(contact.full_name).firstName}
+                           lastName={getContactNameParts(contact.full_name).lastName}
+                           size="sm"
+                         />
+                         <div className="flex-1">
+                           <div>{contact.full_name}</div>
+                           <div className={`text-xs ${contact.is_inactive ? 'text-gray-400' : 'text-gray-500'}`}>{contact.email}</div>
+                         </div>
+                       </div>
                       {contact.is_inactive && <span className="text-xs text-gray-400">(Inactive)</span>}
                     </div>
                   ))
