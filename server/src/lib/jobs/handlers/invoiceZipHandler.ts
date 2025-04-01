@@ -68,8 +68,7 @@ export class InvoiceZipJobHandler {
     };
   }
 
-  public async handleInvoiceZipJob(pgBossJobId: string, data: InvoiceZipJobData): Promise<void> {
-    debugger;
+  public async handleInvoiceZipJob(pgBossJobId: string, data: InvoiceZipJobData): Promise<void> { 
     if (!data.jobServiceId) {
       throw new Error('jobServiceId is required in job data');
     }
