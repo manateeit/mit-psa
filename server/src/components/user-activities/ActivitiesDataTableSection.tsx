@@ -41,9 +41,9 @@ export function ActivitiesDataTableSection({
       const effectiveFilters = {
         ...filters,
         // If types array is empty, explicitly request all activity types
-        types: filters.types && filters.types.length > 0 
-          ? filters.types 
-          : Object.values(ActivityType)
+        types: filters.types && filters.types.length > 0
+          ? filters.types
+          : Object.values(ActivityType).filter(type => type !== ActivityType.WORKFLOW_TASK)
       };
       
       console.log('Loading activities with filters:', effectiveFilters);
