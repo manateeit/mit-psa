@@ -4,24 +4,30 @@
  */
 exports.up = async function(knex) {
   await knex.schema.alterTable('user_type_rates', function(table) {
-    // Drop the incorrect foreign key constraint
+    // Drop the potentially existing foreign key constraint (by columns, as name might be wrong)
     try {
-      console.log("Dropping incorrect FK user_type_rates_config_id_foreign referencing plan_service_hourly_config");
-      table.dropForeign(['config_id'], 'user_type_rates_config_id_foreign');
+      console.log("Attempting to drop existing FK on user_type_rates referencing plan_service_hourly_config using columns ['tenant', 'config_id']");
+      // Drop by columns, letting Knex find the constraint name
+      table.dropForeign(['tenant', 'config_id']);
+      console.log("Successfully dropped existing FK on user_type_rates.");
     } catch (e) {
-      console.error(`Could not drop FK user_type_rates_config_id_foreign: ${e.message}. It might not exist or have a different name.`);
-      // Optionally re-throw if the error is unexpected
+      console.warn(`Could not drop FK on user_type_rates using columns ['tenant', 'config_id']: ${e.message}. This might be okay if it was already dropped or named differently.`);
+      // Attempt dropping by the old simple key as a fallback, in case it was never made composite
+      try {
+          console.log("Fallback: Attempting to drop FK on user_type_rates using simple column ['config_id']");
+          table.dropForeign(['config_id']);
+          console.log("Successfully dropped existing FK on user_type_rates using simple column ['config_id'].");
+      } catch (e2) {
+          console.warn(`Could not drop FK on user_type_rates using simple column ['config_id'] either: ${e2.message}. Assuming constraint doesn't exist.`);
+      }
     }
 
-    // Add the correct foreign key constraint referencing plan_service_hourly_configs (plural)
-    // Note: This assumes the target table plan_service_hourly_configs uses config_id as its primary key part.
-    // If plan_service_hourly_configs uses a composite key like (tenant, config_id), this needs adjustment.
-    // Based on migration 20250331164117, it uses (tenant, config_id) as PK.
-    // Therefore, the FK here should also be composite.
-    console.log("Adding correct composite FK user_type_rates_config_id_foreign referencing plan_service_hourly_configs(tenant, config_id)");
-    table.foreign(['tenant', 'config_id'], 'user_type_rates_config_id_foreign') // Use the same constraint name for simplicity
+    // Add the correct composite foreign key constraint referencing plan_service_hourly_config (singular)
+    console.log("Adding correct composite FK user_type_rates_config_id_foreign referencing plan_service_hourly_config(tenant, config_id)");
+    table.foreign(['tenant', 'config_id']) // Constraint name will be auto-generated unless specified
          .references(['tenant', 'config_id'])
-         .inTable('plan_service_hourly_configs'); // Reference the correct table (plural), removed cascade
+         .inTable('plan_service_hourly_config') // Reference the correct table (singular)
+         .onDelete('CASCADE'); // Add cascade delete back
   });
 };
 

@@ -85,6 +85,8 @@ exports.up = function(knex) {
       
       // Indexes
       table.index(['tenant']);
+      // Define composite primary key including tenant
+      table.primary(['tenant', 'config_id']);
     })
     
     // Usage-based configuration
@@ -170,7 +172,8 @@ exports.up = function(knex) {
       
       // Foreign key to hourly configuration
       table.uuid('config_id').notNullable();
-      table.foreign('config_id').references('config_id').inTable('plan_service_hourly_configs').onDelete('CASCADE'); // Corrected referenced table name (plural)
+      // Composite Foreign Key
+      table.foreign(['tenant', 'config_id']).references(['tenant', 'config_id']).inTable('plan_service_hourly_config').onDelete('CASCADE');
       
       // User type and rate
       table.string('user_type', 50).notNullable();

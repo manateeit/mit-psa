@@ -1,272 +1,166 @@
-exports.seed = function (knex) {
-    return knex('tenants').select('tenant').first()
-        .then((tenant) => {
-            if (!tenant) return;
-            return knex('tickets').insert([
-                {
-                    tenant: tenant.tenant,
-                    title: 'Missing White Rabbit',
-                    ticket_number: 'TIC1001',
-                    company_id: knex('companies')
-                        .where({
-                            tenant: tenant.tenant,
-                            company_name: 'Emerald City'
-                        })
-                        .select('company_id')
-                        .first(),
-                    contact_name_id: knex('contacts')
-                        .where({ tenant: tenant.tenant })
-                        .whereRaw("full_name ILIKE '%alice%'")
-                        .select('contact_name_id')
-                        .first(),
-                    status_id: knex('statuses')
-                        .where({
-                            tenant: tenant.tenant,
-                            name: 'Curious Beginning'
-                        })
-                        .select('status_id')
-                        .first(),
-                    channel_id: knex('channels')
-                        .where({
-                            tenant: tenant.tenant,
-                            channel_name: 'Urgent Matters'
-                        })
-                        .select('channel_id')
-                        .first(),
-                    category_id: knex('categories')
-                        .where({
-                            tenant: tenant.tenant,
-                            category_name: 'Magical Artifacts'
-                        })
-                        .select('category_id')
-                        .first(),
-                    subcategory_id: knex('categories')
-                        .where({
-                            tenant: tenant.tenant,
-                            category_name: 'Enchanted Accessories'
-                        })
-                        .select('category_id')
-                        .first(),
-                    priority_id: knex('priorities')
-                        .where({
-                            tenant: tenant.tenant,
-                            priority_name: 'Enchanted Emergency'
-                        })
-                        .select('priority_id')
-                        .first(),
-                    severity_id: knex('severities')
-                        .where({
-                            tenant: tenant.tenant,
-                            severity_name: 'Serious Snarl'
-                        })
-                        .select('severity_id')
-                        .first(),
-                    urgency_id: knex('urgencies')
-                        .where({
-                            tenant: tenant.tenant,
-                            urgency_name: 'Hare-Paced Hustle'
-                        })
-                        .select('urgency_id')
-                        .first(),
-                    impact_id: knex('impacts')
-                        .where({
-                            tenant: tenant.tenant,
-                            impact_name: 'Realm-Wide Repercussions'
-                        })
-                        .select('impact_id')
-                        .first(),
-                    entered_by: knex('users')
-                        .where({
-                            tenant: tenant.tenant,
-                            username: 'glinda'
-                        })
-                        .select('user_id')
-                        .first(),
-                    assigned_to: knex('users')
-                        .where({
-                            tenant: tenant.tenant,
-                            username: 'tinman'
-                        })
-                        .select('user_id')
-                        .first(),
-                    entered_at: knex.fn.now()
-                },
-                {
-                    tenant: tenant.tenant,
-                    title: 'Survey Uncharted Areas in Wonderland',
-                    ticket_number: 'TIC1002',
-                    company_id: knex('companies')
-                        .where({
-                            tenant: tenant.tenant,
-                            company_name: 'Wonderland'
-                        })
-                        .select('company_id')
-                        .first(),
-                    contact_name_id: knex('contacts')
-                        .where({ tenant: tenant.tenant })
-                        .whereRaw("full_name ILIKE '%alice%'")
-                        .select('contact_name_id')
-                        .first(),
-                    status_id: knex('statuses')
-                        .where({
-                            tenant: tenant.tenant,
-                            name: 'Awaiting Wisdom'
-                        })
-                        .select('status_id')
-                        .first(),
-                    channel_id: knex('channels')
-                        .where({
-                            tenant: tenant.tenant,
-                            channel_name: 'Urgent Matters'
-                        })
-                        .select('channel_id')
-                        .first(),
-                    category_id: knex('categories')
-                        .where({
-                            tenant: tenant.tenant,
-                            category_name: 'Character Assistance'
-                        })
-                        .select('category_id')
-                        .first(),
-                    subcategory_id: knex('categories')
-                        .where({
-                            tenant: tenant.tenant,
-                            category_name: 'Quest Guidance'
-                        })
-                        .select('category_id')
-                        .first(),
-                    priority_id: knex('priorities')
-                        .where({
-                            tenant: tenant.tenant,
-                            priority_name: 'Enchanted Emergency'
-                        })
-                        .select('priority_id')
-                        .first(),
-                    severity_id: knex('severities')
-                        .where({
-                            tenant: tenant.tenant,
-                            severity_name: 'Moderate Muddle'
-                        })
-                        .select('severity_id')
-                        .first(),
-                    urgency_id: knex('urgencies')
-                        .where({
-                            tenant: tenant.tenant,
-                            urgency_name: 'Tick-Tock Task'
-                        })
-                        .select('urgency_id')
-                        .first(),
-                    impact_id: knex('impacts')
-                        .where({
-                            tenant: tenant.tenant,
-                            impact_name: 'Local Disruption'
-                        })
-                        .select('impact_id')
-                        .first(),
-                    entered_by: knex('users')
-                        .where({
-                            tenant: tenant.tenant,
-                            username: 'glinda'
-                        })
-                        .select('user_id')
-                        .first(),
-                    assigned_to: knex('users')
-                        .where({
-                            tenant: tenant.tenant,
-                            username: 'madhatter'
-                        })
-                        .select('user_id')
-                        .first(),
-                    entered_at: knex.raw("CURRENT_TIMESTAMP - INTERVAL '2 months'")
-                },
-                {
-                    tenant: tenant.tenant,
-                    title: 'Enhance Emerald City Gardens',
-                    ticket_number: 'TIC1003',
-                    company_id: knex('companies')
-                        .where({
-                            tenant: tenant.tenant,
-                            company_name: 'Emerald City'
-                        })
-                        .select('company_id')
-                        .first(),
-                    contact_name_id: knex('contacts')
-                        .where({ tenant: tenant.tenant })
-                        .whereRaw("full_name ILIKE '%dorothy%'")
-                        .select('contact_name_id')
-                        .first(),
-                    status_id: knex('statuses')
-                        .where({
-                            tenant: tenant.tenant,
-                            name: 'Unfolding Adventure'
-                        })
-                        .select('status_id')
-                        .first(),
-                    channel_id: knex('channels')
-                        .where({
-                            tenant: tenant.tenant,
-                            channel_name: 'Projects'
-                        })
-                        .select('channel_id')
-                        .first(),
-                    category_id: knex('categories')
-                        .where({
-                            tenant: tenant.tenant,
-                            category_name: 'Realm Maintenance'
-                        })
-                        .select('category_id')
-                        .first(),
-                    subcategory_id: knex('categories')
-                        .where({
-                            tenant: tenant.tenant,
-                            category_name: 'Magical Infrastructure'
-                        })
-                        .select('category_id')
-                        .first(),
-                    priority_id: knex('priorities')
-                        .where({
-                            tenant: tenant.tenant,
-                            priority_name: 'Curious Conundrum'
-                        })
-                        .select('priority_id')
-                        .first(),
-                    severity_id: knex('severities')
-                        .where({
-                            tenant: tenant.tenant,
-                            severity_name: 'Moderate Muddle'
-                        })
-                        .select('severity_id')
-                        .first(),
-                    urgency_id: knex('urgencies')
-                        .where({
-                            tenant: tenant.tenant,
-                            urgency_name: 'Tick-Tock Task'
-                        })
-                        .select('urgency_id')
-                        .first(),
-                    impact_id: knex('impacts')
-                        .where({
-                            tenant: tenant.tenant,
-                            impact_name: 'Local Disruption'
-                        })
-                        .select('impact_id')
-                        .first(),
-                    entered_by: knex('users')
-                        .where({
-                            tenant: tenant.tenant,
-                            username: 'glinda'
-                        })
-                        .select('user_id')
-                        .first(),
-                    assigned_to: knex('users')
-                        .where({
-                            tenant: tenant.tenant,
-                            username: 'scarecrow'
-                        })
-                        .select('user_id')
-                        .first(),
-                    entered_at: knex.raw("CURRENT_TIMESTAMP - INTERVAL '1 month'")
-                }
-            ]);
-        });
+exports.seed = async function (knex) {
+    // Fetch the tenant first
+    const tenantRow = await knex('tenants').select('tenant').first();
+    if (!tenantRow) {
+        console.warn('No tenant found, skipping ticket seeding.');
+        return;
+    }
+    const tenant = tenantRow.tenant;
+
+    // Helper function to fetch IDs to reduce repetition
+    const getId = async (table, filters, idColumn) => {
+        const result = await knex(table).where({ tenant, ...filters }).select(idColumn).first();
+        if (!result) {
+            console.warn(`Warning: Could not find ID in table '${table}' for filters:`, filters);
+            return null; // Or throw an error if required
+        }
+        return result[idColumn];
+    };
+
+    const getContactId = async (namePattern) => {
+        const result = await knex('contacts')
+            .where({ tenant })
+            .whereRaw(`full_name ILIKE ?`, [`%${namePattern}%`])
+            .select('contact_name_id')
+            .first();
+        if (!result) {
+            console.warn(`Warning: Could not find contact ID for pattern: ${namePattern}`);
+            return null;
+        }
+        return result.contact_name_id;
+    }
+
+    // Fetch all required IDs concurrently for efficiency
+    const [
+        companyEmeraldCityId, companyWonderlandId,
+        contactAliceId, contactDorothyId,
+        statusCuriousId, statusAwaitingId, statusUnfoldingId,
+        channelUrgentId, channelProjectsId,
+        categoryMagicalArtifactsId, categoryCharacterAssistId, categoryRealmMaintenanceId,
+        subCategoryEnchantedAccId, subCategoryQuestGuidanceId, subCategoryMagicalInfraId,
+        priorityEnchantedId, priorityCuriousId,
+        severitySeriousId, severityModerateId,
+        urgencyHareId, urgencyTickTockId,
+        impactRealmId, impactLocalId,
+        userGlindaId, userTinmanId, userMadhatterId, userScarecrowId
+    ] = await Promise.all([
+        getId('companies', { company_name: 'Emerald City' }, 'company_id'),
+        getId('companies', { company_name: 'Wonderland' }, 'company_id'),
+        getContactId('alice'),
+        getContactId('dorothy'),
+        getId('statuses', { name: 'Curious Beginning' }, 'status_id'),
+        getId('statuses', { name: 'Awaiting Wisdom' }, 'status_id'),
+        getId('statuses', { name: 'Unfolding Adventure' }, 'status_id'),
+        getId('channels', { channel_name: 'Urgent Matters' }, 'channel_id'),
+        getId('channels', { channel_name: 'Projects' }, 'channel_id'),
+        getId('categories', { category_name: 'Magical Artifacts' }, 'category_id'),
+        getId('categories', { category_name: 'Character Assistance' }, 'category_id'),
+        getId('categories', { category_name: 'Realm Maintenance' }, 'category_id'),
+        // Assuming subcategories are also in the 'categories' table, identified by name
+        getId('categories', { category_name: 'Enchanted Accessories' }, 'category_id'),
+        getId('categories', { category_name: 'Quest Guidance' }, 'category_id'),
+        getId('categories', { category_name: 'Magical Infrastructure' }, 'category_id'),
+        getId('priorities', { priority_name: 'Enchanted Emergency' }, 'priority_id'),
+        getId('priorities', { priority_name: 'Curious Conundrum' }, 'priority_id'),
+        getId('severities', { severity_name: 'Serious Snarl' }, 'severity_id'),
+        getId('severities', { severity_name: 'Moderate Muddle' }, 'severity_id'),
+        getId('urgencies', { urgency_name: 'Hare-Paced Hustle' }, 'urgency_id'),
+        getId('urgencies', { urgency_name: 'Tick-Tock Task' }, 'urgency_id'),
+        getId('impacts', { impact_name: 'Realm-Wide Repercussions' }, 'impact_id'),
+        getId('impacts', { impact_name: 'Local Disruption' }, 'impact_id'),
+        getId('users', { username: 'glinda' }, 'user_id'),
+        getId('users', { username: 'tinman' }, 'user_id'),
+        getId('users', { username: 'madhatter' }, 'user_id'),
+        getId('users', { username: 'scarecrow' }, 'user_id')
+    ]);
+
+    // Prepare ticket data with resolved IDs
+    const ticketsToInsert = [
+        {
+            tenant: tenant,
+            title: 'Missing White Rabbit',
+            ticket_number: 'TIC1001', // Explicitly included
+            company_id: companyEmeraldCityId,
+            contact_name_id: contactAliceId,
+            status_id: statusCuriousId,
+            channel_id: channelUrgentId,
+            category_id: categoryMagicalArtifactsId,
+            subcategory_id: subCategoryEnchantedAccId,
+            priority_id: priorityEnchantedId,
+            severity_id: severitySeriousId,
+            urgency_id: urgencyHareId,
+            impact_id: impactRealmId,
+            entered_by: userGlindaId,
+            assigned_to: userTinmanId,
+            entered_at: knex.fn.now()
+        },
+        {
+            tenant: tenant,
+            title: 'Survey Uncharted Areas in Wonderland',
+            ticket_number: 'TIC1002', // Explicitly included
+            company_id: companyWonderlandId,
+            contact_name_id: contactAliceId,
+            status_id: statusAwaitingId,
+            channel_id: channelUrgentId,
+            category_id: categoryCharacterAssistId,
+            subcategory_id: subCategoryQuestGuidanceId,
+            priority_id: priorityEnchantedId,
+            severity_id: severityModerateId,
+            urgency_id: urgencyTickTockId,
+            impact_id: impactLocalId,
+            entered_by: userGlindaId,
+            assigned_to: userMadhatterId,
+            entered_at: knex.raw("CURRENT_TIMESTAMP - INTERVAL '2 months'")
+        },
+        {
+            tenant: tenant,
+            title: 'Enhance Emerald City Gardens',
+            ticket_number: 'TIC1003', // Explicitly included
+            company_id: companyEmeraldCityId,
+            contact_name_id: contactDorothyId,
+            status_id: statusUnfoldingId,
+            channel_id: channelProjectsId,
+            category_id: categoryRealmMaintenanceId,
+            subcategory_id: subCategoryMagicalInfraId,
+            priority_id: priorityCuriousId,
+            severity_id: severityModerateId,
+            urgency_id: urgencyTickTockId,
+            impact_id: impactLocalId,
+            entered_by: userGlindaId,
+            assigned_to: userScarecrowId,
+            entered_at: knex.raw("CURRENT_TIMESTAMP - INTERVAL '1 month'")
+        }
+    ];
+
+    // Filter out any tickets where essential IDs might be missing (if lookups failed)
+    const validTickets = ticketsToInsert.filter(ticket =>
+        ticket.company_id && ticket.contact_name_id && ticket.status_id &&
+        ticket.channel_id && ticket.category_id && ticket.subcategory_id &&
+        ticket.priority_id && ticket.severity_id && ticket.urgency_id &&
+        ticket.impact_id && ticket.entered_by && ticket.assigned_to
+    );
+
+    if (validTickets.length !== ticketsToInsert.length) {
+         console.warn(`Warning: Some tickets were skipped due to missing foreign key IDs.`);
+    }
+
+    if (validTickets.length > 0) {
+        // Perform the insert one by one to potentially avoid batch insert issues
+        console.log(`Attempting to insert ${validTickets.length} tickets individually...`);
+        for (const ticket of validTickets) {
+            try {
+                await knex('tickets').insert(ticket);
+            } catch (error) {
+                console.error(`Error inserting ticket ${ticket.ticket_number}:`, error);
+                console.error('Ticket data:', ticket);
+                // Decide if you want to stop on error or continue
+                // throw error; // Uncomment to stop on the first error
+            }
+        }
+        console.log(`Finished attempting ticket insertion.`);
+    } else {
+        console.warn('No valid tickets to insert.');
+    }
 };
+
+

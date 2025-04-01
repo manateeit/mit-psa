@@ -13,10 +13,17 @@ exports.up = async function(knex) {
     { name: 'Telecommunications' },
     { name: 'Backup and Disaster Recovery (BDR)' },
     { name: 'User Support and Training' },
+    // Add the missing essential types
+    { name: 'Hourly Time' },
+    { name: 'Fixed Price' },
+    { name: 'Usage Based' },
   ];
 
-  // Insert the standard service types
-  await knex('standard_service_types').insert(standardServiceTypes);
+  // Insert the standard service types, ignoring conflicts on the unique name constraint
+  await knex('standard_service_types')
+      .insert(standardServiceTypes)
+      .onConflict('name') // Specify the column with the unique constraint
+      .ignore(); // Ignore rows that cause a conflict
 };
 
 /**
@@ -34,6 +41,10 @@ exports.down = async function(knex) {
     'Telecommunications',
     'Backup and Disaster Recovery (BDR)',
     'User Support and Training',
+    // Add the missing essential types for rollback
+    'Hourly Time',
+    'Fixed Price',
+    'Usage Based',
   ];
 
   // Delete the standard service types added in the 'up' migration

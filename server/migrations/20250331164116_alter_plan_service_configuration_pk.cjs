@@ -14,29 +14,25 @@ exports.up = async function(knex) {
     // Based on 20250318200000 migration, user_type_rates depends on plan_service_hourly_config, so it's indirectly handled.
   ];
 
-  // 1. Drop dependent foreign key constraints
+  // 1. Drop dependent foreign key constraints (assuming they are composite ['tenant', 'config_id'])
   for (const dep of dependents) {
-    await knex.schema.alterTable(dep.table, function(table) {
-      try {
-        console.log(`Dropping FK constraint ${dep.constraint} on table ${dep.table}`);
-        table.dropForeign(['config_id'], dep.constraint); // Assuming simple FK on config_id initially
-      } catch (e) {
-         // If the FK was already composite or named differently, this might fail.
-         // Attempt dropping composite FK as a fallback for tables potentially created with composite FKs already
-         try {
-            console.warn(`Failed to drop simple FK ${dep.constraint}, attempting composite drop...`);
-            table.dropForeign(['tenant', 'config_id'], dep.constraint);
-         } catch (e2) {
-            console.error(`Error dropping FK constraint ${dep.constraint} on table ${dep.table}: ${e2.message}. Manual check might be needed if schema diverged.`);
-            // If the table doesn't exist yet (like plan_service_hourly_config on first run), ignore error
-            if (!e2.message.includes('does not exist')) {
-                 throw e2; // Re-throw if it's not a "table doesn't exist" error
-            } else {
-                 console.log(`Table ${dep.table} likely doesn't exist yet, skipping FK drop.`);
-            }
-         }
-      }
-    });
+    const tableExists = await knex.schema.hasTable(dep.table);
+    if (tableExists) {
+        await knex.schema.alterTable(dep.table, function(table) {
+          try {
+            console.log(`Attempting to drop composite FK on ['tenant', 'config_id'] for table ${dep.table}`);
+            // Drop by columns, letting Knex find the constraint name automatically
+            table.dropForeign(['tenant', 'config_id']);
+            console.log(`Successfully dropped composite FK for table ${dep.table}`);
+          } catch (e) {
+            // Log error but continue, it might be that the constraint doesn't exist (already dropped or never created)
+            console.warn(`Could not drop composite FK constraint on table ${dep.table} using columns ['tenant', 'config_id']: ${e.message}. This might be okay.`);
+            // Optional: Check for specific error messages if needed, e.g., if (!e.message.includes('does not exist')) throw e;
+          }
+        });
+    } else {
+        console.log(`Table ${dep.table} does not exist, skipping FK drop.`);
+    }
   }
 
   // 2. Drop the existing primary key constraint on plan_service_configuration

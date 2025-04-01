@@ -23,7 +23,6 @@ exports.seed = function (knex) {
                     note: 'Initial report of missing White Rabbit. Last seen heading towards the tea party.',
                     is_internal: false,
                     is_resolution: false,
-                    is_initial_description: true,
                     created_at: knex.fn.now()
                 },
                 {
@@ -46,7 +45,6 @@ exports.seed = function (knex) {
                     note: 'Last seen heading towards the tea party.',
                     is_internal: true,
                     is_resolution: false,
-                    is_initial_description: false,
                     created_at: knex.fn.now()
                 },
                 {
@@ -69,7 +67,6 @@ exports.seed = function (knex) {
                     note: 'White Rabbit was arrested at the tea party.',
                     is_internal: false,
                     is_resolution: true,
-                    is_initial_description: false,
                     created_at: knex.fn.now()
                 }
             ]);
