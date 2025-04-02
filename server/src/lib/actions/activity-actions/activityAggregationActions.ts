@@ -337,31 +337,58 @@ export async function fetchTicketActivities(
             });
         });
       })
-      // Apply status filter if provided
+      // Apply filters
       .modify(function(queryBuilder) {
         if (filters.status && filters.status.length > 0) {
-          queryBuilder.whereIn("statuses.name", filters.status);
+          queryBuilder.whereIn("tickets.status_id", filters.status);
         }
-        
-        // Apply priority filter if provided
+
+        // Priority filter (existing)
         if (filters.priority && filters.priority.length > 0) {
-          queryBuilder.whereIn("priorities.priority_name", 
+          queryBuilder.whereIn("priorities.priority_name",
             filters.priority.map(p => p.charAt(0).toUpperCase() + p.slice(1))
           );
         }
-        
-        // Apply due date filter if provided
+
+        // Due date filter (existing)
         if (filters.dueDateStart) {
           queryBuilder.where("tickets.due_date", ">=", toPlainDate(filters.dueDateStart));
         }
-        
         if (filters.dueDateEnd) {
           queryBuilder.where("tickets.due_date", "<=", toPlainDate(filters.dueDateEnd));
         }
-        
-        // Apply closed filter if provided
+
+        // Closed filter (existing)
         if (filters.isClosed !== undefined) {
           queryBuilder.where("statuses.is_closed", filters.isClosed);
+        }
+
+        // Company filter
+        if (filters.companyId) {
+          queryBuilder.where("tickets.company_id", filters.companyId);
+        }
+
+        // Contact filter
+        if (filters.contactId) {
+          queryBuilder.where("tickets.contact_name_id", filters.contactId);
+        }
+
+        // Ticket number filter
+        if (filters.ticketNumber) {
+          // Using ilike for case-insensitive partial match. Use '=' for exact match.
+          queryBuilder.where("tickets.ticket_number", 'ilike', `%${filters.ticketNumber}%`);
+        }
+
+        // Text search filter
+        if (filters.search) {
+          const searchTerm = `%${filters.search}%`;
+          queryBuilder.where(function() {
+            this.where("tickets.title", 'ilike', searchTerm)
+              .orWhere("tickets.ticket_number", 'ilike', searchTerm);
+            // Add other fields to search if needed (e.g., company name, contact name)
+            // .orWhere("companies.company_name", 'ilike', searchTerm)
+            // .orWhere("contacts.full_name", 'ilike', searchTerm);
+          });
         }
       });
 
