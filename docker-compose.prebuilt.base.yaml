@@ -15,7 +15,7 @@ x-environment: &shared-environment
 
   # ---- DATABASE ----
   DB_TYPE: ${DB_TYPE}
-  DB_HOST: postgres
+  DB_HOST: ${DB_HOST:-postgres}
   DB_PORT: ${DB_PORT:-5432}
   DB_NAME_SERVER: server
   DB_USER_SERVER: app_user

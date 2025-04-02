@@ -143,6 +143,8 @@ services:
       - app-network
     environment:
       <<: *shared-environment
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
       NODE_OPTIONS: --experimental-vm-modules
     volumes:
       - type: bind

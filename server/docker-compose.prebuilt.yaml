@@ -17,8 +17,8 @@ x-common-config: &common-config
 
     # ---- DATABASE ----
     DB_TYPE: ${DB_TYPE}
-    DB_HOST: postgres
-    DB_PORT: ${DB_PORT:-5432}
+    DB_HOST: ${PGBOUNCER_HOST:-postgres}
+    DB_PORT: ${PGBOUNCER_PORT:-6432}
     DB_NAME_SERVER: ${DB_NAME_SERVER:-server}
     DB_USER_SERVER: postgres
 

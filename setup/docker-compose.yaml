@@ -5,8 +5,8 @@ x-common-config: &common-config
   container_name: setup
   command: "/app/entrypoint.sh"
   environment:
-    DB_HOST: ${DB_HOST}
-    DB_PORT: ${DB_PORT}
+    DB_HOST: ${DB_HOST:-postgres}
+    DB_PORT: ${DB_PORT:-5432}
     DB_NAME: ${DB_NAME}
     DB_USER: postgres
     
