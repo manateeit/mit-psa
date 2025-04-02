@@ -94,7 +94,7 @@ export const ActivityFilters = forwardRef<ActivityFiltersRef, ActivityFiltersPro
       <Dialog isOpen={open} onClose={() => setOpen(false)}>
         {/* Trigger button is now removed from here and placed in the parent */}
         {/* DialogContent is always rendered, Dialog controls visibility */}
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[450px]">
           {/* Removed onInteractOutside and onEscapeKeyDown */}
           <DialogHeader>
             <DialogTitle>Filter Activities</DialogTitle>
@@ -103,10 +103,10 @@ export const ActivityFilters = forwardRef<ActivityFiltersRef, ActivityFiltersPro
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="py-2">
             {/* Activity Types Filter */}
-            <div className="space-y-2">
-              <Label htmlFor="activity-types">Activity Types</Label>
+            <div>
+              <Label htmlFor="activity-types" className="text-lg font-semibold">Activity Types</Label>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { value: ActivityType.SCHEDULE, label: 'Schedule' },
@@ -115,68 +115,80 @@ export const ActivityFilters = forwardRef<ActivityFiltersRef, ActivityFiltersPro
                   { value: ActivityType.TIME_ENTRY, label: 'Time Entries' },
                   { value: ActivityType.WORKFLOW_TASK, label: 'Workflow Tasks' }
                 ].map(option => (
-                  <div key={option.value} className="flex items-center space-x-2">
                     <Checkbox
+                      key={option.value}
                       id={`activity-type-${option.value}`}
+                      label={option.label}
                       checked={isSelected(option.value, localFilters.types)}
                       onChange={() => toggleArrayFilter('types', option.value, localFilters.types)}
                     />
-                    <Label htmlFor={`activity-type-${option.value}`}>{option.label}</Label>
-                  </div>
                 ))}
               </div>
             </div>
 
             {/* Priority Filter */}
-            <div className="space-y-2">
-              <Label htmlFor="priority">Priority</Label>
+            <div className="mt-4">
+              <Label htmlFor="priority" className="text-lg font-semibold">Priority</Label>
               <div className="flex space-x-4">
                 {[
                   { value: ActivityPriority.LOW, label: 'Low' },
                   { value: ActivityPriority.MEDIUM, label: 'Medium' },
                   { value: ActivityPriority.HIGH, label: 'High' }
                 ].map(option => (
-                  <div key={option.value} className="flex items-center space-x-2">
                     <Checkbox
+                      key={option.value}
                       id={`priority-${option.value}`}
+                      label={option.label}
                       checked={isSelected(option.value, localFilters.priority)}
                       onChange={() => toggleArrayFilter('priority', option.value, localFilters.priority)}
                     />
-                    <Label htmlFor={`priority-${option.value}`}>{option.label}</Label>
-                  </div>
                 ))}
               </div>
             </div>
 
             {/* Date Range Filter */}
-            <div className="space-y-2">
-              <Label>Due Date Range</Label>
+            <div className="mt-4">
+              <Label className="text-lg font-semibold">Due Date Range</Label>
               <DateRangePicker
                 value={{
                   from: localFilters.dueDateStart ? new Date(localFilters.dueDateStart).toISOString().split('T')[0] : '',
                   to: localFilters.dueDateEnd ? new Date(localFilters.dueDateEnd).toISOString().split('T')[0] : ''
                 }}
                 onChange={(range) => {
-                  handleFilterChange('dueDateStart', range.from ? new Date(range.from).toISOString() as any : undefined);
-                  handleFilterChange('dueDateEnd', range.to ? new Date(range.to).toISOString() as any : undefined);
+                  // If date is empty string, set to undefined
+                  const startDate = range.from ? new Date(range.from) : undefined;
+                  const endDate = range.to ? new Date(range.to) : undefined;
+                  
+                  // If we have an end date but no start date, set start date to today
+                  const effectiveStartDate = !startDate && endDate ? new Date() : startDate;
+                  
+                  // Set the time to the beginning of the day for start date and end of the day for end date
+                  if (effectiveStartDate) {
+                    effectiveStartDate.setHours(0, 0, 0, 0);
+                  }
+                  
+                  if (endDate) {
+                    endDate.setHours(23, 59, 59, 999);
+                  }
+                  
+                  handleFilterChange('dueDateStart', effectiveStartDate ? effectiveStartDate.toISOString() as any : undefined);
+                  handleFilterChange('dueDateEnd', endDate ? endDate.toISOString() as any : undefined);
                 }}
               />
             </div>
 
             {/* Show Closed Activities */}
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="show-closed"
-                checked={localFilters.isClosed}
-                onChange={(e) => {
-                    // Correctly access checked status for Shadcn Checkbox
-                    const isChecked = typeof e === 'boolean' ? e : (e.target as HTMLInputElement).checked;
-                    handleFilterChange('isClosed', isChecked);
-                  }
+            <Checkbox
+              id="show-closed"
+              label="Show closed activities"
+              checked={localFilters.isClosed}
+              onChange={(e) => {
+                  // Correctly access checked status for Shadcn Checkbox
+                  const isChecked = typeof e === 'boolean' ? e : (e.target as HTMLInputElement).checked;
+                  handleFilterChange('isClosed', isChecked);
                 }
-              />
-              <Label htmlFor="show-closed">Show closed activities</Label>
-            </div>
+              }
+            />
           </div>
 
           <DialogFooter>
@@ -204,4 +216,4 @@ export const ActivityFilters = forwardRef<ActivityFiltersRef, ActivityFiltersPro
   }
 );
 
-ActivityFilters.displayName = 'ActivityFilters'; // Add display name for DevTools
+ActivityFilters.displayName = 'ActivityFilters';

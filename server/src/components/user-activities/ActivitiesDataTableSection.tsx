@@ -65,7 +65,6 @@ export function ActivitiesDataTableSection({
     } catch (err) {
       console.error(`Error loading activities (page ${currentPage}):`, err);
       setError('Failed to load activities. Please try again later.');
-      setError('Failed to load activities. Please try again later.');
     } finally {
       setLoading(false);
     }

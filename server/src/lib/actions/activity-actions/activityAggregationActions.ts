@@ -596,14 +596,62 @@ function processActivities(
   activities: Activity[],
   filters: ActivityFilters
 ): Activity[] {
-  // Apply search filter if provided
+  // Apply all filters
   let filteredActivities = activities;
+  
+  // Apply search filter if provided
   if (filters.search) {
     const searchLower = filters.search.toLowerCase();
     filteredActivities = filteredActivities.filter(activity => 
       activity.title.toLowerCase().includes(searchLower) ||
       (activity.description && activity.description.toLowerCase().includes(searchLower))
     );
+  }
+  
+  // Apply status filter if provided
+  if (filters.status && filters.status.length > 0) {
+    filteredActivities = filteredActivities.filter(activity => 
+      filters.status!.includes(activity.status)
+    );
+  }
+  
+  // Apply priority filter if provided
+  if (filters.priority && filters.priority.length > 0) {
+    filteredActivities = filteredActivities.filter(activity => 
+      filters.priority!.includes(activity.priority)
+    );
+  }
+  
+  // Apply due date range filter if provided
+  if (filters.dueDateStart || filters.dueDateEnd) {
+    filteredActivities = filteredActivities.filter(activity => {
+      if (!activity.dueDate) return false;
+      
+      const dueDate = new Date(activity.dueDate).getTime();
+      
+      if (filters.dueDateStart) {
+        const startDate = new Date(filters.dueDateStart).getTime();
+        if (dueDate < startDate) return false;
+      }
+      
+      if (filters.dueDateEnd) {
+        const endDate = new Date(filters.dueDateEnd).getTime();
+        if (dueDate > endDate) return false;
+      }
+      
+      return true;
+    });
+  }
+  
+  // Apply assigned to filter if provided
+  if (filters.assignedTo && filters.assignedTo.length > 0) {
+    filteredActivities = filteredActivities.filter(activity => {
+      if (!activity.assignedTo || activity.assignedTo.length === 0) return false;
+      
+      return activity.assignedTo.some(userId => 
+        filters.assignedTo!.includes(userId)
+      );
+    });
   }
 
   // Sort activities by due date (ascending) and priority (descending)
