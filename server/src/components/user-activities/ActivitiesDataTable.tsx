@@ -16,6 +16,10 @@ interface ActivitiesDataTableProps {
   onViewDetails: (activity: Activity) => void;
   onActionComplete?: () => void;
   isLoading?: boolean;
+  currentPage?: number;
+  pageSize?: number;
+  totalItems?: number;
+  onPageChange?: (page: number) => void;
 }
 
 // Format date to a readable format
@@ -87,12 +91,14 @@ const getActivityTypeLabel = (type: ActivityType) => {
 
 export function ActivitiesDataTable({ 
   activities, 
-  onViewDetails, 
+  onViewDetails,
   onActionComplete,
-  isLoading = false
+  isLoading = false,
+  currentPage = 1,
+  pageSize = 10,
+  totalItems,
+  onPageChange
 }: ActivitiesDataTableProps) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
 
   // Define columns for the DataTable
   const columns: ColumnDefinition<Activity>[] = [
@@ -198,10 +204,6 @@ export function ActivitiesDataTable({
     onViewDetails(record);
   };
 
-  // Handle page change
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
 
   return (
     <DataTable
@@ -209,11 +211,11 @@ export function ActivitiesDataTable({
       data={activities}
       columns={columns}
       pagination={true}
-      onRowClick={handleRowClick}
-      currentPage={currentPage}
-      onPageChange={handlePageChange}
-      pageSize={pageSize}
-      totalItems={activities.length}
+    onRowClick={handleRowClick}
+    currentPage={currentPage}
+    onPageChange={onPageChange}
+    pageSize={pageSize}
+    totalItems={totalItems}
     />
   );
 }

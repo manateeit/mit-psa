@@ -27,16 +27,20 @@ import { revalidatePath } from "next/cache";
  * This is the main entry point for the activities dashboard
  * 
  * @param filters Optional filters to apply to the activities
+ * @param page Optional page number for pagination (1-based)
+ * @param pageSize Optional number of items per page
  * @returns Promise resolving to ActivityResponse containing activities and pagination info
  */
 export async function fetchActivities(
-  filters: ActivityFilters = {}
+  filters: ActivityFilters = {},
+  page: number = 1,
+  pageSize: number = 10
 ): Promise<ActivityResponse> {
   try {
-    // This function already handles tenant isolation internally
-    return await fetchUserActivities(filters);
+    // Pass pagination parameters to the aggregation function
+    return await fetchUserActivities(filters, page, pageSize);
   } catch (error) {
-    console.error("Error fetching activities:", error);
+    console.error(`Error fetching activities (page ${page}, size ${pageSize}):`, error);
     throw new Error("Failed to fetch activities. Please try again later.");
   }
 }

@@ -45,21 +45,16 @@ function toPlainDate(isoString: string): string {
 }
 
 /**
- * Fetch all activities for a user with optional filters
+ * Fetch all activities for a user with optional filters and pagination
  */
 export async function fetchUserActivities(
-  filters: ActivityFilters = {}
+  filters: ActivityFilters = {},
+  page: number = 1,
+  pageSize: number = 10
 ): Promise<ActivityResponse> {
   const user = await getCurrentUser();
   if (!user) {
     throw new Error("User not authenticated");
-  }
-
-  // Use cache if available
-  const cacheKey = `user-activities:${user.user_id}:${JSON.stringify(filters)}`;
-  const cachedData = await cache.get(cacheKey);
-  if (cachedData) {
-    return JSON.parse(cachedData);
   }
 
   // Fetch activities from different sources based on filters
@@ -97,18 +92,24 @@ export async function fetchUserActivities(
 
   // Apply additional filtering, sorting, etc.
   const processedActivities = processActivities(activities, filters);
-  
-  // Create response with pagination info
-  const pageSize = 20; // Default page size
-  const pageNumber = 1; // Default page number
+  const totalCount = processedActivities.length;
+  const pageCount = Math.ceil(totalCount / pageSize);
+
+  // Apply pagination slicing
+  const startIndex = (page - 1) * pageSize;
+  const paginatedActivities = processedActivities.slice(startIndex, startIndex + pageSize);
+
+  // Create response with pagination info using passed parameters
   const response: ActivityResponse = {
-    activities: processedActivities.slice(0, pageSize),
-    totalCount: processedActivities.length,
-    pageCount: Math.ceil(processedActivities.length / pageSize),
-    pageSize,
-    pageNumber
+    activities: paginatedActivities,
+    totalCount: totalCount,
+    pageCount: pageCount,
+    pageSize: pageSize,
+    pageNumber: page
   };
 
+  // Update cache key to include pagination
+  const cacheKey = `user-activities:${user.user_id}:${JSON.stringify(filters)}:page${page}:size${pageSize}`;
   // Cache the result
   await cache.set(cacheKey, JSON.stringify(response), 60); // Cache for 1 minute
 

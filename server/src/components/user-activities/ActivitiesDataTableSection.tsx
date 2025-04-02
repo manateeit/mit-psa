@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useRef } from 'react'; // Import useRef
-import { 
-  Activity, 
-  ActivityFilters, 
-  ActivityType 
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import {
+  Activity,
+  ActivityFilters,
+  ActivityType,
+  ActivityResponse
 } from '../../interfaces/activity.interfaces';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -10,7 +11,7 @@ import { RefreshCw, Filter } from 'lucide-react';
 import { fetchActivities } from '../../lib/actions/activity-actions/activityServerActions';
 import { ActivityDetailsDrawer } from './ActivityDetailsDrawer';
 import { ActivitiesDataTable } from './ActivitiesDataTable';
-import { ActivityFilters as ActivityFiltersComponent, ActivityFiltersRef } from './ActivityFilters'; // Import ActivityFiltersRef
+import { ActivityFilters as ActivityFiltersComponent, ActivityFiltersRef } from './ActivityFilters';
 
 interface ActivitiesDataTableSectionProps {
   title?: string;
@@ -28,17 +29,18 @@ export function ActivitiesDataTableSection({
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ActivityFilters>(initialFilters);
-  // Removed showFilters state
   const filtersRef = useRef<ActivityFiltersRef>(null); // Create ref for ActivityFilters
 
-  useEffect(() => {
-    loadActivities();
-  }, [filters]);
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
 
-  const loadActivities = async () => {
+  // Use useCallback to memoize loadActivities
+  const loadActivities = useCallback(async () => {
     try {
       setLoading(true);
-      // Prepare filter to ensure we get activities of all types if none specified
+      // Prepare filter
       const effectiveFilters = {
         ...filters,
         // If types array is empty, explicitly request all activity types
@@ -46,21 +48,33 @@ export function ActivitiesDataTableSection({
           ? filters.types
           : Object.values(ActivityType).filter(type => type !== ActivityType.WORKFLOW_TASK)
       };
-      
-      console.log('Loading activities with filters:', effectiveFilters);
-      
-      // Fetch activities with effective filters
-      const result = await fetchActivities(effectiveFilters);
-      console.log(`Loaded ${result.activities.length} activities`);
+
+      console.log(`Loading activities page ${currentPage} with filters:`, effectiveFilters);
+
+      // Fetch activities with filters and pagination
+      const result: ActivityResponse = await fetchActivities(
+        effectiveFilters,
+        currentPage,
+        pageSize
+      );
+
+      console.log(`Loaded ${result.activities.length} activities, total: ${result.totalCount}`);
       setActivities(result.activities);
+      setTotalItems(result.totalCount); // Set total items count from response
       setError(null);
     } catch (err) {
-      console.error('Error loading activities:', err);
+      console.error(`Error loading activities (page ${currentPage}):`, err);
+      setError('Failed to load activities. Please try again later.');
       setError('Failed to load activities. Please try again later.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, currentPage, pageSize]); // Add currentPage and pageSize to dependencies
+
+  // useEffect to trigger loadActivities when filters or pagination changes
+  useEffect(() => {
+    loadActivities();
+  }, [loadActivities]); // Dependency is the memoized function itself
 
   const handleViewDetails = (activity: Activity) => {
     setSelectedActivity(activity);
@@ -79,9 +93,12 @@ export function ActivitiesDataTableSection({
       ...prev,
       ...newFilters
     }));
+    setCurrentPage(1);
   };
 
-  // Removed handleToggleFilters function
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
 
   return (
     <Card id={id}>
@@ -135,6 +152,11 @@ export function ActivitiesDataTableSection({
             onViewDetails={handleViewDetails}
             onActionComplete={handleRefresh}
             isLoading={loading}
+            // Pass pagination props
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            onPageChange={handlePageChange}
           />
         )}
       </CardContent>
