@@ -10,16 +10,16 @@ import { Label } from '../ui/Label';
 import { Checkbox } from '../ui/Checkbox';
 import { DateRangePicker } from '../ui/DateRangePicker';
 
-interface ActivityFiltersProps {
+interface ActivitiesTableFiltersProps {
   filters: ActivityFiltersType;
   onChange: (filters: ActivityFiltersType) => void;
 }
 
-export interface ActivityFiltersRef {
+export interface ActivitiesTableFiltersRef {
   openDialog: () => void;
 }
 
-export const ActivityFilters = forwardRef<ActivityFiltersRef, ActivityFiltersProps>(
+export const ActivitiesTableFilters = forwardRef<ActivitiesTableFiltersRef, ActivitiesTableFiltersProps>(
   ({ filters, onChange }, ref) => {
     const [open, setOpen] = useState(false);
     const [localFilters, setLocalFilters] = useState<ActivityFiltersType>(filters);
@@ -216,4 +216,4 @@ export const ActivityFilters = forwardRef<ActivityFiltersRef, ActivityFiltersPro
   }
 );
 
-ActivityFilters.displayName = 'ActivityFilters';
+ActivitiesTableFilters.displayName = 'ActivitiesTableFilters';

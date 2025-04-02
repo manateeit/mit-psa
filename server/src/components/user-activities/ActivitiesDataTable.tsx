@@ -16,6 +16,10 @@ interface ActivitiesDataTableProps {
   onViewDetails: (activity: Activity) => void;
   onActionComplete?: () => void;
   isLoading?: boolean;
+  currentPage?: number;
+  pageSize?: number;
+  totalItems?: number;
+  onPageChange?: (page: number) => void;
 }
 
 // Format date to a readable format
@@ -87,19 +91,21 @@ const getActivityTypeLabel = (type: ActivityType) => {
 
 export function ActivitiesDataTable({ 
   activities, 
-  onViewDetails, 
+  onViewDetails,
   onActionComplete,
-  isLoading = false
+  isLoading = false,
+  currentPage = 1,
+  pageSize = 10,
+  totalItems,
+  onPageChange
 }: ActivitiesDataTableProps) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
 
   // Define columns for the DataTable
   const columns: ColumnDefinition<Activity>[] = [
     {
       title: 'Type',
       dataIndex: 'type',
-      width: '100px',
+      width: '10%',
       render: (value, record) => (
         <div className="flex items-center gap-2">
           {getActivityTypeIcon(value as ActivityType)}
@@ -110,6 +116,7 @@ export function ActivitiesDataTable({
     {
       title: 'Title',
       dataIndex: 'title',
+      width: '50%',
       render: (value, record) => (
         <div className="flex items-center gap-2">
           <span className="font-medium text-gray-900">{value}</span>
@@ -122,7 +129,7 @@ export function ActivitiesDataTable({
     {
       title: 'Status',
       dataIndex: 'status',
-      width: '120px',
+      width: '15%',
       render: (value) => (
         <Badge variant="default">{value}</Badge>
       ),
@@ -130,7 +137,7 @@ export function ActivitiesDataTable({
     {
       title: 'Priority',
       dataIndex: 'priority',
-      width: '100px',
+      width: '10%',
       render: (value, record) => (
         <div className="flex items-center gap-2">
           {getPriorityIcon(value as ActivityPriority)}
@@ -141,7 +148,7 @@ export function ActivitiesDataTable({
     {
       title: 'Due Date',
       dataIndex: 'dueDate',
-      width: '150px',
+      width: '10%',
       render: (value, record) => (
         <div>
           {value ? (
@@ -156,33 +163,9 @@ export function ActivitiesDataTable({
       ),
     },
     {
-      title: 'Assigned To',
-      dataIndex: 'assignedToNames',
-      width: '150px',
-      render: (value, record) => (
-        <div>
-          {value && (value as string[]).length > 0 ? (
-            <div className="flex -space-x-2">
-              {(value as string[]).map((name, i) => (
-                <div
-                  key={i}
-                  className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium"
-                  title={name}
-                >
-                  {name.charAt(0)}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <span className="text-gray-400">Unassigned</span>
-          )}
-        </div>
-      ),
-    },
-    {
       title: 'Actions',
       dataIndex: 'actions',
-      width: '80px',
+      width: '5%',
       render: (_, record) => (
         <ActivityActionMenu
           activity={record}
@@ -198,10 +181,6 @@ export function ActivitiesDataTable({
     onViewDetails(record);
   };
 
-  // Handle page change
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
 
   return (
     <DataTable
@@ -209,11 +188,11 @@ export function ActivitiesDataTable({
       data={activities}
       columns={columns}
       pagination={true}
-      onRowClick={handleRowClick}
-      currentPage={currentPage}
-      onPageChange={handlePageChange}
-      pageSize={pageSize}
-      totalItems={activities.length}
+    onRowClick={handleRowClick}
+    currentPage={currentPage}
+    onPageChange={onPageChange}
+    pageSize={pageSize}
+    totalItems={totalItems}
     />
   );
 }

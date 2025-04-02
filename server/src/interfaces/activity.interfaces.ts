@@ -156,6 +156,14 @@ export interface ActivityFilters {
   dateRangeEnd?: ISO8601String;
   search?: string;
   isClosed?: boolean;
+  companyId?: string;
+  contactId?: string;
+  ticketNumber?: string;
+  projectId?: string;
+  phaseId?: string;
+  isRecurring?: boolean;
+  workItemType?: string;
+  executionId?: string;
 }
 
 /**

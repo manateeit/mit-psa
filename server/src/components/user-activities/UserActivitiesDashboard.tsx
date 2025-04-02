@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { ActivityFilters } from './ActivityFilters';
 import { ScheduleSection } from './ScheduleSection';
 import { TicketsSection } from './TicketsSection';
 import { ProjectsSection } from './ProjectsSection';
@@ -7,25 +6,34 @@ import { WorkflowTasksSection } from './WorkflowTasksSection';
 import { ActivitiesDataTableSection } from './ActivitiesDataTableSection';
 import { Button } from '../ui/Button';
 import { RefreshCw, LayoutGrid, List } from 'lucide-react';
-import { ActivityFilters as ActivityFiltersType } from '../../interfaces/activity.interfaces';
-import { fetchDashboardActivities } from '../../lib/actions/activity-actions/activityServerActions';
+import { ActivityFilters as ActivityFiltersType, ActivityType } from '../../interfaces/activity.interfaces';
 import { CustomTabs } from '../ui/CustomTabs';
 import { DrawerProvider } from '../../context/DrawerContext';
 import { getCurrentUser, getUserPreference, setUserPreference } from '../../lib/actions/user-actions/userActions';
 
 export function UserActivitiesDashboard() {
-  const [filters, setFilters] = useState<ActivityFiltersType>({
-    types: [],
-    status: [],
-    priority: [],
-    assignedTo: [],
-    isClosed: false
-  });
-  const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+  const [tableInitialFilters, setTableInitialFilters] = useState<ActivityFiltersType | null>(null); // State for specific filters
+
+  // Generic handler for "View All" clicks
+  const handleViewAll = (types: ActivityType[]) => {
+    const filters: ActivityFiltersType = { types, isClosed: false };
+    setTableInitialFilters(filters);
+    setViewMode('table');
+    // Optionally save preference if desired when clicking "View All"
+    // if (currentUser?.user_id) {
+    //   setUserPreference(currentUser.user_id, 'activitiesDashboardViewMode', 'table').catch(console.error);
+    // }
+  };
+
+  // Specific handlers calling the generic one
+  const handleViewAllSchedule = () => handleViewAll([ActivityType.SCHEDULE]); // Corrected Enum Member
+  const handleViewAllProjects = () => handleViewAll([ActivityType.PROJECT_TASK]);
+  const handleViewAllTickets = () => handleViewAll([ActivityType.TICKET]);
+  const handleViewAllWorkflowTasks = () => handleViewAll([ActivityType.WORKFLOW_TASK]);
+
   // Load user preference when component mounts
   useEffect(() => {
     const loadUserPreference = async () => {
@@ -50,47 +58,24 @@ export function UserActivitiesDashboard() {
     loadUserPreference();
   }, []);
 
-  // Handle filter changes
-  const handleFilterChange = (newFilters: ActivityFiltersType) => {
-    setFilters(newFilters);
+  // Determine the filters to apply to the table
+  const currentTableFilters: ActivityFiltersType = tableInitialFilters || {
+    types: [], // Default: Load all activity types
+    isClosed: false // Default: Only show open activities
   };
 
-  // Handle refresh button click
-  const handleRefresh = async () => {
-    try {
-      setRefreshing(true);
-      // In a real implementation, this would trigger a refresh of all sections
-      // For now, we'll just wait a bit to simulate a refresh
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    } catch (error) {
-      console.error('Error refreshing dashboard:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
+  // Table view content - Defined before use
+  const tableViewContent = (
+    <ActivitiesDataTableSection
+      // Key changes based on filters to force remount and data fetch
+      key={`activities-table-${JSON.stringify(currentTableFilters)}`}
+      title={tableInitialFilters ? `Filtered Activities` : "All Activities"} // Dynamic title
+      initialFilters={currentTableFilters}
+      id="all-activities-table-section"
+    />
+  );
 
-  // Handle view all button click for each section
-  const handleViewAllSchedule = () => {
-    // In a real implementation, this would navigate to the schedule page or open a drawer
-    console.log('View all schedule entries');
-  };
-
-  const handleViewAllProjects = () => {
-    // In a real implementation, this would navigate to the projects page or open a drawer
-    console.log('View all project tasks');
-  };
-
-  const handleViewAllTickets = () => {
-    // In a real implementation, this would navigate to the tickets page or open a drawer
-    console.log('View all tickets');
-  };
-
-  const handleViewAllWorkflowTasks = () => {
-    // In a real implementation, this would navigate to the workflow tasks page or open a drawer
-    console.log('View all workflow tasks');
-  };
-
-  // Card view content
+  // Card view content - Defined before use
   const cardViewContent = (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Schedule Section */}
@@ -117,20 +102,6 @@ export function UserActivitiesDashboard() {
         onViewAll={handleViewAllWorkflowTasks}
       />
     </div>
-  );
-
-  // Table view content
-  const tableViewContent = (
-    <ActivitiesDataTableSection
-      key="activities-table-view" // Add key to force remounting when switching views
-      title="All Activities"
-      initialFilters={{
-        ...filters,
-        types: [], // Load all activity types if none specified
-        isClosed: false // Only show open activities
-      }}
-      id="all-activities-table-section"
-    />
   );
 
   return (
@@ -165,6 +136,7 @@ export function UserActivitiesDashboard() {
                 variant={viewMode === 'table' ? 'default' : 'outline'}
                 size="sm"
                 onClick={async () => {
+                  setTableInitialFilters(null); // Reset specific filters when clicking the main Table button
                   setViewMode('table');
                   // Save preference
                   if (currentUser?.user_id) {
@@ -181,19 +153,6 @@ export function UserActivitiesDashboard() {
                 Table
               </Button>
             </div>
-            <ActivityFilters
-              filters={filters}
-              onChange={handleFilterChange}
-            />
-            <Button
-              id="refresh-activities-button"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={refreshing}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-              {refreshing ? 'Refreshing...' : 'Refresh'}
-            </Button>
           </div>
         </div>
 
@@ -207,4 +166,5 @@ export function UserActivitiesDashboard() {
       </div>
     </DrawerProvider>
   );
-}
+} // Added missing closing brace
+// Removed extra closing brace from the end of the file
