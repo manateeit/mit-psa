@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ScheduleActivity } from '../../interfaces/activity.interfaces';
+import { ActivityFilters, ScheduleActivity } from '../../interfaces/activity.interfaces';
 import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { ScheduleCard } from './ActivityCard';
 import { fetchScheduleActivities } from '../../lib/actions/activity-actions/activityServerActions';
 import { ActivityDetailsDrawer } from './ActivityDetailsDrawer';
+import { ScheduleSectionFiltersDialog } from './ScheduleSectionFiltersDialog';
+import { FilterIcon, XCircleIcon } from 'lucide-react';
 
 interface ScheduleSectionProps {
   limit?: number;
@@ -16,40 +18,68 @@ export function ScheduleSection({ limit = 5, onViewAll }: ScheduleSectionProps) 
   const [loading, setLoading] = useState(true);
   const [selectedActivity, setSelectedActivity] = useState<ScheduleActivity | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [scheduleFilters, setScheduleFilters] = useState<Partial<ActivityFilters>>({ 
+    isClosed: false,
+    dateRangeStart: new Date().toISOString(),
+    dateRangeEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+  });
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
 
   useEffect(() => {
-    async function loadActivities() {
-      try {
-        setLoading(true);
-        // Fetch schedule activities
-        const result = await fetchScheduleActivities({
-          isClosed: false,
-          // Only fetch activities for the next 30 days
-          dateRangeStart: new Date().toISOString(),
-          dateRangeEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        });
-        
-        // Sort by start date (ascending)
-        const sortedActivities = result.sort((a, b) => {
-          if (a.startDate && b.startDate) {
-            return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
-          }
-          return 0;
-        });
-        
-        setActivities(sortedActivities.slice(0, limit));
-        setError(null);
-      } catch (err) {
-        console.error('Error loading schedule activities:', err);
-        setError('Failed to load schedule activities. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    }
-    
     loadActivities();
-  }, [limit]);
+  }, [limit, scheduleFilters]);
 
+  const isFiltersActive = (): boolean => {
+    // Check if any filter is active (different from default)
+    if (scheduleFilters.isClosed !== false) return true;
+    if (scheduleFilters.search) return true;
+    if (scheduleFilters.isRecurring) return true;
+    if (scheduleFilters.workItemType) return true;
+    
+    // For date range, check if it's different from the default 30-day range
+    const defaultStart = new Date().toISOString().split('T')[0];
+    const defaultEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    const currentStart = scheduleFilters.dateRangeStart?.split('T')[0];
+    const currentEnd = scheduleFilters.dateRangeEnd?.split('T')[0];
+    
+    if (currentStart !== defaultStart || currentEnd !== defaultEnd) return true;
+    
+    return false;
+  };
+
+  const handleResetFilters = () => {
+    setScheduleFilters({
+      isClosed: false,
+      dateRangeStart: new Date().toISOString(),
+      dateRangeEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    });
+  };
+
+  async function loadActivities() {
+    try {
+      setLoading(true);
+      // Fetch schedule activities with current filters
+      const result = await fetchScheduleActivities(scheduleFilters);
+      
+      // Sort by start date (ascending)
+      const sortedActivities = result.sort((a, b) => {
+        if (a.startDate && b.startDate) {
+          return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+        }
+        return 0;
+      });
+      
+      setActivities(sortedActivities.slice(0, limit));
+      setError(null);
+    } catch (err) {
+      console.error('Error loading schedule activities:', err);
+      setError('Failed to load schedule activities. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  }
+  
   const handleViewDetails = (activity: ScheduleActivity) => {
     setSelectedActivity(activity);
   };
@@ -61,11 +91,7 @@ export function ScheduleSection({ limit = 5, onViewAll }: ScheduleSectionProps) 
   const handleRefresh = async () => {
     try {
       setLoading(true);
-      const result = await fetchScheduleActivities({
-        isClosed: false,
-        dateRangeStart: new Date().toISOString(),
-        dateRangeEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      });
+      const result = await fetchScheduleActivities(scheduleFilters);
       
       const sortedActivities = result.sort((a, b) => {
         if (a.startDate && b.startDate) {
@@ -84,6 +110,10 @@ export function ScheduleSection({ limit = 5, onViewAll }: ScheduleSectionProps) 
     }
   };
 
+  const handleApplyFilters = (filters: Partial<ActivityFilters>) => {
+    setScheduleFilters(filters);
+  };
+
   return (
     <Card id="schedule-activities-card" className="col-span-1 md:col-span-2">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -91,16 +121,39 @@ export function ScheduleSection({ limit = 5, onViewAll }: ScheduleSectionProps) 
         <div className="flex items-center gap-2">
           <Button 
             id="refresh-schedule-button" 
-            variant="ghost" 
+            variant="outline" 
             size="sm"
             onClick={handleRefresh}
             disabled={loading}
           >
             Refresh
           </Button>
+          {isFiltersActive() ? (
+            <Button
+              id="reset-schedule-filters-button"
+              variant="outline"
+              size="sm"
+              onClick={handleResetFilters}
+              className="gap-1"
+            >
+              <XCircleIcon className="h-4 w-4" />
+              Reset Filters
+            </Button>
+          ) : (
+            <Button
+              id="filter-schedule-button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsFilterDialogOpen(true)}
+              className="gap-1"
+            >
+              <FilterIcon className="h-4 w-4" />
+              Filter
+            </Button>
+          )}
           <Button 
             id="view-all-schedule-button" 
-            variant="ghost" 
+            variant="outline" 
             size="sm"
             onClick={onViewAll}
           >
@@ -143,6 +196,14 @@ export function ScheduleSection({ limit = 5, onViewAll }: ScheduleSectionProps) 
           onActionComplete={handleRefresh}
         />
       )}
+
+      {/* Schedule Filters Dialog */}
+      <ScheduleSectionFiltersDialog
+        isOpen={isFilterDialogOpen}
+        onOpenChange={setIsFilterDialogOpen}
+        initialFilters={scheduleFilters}
+        onApplyFilters={handleApplyFilters}
+      />
     </Card>
   );
 }

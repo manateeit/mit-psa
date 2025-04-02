@@ -125,22 +125,43 @@ export async function fetchScheduleActivities(
 ): Promise<Activity[]> {
   try {
     // Determine date range for schedule entries
-    const start = filters.dateRangeStart 
-      ? new Date(filters.dateRangeStart) 
+    const start = filters.dateRangeStart
+      ? new Date(filters.dateRangeStart)
       : new Date();
     
     // Default to 30 days in the future if not specified
-    const end = filters.dateRangeEnd 
-      ? new Date(filters.dateRangeEnd) 
+    const end = filters.dateRangeEnd
+      ? new Date(filters.dateRangeEnd)
       : new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000);
     
     // Fetch schedule entries
     const entries = await ScheduleEntry.getAll(start, end);
     
     // Filter entries assigned to the user
-    const userEntries = entries.filter(entry => 
+    let userEntries = entries.filter(entry =>
       entry.assigned_user_ids.includes(userId)
     );
+    
+    // Apply additional filters
+    if (filters.isClosed === false) {
+      userEntries = userEntries.filter(entry => entry.status !== 'closed');
+    }
+    
+    if (filters.isRecurring !== undefined) {
+      userEntries = userEntries.filter(entry => entry.is_recurring === filters.isRecurring);
+    }
+    
+    if (filters.workItemType) {
+      userEntries = userEntries.filter(entry => entry.work_item_type === filters.workItemType);
+    }
+    
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase();
+      userEntries = userEntries.filter(entry =>
+        (entry.title && entry.title.toLowerCase().includes(searchTerm)) ||
+        (entry.notes && entry.notes.toLowerCase().includes(searchTerm))
+      );
+    }
     
     // Convert to activities
     return userEntries.map(entry => scheduleEntryToActivity(entry));
@@ -206,8 +227,9 @@ export async function fetchProjectActivities(
             });
         });
       })
-      // Apply status filter if provided
+      // Apply filters
       .modify(function(queryBuilder) {
+        // Apply status filter if provided
         if (filters.status && filters.status.length > 0) {
           queryBuilder.whereIn("project_tasks.project_status_mapping_id", function() {
             this.select("project_status_mappings.project_status_mapping_id")
@@ -231,7 +253,8 @@ export async function fetchProjectActivities(
         }
         
         // Apply closed filter if provided
-        if (filters.isClosed !== undefined) {
+        if (filters.isClosed === false) {
+          // If isClosed is false, only show open tasks
           queryBuilder.whereIn("project_tasks.project_status_mapping_id", function() {
             this.select("project_status_mappings.project_status_mapping_id")
               .from("project_status_mappings")
@@ -240,7 +263,38 @@ export async function fetchProjectActivities(
                     .andOn("project_status_mappings.tenant", "standard_statuses.tenant");
               })
               .where("project_status_mappings.tenant", tenant)
-              .where("standard_statuses.is_closed", filters.isClosed);
+              .where("standard_statuses.is_closed", false);
+          });
+        }
+        
+        // Apply project filter if provided
+        if (filters.projectId) {
+          queryBuilder.whereExists(function() {
+            this.select(db.raw(1))
+              .from("project_phases")
+              .whereRaw("project_phases.phase_id = project_tasks.phase_id")
+              .andWhere("project_phases.tenant", tenant)
+              .andWhere("project_phases.project_id", filters.projectId);
+          });
+        }
+        
+        // Apply phase filter if provided
+        if (filters.phaseId) {
+          queryBuilder.where("project_tasks.phase_id", filters.phaseId);
+        }
+        
+        // Apply priority filter if provided
+        if (filters.priority && filters.priority.length > 0) {
+          // Map priority values to database values if needed
+          queryBuilder.whereIn("project_tasks.priority", filters.priority);
+        }
+        
+        // Apply search filter if provided
+        if (filters.search) {
+          const searchTerm = `%${filters.search}%`;
+          queryBuilder.where(function() {
+            this.where("project_tasks.task_name", 'ilike', searchTerm)
+              .orWhere("project_tasks.description", 'ilike', searchTerm);
           });
         }
       });
@@ -358,10 +412,12 @@ export async function fetchTicketActivities(
           queryBuilder.where("tickets.due_date", "<=", toPlainDate(filters.dueDateEnd));
         }
 
-        // Closed filter (existing)
-        if (filters.isClosed !== undefined) {
-          queryBuilder.where("statuses.is_closed", filters.isClosed);
+        // Closed filter
+        if (filters.isClosed === false) {
+          // If isClosed is false, only show open tickets
+          queryBuilder.where("statuses.is_closed", false);
         }
+        // If isClosed is true, show all tickets (both open and closed)
 
         // Company filter
         if (filters.companyId) {
@@ -586,6 +642,20 @@ export async function fetchWorkflowTaskActivities(
           } else {
             queryBuilder.whereNotIn("wt.status", ["completed", "cancelled"]);
           }
+        }
+        
+        // Apply execution ID filter if provided
+        if (filters.executionId) {
+          queryBuilder.where("wt.execution_id", filters.executionId);
+        }
+        
+        // Apply search filter if provided
+        if (filters.search) {
+          const searchTerm = `%${filters.search}%`;
+          queryBuilder.where(function() {
+            this.where("wt.title", 'ilike', searchTerm)
+              .orWhere("wt.description", 'ilike', searchTerm);
+          });
         }
       });
     

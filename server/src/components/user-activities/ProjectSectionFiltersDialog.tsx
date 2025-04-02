@@ -15,52 +15,71 @@ import { Label } from '../ui/Label';
 import { Input } from '../ui/Input';
 import { DateRangePicker } from '../ui/DateRangePicker';
 import { ActivityFilters, ActivityPriority } from '../../interfaces/activity.interfaces';
-import { IStatus } from '../../interfaces/status.interface';
-import { ICompany } from '../../interfaces/company.interfaces';
-import { IContact } from '../../interfaces/contact.interfaces';
-import { DateRange } from 'react-day-picker';
 import { ISO8601String } from '@shared/types/temporal';
-import { CompanyPicker } from '../companies/CompanyPicker';
-import { ContactPicker } from '../contacts/ContactPicker';
 import CustomSelect from '../ui/CustomSelect';
+import { IProject, IProjectPhase } from '../../interfaces/project.interfaces';
 
-interface TicketSectionFiltersDialogProps {
+interface ProjectSectionFiltersDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   initialFilters: Partial<ActivityFilters>;
   onApplyFilters: (filters: Partial<ActivityFilters>) => void;
-  companies: ICompany[];
-  contacts: IContact[];
-  statuses: IStatus[];
+  projects: IProject[];
+  phases: IProjectPhase[];
 }
 
-export function TicketSectionFiltersDialog({
+export function ProjectSectionFiltersDialog({
   isOpen,
   onOpenChange,
   initialFilters,
   onApplyFilters,
-  companies = [],
-  contacts = [],
-  statuses = [],
-}: TicketSectionFiltersDialogProps) {
-  // Local state excluding status, which is handled separately
-  const [localFilters, setLocalFilters] = useState<Omit<Partial<ActivityFilters>, 'status'>>(() => {
-    const { status, ...rest } = initialFilters;
+  projects = [],
+  phases = [],
+}: ProjectSectionFiltersDialogProps) {
+  // Local state excluding projectId and phaseId, which are handled separately
+  const [localFilters, setLocalFilters] = useState<Omit<Partial<ActivityFilters>, 'projectId' | 'phaseId'>>(() => {
+    const { projectId, phaseId, ...rest } = initialFilters;
     return rest;
   });
-  // Separate state for the single-select status dropdown
-  const [selectedStatus, setSelectedStatus] = useState<string>(initialFilters.status?.[0] || 'all');
-
-  const [companyFilterState, setCompanyFilterState] = useState<'all' | 'active' | 'inactive'>('active');
-  const [companyClientTypeFilter, setCompanyClientTypeFilter] = useState<'all' | 'company' | 'individual'>('all');
-
-  // Sync local state when initial filters change from parent
-  useEffect(() => {
-    const { status, ...rest } = initialFilters;
-    setLocalFilters(rest);
-    setSelectedStatus(status?.[0] || 'all');
-  }, [initialFilters]);
-
+  
+  // Separate state for the single-select project and phase dropdowns
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(initialFilters.projectId || 'all');
+  const [selectedPhaseId, setSelectedPhaseId] = useState<string>(initialFilters.phaseId || 'all');
+  
+  // State for project phases
+  const [projectPhases, setProjectPhases] = useState<IProjectPhase[]>([]);
+  const [loadingPhases, setLoadingPhases] = useState<boolean>(false);
+// Sync local state when initial filters change from parent
+useEffect(() => {
+  const { projectId, phaseId, ...rest } = initialFilters;
+  setLocalFilters(rest);
+  setSelectedProjectId(projectId || 'all');
+  setSelectedPhaseId(phaseId || 'all');
+}, [initialFilters]);
+// Load phases when a project is selected
+useEffect(() => {
+  async function loadProjectPhases() {
+    if (selectedProjectId && selectedProjectId !== 'all') {
+      try {
+        setLoadingPhases(true);
+        // Use getProjectDetails to get phases for the selected project
+        const { getProjectDetails } = await import('../../lib/actions/project-actions/projectActions');
+        const projectDetails = await getProjectDetails(selectedProjectId);
+        setProjectPhases(projectDetails.phases);
+      } catch (error) {
+        console.error('Error loading project phases:', error);
+        setProjectPhases([]);
+      } finally {
+        setLoadingPhases(false);
+      }
+    } else {
+      setProjectPhases([]);
+      setSelectedPhaseId('all');
+    }
+  }
+  
+  loadProjectPhases();
+}, [selectedProjectId]);
   const toggleArrayFilter = <K extends keyof ActivityFilters>(
     key: K,
     value: string,
@@ -87,7 +106,7 @@ export function TicketSectionFiltersDialog({
     return currentValues.includes(value);
   };
 
-  const handleSingleFilterChange = <K extends keyof Omit<ActivityFilters, 'status' | 'priority'>>( // Exclude array types
+  const handleSingleFilterChange = <K extends keyof Omit<ActivityFilters, 'projectId' | 'phaseId' | 'priority'>>( // Exclude array types
     key: K,
     value: string | null | undefined
   ) => {
@@ -96,7 +115,6 @@ export function TicketSectionFiltersDialog({
       [key]: value || undefined
     }));
   };
-
 
   const handleDateChange = (range: { from: string; to: string }) => {
     const startDate = range.from ? new Date(range.from + 'T00:00:00Z') : undefined;
@@ -107,7 +125,6 @@ export function TicketSectionFiltersDialog({
         effectiveStartDate.setUTCHours(0, 0, 0, 0);
     }
 
-
     setLocalFilters((prev) => ({
       ...prev,
       dueDateStart: effectiveStartDate?.toISOString() as ISO8601String | undefined,
@@ -116,101 +133,86 @@ export function TicketSectionFiltersDialog({
   };
 
   const handleApply = () => {
-    // Construct the final filters object, converting single status back to array
+    // Construct the final filters object
     const filtersToApply: Partial<ActivityFilters> = {
         ...localFilters,
-        status: selectedStatus && selectedStatus !== 'all' ? [selectedStatus] : undefined,
+        projectId: selectedProjectId !== 'all' ? selectedProjectId : undefined,
+        phaseId: selectedPhaseId !== 'all' ? selectedPhaseId : undefined,
     };
 
     if (filtersToApply.priority?.length === 0) delete filtersToApply.priority;
-    if (!filtersToApply.companyId) delete filtersToApply.companyId;
-    if (!filtersToApply.contactId) delete filtersToApply.contactId;
-    if (!filtersToApply.status) delete filtersToApply.status; // Remove if undefined/empty array
+    if (!filtersToApply.projectId) delete filtersToApply.projectId;
+    if (!filtersToApply.phaseId) delete filtersToApply.phaseId;
 
     onApplyFilters(filtersToApply);
     onOpenChange(false);
   };
 
   const handleClear = () => {
-    const clearedFilters: Omit<Partial<ActivityFilters>, 'status'> = {
+    const clearedFilters: Omit<Partial<ActivityFilters>, 'projectId' | 'phaseId'> = {
       priority: [],
       isClosed: undefined,
       dueDateStart: undefined,
       dueDateEnd: undefined,
-      companyId: undefined,
-      contactId: undefined,
-      // ticketNumber: undefined,
       search: undefined,
     };
     setLocalFilters(clearedFilters);
-    setSelectedStatus('all');
+    setSelectedProjectId('all');
+    setSelectedPhaseId('all');
   };
-
 
   return (
     <Dialog isOpen={isOpen} onClose={() => onOpenChange(false)}>
       <DialogContent className="sm:max-w-[700]">
         <DialogHeader>
-          <DialogTitle>Filter Tickets</DialogTitle>
+          <DialogTitle>Filter Project Tasks</DialogTitle>
            <DialogDescription>
-             Select criteria to filter ticket activities.
+             Select criteria to filter project task activities.
            </DialogDescription>
         </DialogHeader>
         <div className="py-2 space-y-4">
 
           {/* Search Filter */}
           <div className="space-y-1">
-            <Label htmlFor="ticket-search" className="text-base font-semibold">Search</Label>
+            <Label htmlFor="project-search" className="text-base font-semibold">Search</Label>
             <Input
-              id="ticket-search"
+              id="project-search"
               value={localFilters.search || ''}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSingleFilterChange('search', e.target.value)}
-              placeholder="Search title, description, ticket #"
+              placeholder="Search title, description"
             />
           </div>
 
-
-          {/* Company, Contact, and Status Filters */}
+          {/* Project and Phase Filters */}
           <div className="grid grid-cols-2 gap-x-6 gap-y-0">
             <div className="space-y-1">
-              <Label htmlFor="ticket-company-picker" className="text-base font-semibold">Company</Label>
-              <CompanyPicker
-                id="ticket-company-picker"
-                companies={companies}
-                selectedCompanyId={localFilters.companyId || null}
-                onSelect={(companyId: string | null) => handleSingleFilterChange('companyId', companyId)}
-                filterState={companyFilterState}
-                onFilterStateChange={setCompanyFilterState}
-                clientTypeFilter={companyClientTypeFilter}
-                onClientTypeFilterChange={setCompanyClientTypeFilter}
-                fitContent={false}
-              />
-            </div>
-             <div className="space-y-1">
-              <Label htmlFor="ticket-contact-picker" className="text-base font-semibold">Contact</Label>
-              <ContactPicker
-                id="ticket-contact-picker"
-                contacts={contacts}
-                value={localFilters.contactId || ''}
-                onValueChange={(contactId: string) => handleSingleFilterChange('contactId', contactId)}
-                companyId={localFilters.companyId}
-                buttonWidth="full"
-              />
-            </div>
-            {/* Status Filter */}
-            <div className="space-y-1">
-              <Label htmlFor="ticket-status-select" className="text-base font-semibold">Status</Label>
+              <Label htmlFor="project-select" className="text-base font-semibold">Project</Label>
               <CustomSelect
-                id="ticket-status-select"
-                value={selectedStatus}
-                onValueChange={(value) => setSelectedStatus(value)}
+                id="project-select"
+                value={selectedProjectId}
+                onValueChange={(value) => {
+                  setSelectedProjectId(value);
+                  setSelectedPhaseId('all');
+                }}
                 options={[
-                  { value: 'all', label: 'All Statuses' },
-                  ...statuses
-                      .filter(s => !s.is_closed)
-                      .map(status => ({ value: status.status_id, label: status.name }))
+                  { value: 'all', label: 'All Projects' },
+                  ...projects.map(project => ({ value: project.project_id, label: project.project_name }))
                 ]}
-                placeholder="Select Status..."
+                placeholder="Select Project..."
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="phase-select" className="text-base font-semibold">Phase</Label>
+              <CustomSelect
+                id="phase-select"
+                value={selectedPhaseId}
+                onValueChange={(value) => setSelectedPhaseId(value)}
+                options={[
+                  { value: 'all', label: 'All Phases' },
+                  ...projectPhases.map(phase => ({ value: phase.phase_id, label: phase.phase_name }))
+                ]}
+                placeholder={loadingPhases ? "Loading phases..." : selectedProjectId ? "Select Phase..." : "Select a project first"}
+                disabled={!selectedProjectId || loadingPhases}
               />
             </div>
           </div>
@@ -237,7 +239,7 @@ export function TicketSectionFiltersDialog({
 
           {/* Due Date Range */}
           <div className="space-y-1">
-             <Label htmlFor="ticket-due-date-range" className="text-base font-semibold">Due Date Range</Label>
+             <Label htmlFor="project-due-date-range" className="text-base font-semibold">Due Date Range</Label>
              <DateRangePicker
                 value={{
                     from: localFilters.dueDateStart ? localFilters.dueDateStart.split('T')[0] : '',
@@ -247,11 +249,11 @@ export function TicketSectionFiltersDialog({
              />
           </div>
 
-          {/* Show Closed Tickets Filter */}
+          {/* Show Closed Tasks Filter */}
           <div className="pt-2">
              <Checkbox
-                id="show-closed-tickets"
-                label="Show Closed Tickets"
+                id="show-closed-tasks"
+                label="Show Closed Tasks"
                 checked={localFilters.isClosed}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalFilters(prev => ({ ...prev, isClosed: e.target.checked }))}
               />
@@ -260,10 +262,10 @@ export function TicketSectionFiltersDialog({
         </div>
         <DialogFooter>
            <div className="flex justify-between w-full">
-             <Button id="ticket-filter-clear" variant="outline" onClick={handleClear}>Clear Filters</Button>
+             <Button id="project-filter-clear" variant="outline" onClick={handleClear}>Clear Filters</Button>
              <div>
-               <Button id="ticket-filter-cancel" variant="ghost" className="mr-2" onClick={() => onOpenChange(false)}>Cancel</Button>
-               <Button id="ticket-filter-apply" onClick={handleApply}>Apply Filters</Button>
+               <Button id="project-filter-cancel" variant="ghost" className="mr-2" onClick={() => onOpenChange(false)}>Cancel</Button>
+               <Button id="project-filter-apply" onClick={handleApply}>Apply Filters</Button>
              </div>
            </div>
         </DialogFooter>

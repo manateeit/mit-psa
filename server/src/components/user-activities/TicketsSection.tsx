@@ -12,7 +12,7 @@ import { getAllContacts } from '../../lib/actions/contact-actions/contactActions
 import { getTicketStatuses } from '../../lib/actions/status-actions/statusActions';
 import { ActivityDetailsDrawer } from './ActivityDetailsDrawer';
 import { TicketSectionFiltersDialog } from './TicketSectionFiltersDialog';
-import { Filter, X } from 'lucide-react';
+import { Filter, XCircleIcon } from 'lucide-react';
 interface TicketsSectionProps {
   limit?: number;
   onViewAll?: () => void;
@@ -150,7 +150,7 @@ export function TicketsSection({ limit = 5, onViewAll }: TicketsSectionProps) {
         <div className="flex items-center gap-2">
           <Button
             id="refresh-tickets-button"
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={handleRefresh}
             disabled={loading}
@@ -161,19 +161,19 @@ export function TicketsSection({ limit = 5, onViewAll }: TicketsSectionProps) {
           {isFiltersActive() ? (
              <Button
                id="reset-ticket-filters-button"
-               variant="ghost"
+               variant="outline"
                size="sm"
                onClick={handleResetFilters}
                disabled={loading}
-               aria-label="Reset Filters"
-               className="text-red-600 hover:text-red-700"
+               className="gap-1"
              >
-               <X size={16} className="mr-1" /> Reset Filters
-             </Button>
+              <XCircleIcon className="h-4 w-4" />
+              Reset Filters
+            </Button>
            ) : (
              <Button
                id="filter-tickets-button"
-               variant="ghost"
+               variant="outline"
                size="sm"
                onClick={() => setIsFilterDialogOpen(true)}
                disabled={filterDataLoading || loading}
@@ -184,7 +184,7 @@ export function TicketsSection({ limit = 5, onViewAll }: TicketsSectionProps) {
            )}
           <Button 
             id="view-all-tickets-button"
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={onViewAll}
           >

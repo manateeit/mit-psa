@@ -11,7 +11,7 @@ import { RefreshCw, Filter } from 'lucide-react';
 import { fetchActivities } from '../../lib/actions/activity-actions/activityServerActions';
 import { ActivityDetailsDrawer } from './ActivityDetailsDrawer';
 import { ActivitiesDataTable } from './ActivitiesDataTable';
-import { ActivityFilters as ActivityFiltersComponent, ActivityFiltersRef } from './ActivityFilters';
+import { ActivitiesTableFilters, ActivitiesTableFiltersRef } from './ActivitiesTableFilters';
 
 interface ActivitiesDataTableSectionProps {
   title?: string;
@@ -29,7 +29,7 @@ export function ActivitiesDataTableSection({
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ActivityFilters>(initialFilters);
-  const filtersRef = useRef<ActivityFiltersRef>(null); // Create ref for ActivityFilters
+  const filtersRef = useRef<ActivitiesTableFiltersRef>(null); // Create ref for ActivitiesTableFilters
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -126,9 +126,9 @@ export function ActivitiesDataTableSection({
         </div>
       </CardHeader>
       <CardContent>
-        {/* Render ActivityFilters always, pass the ref */}
+        {/* Render ActivitiesTableFilters always, pass the ref */}
         {/* Visibility is handled internally by its Dialog */}
-        <ActivityFiltersComponent
+        <ActivitiesTableFilters
           ref={filtersRef}
           filters={filters}
           onChange={handleFilterChange}
