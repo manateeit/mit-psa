@@ -9,4 +9,6 @@ RUN touch /etc/pgbouncer/userlist.txt && \
     echo '"app_user" "DB_PASSWORD_SERVER_PLACEHOLDER"' >> /etc/pgbouncer/userlist.txt && \
     chmod 600 /etc/pgbouncer/userlist.txt # Ownership will be set in entrypoint if needed
 
+USER root
+
 ENTRYPOINT ["/entrypoint.sh"]

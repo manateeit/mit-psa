@@ -14,10 +14,6 @@ DB_PASSWORD_SERVER_ESC=$(echo "$DB_PASSWORD_SERVER" | sed -e 's/[\/&]/\\&/g')
 sed -i "s#POSTGRES_PASSWORD_PLACEHOLDER#$POSTGRES_PASSWORD_ESC#g" /etc/pgbouncer/userlist.txt
 sed -i "s#DB_PASSWORD_SERVER_PLACEHOLDER#$DB_PASSWORD_SERVER_ESC#g" /etc/pgbouncer/userlist.txt
 
-# Ensure proper ownership if running as root (permissions set during build)
-if [ "$(id -u)" = "0" ]; then
-  chown pgbouncer:pgbouncer /etc/pgbouncer/userlist.txt
-fi
-
 # Start pgbouncer
-exec pgbouncer /etc/pgbouncer/pgbouncer.ini
+# Use standard su to switch user (target user is 'postgres' based on whoami)
+exec su -s /bin/sh -c 'pgbouncer /etc/pgbouncer/pgbouncer.ini' postgres
