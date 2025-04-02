@@ -325,6 +325,30 @@ export async function fetchDashboardWorkflowTasks(
       isClosed: filters.isClosed !== undefined ? filters.isClosed : false
     };
     
+    // Apply search filter if provided
+    if (filters.search) {
+      dashboardFilters.search = filters.search;
+    }
+    
+    // Apply due date filters if provided
+    if (filters.dueDateStart) {
+      dashboardFilters.dueDateStart = filters.dueDateStart;
+    }
+    
+    if (filters.dueDateEnd) {
+      dashboardFilters.dueDateEnd = filters.dueDateEnd;
+    }
+    
+    // Apply workflow execution filter if provided
+    if (filters.executionId) {
+      dashboardFilters.executionId = filters.executionId;
+    }
+    
+    // Apply priority filter if provided
+    if (filters.priority && filters.priority.length > 0) {
+      dashboardFilters.priority = filters.priority;
+    }
+    
     // Fetch workflow tasks for the user
     const tasks = await fetchWorkflowTaskActivities(user.user_id, dashboardFilters) as WorkflowTaskActivity[];
     

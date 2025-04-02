@@ -7,7 +7,7 @@ import {
 } from '../../interfaces/activity.interfaces';
 import { fetchWorkflowTaskActivities } from '../../lib/actions/activity-actions/activityServerActions';
 import { ActivitiesDataTable } from './ActivitiesDataTable';
-import { ActivityFilters as ActivityFiltersComponent } from './ActivityFilters';
+import { ActivitiesTableFilters } from './ActivitiesTableFilters';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
@@ -215,7 +215,7 @@ export function WorkflowTaskListDrawer({ onSelectTask }: WorkflowTaskListDrawerP
         {/* Filters */}
         {showFilters && (
           <div className="border rounded-md p-4 bg-gray-50">
-            <ActivityFiltersComponent 
+            <ActivitiesTableFilters 
               filters={filters}
               onChange={handleFilterChange}
             />
