@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react'; // Import useRef
 import { 
   Activity, 
   ActivityFilters, 
@@ -10,7 +10,7 @@ import { RefreshCw, Filter } from 'lucide-react';
 import { fetchActivities } from '../../lib/actions/activity-actions/activityServerActions';
 import { ActivityDetailsDrawer } from './ActivityDetailsDrawer';
 import { ActivitiesDataTable } from './ActivitiesDataTable';
-import { ActivityFilters as ActivityFiltersComponent } from './ActivityFilters';
+import { ActivityFilters as ActivityFiltersComponent, ActivityFiltersRef } from './ActivityFilters'; // Import ActivityFiltersRef
 
 interface ActivitiesDataTableSectionProps {
   title?: string;
@@ -28,7 +28,8 @@ export function ActivitiesDataTableSection({
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ActivityFilters>(initialFilters);
-  const [showFilters, setShowFilters] = useState(false);
+  // Removed showFilters state
+  const filtersRef = useRef<ActivityFiltersRef>(null); // Create ref for ActivityFilters
 
   useEffect(() => {
     loadActivities();
@@ -80,9 +81,7 @@ export function ActivitiesDataTableSection({
     }));
   };
 
-  const handleToggleFilters = () => {
-    setShowFilters(!showFilters);
-  };
+  // Removed handleToggleFilters function
 
   return (
     <Card id={id}>
@@ -93,7 +92,7 @@ export function ActivitiesDataTableSection({
             id={`${id}-filter-button`} 
             variant="outline" 
             size="sm"
-            onClick={handleToggleFilters}
+            onClick={() => filtersRef.current?.openDialog()} // Call openDialog via ref
           >
             <Filter className="h-4 w-4 mr-2" />
             Filters
@@ -111,15 +110,13 @@ export function ActivitiesDataTableSection({
         </div>
       </CardHeader>
       <CardContent>
-        {showFilters && (
-          <div className="mb-4">
-            <ActivityFiltersComponent
-              filters={filters}
-              onChange={handleFilterChange}
-            />
-          </div>
-        )}
-        
+        {/* Render ActivityFilters always, pass the ref */}
+        {/* Visibility is handled internally by its Dialog */}
+        <ActivityFiltersComponent
+          ref={filtersRef}
+          filters={filters}
+          onChange={handleFilterChange}
+        />
         {loading ? (
           <div className="flex justify-center items-center h-40">
             <p className="text-gray-500">Loading activities...</p>

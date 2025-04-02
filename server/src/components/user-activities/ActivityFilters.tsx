@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { 
+import React, { useState, useImperativeHandle, forwardRef } from 'react';
+import {
   ActivityFilters as ActivityFiltersType,
   ActivityPriority,
   ActivityType
@@ -8,93 +8,94 @@ import { Button } from '../ui/Button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/Dialog';
 import { Label } from '../ui/Label';
 import { Checkbox } from '../ui/Checkbox';
-import { Filter } from 'lucide-react';
 import { DateRangePicker } from '../ui/DateRangePicker';
-import { Input } from '../ui/Input';
 
 interface ActivityFiltersProps {
   filters: ActivityFiltersType;
   onChange: (filters: ActivityFiltersType) => void;
 }
 
-export function ActivityFilters({ filters, onChange }: ActivityFiltersProps) {
-  const [open, setOpen] = useState(false);
-  const [localFilters, setLocalFilters] = useState<ActivityFiltersType>(filters);
+export interface ActivityFiltersRef {
+  openDialog: () => void;
+}
 
-  // Reset filters to initial state
-  const handleReset = () => {
-    const resetFilters: ActivityFiltersType = {
-      types: [],
-      status: [],
-      priority: [],
-      assignedTo: [],
-      isClosed: false
-    };
-    setLocalFilters(resetFilters);
-  };
+export const ActivityFilters = forwardRef<ActivityFiltersRef, ActivityFiltersProps>(
+  ({ filters, onChange }, ref) => {
+    const [open, setOpen] = useState(false);
+    const [localFilters, setLocalFilters] = useState<ActivityFiltersType>(filters);
 
-  // Apply filters and close dialog
-  const handleApply = () => {
-    onChange(localFilters);
-    setOpen(false);
-  };
-
-  // Update local filters state
-  const handleFilterChange = <K extends keyof ActivityFiltersType>(
-    key: K, 
-    value: ActivityFiltersType[K]
-  ) => {
-    setLocalFilters(prev => ({
-      ...prev,
-      [key]: value
+    // Expose openDialog function via ref
+    useImperativeHandle(ref, () => ({
+      openDialog: () => {
+        setLocalFilters(filters); // Ensure local state is synced with parent on open
+        setOpen(true);
+      }
     }));
-  };
 
-  // Toggle a value in an array filter
-  const toggleArrayFilter = <T extends string>(
-    key: keyof ActivityFiltersType,
-    value: T,
-    currentValues: T[] = []
-  ) => {
-    const newValues = [...currentValues];
-    const index = newValues.indexOf(value);
-    
-    if (index >= 0) {
-      newValues.splice(index, 1);
-    } else {
-      newValues.push(value);
-    }
-    
-    handleFilterChange(key, newValues as any);
-  };
+    // Reset filters to initial state
+    const handleReset = () => {
+      const resetFilters: ActivityFiltersType = {
+        types: [],
+        status: [],
+        priority: [],
+        assignedTo: [],
+        isClosed: false
+      };
+      setLocalFilters(resetFilters);
+      // Optionally apply immediately or wait for Apply button
+      // onChange(resetFilters); 
+    };
 
-  // Check if a value is selected in an array filter
-  const isSelected = <T extends string>(
-    value: T,
-    currentValues: T[] = []
-  ): boolean => {
-    return currentValues.includes(value);
-  };
+    // Apply filters and close dialog
+    const handleApply = () => {
+      onChange(localFilters);
+      setOpen(false);
+    };
 
-  return (
-    <>
-      <Button 
-        id="activity-filters-button" 
-        variant="outline" 
-        size="sm"
-        onClick={() => setOpen(true)}
-      >
-        <Filter className="h-4 w-4 mr-2" />
-        Filters
-        {Object.values(localFilters).some(val => 
-          Array.isArray(val) ? val.length > 0 : Boolean(val)
-        ) && (
-          <span className="ml-1 rounded-full bg-primary w-2 h-2" />
-        )}
-      </Button>
+    // Update local filters state
+    const handleFilterChange = <K extends keyof ActivityFiltersType>(
+      key: K,
+      value: ActivityFiltersType[K]
+    ) => {
+      setLocalFilters(prev => ({
+        ...prev,
+        [key]: value
+      }));
+    };
 
+    // Toggle a value in an array filter
+    const toggleArrayFilter = <T extends string>(
+      key: keyof ActivityFiltersType,
+      value: T,
+      currentValues: T[] = []
+    ) => {
+      const newValues = [...currentValues];
+      const index = newValues.indexOf(value);
+
+      if (index >= 0) {
+        newValues.splice(index, 1);
+      } else {
+        newValues.push(value);
+      }
+
+      handleFilterChange(key, newValues as any);
+    };
+
+    // Check if a value is selected in an array filter
+    const isSelected = <T extends string>(
+      value: T,
+      currentValues: T[] = []
+    ): boolean => {
+      return currentValues.includes(value);
+    };
+
+    return (
+      // Pass isOpen and onClose to Dialog for controlled state
       <Dialog isOpen={open} onClose={() => setOpen(false)}>
+        {/* Trigger button is now removed from here and placed in the parent */}
+        {/* DialogContent is always rendered, Dialog controls visibility */}
         <DialogContent className="sm:max-w-[425px]">
+          {/* Removed onInteractOutside and onEscapeKeyDown */}
           <DialogHeader>
             <DialogTitle>Filter Activities</DialogTitle>
             <DialogDescription>
@@ -125,7 +126,7 @@ export function ActivityFilters({ filters, onChange }: ActivityFiltersProps) {
                 ))}
               </div>
             </div>
-            
+
             {/* Priority Filter */}
             <div className="space-y-2">
               <Label htmlFor="priority">Priority</Label>
@@ -146,7 +147,7 @@ export function ActivityFilters({ filters, onChange }: ActivityFiltersProps) {
                 ))}
               </div>
             </div>
-            
+
             {/* Date Range Filter */}
             <div className="space-y-2">
               <Label>Due Date Range</Label>
@@ -161,14 +162,17 @@ export function ActivityFilters({ filters, onChange }: ActivityFiltersProps) {
                 }}
               />
             </div>
-            
+
             {/* Show Closed Activities */}
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="show-closed"
                 checked={localFilters.isClosed}
-                onChange={(e) =>
-                  handleFilterChange('isClosed', e.target.checked)
+                onChange={(e) => {
+                    // Correctly access checked status for Shadcn Checkbox
+                    const isChecked = typeof e === 'boolean' ? e : (e.target as HTMLInputElement).checked;
+                    handleFilterChange('isClosed', isChecked);
+                  }
                 }
               />
               <Label htmlFor="show-closed">Show closed activities</Label>
@@ -187,15 +191,17 @@ export function ActivityFilters({ filters, onChange }: ActivityFiltersProps) {
               </Button>
               <Button
                 id="apply-filters-button"
-                type="submit"
+                type="button" 
                 onClick={handleApply}
               >
                 Apply Filters
               </Button>
             </div>
           </DialogFooter>
-        </DialogContent>
+          </DialogContent>
       </Dialog>
-    </>
-  );
-}
+    );
+  }
+);
+
+ActivityFilters.displayName = 'ActivityFilters'; // Add display name for DevTools
