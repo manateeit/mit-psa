@@ -3,86 +3,102 @@
  * @returns { Promise<void> }
  */
 exports.up = async function(knex) {
-  // Define dependent tables and their FK constraint names 
-  // We're using the ACTUAL constraint names as they exist in the database
+  // Define dependent tables and their CORRECT FK constraint names
   const dependents = [
-    { table: 'plan_service_fixed_config', constraint: 'plan_service_fixed_config_config_id_foreign' },
-    { table: 'plan_service_hourly_config', constraint: 'plan_service_hourly_config_config_id_foreign' }, // Note: This table might not exist yet when this runs first time, handle potential error
-    { table: 'plan_service_usage_config', constraint: 'plan_service_usage_config_config_id_foreign' },
-    { table: 'plan_service_bucket_config', constraint: 'plan_service_bucket_config_config_id_foreign' },
-    { table: 'plan_service_rate_tiers', constraint: 'plan_service_rate_tiers_config_id_foreign' },
-    // Add user_type_rates if it also depends directly on plan_service_configuration PK (check its migration)
-    // Based on 20250318200000 migration, user_type_rates depends on plan_service_hourly_config, so it's indirectly handled.
+    { table: 'plan_service_fixed_config', constraint: 'plan_service_fixed_config_tenant_config_id_foreign' },
+    { table: 'plan_service_hourly_config', constraint: 'pshc_tenant_config_id_fk' },
+    { table: 'plan_service_usage_config', constraint: 'psuc_tenant_config_id_fk' },
+    { table: 'plan_service_bucket_config', constraint: 'psbc_tenant_config_id_fk' },
+    { table: 'plan_service_rate_tiers', constraint: 'psrt_tenant_config_id_fk' },
   ];
 
-  // 1. Drop dependent foreign key constraints - using only config_id since that's what exists
-  for (const dep of dependents) {
-    const tableExists = await knex.schema.hasTable(dep.table);
-    if (tableExists) {
-        await knex.schema.alterTable(dep.table, function(table) {
-          try {
-            console.log(`Attempting to drop FK ${dep.constraint} on 'config_id' for table ${dep.table}`);
-            table.dropForeign('config_id', dep.constraint);
-            console.log(`Successfully dropped FK ${dep.constraint} on config_id for table ${dep.table}`);
-          } catch (e) {
-            // Log error but continue, it might be that the constraint doesn't exist
-            console.warn(`Could not drop FK constraint ${dep.constraint} on table ${dep.table}: ${e.message}. This might be okay if the constraint doesn't exist.`);
-          }
-        });
+  // Use a transaction for the entire cleanup and modification process
+  await knex.transaction(async (trx) => {
+    // 1. Dependent foreign keys will be dropped automatically via CASCADE when PK is dropped.
+    //    Manual dropping loop removed.
+
+    // 2. Drop the existing primary key constraint on plan_service_configuration
+    console.log("Checking for existing primary key on plan_service_configuration...");
+    const pkCheck = await trx.raw(`
+      SELECT c.conname AS constraint_name
+      FROM pg_constraint c
+      JOIN pg_class t ON c.conrelid = t.oid
+      WHERE c.contype = 'p'
+      AND t.relname = 'plan_service_configuration'
+      AND c.connamespace = (SELECT oid FROM pg_namespace WHERE nspname = current_schema())
+    `); // Added schema check
+
+    const pkName = (pkCheck.rows && pkCheck.rows.length > 0) ? pkCheck.rows[0].constraint_name : null;
+
+    if (pkName) {
+      console.log(`Found primary key constraint ${pkName}, dropping it`);
+      try {
+        // Use raw SQL with IF EXISTS for safety, referencing the found name
+        await trx.raw(`ALTER TABLE plan_service_configuration DROP CONSTRAINT IF EXISTS ?? CASCADE`, [pkName]); // Added CASCADE
+        console.log(`Successfully dropped primary key constraint ${pkName}`);
+      } catch (e) {
+         console.error(`CRITICAL ERROR dropping primary key constraint ${pkName}: ${e.message}`);
+         throw e; // Abort the transaction
+      }
     } else {
-        console.log(`Table ${dep.table} does not exist, skipping FK drop.`);
+      console.log("No primary key constraint found on plan_service_configuration or table doesn't exist.");
     }
-  }
 
-  // 2. Drop the existing primary key constraint on plan_service_configuration
-  await knex.schema.alterTable('plan_service_configuration', function(table) {
+    // 3. Add the new composite primary key
+    console.log("Adding new composite PK (tenant, config_id) named plan_service_configuration_comp_pkey");
     try {
-      console.log("Dropping old PK constraint plan_service_configuration_pkey");
-      table.dropPrimary('plan_service_configuration_pkey');
+      // Ensure table exists before adding PK
+      const tableExists = await trx.schema.hasTable('plan_service_configuration');
+      if (tableExists) {
+         // Check if PK already exists before trying to add
+         const newPkCheck = await trx.raw(`SELECT conname FROM pg_constraint WHERE conrelid = 'plan_service_configuration'::regclass AND contype = 'p'`);
+         if (newPkCheck.rows.length === 0) {
+            await trx.raw(`ALTER TABLE plan_service_configuration ADD CONSTRAINT plan_service_configuration_comp_pkey PRIMARY KEY (tenant, config_id)`);
+            console.log("Successfully added composite primary key plan_service_configuration_comp_pkey");
+         } else {
+            console.log(`Primary key ${newPkCheck.rows[0].conname} already exists, skipping add.`);
+         }
+      } else {
+         console.error("Cannot add PK, table plan_service_configuration does not exist.");
+         throw new Error("Table plan_service_configuration not found for adding PK.");
+      }
     } catch (e) {
-      console.error(`Error dropping PK constraint plan_service_configuration_pkey: ${e.message}. Manual check needed.`);
-      throw e;
+       console.error(`CRITICAL ERROR adding composite primary key: ${e.message}`);
+       throw e; // Abort the transaction
     }
-  });
 
-  // 3. Add the new composite primary key
-  await knex.schema.alterTable('plan_service_configuration', function(table) {
-    console.log("Adding new composite PK (tenant, config_id)");
-    table.primary(['tenant', 'config_id']);
-  });
+    // 4. Re-add the foreign key constraints using the correct names
+    console.log('Re-adding foreign key constraints...');
+    for (const dep of dependents) {
+      try {
+        const tableExists = await trx.schema.hasTable(dep.table);
+        if (tableExists) {
+           // Check if constraint already exists before adding
+           const fkExistsCheck = await trx.raw(`SELECT conname FROM pg_constraint WHERE conname = ? AND conrelid = ?::regclass`, [dep.constraint, dep.table]);
+           if (fkExistsCheck.rows.length === 0) {
+              console.log(`Re-adding constraint ${dep.constraint} to table ${dep.table}`);
+              await trx.raw(`
+                ALTER TABLE ??
+                ADD CONSTRAINT ??
+                FOREIGN KEY (tenant, config_id)
+                REFERENCES plan_service_configuration(tenant, config_id)
+                ON DELETE CASCADE
+              `, [dep.table, dep.constraint]); // Use correct constraint name from dependents array
+              console.log(`Successfully re-added FK ${dep.constraint} to ${dep.table}`);
+           } else {
+              console.log(`Constraint ${dep.constraint} already exists on ${dep.table}, skipping re-add.`);
+           }
+        } else {
+           console.log(`Table ${dep.table} does not exist, skipping FK re-add.`);
+        }
+      } catch (e) {
+        console.error(`CRITICAL ERROR re-adding constraint ${dep.constraint} to ${dep.table}: ${e.message}`);
+        throw e; // Abort the transaction
+      }
+    }
+    console.log('Finished re-adding foreign keys.');
 
-  // 4. Re-add the foreign key constraints as new composite keys
-  for (const dep of dependents) {
-     // Check if table exists before trying to add constraint (for plan_service_hourly_config case)
-     const tableExists = await knex.schema.hasTable(dep.table);
-     if (tableExists) {
-        // First, add tenant to the table if it doesn't exist (all tables should have tenant already)
-        await knex.schema.alterTable(dep.table, function(table) {
-            try {
-                console.log(`Adding composite FK constraint ${dep.constraint} on table ${dep.table}`);
-                table.foreign(['tenant', 'config_id'], dep.constraint) // Use original constraint name
-                     .references(['tenant', 'config_id'])
-                     .inTable('plan_service_configuration')
-                     .onDelete('CASCADE'); // Ensure CASCADE is reapplied if needed
-            } catch (e) {
-                console.error(`Failed to add composite FK to ${dep.table}: ${e.message}. Will try adding non-composite FK.`);
-                
-                // Fallback to non-composite FK if composite fails
-                try {
-                    console.log(`Re-adding original FK constraint ${dep.constraint} on table ${dep.table}`);
-                    table.foreign('config_id', dep.constraint)
-                         .references('config_id')
-                         .inTable('plan_service_configuration')
-                         .onDelete('CASCADE');
-                } catch (e2) {
-                    console.error(`Failed to re-add original FK to ${dep.table}: ${e2.message}. Manual fix required.`);
-                }
-            }
-        });
-     } else {
-         console.log(`Table ${dep.table} does not exist, skipping FK re-add.`);
-     }
-  }
+  }); // End transaction
 };
 
 /**
@@ -91,98 +107,86 @@ exports.up = async function(knex) {
  */
 exports.down = async function(knex) {
   // Reverse order of operations for rollback
+  console.log("Starting rollback for alter_plan_service_configuration_pk migration...");
 
   const dependents = [
-    { table: 'plan_service_fixed_config', constraint: 'plan_service_fixed_config_config_id_foreign' },
-    { table: 'plan_service_hourly_config', constraint: 'plan_service_hourly_config_config_id_foreign' },
-    { table: 'plan_service_usage_config', constraint: 'plan_service_usage_config_config_id_foreign' },
-    { table: 'plan_service_bucket_config', constraint: 'plan_service_bucket_config_config_id_foreign' },
-    { table: 'plan_service_rate_tiers', constraint: 'plan_service_rate_tiers_config_id_foreign' },
+    { table: 'plan_service_fixed_config', constraint: 'plan_service_fixed_config_tenant_config_id_foreign' },
+    { table: 'plan_service_hourly_config', constraint: 'pshc_tenant_config_id_fk' },
+    { table: 'plan_service_usage_config', constraint: 'psuc_tenant_config_id_fk' },
+    { table: 'plan_service_bucket_config', constraint: 'psbc_tenant_config_id_fk' },
+    { table: 'plan_service_rate_tiers', constraint: 'psrt_tenant_config_id_fk' },
   ];
 
-  // 1. Drop the foreign key constraints
-  for (const dep of dependents) {
-     const tableExists = await knex.schema.hasTable(dep.table);
-     if (tableExists) {
-        // Try dropping composite FK first with and without constraint name
-        await knex.schema.alterTable(dep.table, function(table) {
-          try {
-            console.log(`Rolling back: Dropping composite FK on ${dep.table}`);
-            table.dropForeign(['tenant', 'config_id']);
-          } catch (e) {
-            console.warn(`Error dropping unnamed composite FK on ${dep.table} during rollback: ${e.message}`);
-          }
-        });
-        
-        await knex.schema.alterTable(dep.table, function(table) {
-          try {
-            console.log(`Rolling back: Dropping named FK ${dep.constraint} on ${dep.table}`);
-            table.dropForeign(['tenant', 'config_id'], dep.constraint);
-          } catch (e) {
-            console.warn(`Error dropping named composite FK ${dep.constraint} on ${dep.table} during rollback: ${e.message}`);
-          }
-        });
-        
-        // Also try dropping by single column config_id
-        await knex.schema.alterTable(dep.table, function(table) {
-          try {
-            console.log(`Rolling back: Dropping FK on config_id for ${dep.table}`);
-            table.dropForeign('config_id');
-          } catch (e) {
-            console.warn(`Error dropping FK on config_id for ${dep.table} during rollback: ${e.message}`);
-          }
-        });
-     }
-  }
+  await knex.transaction(async (trx) => {
+    // 1. Drop the foreign key constraints added in the 'up' migration
+    console.log("Rolling back: Dropping foreign key constraints...");
+    for (const dep of dependents) {
+      try {
+        const tableExists = await trx.schema.hasTable(dep.table);
+        if (tableExists) {
+          console.log(`Rolling back: Dropping constraint ${dep.constraint} on ${dep.table} IF EXISTS`);
+          await trx.raw(`ALTER TABLE ?? DROP CONSTRAINT IF EXISTS ??`, [dep.table, dep.constraint]);
+        } else {
+           console.log(`Table ${dep.table} does not exist, skipping constraint drop during rollback.`);
+        }
+      } catch (e) {
+        console.warn(`Warning during rollback: Error dropping constraint ${dep.constraint} on ${dep.table}: ${e.message}. Continuing rollback.`);
+      }
+    }
 
-  // 2. Drop the composite primary key constraint
-  await knex.schema.alterTable('plan_service_configuration', function(table) {
+    // 2. Drop the composite primary key constraint added in the 'up' migration
+    console.log("Rolling back: Dropping composite PK plan_service_configuration_comp_pkey IF EXISTS");
     try {
-      console.log("Rolling back: Dropping composite PK");
-      // Default name might be plan_service_configuration_pkey again, or based on columns
-      table.dropPrimary(['tenant', 'config_id']); // Try dropping by columns
+      await trx.raw(`ALTER TABLE plan_service_configuration DROP CONSTRAINT IF EXISTS plan_service_configuration_comp_pkey`);
     } catch (e) {
+       console.warn(`Warning during rollback: Error dropping composite PK plan_service_configuration_comp_pkey: ${e.message}. Continuing rollback.`);
+    }
+
+    // 3. Re-add the original primary key (assuming it was single column 'config_id' and named 'plan_service_configuration_pkey')
+    console.log("Rolling back: Attempting to re-add original PK plan_service_configuration_pkey on config_id");
+    try {
+       const tableExists = await trx.schema.hasTable('plan_service_configuration');
+       if (tableExists) {
+          const colInfo = await trx('plan_service_configuration').columnInfo();
+          if (colInfo.config_id) {
+             const pkCheck = await trx.raw(`SELECT conname FROM pg_constraint WHERE conrelid = 'plan_service_configuration'::regclass AND contype = 'p'`);
+             if (pkCheck.rows.length === 0) {
+                await trx.raw(`ALTER TABLE plan_service_configuration ADD CONSTRAINT plan_service_configuration_pkey PRIMARY KEY (config_id)`);
+                console.log("Rolling back: Successfully re-added original PK plan_service_configuration_pkey");
+             } else {
+                console.log(`Rolling back: PK ${pkCheck.rows[0].conname} already exists, skipping re-add.`);
+             }
+          } else {
+             console.warn("Rolling back: Column config_id not found, cannot re-add original PK.");
+          }
+       } else {
+          console.warn("Rolling back: Table plan_service_configuration not found, cannot re-add original PK.");
+       }
+    } catch (e) {
+       console.error(`Error during rollback: Failed to re-add original PK: ${e.message}`);
+    }
+
+    // 4. Re-add the original foreign key constraints (assuming simple FKs on config_id)
+    console.log("Rolling back: Attempting to re-add original simple FKs...");
+    for (const dep of dependents) {
        try {
-           console.warn("Failed dropping composite PK by columns, trying default name...");
-           table.dropPrimary('plan_service_configuration_pkey');
-       } catch (e2) {
-           console.error(`Error dropping composite PK during rollback: ${e2.message}`);
-           // Don't throw, try to continue rollback
+          const tableExists = await trx.schema.hasTable(dep.table);
+          const colInfo = tableExists ? await trx(dep.table).columnInfo() : null;
+          if (tableExists && colInfo && colInfo.config_id) {
+             const fkCheck = await trx.raw(`SELECT conname FROM pg_constraint WHERE conrelid = ?::regclass AND confrelid = 'plan_service_configuration'::regclass AND contype = 'f'`, [dep.table]);
+             if (fkCheck.rows.length === 0) {
+                console.log(`Rolling back: Re-adding simple FK on ${dep.table} referencing config_id`);
+                await trx.raw(`ALTER TABLE ?? ADD CONSTRAINT ?? FOREIGN KEY (config_id) REFERENCES plan_service_configuration(config_id) ON DELETE CASCADE`, [dep.table, `${dep.table}_config_id_fk_rollback`]);
+             } else {
+                console.log(`Rolling back: FK already exists on ${dep.table}, skipping re-add.`);
+             }
+          } else {
+             console.log(`Rolling back: Table ${dep.table} or column config_id missing, skipping FK re-add.`);
+          }
+       } catch (e) {
+          console.warn(`Warning during rollback: Error re-adding simple FK on ${dep.table}: ${e.message}. Continuing rollback.`);
        }
     }
-  });
-
-  // 3. Add the old single primary key back
-  await knex.schema.alterTable('plan_service_configuration', function(table) {
-    console.log("Rolling back: Re-adding old single PK on config_id");
-    table.primary('config_id'); // Constraint name will likely be default 'plan_service_configuration_pkey'
-  });
-
-  // 4. Re-add the old simple foreign key constraints
-  for (const dep of dependents) {
-     const tableExists = await knex.schema.hasTable(dep.table);
-     if (tableExists) {
-        await knex.schema.alterTable(dep.table, function(table) {
-          try {
-            console.log(`Rolling back: Re-adding simple FK ${dep.constraint} on ${dep.table}`);
-            table.foreign('config_id', dep.constraint) // Use original constraint name
-                 .references('config_id')
-                 .inTable('plan_service_configuration')
-                 .onDelete('CASCADE');
-          } catch (e) {
-            console.error(`Error re-adding simple FK ${dep.constraint} on ${dep.table}: ${e.message}`);
-            // Try without specifying constraint name
-            try {
-              console.log(`Rolling back: Re-adding unnamed simple FK on ${dep.table}`);
-              table.foreign('config_id')
-                   .references('config_id')
-                   .inTable('plan_service_configuration')
-                   .onDelete('CASCADE');
-            } catch (e2) {
-              console.error(`Error re-adding unnamed simple FK on ${dep.table}: ${e2.message}. Manual fix may be required.`);
-            }
-          }
-        });
-     }
-  }
+  }); // End transaction
+  console.log("Finished rollback attempt for alter_plan_service_configuration_pk migration.");
 };
