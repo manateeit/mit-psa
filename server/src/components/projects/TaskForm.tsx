@@ -799,7 +799,7 @@ export default function TaskForm({
                       Cancel
                     </Button>
                   )}
-                  {mode === 'edit' && (
+                  {mode === 'edit' && !inDrawer && (
                     <Button
                       id='delete-button'
                       type="button"

@@ -3,12 +3,13 @@ import {
   Activity,
   ActivityPriority,
   ActivityType
-} from '../../interfaces/activity.interfaces';
-import { useActivityDrawer } from './ActivityDrawerProvider';
-import { Card } from '../ui/Card';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/DropdownMenu';
+} from "server/src/interfaces/activity.interfaces";
+import { useActivityDrawer } from "server/src/components/user-activities/ActivityDrawerProvider";
+import { useRouter } from 'next/navigation';
+import { Card } from "server/src/components/ui/Card";
+import { Badge } from "server/src/components/ui/Badge";
+import { Button } from "server/src/components/ui/Button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "server/src/components/ui/DropdownMenu";
 import { MoreVertical } from 'lucide-react';
 
 // Format date to a readable format
@@ -28,6 +29,15 @@ interface ActivityCardProps {
   renderExtra?: () => React.ReactNode;
 }
 
+// Helper function to determine if an action should be shown
+const shouldShowAction = (actionId: string, activityType: ActivityType) => {
+  // For 'edit' action, only show for tickets and workflow tasks
+  if (actionId === 'edit') {
+    return activityType === ActivityType.TICKET || activityType === ActivityType.WORKFLOW_TASK;
+  }
+  return true;
+};
+
 export function ActivityCard({ activity, onViewDetails, renderExtra }: ActivityCardProps) {
   const { openActivityDrawer } = useActivityDrawer();
   // Color mapping based on activity type
@@ -46,10 +56,40 @@ export function ActivityCard({ activity, onViewDetails, renderExtra }: ActivityC
     [ActivityPriority.HIGH]: <div className="w-2 h-2 rounded-full bg-red-500" />,
   };
 
-  const handleActionClick = (e: React.MouseEvent, actionId: string) => {
+  const router = useRouter();
+  
+  const handleActionClick = (e: React.MouseEvent, actionId: string, activity: Activity) => {
     e.stopPropagation();
+    
     // Handle action click based on actionId
-    console.log(`Action ${actionId} clicked for activity ${activity.id}`);
+    switch (actionId) {
+      case 'view':
+        // Open drawer for view action
+        openActivityDrawer(activity);
+        break;
+      case 'edit':
+        // Navigate directly to appropriate page for edit action
+        switch (activity.type) {
+          case ActivityType.SCHEDULE:
+            router.push(`/msp/schedule/entries/${activity.id}`);
+            break;
+          case ActivityType.PROJECT_TASK:
+            router.push(`/msp/projects/tasks/${activity.id}`);
+            break;
+          case ActivityType.TICKET:
+            router.push(`/msp/tickets/${activity.id}`);
+            break;
+          case ActivityType.TIME_ENTRY:
+            router.push(`/msp/time-management/entries/${activity.id}`);
+            break;
+          case ActivityType.WORKFLOW_TASK:
+            router.push(`/msp/workflow/tasks/${activity.id}`);
+            break;
+        }
+        break;
+      default:
+        console.log(`Action ${actionId} clicked for activity ${activity.id}`);
+    }
   };
 
   return (
@@ -74,20 +114,22 @@ export function ActivityCard({ activity, onViewDetails, renderExtra }: ActivityC
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {activity.actions.map(action => (
-                <DropdownMenuItem
-                  key={action.id}
-                  id={`${action.id}-${activity.type}-menu-item-${activity.id}`}
-                  onClick={(e) => handleActionClick(e, action.id)}
-                  disabled={action.disabled}
-                >
-                  {action.label}
-                  {action.disabledReason && action.disabled && (
-                    <span className="text-xs text-gray-400 ml-2">{action.disabledReason}</span>
-                  )}
-                </DropdownMenuItem>
-              ))}
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              {activity.actions
+                .filter(action => shouldShowAction(action.id, activity.type))
+                .map(action => (
+                  <DropdownMenuItem
+                    key={action.id}
+                    id={`${action.id}-${activity.type}-menu-item-${activity.id}`}
+                    onClick={(e) => handleActionClick(e, action.id, activity)}
+                    disabled={action.disabled}
+                  >
+                    {action.id === 'edit' ? 'Go to page' : action.label}
+                    {action.disabledReason && action.disabled && (
+                      <span className="text-xs text-gray-400 ml-2">{action.disabledReason}</span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

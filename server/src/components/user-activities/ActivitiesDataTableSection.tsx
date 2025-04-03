@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   Activity,
   ActivityFilters,
@@ -12,6 +12,7 @@ import { fetchActivities } from '../../lib/actions/activity-actions/activityServ
 import { ActivitiesDataTable } from './ActivitiesDataTable';
 import { ActivitiesTableFilters, ActivitiesTableFiltersRef } from './filters/ActivitiesTableFilters';
 import { useActivityDrawer } from './ActivityDrawerProvider';
+import { useActivitiesCache } from 'server/src/hooks/useActivitiesCache';
 
 interface ActivitiesDataTableSectionProps {
   title?: string;
@@ -19,24 +20,32 @@ interface ActivitiesDataTableSectionProps {
   id?: string;
 }
 
-export function ActivitiesDataTableSection({ 
-  title = "All Activities", 
-  initialFilters = {}, 
-  id = "activities-data-table-section" 
+export function ActivitiesDataTableSection({
+  title = "All Activities",
+  initialFilters = {},
+  id = "activities-data-table-section"
 }: ActivitiesDataTableSectionProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { openActivityDrawer } = useActivityDrawer();
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ActivityFilters>(initialFilters);
   const filtersRef = useRef<ActivitiesTableFiltersRef>(null); // Create ref for ActivitiesTableFilters
+  const { openActivityDrawer } = useActivityDrawer();
+  
+  // Use the enhanced cache hook with loading state
+  const {
+    getActivities,
+    invalidateCache,
+    getCacheStats,
+    isLoading,
+    isInitialLoad
+  } = useActivitiesCache();
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
 
-  // Check if any filters are active
+  // Check if any filters are active - memoized
   const isFiltersActive = useCallback(() => {
     // Check if any filter has a non-default value
     const hasTypes = filters.types && filters.types.length > 0;
@@ -49,17 +58,16 @@ export function ActivitiesDataTableSection({
     return hasTypes || hasStatus || hasPriority || hasAssignedTo || hasDateRange || isClosed;
   }, [filters]);
 
-  // Handle reset filters
-  const handleResetFilters = () => {
+  // Handle reset filters - memoized
+  const handleResetFilters = useCallback(() => {
     // Reset to default filters
     setFilters({});
     setCurrentPage(1); // Reset to first page
-  };
+  }, []);
 
-  // Use useCallback to memoize loadActivities
+  // Use useCallback to memoize loadActivities with cache
   const loadActivities = useCallback(async () => {
     try {
-      setLoading(true);
       // Prepare filter
       const effectiveFilters = {
         ...filters,
@@ -71,8 +79,8 @@ export function ActivitiesDataTableSection({
 
       console.log(`Loading activities page ${currentPage} with filters:`, effectiveFilters);
 
-      // Fetch activities with filters and pagination
-      const result: ActivityResponse = await fetchActivities(
+      // Use the cache to fetch activities
+      const result = await getActivities(
         effectiveFilters,
         currentPage,
         pageSize
@@ -85,35 +93,40 @@ export function ActivitiesDataTableSection({
     } catch (err) {
       console.error(`Error loading activities (page ${currentPage}):`, err);
       setError('Failed to load activities. Please try again later.');
-    } finally {
-      setLoading(false);
     }
-  }, [filters, currentPage, pageSize]); // Add currentPage and pageSize to dependencies
+  }, [filters, currentPage, pageSize, getActivities]); // Add getActivities to dependencies
 
   // useEffect to trigger loadActivities when filters or pagination changes
   useEffect(() => {
     loadActivities();
   }, [loadActivities]); // Dependency is the memoized function itself
 
-  const handleViewDetails = (activity: Activity) => {
+  // Memoize event handlers to prevent unnecessary re-renders
+  const handleViewDetails = useCallback((activity: Activity) => {
     openActivityDrawer(activity);
-  };
+  }, [openActivityDrawer]);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
+    // Invalidate cache for current filters to ensure fresh data
+    invalidateCache({
+      filters,
+      page: currentPage,
+      pageSize
+    });
     loadActivities();
-  };
+  }, [loadActivities, invalidateCache, filters, currentPage, pageSize]);
 
-  const handleFilterChange = (newFilters: ActivityFilters) => {
+  const handleFilterChange = useCallback((newFilters: ActivityFilters) => {
     setFilters(prev => ({
       ...prev,
       ...newFilters
     }));
     setCurrentPage(1);
-  };
+  }, []);
 
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = useCallback((newPage: number) => {
     setCurrentPage(newPage);
-  };
+  }, []);
 
   return (
     <Card id={id}>
@@ -126,7 +139,7 @@ export function ActivitiesDataTableSection({
               variant="outline"
               size="sm"
               onClick={handleResetFilters}
-              disabled={loading}
+              disabled={isLoading}
             >
               <XCircleIcon className="h-4 w-4 mr-2" />
               Reset Filters
@@ -137,7 +150,7 @@ export function ActivitiesDataTableSection({
               variant="outline"
               size="sm"
               onClick={() => filtersRef.current?.openDialog()}
-              disabled={loading}
+              disabled={isLoading}
             >
               <Filter className="h-4 w-4 mr-2" />
               Filters
@@ -145,10 +158,10 @@ export function ActivitiesDataTableSection({
           )}
           <Button 
             id={`${id}-refresh-button`} 
-            variant="outline" 
+            variant="outline"
             size="sm"
             onClick={handleRefresh}
-            disabled={loading}
+            disabled={isLoading}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
@@ -163,9 +176,12 @@ export function ActivitiesDataTableSection({
           filters={filters}
           onChange={handleFilterChange}
         />
-        {loading ? (
+        {isLoading ? (
           <div className="flex justify-center items-center h-40">
-            <p className="text-gray-500">Loading activities...</p>
+            <div className="flex flex-col items-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mb-2"></div>
+              <p className="text-gray-500">Loading activities...</p>
+            </div>
           </div>
         ) : error ? (
           <div className="flex justify-center items-center h-40">
@@ -180,7 +196,7 @@ export function ActivitiesDataTableSection({
             activities={activities}
             onViewDetails={handleViewDetails}
             onActionComplete={handleRefresh}
-            isLoading={loading}
+            isLoading={isLoading}
             // Pass pagination props
             currentPage={currentPage}
             pageSize={pageSize}

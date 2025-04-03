@@ -5,9 +5,9 @@ import { X } from 'lucide-react';
 import { SessionProvider } from "next-auth/react";
 import { Theme } from '@radix-ui/themes';
 
-import { useRegisterUIComponent } from '../../types/ui-reflection/useRegisterUIComponent';
-import { DrawerComponent, UIComponent, AutomationProps } from '../../types/ui-reflection/types';
-import { withDataAutomationId } from '../../types/ui-reflection/withDataAutomationId';
+import { useRegisterUIComponent } from "server/src/types/ui-reflection/useRegisterUIComponent";
+import { DrawerComponent, UIComponent, AutomationProps } from "server/src/types/ui-reflection/types";
+import { withDataAutomationId } from "server/src/types/ui-reflection/withDataAutomationId";
 
 export interface DrawerProps {
   isOpen: boolean;
@@ -18,15 +18,17 @@ export interface DrawerProps {
   id?: string;
   /** Child components for UI reflection */
   reflectionChildren?: UIComponent[];
+  hideCloseButton?: boolean;
 }
 
-const Drawer: React.FC<DrawerProps & AutomationProps> = ({ 
-  isOpen, 
-  onClose, 
-  children, 
+const Drawer: React.FC<DrawerProps & AutomationProps> = ({
+  isOpen,
+  onClose,
+  children,
   isInDrawer = false,
   id,
-  reflectionChildren
+  reflectionChildren,
+  hideCloseButton = false
 }) => {
   // Always register drawer when mounted, but track open state
   const updateMetadata = id ? useRegisterUIComponent<DrawerComponent>({
@@ -37,10 +39,13 @@ const Drawer: React.FC<DrawerProps & AutomationProps> = ({
     children: reflectionChildren
   }) : undefined;
   return (
-    <Dialog.Root modal open={isOpen} onOpenChange={onClose}>
+    <Dialog.Root modal open={isOpen} onOpenChange={(open) => {
+      if (!open) onClose(); // Ensure onClose is called when dialog is closed
+    }}>
       <Dialog.Portal>
-        <Dialog.Overlay 
+        <Dialog.Overlay
           className="fixed inset-0 bg-black/50 transition-opacity duration-300 data-[state=closed]:opacity-0 data-[state=open]:opacity-100"
+          onClick={() => onClose()} // Explicitly handle overlay clicks
         />
         <Dialog.Content 
           className="fixed inset-y-0 right-0 w-fit max-w-[60vw] bg-white shadow-lg focus:outline-none overflow-y-auto transform transition-all duration-300 ease-in-out data-[state=open]:translate-x-0 data-[state=closed]:translate-x-full data-[state=closed]:opacity-0 data-[state=open]:opacity-100"
@@ -53,13 +58,15 @@ const Drawer: React.FC<DrawerProps & AutomationProps> = ({
               </div>
             </Theme>
           </SessionProvider>
-          <button
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-            aria-label="Close"
-            onClick={onClose}
-          >
-            <X />
-          </button>
+          {!hideCloseButton && (
+            <button
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+              aria-label="Close"
+              onClick={onClose}
+            >
+              <X />
+            </button>
+          )}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

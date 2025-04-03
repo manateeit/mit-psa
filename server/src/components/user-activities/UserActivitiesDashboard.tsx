@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ScheduleSection } from './ScheduleSection';
 import { TicketsSection } from './TicketsSection';
 import { ProjectsSection } from './ProjectsSection';
@@ -65,19 +65,18 @@ export function UserActivitiesDashboard() {
     isClosed: false // Default: Only show open activities
   };
 
-  // Table view content - Defined before use
-  const tableViewContent = (
+  // Table view content - Defined before use and memoized to prevent unnecessary re-renders
+  const tableViewContent = useMemo(() => (
     <ActivitiesDataTableSection
-      // Key changes based on filters to force remount and data fetch
-      key={`activities-table-${JSON.stringify(currentTableFilters)}`}
       title={tableInitialFilters ? `Filtered Activities` : "All Activities"} // Dynamic title
       initialFilters={currentTableFilters}
       id="all-activities-table-section"
     />
+  ), [currentTableFilters, tableInitialFilters]
   );
 
-  // Card view content - Defined before use
-  const cardViewContent = (
+  // Card view content - Defined before use and memoized to prevent unnecessary re-renders
+  const cardViewContent = useMemo(() => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Schedule Section */}
       <ScheduleSection
@@ -103,6 +102,7 @@ export function UserActivitiesDashboard() {
         onViewAll={handleViewAllWorkflowTasks}
       />
     </div>
+  ), [handleViewAllSchedule, handleViewAllTickets, handleViewAllProjects, handleViewAllWorkflowTasks]
   );
 
   return (

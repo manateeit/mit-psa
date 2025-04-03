@@ -203,7 +203,7 @@ export function scheduleEntryToActivity(entry: IScheduleEntry): ScheduleActivity
     isRecurring: entry.is_recurring,
     actions: [
       { id: 'view', label: 'View Details' },
-      { id: 'edit', label: 'Edit' }
+      { id: 'edit', label: 'Go to page' }
     ],
     tenant: entry.tenant,
     createdAt: entry.created_at.toISOString(),
@@ -235,7 +235,7 @@ export function projectTaskToActivity(task: IProjectTask, projectName?: string, 
     wbsCode: task.wbs_code,
     actions: [
       { id: 'view', label: 'View Details' },
-      { id: 'edit', label: 'Edit' }
+      { id: 'edit', label: 'Go to page' }
     ],
     tenant: task.tenant,
     createdAt: task.created_at.toISOString(),

@@ -1,15 +1,17 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { Activity, ActivityType } from '../../interfaces/activity.interfaces';
-import { useDrawer } from '../../context/DrawerContext';
-import { ActivityDetailViewerDrawer } from './ActivityDetailViewerDrawer';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useMemo } from 'react';
+import { Activity, ActivityType } from "server/src/interfaces/activity.interfaces";
+import { useDrawer } from "server/src/context/DrawerContext";
+import { ActivityDetailViewerDrawer } from "server/src/components/user-activities/ActivityDetailViewerDrawer";
+import { useActivitiesCache } from "server/src/hooks/useActivitiesCache";
 
 /**
  * Context for managing activity drawer state
  */
 interface ActivityDrawerContextType {
   openActivityDrawer: (activity: Activity) => void;
+  selectedActivityId: string | null;
 }
 
 const ActivityDrawerContext = createContext<ActivityDrawerContextType | undefined>(undefined);
@@ -22,28 +24,50 @@ const ActivityDrawerContext = createContext<ActivityDrawerContextType | undefine
 export function ActivityDrawerProvider({ children }: { children: ReactNode }) {
   const { openDrawer, closeDrawer } = useDrawer();
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
+  const { invalidateCache } = useActivitiesCache();
+  
+  // Memoize the selectedActivityId to prevent unnecessary re-renders
+  const selectedActivityId = useMemo(() =>
+    selectedActivity ? selectedActivity.id : null
+  , [selectedActivity]);
+  
+  // Create stable callback functions for drawer actions
+  const handleClose = useCallback(() => {
+    setSelectedActivity(null);
+    closeDrawer();
+  }, [closeDrawer]);
+  
+  const handleActionComplete = useCallback(() => {
+    // Handle action completion (e.g., refresh data)
+    if (selectedActivity) {
+      // Invalidate cache for this activity type to ensure fresh data
+      invalidateCache({ activityType: selectedActivity.type });
+    }
+    setSelectedActivity(null);
+    closeDrawer();
+  }, [closeDrawer, invalidateCache, selectedActivity]);
   
   const openActivityDrawer = useCallback((activity: Activity) => {
+    
     setSelectedActivity(activity);
     openDrawer(
       <ActivityDetailViewerDrawer
         activityType={activity.type}
         activityId={activity.id}
-        onClose={() => {
-          setSelectedActivity(null);
-          closeDrawer();
-        }}
-        onActionComplete={() => {
-          // Handle action completion (e.g., refresh data)
-          setSelectedActivity(null);
-          closeDrawer();
-        }}
+        onClose={handleClose}
+        onActionComplete={handleActionComplete}
       />
     );
-  }, [openDrawer, closeDrawer]);
+  }, [openDrawer, handleClose, handleActionComplete]);
+  
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    openActivityDrawer,
+    selectedActivityId
+  }), [openActivityDrawer, selectedActivityId]);
   
   return (
-    <ActivityDrawerContext.Provider value={{ openActivityDrawer }}>
+    <ActivityDrawerContext.Provider value={contextValue}>
       {children}
     </ActivityDrawerContext.Provider>
   );

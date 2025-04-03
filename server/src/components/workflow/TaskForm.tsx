@@ -12,6 +12,7 @@ interface TaskFormProps {
   actions?: Action[];
   contextData?: Record<string, any>;
   executionId?: string;
+  isInDrawer?: boolean;
 }
 
 export function TaskForm({
@@ -22,13 +23,18 @@ export function TaskForm({
   onComplete,
   actions,
   contextData,
-  executionId
+  executionId,
+  isInDrawer = false
 }: TaskFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Default task actions if none provided
-  const taskActions: Action[] = actions || [
-    {
+  let taskActions: Action[] = actions || [];
+  
+  // If no actions were provided, create default ones
+  if (taskActions.length === 0) {
+    // Always add the submit button
+    taskActions.push({
       id: 'submit',
       label: 'Complete Task',
       primary: true,
@@ -36,8 +42,21 @@ export function TaskForm({
       disabled: false,
       hidden: false,
       order: 0
+    });
+    
+    // Only add a cancel button if not in a drawer (drawer has its own close button)
+    if (!isInDrawer) {
+      taskActions.push({
+        id: 'cancel',
+        label: 'Cancel',
+        primary: false,
+        variant: 'outline' as const,
+        disabled: false,
+        hidden: false,
+        order: 1
+      });
     }
-  ];
+  }
   
   // Handle task actions
   const handleAction = async (actionId: string, formData: any) => {
@@ -80,6 +99,7 @@ export function TaskForm({
       taskId={taskId}
       executionId={executionId}
       contextData={contextData}
+      isInDrawer={isInDrawer}
     />
   );
 }

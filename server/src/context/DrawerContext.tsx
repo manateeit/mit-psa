@@ -1,10 +1,10 @@
 'use client';
 
-import Drawer from 'server/src/components/ui/Drawer';
+import Drawer from "server/src/components/ui/Drawer";
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useReducer } from 'react';
-import { Activity, ActivityType } from '../interfaces/activity.interfaces';
+import { Activity, ActivityType } from "server/src/interfaces/activity.interfaces";
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { Button } from '../components/ui/Button';
+import { Button } from "server/src/components/ui/Button";
 
 // Define the drawer history entry type
 interface DrawerHistoryEntry {
@@ -209,8 +209,9 @@ function drawerReducer(state: DrawerState, action: DrawerAction): DrawerState {
     
     case 'CLOSE_DRAWER':
       return {
-        ...state,
         isOpen: false,
+        history: [],
+        currentIndex: -1,
       };
     
     case 'GO_BACK':
@@ -344,6 +345,7 @@ export const DrawerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         isOpen={state.isOpen}
         onClose={closeDrawer}
         isInDrawer={state.history.length > 1}
+        hideCloseButton={true}
       >
         {currentEntry && (
           <div className="flex flex-col h-full">
@@ -376,18 +378,16 @@ export const DrawerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 )}
-                {/* Only show the close button if this is the root drawer (not nested) */}
-                {state.history.length <= 1 && (
-                  <Button
-                    id="drawer-close-button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={closeDrawer}
-                    aria-label="Close drawer"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
+                {/* Always show the close button for better UX */}
+                <Button
+                  id="drawer-close-button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={closeDrawer}
+                  aria-label="Close drawer"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
             </div>
             <div className="flex-1 overflow-auto">

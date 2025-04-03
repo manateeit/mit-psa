@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useMemo, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
-import { ConfirmationDialog } from '../ui/ConfirmationDialog';
+import { ConfirmationDialog } from "server/src/components/ui/ConfirmationDialog";
 import {
     ITicket,
     IComment,
@@ -18,37 +18,37 @@ import {
     ITeam,
     ITicketResource,
     ITicketCategory
-} from '../../interfaces';
-import TicketInfo from './TicketInfo';
-import TicketProperties from './TicketProperties';
-import TicketConversation from './TicketConversation';
-import AssociatedAssets from '../assets/AssociatedAssets';
+} from "server/src/interfaces";
+import TicketInfo from "server/src/components/tickets/TicketInfo";
+import TicketProperties from "server/src/components/tickets/TicketProperties";
+import TicketConversation from "server/src/components/tickets/TicketConversation";
+import AssociatedAssets from "server/src/components/assets/AssociatedAssets";
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
-import { useDrawer } from '../../context/DrawerContext';
-import { findUserById, getAllUsers, getCurrentUser } from '../../lib/actions/user-actions/userActions';
-import { findChannelById, getAllChannels } from '../../lib/actions/channel-actions/channelActions';
-import { findCommentsByTicketId, deleteComment, createComment, updateComment, findCommentById } from '../../lib/actions/comment-actions/commentActions';
-import { getDocumentByTicketId } from '../../lib/actions/document-actions/documentActions';
-import { getContactByContactNameId, getContactsByCompany } from '../../lib/actions/contact-actions/contactActions';
-import { getCompanyById, getAllCompanies } from '../../lib/actions/companyActions';
-import { updateTicket } from '../../lib/actions/ticket-actions/ticketActions';
-import { getTicketStatuses } from '../../lib/actions/status-actions/statusActions';
-import { getAllPriorities } from '../../lib/actions/priorityActions';
-import { fetchTimeSheets, fetchOrCreateTimeSheet, saveTimeEntry } from '../../lib/actions/timeEntryActions';
-import { getCurrentTimePeriod } from '../../lib/actions/timePeriodsActions';
-import CompanyDetails from '../companies/CompanyDetails';
-import ContactDetailsView from '../contacts/ContactDetailsView';
-import { addTicketResource, getTicketResources, removeTicketResource } from '../../lib/actions/ticketResourceActions';
-import TechnicianDispatchDashboard from '../technician-dispatch/TechnicianDispatchDashboard';
-import { WorkItemType } from '../../interfaces/workItem.interfaces';
-import { ReflectionContainer } from '../../types/ui-reflection/ReflectionContainer';
-import TimeEntryDialog from 'server/src/components/time-management/time-entry/time-sheet/TimeEntryDialog';
+import { useDrawer } from "server/src/context/DrawerContext";
+import { findUserById, getAllUsers, getCurrentUser } from "server/src/lib/actions/user-actions/userActions";
+import { findChannelById, getAllChannels } from "server/src/lib/actions/channel-actions/channelActions";
+import { findCommentsByTicketId, deleteComment, createComment, updateComment, findCommentById } from "server/src/lib/actions/comment-actions/commentActions";
+import { getDocumentByTicketId } from "server/src/lib/actions/document-actions/documentActions";
+import { getContactByContactNameId, getContactsByCompany } from "server/src/lib/actions/contact-actions/contactActions";
+import { getCompanyById, getAllCompanies } from "server/src/lib/actions/companyActions";
+import { updateTicket } from "server/src/lib/actions/ticket-actions/ticketActions";
+import { getTicketStatuses } from "server/src/lib/actions/status-actions/statusActions";
+import { getAllPriorities } from "server/src/lib/actions/priorityActions";
+import { fetchTimeSheets, fetchOrCreateTimeSheet, saveTimeEntry } from "server/src/lib/actions/timeEntryActions";
+import { getCurrentTimePeriod } from "server/src/lib/actions/timePeriodsActions";
+import CompanyDetails from "server/src/components/companies/CompanyDetails";
+import ContactDetailsView from "server/src/components/contacts/ContactDetailsView";
+import { addTicketResource, getTicketResources, removeTicketResource } from "server/src/lib/actions/ticketResourceActions";
+import TechnicianDispatchDashboard from "server/src/components/technician-dispatch/TechnicianDispatchDashboard";
+import { WorkItemType } from "server/src/interfaces/workItem.interfaces";
+import { ReflectionContainer } from "server/src/types/ui-reflection/ReflectionContainer";
+import TimeEntryDialog from "server/src/components/time-management/time-entry/time-sheet/TimeEntryDialog";
 import { PartialBlock, StyledText } from '@blocknote/core';
-import { useTicketTimeTracking } from '../../hooks/useTicketTimeTracking';
-import { IntervalTrackingService } from '../../services/IntervalTrackingService';
-import { IntervalManagement } from '../time-management/interval-tracking/IntervalManagement';
-import { convertBlockNoteToMarkdown } from '../../lib/utils/blocknoteUtils';
+import { useTicketTimeTracking } from "server/src/hooks/useTicketTimeTracking";
+import { IntervalTrackingService } from "server/src/services/IntervalTrackingService";
+import { IntervalManagement } from "server/src/components/time-management/interval-tracking/IntervalManagement";
+import { convertBlockNoteToMarkdown } from "server/src/lib/utils/blocknoteUtils";
 
 interface TicketDetailsProps {
     id?: string; // Made optional to maintain backward compatibility
@@ -233,7 +233,8 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
             if (onClose) {
                 onClose();
             } else {
-                router.back();
+                // Use proper routing to tickets dashboard instead of router.back()
+                router.push('/msp/tickets');
             }
         } catch (error) {
             console.error('Error closing interval before navigation:', error);
@@ -241,20 +242,11 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
             if (onClose) {
                 onClose();
             } else {
-                router.back();
+                // Use proper routing to tickets dashboard instead of router.back()
+                router.push('/msp/tickets');
             }
         }
     }, [closeCurrentInterval, onClose, router]);
-    
-    // Skip the core data fetch since we're now receiving all data via props
-
-    // Skip the channel-specific data fetch
-
-    // Skip the company-specific data fetch
-
-    // Skip the contact-specific data fetch
-
-    // Skip the created-by user data fetch
 
     const handleCompanyClick = async () => {
         if (ticket.company_id) {

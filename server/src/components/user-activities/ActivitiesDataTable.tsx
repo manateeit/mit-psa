@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Activity,
   ActivityType,
@@ -90,7 +90,8 @@ const getActivityTypeLabel = (type: ActivityType) => {
   }
 };
 
-export function ActivitiesDataTable({
+// Wrap the entire component in React.memo for top-level memoization
+export const ActivitiesDataTable = React.memo(function ActivitiesDataTable({
   activities,
   onViewDetails,
   onActionComplete,
@@ -102,8 +103,8 @@ export function ActivitiesDataTable({
 }: ActivitiesDataTableProps) {
   const { openActivityDrawer } = useActivityDrawer();
 
-  // Define columns for the DataTable
-  const columns: ColumnDefinition<Activity>[] = [
+  // Define columns for the DataTable - memoized to prevent unnecessary re-renders
+  const columns = useMemo<ColumnDefinition<Activity>[]>(() => [
     {
       title: 'Type',
       dataIndex: 'type',
@@ -176,25 +177,68 @@ export function ActivitiesDataTable({
         />
       ),
     },
-  ];
+  ], [onActionComplete, onViewDetails]);  // Add dependencies that are used in the columns
 
-  // Handle row click to view details
-  const handleRowClick = (record: Activity) => {
+  // Handle row click to view details - memoized to prevent unnecessary re-renders
+  const handleRowClick = useCallback((record: Activity) => {
     openActivityDrawer(record);
-  };
+  }, [openActivityDrawer]);
 
-
-  return (
+  // Memoize the entire DataTable component to prevent unnecessary re-renders
+  const MemoizedDataTable = useMemo(() => (
     <DataTable
       id="activities-data-table"
       data={activities}
       columns={columns}
       pagination={true}
-    onRowClick={handleRowClick}
-    currentPage={currentPage}
-    onPageChange={onPageChange}
-    pageSize={pageSize}
-    totalItems={totalItems}
+      onRowClick={handleRowClick}
+      currentPage={currentPage}
+      onPageChange={onPageChange}
+      pageSize={pageSize}
+      totalItems={totalItems}
     />
-  );
-}
+  ), [
+    activities,
+    columns,
+    handleRowClick,
+    currentPage,
+    onPageChange,
+    pageSize,
+    totalItems
+  ]);
+  
+  return MemoizedDataTable;
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  // Return true if the component should NOT re-render
+  
+  // Check if activities array has changed (length or content)
+  if (prevProps.activities.length !== nextProps.activities.length) {
+    return false; // Re-render if length changed
+  }
+  
+  // Check if pagination props changed
+  if (
+    prevProps.currentPage !== nextProps.currentPage ||
+    prevProps.pageSize !== nextProps.pageSize ||
+    prevProps.totalItems !== nextProps.totalItems
+  ) {
+    return false; // Re-render if pagination changed
+  }
+  
+  // Check if loading state changed
+  if (prevProps.isLoading !== nextProps.isLoading) {
+    return false; // Re-render if loading state changed
+  }
+  
+  // For activities, we need a deeper comparison
+  // This is a simplified approach - for large datasets, consider using a more efficient comparison
+  const prevIds = prevProps.activities.map(a => a.id).join(',');
+  const nextIds = nextProps.activities.map(a => a.id).join(',');
+  if (prevIds !== nextIds) {
+    return false; // Re-render if activities changed
+  }
+  
+  // If we got here, don't re-render
+  return true;
+});
