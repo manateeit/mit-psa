@@ -1,9 +1,10 @@
 import React from 'react';
-import { 
-  Activity, 
-  ActivityPriority, 
-  ActivityType 
+import {
+  Activity,
+  ActivityPriority,
+  ActivityType
 } from '../../interfaces/activity.interfaces';
+import { useActivityDrawer } from './ActivityDrawerProvider';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
@@ -28,6 +29,7 @@ interface ActivityCardProps {
 }
 
 export function ActivityCard({ activity, onViewDetails, renderExtra }: ActivityCardProps) {
+  const { openActivityDrawer } = useActivityDrawer();
   // Color mapping based on activity type
   const typeColorMap = {
     [ActivityType.SCHEDULE]: 'border-green-500',
@@ -53,7 +55,7 @@ export function ActivityCard({ activity, onViewDetails, renderExtra }: ActivityC
   return (
     <div
       className={`p-4 border-l-4 ${typeColorMap[activity.type]} bg-white rounded-md shadow-sm hover:shadow-md transition-shadow cursor-pointer`}
-      onClick={() => onViewDetails(activity)}
+      onClick={() => openActivityDrawer(activity)}
       id={`activity-card-${activity.id}`}
     >
       <div className="flex items-center justify-between mb-2">
@@ -129,6 +131,8 @@ export function ActivityCard({ activity, onViewDetails, renderExtra }: ActivityC
 // Specialized activity card components
 
 export function ScheduleCard({ activity, onViewDetails }: { activity: Activity; onViewDetails: (activity: Activity) => void }) {
+  const { openActivityDrawer } = useActivityDrawer();
+  
   return (
     <ActivityCard
       activity={activity}
@@ -147,7 +151,9 @@ export function ScheduleCard({ activity, onViewDetails }: { activity: Activity; 
 }
 
 export function ProjectTaskCard({ activity, onViewDetails }: { activity: Activity; onViewDetails: (activity: Activity) => void }) {
+  const { openActivityDrawer } = useActivityDrawer();
   const projectTask = activity as any; // Type assertion for project-specific fields
+  
   return (
     <ActivityCard
       activity={activity}
@@ -169,7 +175,9 @@ export function ProjectTaskCard({ activity, onViewDetails }: { activity: Activit
 }
 
 export function TicketCard({ activity, onViewDetails }: { activity: Activity; onViewDetails: (activity: Activity) => void }) {
+  const { openActivityDrawer } = useActivityDrawer();
   const ticket = activity as any; // Type assertion for ticket-specific fields
+  
   return (
     <ActivityCard
       activity={activity}
@@ -189,7 +197,9 @@ export function TicketCard({ activity, onViewDetails }: { activity: Activity; on
 }
 
 export function TimeEntryCard({ activity, onViewDetails }: { activity: Activity; onViewDetails: (activity: Activity) => void }) {
+  const { openActivityDrawer } = useActivityDrawer();
   const timeEntry = activity as any; // Type assertion for time entry-specific fields
+  
   return (
     <ActivityCard
       activity={activity}
@@ -213,7 +223,9 @@ export function TimeEntryCard({ activity, onViewDetails }: { activity: Activity;
 }
 
 export function WorkflowTaskCard({ activity, onViewDetails }: { activity: Activity; onViewDetails: (activity: Activity) => void }) {
+  const { openActivityDrawer } = useActivityDrawer();
   const workflowTask = activity as any; // Type assertion for workflow task-specific fields
+  
   return (
     <ActivityCard
       activity={activity}

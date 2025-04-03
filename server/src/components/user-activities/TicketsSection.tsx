@@ -10,9 +10,9 @@ import { fetchTicketActivities } from '../../lib/actions/activity-actions/activi
 import { getAllCompanies } from '../../lib/actions/companyActions';
 import { getAllContacts } from '../../lib/actions/contact-actions/contactActions';
 import { getTicketStatuses } from '../../lib/actions/status-actions/statusActions';
-import { ActivityDetailsDrawer } from './ActivityDetailsDrawer';
-import { TicketSectionFiltersDialog } from './TicketSectionFiltersDialog';
+import { TicketSectionFiltersDialog } from './filters/TicketSectionFiltersDialog';
 import { Filter, XCircleIcon } from 'lucide-react';
+import { useActivityDrawer } from './ActivityDrawerProvider';
 interface TicketsSectionProps {
   limit?: number;
   onViewAll?: () => void;
@@ -21,7 +21,7 @@ interface TicketsSectionProps {
 export function TicketsSection({ limit = 5, onViewAll }: TicketsSectionProps) {
   const [activities, setActivities] = useState<TicketActivity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedActivity, setSelectedActivity] = useState<TicketActivity | null>(null);
+  const { openActivityDrawer } = useActivityDrawer();
   const [error, setError] = useState<string | null>(null);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [ticketFilters, setTicketFilters] = useState<Partial<ActivityFilters>>({ isClosed: false });
@@ -98,13 +98,6 @@ export function TicketsSection({ limit = 5, onViewAll }: TicketsSectionProps) {
     loadActivities(ticketFilters);
   }, [ticketFilters, loadActivities]); // Depend on ticketFilters and the loadActivities function itself
 
-  const handleViewDetails = (activity: TicketActivity) => {
-    setSelectedActivity(activity);
-  };
-
-  const handleCloseDrawer = () => {
-    setSelectedActivity(null);
-  };
 
   const handleRefresh = () => {
     // Reload activities with the current filters
@@ -211,22 +204,13 @@ export function TicketsSection({ limit = 5, onViewAll }: TicketsSectionProps) {
               <TicketCard
                 key={activity.id}
                 activity={activity}
-                onViewDetails={() => handleViewDetails(activity)}
+                onViewDetails={() => openActivityDrawer(activity)}
               />
             ))}
           </div>
         )}
       </CardContent>
 
-      {/* Activity Details Drawer */}
-      {selectedActivity && (
-        <ActivityDetailsDrawer
-          activity={selectedActivity}
-          isOpen={!!selectedActivity}
-          onClose={handleCloseDrawer}
-          onActionComplete={handleRefresh}
-        />
-      )}
       {isFilterDialogOpen && (
         <TicketSectionFiltersDialog
           isOpen={isFilterDialogOpen}

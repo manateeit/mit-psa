@@ -7,11 +7,11 @@ import {
 } from '../../interfaces/activity.interfaces';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { RefreshCw, Filter } from 'lucide-react';
+import { RefreshCw, Filter, XCircleIcon } from 'lucide-react';
 import { fetchActivities } from '../../lib/actions/activity-actions/activityServerActions';
-import { ActivityDetailsDrawer } from './ActivityDetailsDrawer';
 import { ActivitiesDataTable } from './ActivitiesDataTable';
-import { ActivitiesTableFilters, ActivitiesTableFiltersRef } from './ActivitiesTableFilters';
+import { ActivitiesTableFilters, ActivitiesTableFiltersRef } from './filters/ActivitiesTableFilters';
+import { useActivityDrawer } from './ActivityDrawerProvider';
 
 interface ActivitiesDataTableSectionProps {
   title?: string;
@@ -26,7 +26,7 @@ export function ActivitiesDataTableSection({
 }: ActivitiesDataTableSectionProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
+  const { openActivityDrawer } = useActivityDrawer();
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ActivityFilters>(initialFilters);
   const filtersRef = useRef<ActivitiesTableFiltersRef>(null); // Create ref for ActivitiesTableFilters
@@ -35,6 +35,26 @@ export function ActivitiesDataTableSection({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
+
+  // Check if any filters are active
+  const isFiltersActive = useCallback(() => {
+    // Check if any filter has a non-default value
+    const hasTypes = filters.types && filters.types.length > 0;
+    const hasStatus = filters.status && filters.status.length > 0;
+    const hasPriority = filters.priority && filters.priority.length > 0;
+    const hasAssignedTo = filters.assignedTo && filters.assignedTo.length > 0;
+    const hasDateRange = filters.dueDateStart || filters.dueDateEnd;
+    const isClosed = filters.isClosed === true; // Default is false
+    
+    return hasTypes || hasStatus || hasPriority || hasAssignedTo || hasDateRange || isClosed;
+  }, [filters]);
+
+  // Handle reset filters
+  const handleResetFilters = () => {
+    // Reset to default filters
+    setFilters({});
+    setCurrentPage(1); // Reset to first page
+  };
 
   // Use useCallback to memoize loadActivities
   const loadActivities = useCallback(async () => {
@@ -76,11 +96,7 @@ export function ActivitiesDataTableSection({
   }, [loadActivities]); // Dependency is the memoized function itself
 
   const handleViewDetails = (activity: Activity) => {
-    setSelectedActivity(activity);
-  };
-
-  const handleCloseDrawer = () => {
-    setSelectedActivity(null);
+    openActivityDrawer(activity);
   };
 
   const handleRefresh = () => {
@@ -104,15 +120,29 @@ export function ActivitiesDataTableSection({
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle>{title}</CardTitle>
         <div className="flex items-center gap-2">
-          <Button 
-            id={`${id}-filter-button`} 
-            variant="outline" 
-            size="sm"
-            onClick={() => filtersRef.current?.openDialog()} // Call openDialog via ref
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            Filters
-          </Button>
+          {isFiltersActive() ? (
+            <Button
+              id={`${id}-reset-filters-button`}
+              variant="outline"
+              size="sm"
+              onClick={handleResetFilters}
+              disabled={loading}
+            >
+              <XCircleIcon className="h-4 w-4 mr-2" />
+              Reset Filters
+            </Button>
+          ) : (
+            <Button
+              id={`${id}-filter-button`}
+              variant="outline"
+              size="sm"
+              onClick={() => filtersRef.current?.openDialog()}
+              disabled={loading}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filters
+            </Button>
+          )}
           <Button 
             id={`${id}-refresh-button`} 
             variant="outline" 
@@ -160,15 +190,6 @@ export function ActivitiesDataTableSection({
         )}
       </CardContent>
 
-      {/* Activity Details Drawer */}
-      {selectedActivity && (
-        <ActivityDetailsDrawer
-          activity={selectedActivity}
-          isOpen={!!selectedActivity}
-          onClose={handleCloseDrawer}
-          onActionComplete={handleRefresh}
-        />
-      )}
     </Card>
   );
 }

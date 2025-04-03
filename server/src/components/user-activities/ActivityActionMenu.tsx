@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/DropdownMenu';
 import { MoreHorizontal } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useActivityDrawer } from './ActivityDrawerProvider';
 import { 
   updateActivityStatus, 
   reassignActivity 
@@ -21,6 +22,7 @@ interface ActivityActionMenuProps {
 }
 
 export function ActivityActionMenu({ activity, onActionComplete, onViewDetails }: ActivityActionMenuProps) {
+  const { openActivityDrawer } = useActivityDrawer();
   const router = useRouter();
   
   const handleActionClick = async (actionId: string) => {
@@ -57,32 +59,8 @@ export function ActivityActionMenu({ activity, onActionComplete, onViewDetails }
 
   // Handle view action based on activity type
   const handleViewAction = () => {
-    // If onViewDetails is provided and this is a workflow task, use the drawer
-    if (onViewDetails && activity.type === ActivityType.WORKFLOW_TASK) {
-      onViewDetails(activity);
-      return;
-    }
-    
-    // Otherwise, navigate to the appropriate route
-    switch (activity.type) {
-      case ActivityType.SCHEDULE:
-        router.push(`/schedule/${activity.id}`);
-        break;
-      case ActivityType.PROJECT_TASK:
-        router.push(`/projects/tasks/${activity.id}`);
-        break;
-      case ActivityType.TICKET:
-        router.push(`/msp/tickets/${activity.id}`);
-        break;
-      case ActivityType.TIME_ENTRY:
-        router.push(`/time-entries/${activity.id}`);
-        break;
-      case ActivityType.WORKFLOW_TASK:
-        // If we get here, onViewDetails wasn't provided, so try to navigate
-        // This is a fallback, but the route might not exist
-        router.push(`/tasks/${activity.id}`);
-        break;
-    }
+    // Use the drawer system for all activity types
+    openActivityDrawer(activity);
   };
 
   // Handle edit action based on activity type
@@ -109,17 +87,12 @@ export function ActivityActionMenu({ activity, onActionComplete, onViewDetails }
   // Handle complete action
   const handleCompleteAction = async () => {
     if (activity.type === ActivityType.WORKFLOW_TASK) {
-      // For workflow tasks with forms, use the drawer if available
+      // For workflow tasks with forms, use the drawer
       const workflowTask = activity as any; // Type assertion for workflow-specific fields
       if (workflowTask.formId) {
-        if (onViewDetails) {
-          // Use the drawer to show the form
-          onViewDetails(activity);
-          return;
-        } else {
-          // Fallback to navigation if drawer isn't available
-          router.push(`/tasks/${activity.id}/form`);
-        }
+        // Use the drawer to show the form
+        openActivityDrawer(activity);
+        return;
       } else {
         // For workflow tasks without forms, mark as completed
         await updateActivityStatus(activity.id, activity.type, 'completed');

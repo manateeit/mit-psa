@@ -4,11 +4,11 @@ import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { ProjectTaskCard } from './ActivityCard';
 import { fetchProjectActivities } from '../../lib/actions/activity-actions/activityServerActions';
-import { ActivityDetailsDrawer } from './ActivityDetailsDrawer';
-import { ProjectSectionFiltersDialog } from './ProjectSectionFiltersDialog';
+import { ProjectSectionFiltersDialog } from './filters/ProjectSectionFiltersDialog';
 import { Filter, XCircleIcon } from 'lucide-react';
 import { IProject, IProjectPhase } from '../../interfaces/project.interfaces';
 import { getProjects } from '../../lib/actions/project-actions/projectActions';
+import { useActivityDrawer } from './ActivityDrawerProvider';
 
 interface ProjectsSectionProps {
   limit?: number;
@@ -18,7 +18,7 @@ interface ProjectsSectionProps {
 export function ProjectsSection({ limit = 5, onViewAll }: ProjectsSectionProps) {
   const [activities, setActivities] = useState<ProjectTaskActivity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedActivity, setSelectedActivity] = useState<ProjectTaskActivity | null>(null);
+  const { openActivityDrawer } = useActivityDrawer();
   const [error, setError] = useState<string | null>(null);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [projectTaskFilters, setProjectTaskFilters] = useState<Partial<ActivityFilters>>({ isClosed: false });
@@ -87,13 +87,6 @@ export function ProjectsSection({ limit = 5, onViewAll }: ProjectsSectionProps) 
     loadActivities(projectTaskFilters);
   }, [projectTaskFilters, loadActivities]); // Depend on projectTaskFilters and the loadActivities function itself
 
-  const handleViewDetails = (activity: ProjectTaskActivity) => {
-    setSelectedActivity(activity);
-  };
-
-  const handleCloseDrawer = () => {
-    setSelectedActivity(null);
-  };
 
   const handleRefresh = () => {
     // Reload activities with the current filters
@@ -200,22 +193,13 @@ export function ProjectsSection({ limit = 5, onViewAll }: ProjectsSectionProps) 
               <ProjectTaskCard
                 key={activity.id}
                 activity={activity}
-                onViewDetails={() => handleViewDetails(activity)}
+                onViewDetails={() => openActivityDrawer(activity)}
               />
             ))}
           </div>
         )}
       </CardContent>
 
-      {/* Activity Details Drawer */}
-      {selectedActivity && (
-        <ActivityDetailsDrawer
-          activity={selectedActivity}
-          isOpen={!!selectedActivity}
-          onClose={handleCloseDrawer}
-          onActionComplete={handleRefresh}
-        />
-      )}
       {isFilterDialogOpen && (
         <ProjectSectionFiltersDialog
           isOpen={isFilterDialogOpen}

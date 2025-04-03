@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { 
-  Activity, 
-  ActivityType, 
-  ActivityPriority 
+import {
+  Activity,
+  ActivityType,
+  ActivityPriority
 } from '../../interfaces/activity.interfaces';
+import { useActivityDrawer } from './ActivityDrawerProvider';
 import { DataTable } from '../ui/DataTable';
 import { ColumnDefinition } from '../../interfaces/dataTable.interfaces';
 import { Badge } from '../ui/Badge';
@@ -89,8 +90,8 @@ const getActivityTypeLabel = (type: ActivityType) => {
   }
 };
 
-export function ActivitiesDataTable({ 
-  activities, 
+export function ActivitiesDataTable({
+  activities,
   onViewDetails,
   onActionComplete,
   isLoading = false,
@@ -99,6 +100,7 @@ export function ActivitiesDataTable({
   totalItems,
   onPageChange
 }: ActivitiesDataTableProps) {
+  const { openActivityDrawer } = useActivityDrawer();
 
   // Define columns for the DataTable
   const columns: ColumnDefinition<Activity>[] = [
@@ -178,7 +180,7 @@ export function ActivitiesDataTable({
 
   // Handle row click to view details
   const handleRowClick = (record: Activity) => {
-    onViewDetails(record);
+    openActivityDrawer(record);
   };
 
 
