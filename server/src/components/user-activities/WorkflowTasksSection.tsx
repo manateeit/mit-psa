@@ -4,11 +4,11 @@ import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { WorkflowTaskCard } from './ActivityCard';
 import { fetchDashboardWorkflowTasks } from '../../lib/actions/activity-actions/workflowTaskActions';
-import { ActivityDetailsDrawer } from './ActivityDetailsDrawer';
 import { WorkflowTaskListDrawer } from './WorkflowTaskListDrawer';
 import { useDrawer } from '../../context/DrawerContext';
-import { WorkflowTasksSectionFiltersDialog } from './WorkflowTasksSectionFiltersDialog';
+import { WorkflowTasksSectionFiltersDialog } from './filters/WorkflowTasksSectionFiltersDialog';
 import { Filter, XCircleIcon } from 'lucide-react';
+import { useActivityDrawer } from './ActivityDrawerProvider';
 
 interface WorkflowTasksSectionProps {
   limit?: number;
@@ -20,6 +20,7 @@ export function WorkflowTasksSection({ limit = 5, onViewAll }: WorkflowTasksSect
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const drawer = useDrawer();
+  const { openActivityDrawer } = useActivityDrawer();
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [workflowFilters, setWorkflowFilters] = useState<Partial<ActivityFilters>>({ isClosed: false });
   const [workflowExecutions, setWorkflowExecutions] = useState<Array<{ execution_id: string; workflow_name: string }>>([]);
@@ -112,22 +113,7 @@ export function WorkflowTasksSection({ limit = 5, onViewAll }: WorkflowTasksSect
   };
 
   const handleViewDetails = (activity: WorkflowTaskActivity) => {
-    drawer.openDetailDrawer(
-      activity,
-      <ActivityDetailsDrawer
-        activity={activity}
-        isOpen={true}
-        onClose={drawer.closeDrawer}
-        onActionComplete={() => {
-          // First close the drawer
-          drawer.closeDrawer();
-          
-          // Then refresh the activities list
-          loadActivities();
-        }}
-      />,
-      activity.title
-    );
+    openActivityDrawer(activity);
   };
 
   const handleViewAll = () => {
@@ -221,7 +207,7 @@ export function WorkflowTasksSection({ limit = 5, onViewAll }: WorkflowTasksSect
               <WorkflowTaskCard
                 key={activity.id}
                 activity={activity}
-                onViewDetails={() => handleViewDetails(activity)}
+                onViewDetails={() => openActivityDrawer(activity)}
               />
             ))}
           </div>

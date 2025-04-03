@@ -1068,13 +1068,13 @@ export async function fetchScheduleEntryForWorkItem(workItemId: string): Promise
   scheduled_end: string
 } | null> {
   try {
-    const { knex, tenant } = await createTenantKnex();
+    const { knex: db, tenant } = await createTenantKnex();
     
     if (!tenant) {
       throw new Error("Tenant context not found");
     }
     
-    const scheduleEntry = await knex('schedule_entries')
+    const scheduleEntry = await db('schedule_entries')
       .where('entry_id', workItemId)
       .select('scheduled_start', 'scheduled_end')
       .first();
@@ -1085,3 +1085,161 @@ export async function fetchScheduleEntryForWorkItem(workItemId: string): Promise
     return null;
   }
 }
+
+  /**
+   * Get a time entry by ID
+   * @param entryId The ID of the time entry to retrieve
+   * @returns The time entry with work item details or null if not found
+   */
+  export async function getTimeEntryById(entryId: string): Promise<ITimeEntryWithWorkItem | null> {
+    try {
+      // Get current user from session
+      const session = await getServerSession(options);
+      if (!session?.user?.id) {
+        throw new Error('User not authenticated');
+      }
+      
+      const {knex: db, tenant} = await createTenantKnex();
+      if (!tenant) {
+        throw new Error('Tenant not found');
+      }
+  
+      // Get the time entry
+      const entry = await db('time_entries')
+        .where({
+          entry_id: entryId,
+          tenant
+        })
+        .first();
+  
+      if (!entry) {
+        return null;
+      }
+  
+      // Fetch work item details based on the entry
+      let workItemDetails: IWorkItem;
+      switch (entry.work_item_type) {
+        case 'project_task': {
+          const [task] = await db('project_tasks')
+            .where({
+              task_id: entry.work_item_id,
+              'project_tasks.tenant': tenant
+            })
+            .join('project_phases', function() {
+              this.on('project_tasks.phase_id', '=', 'project_phases.phase_id')
+                  .andOn('project_tasks.tenant', '=', 'project_phases.tenant');
+            })
+            .join('projects', function() {
+              this.on('project_phases.project_id', '=', 'projects.project_id')
+                  .andOn('project_phases.tenant', '=', 'projects.tenant');
+            })
+            .select(
+              'task_id as work_item_id',
+              'task_name as name',
+              'project_tasks.description',
+              'projects.project_name as project_name',
+              'project_phases.phase_name as phase_name'
+            );
+          workItemDetails = {
+            ...task,
+            type: 'project_task',
+            is_billable: true,
+            project_name: task.project_name,
+            phase_name: task.phase_name
+          };
+          break;
+        }
+        case 'ad_hoc': {
+          const schedule = await db('schedule_entries')
+            .where({
+              entry_id: entry.work_item_id,
+              tenant
+            })
+            .first();
+          workItemDetails = {
+            work_item_id: entry.work_item_id,
+            name: schedule?.title || 'Ad Hoc Entry',
+            description: '',
+            type: 'ad_hoc',
+            is_billable: true
+          };
+          break;
+        }
+        case 'ticket': {
+          const [ticket] = await db('tickets')
+            .where({
+              ticket_id: entry.work_item_id,
+              tenant
+            })
+            .select(
+              'ticket_id as work_item_id',
+              'title as name',
+              'url as description',
+              'ticket_number'
+            );
+          workItemDetails = {
+            ...ticket,
+            type: 'ticket',
+            is_billable: true,
+            ticket_number: ticket.ticket_number
+          };
+          break;
+        }
+        case 'non_billable_category':
+          workItemDetails = {
+            work_item_id: entry.work_item_id,
+            name: entry.work_item_id,
+            description: '',
+            type: 'non_billable_category',
+            is_billable: false
+          };
+          break;
+        default:
+          throw new Error(`Unknown work item type: ${entry.work_item_type}`);
+      }
+  
+      // Fetch service information if available
+      let service = null;
+      if (entry.service_id) {
+        const [serviceInfo] = await db('service_catalog as sc')
+          .leftJoin('standard_service_types as sst', 'sc.service_type_id', 'sst.id')
+          .leftJoin('service_types as tst', function() {
+            this.on('sc.service_type_id', '=', 'tst.id')
+                .andOn('sc.tenant', '=', 'tst.tenant_id');
+          })
+          .where({
+            'sc.service_id': entry.service_id,
+            'sc.tenant': tenant
+          })
+          .select(
+            'sc.service_name',
+            'sc.billing_method as service_type',
+            db.raw('CAST(sc.default_rate AS FLOAT) as default_rate')
+          );
+  
+        if (serviceInfo) {
+          service = {
+            id: entry.service_id,
+            name: serviceInfo.service_name,
+            type: serviceInfo.service_type,
+            default_rate: serviceInfo.default_rate
+          };
+        }
+      }
+  
+      // Return the complete time entry with work item details
+      return {
+        ...entry,
+        date: new Date(entry.start_time),
+        start_time: entry.start_time,
+        end_time: entry.end_time,
+        updated_at: entry.updated_at,
+        created_at: entry.created_at,
+        workItem: workItemDetails,
+        service
+      };
+    } catch (error) {
+      console.error('Error fetching time entry by ID:', error);
+      throw new Error('Failed to fetch time entry');
+    }
+  }

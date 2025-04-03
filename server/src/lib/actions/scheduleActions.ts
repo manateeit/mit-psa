@@ -3,6 +3,7 @@ import ScheduleEntry from '../models/scheduleEntry';
 import { IScheduleEntry, IEditScope } from 'server/src/interfaces/schedule.interfaces';
 import { WorkItemType } from 'server/src/interfaces/workItem.interfaces';
 import { getCurrentUser } from './user-actions/userActions';
+import { createTenantKnex } from 'server/src/lib/db';
 
 export type ScheduleActionResult<T> = 
   | { success: true; entries: T; error?: never }
@@ -137,5 +138,56 @@ export async function deleteScheduleEntry(entry_id: string, deleteType: IEditSco
   } catch (error) {
     console.error('Error deleting schedule entry:', error);
     return { success: false, error: 'Failed to delete schedule entry' };
+  }
+}
+
+/**
+ * Get a schedule entry by ID
+ * @param entryId The ID of the schedule entry to retrieve
+ * @param user The authenticated user
+ * @returns The schedule entry or null if not found
+ */
+export async function getScheduleEntryById(entryId: string, user: any): Promise<IScheduleEntry | null> {
+  try {
+    // Validate user has permission to view schedule entries
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const {knex: db, tenant} = await createTenantKnex();
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    // Get the schedule entry
+    const entry = await db('schedule_entries')
+      .where({
+        entry_id: entryId,
+        tenant
+      })
+      .first();
+
+    if (!entry) {
+      return null;
+    }
+
+    // Get assigned users
+    const assignees = await db('schedule_entry_assignees')
+      .where({
+        entry_id: entryId,
+        tenant
+      })
+      .first();
+
+    // Combine entry with assigned users
+    const scheduleEntry: IScheduleEntry = {
+      ...entry,
+      assigned_user_ids: assignees?.assigned_user_ids || []
+    };
+
+    return scheduleEntry;
+  } catch (error) {
+    console.error('Error fetching schedule entry by ID:', error);
+    throw new Error('Failed to fetch schedule entry');
   }
 }

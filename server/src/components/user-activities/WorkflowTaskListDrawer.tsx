@@ -7,7 +7,7 @@ import {
 } from '../../interfaces/activity.interfaces';
 import { fetchWorkflowTaskActivities } from '../../lib/actions/activity-actions/activityServerActions';
 import { ActivitiesDataTable } from './ActivitiesDataTable';
-import { ActivitiesTableFilters } from './ActivitiesTableFilters';
+import { ActivitiesTableFilters } from './filters/ActivitiesTableFilters';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';

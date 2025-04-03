@@ -16,9 +16,16 @@ import { ISO8601String } from "@shared/types/temporal";
 import { IWorkflowExecution } from "@shared/workflow/persistence/workflowInterfaces";
 import { IProjectTask } from "../../../interfaces/project.interfaces";
 
-// Simple in-memory cache implementation
+// Enhanced in-memory cache implementation with different TTLs and invalidation
 const cache = {
-  data: new Map<string, { value: string; expiry: number }>(),
+  data: new Map<string, { value: string; expiry: number; tags: string[] }>(),
+  
+  // Default TTLs in seconds
+  ttl: {
+    DEFAULT: 60, // 1 minute
+    DRAWER: 600, // 10 minutes for drawer operations
+    LIST: 300,   // 5 minutes for list views
+  },
   
   async get(key: string): Promise<string | null> {
     const item = this.data.get(key);
@@ -32,9 +39,28 @@ const cache = {
     return item.value;
   },
   
-  async set(key: string, value: string, ttlSeconds: number): Promise<void> {
-    const expiry = Date.now() + ttlSeconds * 1000;
-    this.data.set(key, { value, expiry });
+  async set(key: string, value: string, ttlSeconds?: number, tags: string[] = []): Promise<void> {
+    const expiry = Date.now() + (ttlSeconds || this.ttl.DEFAULT) * 1000;
+    this.data.set(key, { value, expiry, tags });
+  },
+  
+  // Invalidate cache entries by tag
+  async invalidateByTag(tag: string): Promise<void> {
+    for (const [key, item] of this.data.entries()) {
+      if (item.tags.includes(tag)) {
+        this.data.delete(key);
+      }
+    }
+  },
+  
+  // Invalidate all cache entries for a specific activity type
+  async invalidateByType(type: ActivityType): Promise<void> {
+    await this.invalidateByTag(`type:${type}`);
+  },
+  
+  // Invalidate all cache entries for a specific user
+  async invalidateByUser(userId: string): Promise<void> {
+    await this.invalidateByTag(`user:${userId}`);
   }
 };
 
@@ -110,8 +136,17 @@ export async function fetchUserActivities(
 
   // Update cache key to include pagination
   const cacheKey = `user-activities:${user.user_id}:${JSON.stringify(filters)}:page${page}:size${pageSize}`;
-  // Cache the result
-  await cache.set(cacheKey, JSON.stringify(response), 60); // Cache for 1 minute
+  
+  // Create tags for cache invalidation
+  const tags = [
+    `user:${user.user_id}`,
+    ...typesToFetch.map(type => `type:${type}`)
+  ];
+  
+  // Cache the result with appropriate TTL
+  // Use longer TTL for drawer operations (detected by small page size)
+  const ttl = pageSize <= 5 ? cache.ttl.DRAWER : cache.ttl.DEFAULT;
+  await cache.set(cacheKey, JSON.stringify(response), ttl, tags);
 
   return response;
 }
@@ -164,7 +199,16 @@ export async function fetchScheduleActivities(
     }
     
     // Convert to activities
-    return userEntries.map(entry => scheduleEntryToActivity(entry));
+    // Convert to activities
+    const activities = userEntries.map(entry => scheduleEntryToActivity(entry));
+    
+    // Cache individual activity type results
+    if (activities.length > 0) {
+      const cacheKey = `schedule-activities:${userId}:${JSON.stringify(filters)}`;
+      await cache.set(cacheKey, JSON.stringify(activities), cache.ttl.LIST, [`user:${userId}`, `type:${ActivityType.SCHEDULE}`]);
+    }
+    
+    return activities;
   } catch (error) {
     console.error("Error fetching schedule activities:", error);
     return [];
@@ -300,7 +344,8 @@ export async function fetchProjectActivities(
       });
 
     // Convert to activities
-    return tasks.map((task: any) => {
+    // Convert to activities
+    const activities = tasks.map((task: any) => {
       return {
         id: task.task_id,
         title: task.task_name,
@@ -329,6 +374,14 @@ export async function fetchProjectActivities(
         updatedAt: task.updated_at ? new Date(task.updated_at).toISOString() : new Date().toISOString()
       };
     });
+    
+    // Cache individual activity type results
+    if (activities.length > 0) {
+      const cacheKey = `project-activities:${userId}:${JSON.stringify(filters)}`;
+      await cache.set(cacheKey, JSON.stringify(activities), cache.ttl.LIST, [`user:${userId}`, `type:${ActivityType.PROJECT_TASK}`]);
+    }
+    
+    return activities;
   } catch (error) {
     console.error("Error fetching project activities:", error);
     return [];
@@ -449,7 +502,7 @@ export async function fetchTicketActivities(
       });
 
     // Convert to activities
-    return tickets.map((ticket: any) => {
+    const activities = tickets.map((ticket: any) => {
       // Map priority from ticket to ActivityPriority
       let priority: ActivityPriority;
       switch (ticket.priority_name?.toLowerCase()) {
@@ -493,6 +546,14 @@ export async function fetchTicketActivities(
         updatedAt: ticket.updated_at ? (new Date(ticket.updated_at).toString() !== 'Invalid Date' ? new Date(ticket.updated_at).toISOString() : new Date().toISOString()) as ISO8601String : new Date().toISOString() as ISO8601String
       };
     });
+    
+    // Cache individual activity type results
+    if (tickets.length > 0) {
+      const cacheKey = `ticket-activities:${userId}:${JSON.stringify(filters)}`;
+      await cache.set(cacheKey, JSON.stringify(activities), cache.ttl.LIST, [`user:${userId}`, `type:${ActivityType.TICKET}`]);
+    }
+    
+    return activities;
   } catch (error) {
     console.error("Error fetching ticket activities:", error);
     return [];
@@ -533,7 +594,16 @@ export async function fetchTimeEntryActivities(
       });
 
     // Convert to activities
-    return timeEntries.map((entry: any) => timeEntryToActivity(entry));
+    // Convert to activities
+    const activities = timeEntries.map((entry: any) => timeEntryToActivity(entry));
+    
+    // Cache individual activity type results
+    if (activities.length > 0) {
+      const cacheKey = `time-entry-activities:${userId}:${JSON.stringify(filters)}`;
+      await cache.set(cacheKey, JSON.stringify(activities), cache.ttl.LIST, [`user:${userId}`, `type:${ActivityType.TIME_ENTRY}`]);
+    }
+    
+    return activities;
   } catch (error) {
     console.error("Error fetching time entry activities:", error);
     return [];
@@ -665,7 +735,7 @@ export async function fetchWorkflowTaskActivities(
     const workflowTasks = await workflowTasksQuery;
 
     // Convert to activities
-    return workflowTasks.map((task: WorkflowTaskData) => {
+    const activities = workflowTasks.map((task: WorkflowTaskData) => {
       const execution: IWorkflowExecution = {
         execution_id: task.execution_id,
         tenant: task.tenant,
@@ -680,6 +750,14 @@ export async function fetchWorkflowTaskActivities(
       
       return workflowTaskToActivity(task, execution);
     });
+    
+    // Cache individual activity type results
+    if (workflowTasks.length > 0) {
+      const cacheKey = `workflow-task-activities:${userId}:${JSON.stringify(filters)}`;
+      await cache.set(cacheKey, JSON.stringify(activities), cache.ttl.LIST, [`user:${userId}`, `type:${ActivityType.WORKFLOW_TASK}`]);
+    }
+    
+    return activities;
   } catch (error) {
     console.error("Error fetching workflow task activities:", error);
     return [];
