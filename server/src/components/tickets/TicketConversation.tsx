@@ -237,7 +237,9 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
                         checked={isInternalToggle}
                         onCheckedChange={setIsInternalToggle}
                       />
-                      <Label htmlFor={`${id}-internal-toggle`}>Mark as Internal</Label>
+                      <Label htmlFor={`${id}-internal-toggle`}>
+                        {isInternalToggle ? "Marked as Internal" : "Mark as Internal"}
+                      </Label>
                     </div>
                   )}
                   <div className="flex items-center space-x-2">
@@ -246,7 +248,9 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
                       checked={isResolutionToggle}
                       onCheckedChange={setIsResolutionToggle}
                     />
-                    <Label htmlFor={`${id}-resolution-toggle`}>Mark as Resolution</Label>
+                    <Label htmlFor={`${id}-resolution-toggle`}>
+                      {isResolutionToggle ? "Marked as Resolution" : "Mark as Resolution"}
+                    </Label>
                   </div>
                 </div>
                 <TextEditor
@@ -273,7 +277,6 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
                     Cancel
                   </Button>
                 </div>
-                {/* Removed the conditional rendering of the resolution toggle here since it's now above the editor */}
               </div>
             </div>
           )}

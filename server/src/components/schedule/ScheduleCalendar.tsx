@@ -12,7 +12,7 @@ import { CalendarStyleProvider } from './CalendarStyleProvider';
 import { getCurrentUserScheduleEntries, addScheduleEntry, updateScheduleEntry, deleteScheduleEntry } from 'server/src/lib/actions/scheduleActions';
 import { IEditScope, IScheduleEntry } from 'server/src/interfaces/schedule.interfaces';
 import { produce } from 'immer';
-import { Dialog } from '@radix-ui/react-dialog';
+import { Dialog } from 'server/src/components/ui/Dialog';
 import { WorkItemType, IExtendedWorkItem } from 'server/src/interfaces/workItem.interfaces';
 import { useUsers } from 'server/src/hooks/useUsers';
 import { getCurrentUser } from 'server/src/lib/actions/user-actions/userActions';
@@ -452,7 +452,10 @@ const ScheduleCalendar: React.FC = () => {
           }}
         />
       </div>
-      <Dialog open={showEntryPopup} onOpenChange={setShowEntryPopup}>
+      <Dialog
+        isOpen={showEntryPopup}
+        onClose={() => setShowEntryPopup(false)}
+      >
         {renderEntryPopup()}
       </Dialog>
 

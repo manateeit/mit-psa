@@ -52,6 +52,7 @@ interface DocumentsProps {
   isLoading?: boolean;
   onDocumentCreated?: () => Promise<void>;
   isInDrawer?: boolean;
+  uploadFormRef?: React.RefObject<HTMLDivElement>;
 }
 
 const Documents = ({
@@ -63,7 +64,8 @@ const Documents = ({
   entityType,
   isLoading = false,
   onDocumentCreated,
-  isInDrawer = false
+  isInDrawer = false,
+  uploadFormRef
 }: DocumentsProps): JSX.Element => {
   const [documents, setDocuments] = useState<IDocument[]>(initialDocuments);
   const [showUpload, setShowUpload] = useState(false);
@@ -257,7 +259,13 @@ const Documents = ({
             </Button>
             <Button
               id={`${id}-upload-btn`}
-              onClick={() => setShowUpload(true)}
+              onClick={() => {
+                setShowUpload(true);
+                // Add a small delay to ensure the element is rendered before scrolling
+                setTimeout(() => {
+                  uploadFormRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 0);
+              }}
               className="bg-[#6941C6] text-white hover:bg-[#5B34B5]"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -278,7 +286,7 @@ const Documents = ({
         </div>
 
         {showUpload && (
-          <div className="mb-4 p-4 border border-gray-200 rounded-md bg-white">
+          <div ref={uploadFormRef} className="mb-4 p-4 border border-gray-200 rounded-md bg-white">
             <DocumentUpload
               id={`${id}-upload`}
               userId={userId}
@@ -360,12 +368,15 @@ const Documents = ({
           </div>
         )}
 
-        <Drawer
-          id={`${id}-document-drawer`}
-          isOpen={isDrawerOpen}
-          onClose={() => setIsDrawerOpen(false)}
-          isInDrawer={isInDrawer}
-        >
+        <div className="document-drawer">
+          <Drawer
+            id={`${id}-document-drawer`}
+            isOpen={isDrawerOpen}
+            onClose={() => setIsDrawerOpen(false)}
+            isInDrawer={isInDrawer}
+            hideCloseButton={true}
+            drawerVariant="document"
+          >
           <div className="flex flex-col h-full">
             <div className="flex justify-between items-center mb-4 border-b pb-4">
               <h2 className="text-lg font-semibold">
@@ -444,7 +455,8 @@ const Documents = ({
               </div>
             </div>
           </div>
-        </Drawer>
+          </Drawer>
+        </div>
       </div>
     </ReflectionContainer>
   );

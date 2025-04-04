@@ -5,6 +5,8 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from 'server/src/components/ui/Button';
 import { X } from 'lucide-react';
 import RichTextViewer from 'server/src/components/editor/RichTextViewer';
+import { Card } from 'server/src/components/ui/Card';
+import TicketDocumentsSection from 'server/src/components/tickets/TicketDocumentsSection';
 import { 
   getClientTicketDetails, 
   addClientTicketComment,
@@ -268,6 +270,12 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
                   onDelete={handleDelete}
                   onContentChange={handleContentChange}
                 />
+              )}
+              
+              {ticket.ticket_id && (
+                <Card className="mt-6">
+                  <TicketDocumentsSection ticketId={ticket.ticket_id} />
+                </Card>
               )}
             </div>
           )}

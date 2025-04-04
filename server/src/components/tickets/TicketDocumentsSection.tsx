@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import Documents from '../documents/Documents';
 import { IDocument } from '../../interfaces/document.interface';
@@ -40,6 +40,9 @@ const TicketDocumentsSection: React.FC<TicketDocumentsSectionProps> = ({
     fetchDocuments();
   }, [ticketId]);
 
+  // Create a ref for the upload form container
+  const uploadFormRef = useRef<HTMLDivElement>(null);
+
   return (
     <ReflectionContainer id={id} label="Ticket Documents">
       <div className="p-6">
@@ -52,6 +55,7 @@ const TicketDocumentsSection: React.FC<TicketDocumentsSectionProps> = ({
           entityType="ticket"
           isLoading={isLoading}
           onDocumentCreated={fetchDocuments}
+          uploadFormRef={uploadFormRef}
         />
       </div>
     </ReflectionContainer>

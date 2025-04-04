@@ -19,6 +19,7 @@ export interface DrawerProps {
   /** Child components for UI reflection */
   reflectionChildren?: UIComponent[];
   hideCloseButton?: boolean;
+  drawerVariant?: string;
 }
 
 const Drawer: React.FC<DrawerProps & AutomationProps> = ({
@@ -28,7 +29,8 @@ const Drawer: React.FC<DrawerProps & AutomationProps> = ({
   isInDrawer = false,
   id,
   reflectionChildren,
-  hideCloseButton = false
+  hideCloseButton = false,
+  drawerVariant
 }) => {
   // Always register drawer when mounted, but track open state
   const updateMetadata = id ? useRegisterUIComponent<DrawerComponent>({
@@ -48,7 +50,7 @@ const Drawer: React.FC<DrawerProps & AutomationProps> = ({
           onClick={() => onClose()} // Explicitly handle overlay clicks
         />
         <Dialog.Content 
-          className="fixed inset-y-0 right-0 w-fit max-w-[60vw] bg-white shadow-lg focus:outline-none overflow-y-auto transform transition-all duration-300 ease-in-out data-[state=open]:translate-x-0 data-[state=closed]:translate-x-full data-[state=closed]:opacity-0 data-[state=open]:opacity-100"
+          className={`fixed inset-y-0 right-0 w-fit max-w-[60vw] bg-white shadow-lg focus:outline-none overflow-y-auto transform transition-all duration-300 ease-in-out data-[state=open]:translate-x-0 data-[state=closed]:translate-x-full data-[state=closed]:opacity-0 data-[state=open]:opacity-100 ${drawerVariant === 'document' ? 'ticket-document-drawer' : ''}`}
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
           <SessionProvider>

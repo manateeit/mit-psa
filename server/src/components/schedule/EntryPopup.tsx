@@ -347,7 +347,7 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
     <div className={`bg-white p-4 rounded-lg h-auto flex flex-col transition-all duration-300 overflow-y-auto z-10
     ${isInDrawer ? 
       'w-fit max-w-[90vw] shadow-none' : 
-      'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-[95vw] w-[600px] min-w-[300px] max-h-[90vh] shadow-lg'
+      'max-w-[95vw] w-auto min-w-[300px] max-h-[90vh] shadow-none'
       }`}
     >
       <div className="shrink-0 pb-4 border-b flex justify-between items-center">
