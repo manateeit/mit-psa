@@ -1,4 +1,6 @@
 exports.seed = function (knex) {
+    return Promise.resolve();
+    /*
     return knex('tenants').select('tenant').first()
         .then((tenant) => {
             if (!tenant) return;
@@ -48,5 +50,5 @@ exports.seed = function (knex) {
                     }).select('service_id').first()
                 }
             ]);
-        });
+        }); */
 };
