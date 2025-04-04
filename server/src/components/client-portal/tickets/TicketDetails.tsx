@@ -89,10 +89,14 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
   const handleNewCommentContentChange = (content: PartialBlock[]) => {
     setNewCommentContent(content);
   };
-
-  const handleAddNewComment = async () => {
+  const handleAddNewComment = async (isInternal: boolean, isResolution: boolean) => {
     try {
-      await addClientTicketComment(ticketId, JSON.stringify(newCommentContent));
+      await addClientTicketComment(
+        ticketId,
+        JSON.stringify(newCommentContent),
+        isInternal,
+        isResolution
+      );
       // Reset editor
       setEditorKey(prev => prev + 1);
       setNewCommentContent([{
@@ -253,7 +257,6 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
                   editorKey={editorKey}
                   onNewCommentContentChange={handleNewCommentContentChange}
                   onAddNewComment={handleAddNewComment}
-                  // Override tab change to prevent 'Internal' tab selection
                   onTabChange={(tab) => {
                     if (tab !== 'Internal') {
                       setActiveTab(tab);

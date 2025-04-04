@@ -9,6 +9,7 @@ import AvatarIcon from 'server/src/components/ui/AvatarIcon';
 import { IComment } from 'server/src/interfaces/comment.interface';
 import { IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
 import { Button } from 'server/src/components/ui/Button';
+import { Badge } from 'server/src/components/ui/Badge';
 import { withDataAutomationId } from 'server/src/types/ui-reflection/withDataAutomationId';
 import { ConfirmationDialog } from 'server/src/components/ui/ConfirmationDialog';
 
@@ -171,9 +172,27 @@ const CommentItem: React.FC<CommentItemProps> = ({
         <div className="flex-grow">
           <div className="flex justify-between items-start">
             <div>
-              <p {...withDataAutomationId({ id: `${commentId}-author-name` })} className="font-semibold text-gray-800">
-                {getAuthorName()}
-              </p>
+              <div className="flex items-center gap-2">
+                <p {...withDataAutomationId({ id: `${commentId}-author-name` })} className="font-semibold text-gray-800">
+                  {getAuthorName()}
+                </p>
+                {conversation.is_internal && (
+                  <Badge
+                    {...withDataAutomationId({ id: `${commentId}-internal-badge` })}
+                    variant="warning"
+                  >
+                    Internal
+                  </Badge>
+                )}
+                {conversation.is_resolution && (
+                  <Badge
+                    {...withDataAutomationId({ id: `${commentId}-resolution-badge` })}
+                    variant="success"
+                  >
+                    Resolution
+                  </Badge>
+                )}
+              </div>
               <div className="flex flex-col">
                 {getAuthorEmail() && (
                   <p {...withDataAutomationId({ id: `${commentId}-author-email` })} className="text-sm text-gray-600">
@@ -186,8 +205,8 @@ const CommentItem: React.FC<CommentItemProps> = ({
                   {conversation.created_at && (
                     <span>
                       {new Date(conversation.created_at).toLocaleString()}
-                      {conversation.updated_at && 
-                       new Date(conversation.updated_at).getTime() > new Date(conversation.created_at).getTime() && 
+                      {conversation.updated_at &&
+                       new Date(conversation.updated_at).getTime() > new Date(conversation.created_at).getTime() &&
                        " (edited)"}
                     </span>
                   )}
