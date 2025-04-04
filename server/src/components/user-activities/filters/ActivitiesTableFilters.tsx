@@ -3,23 +3,23 @@ import {
   ActivityFilters as ActivityFiltersType,
   ActivityPriority,
   ActivityType
-} from '../../interfaces/activity.interfaces';
-import { Button } from '../ui/Button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/Dialog';
-import { Label } from '../ui/Label';
-import { Checkbox } from '../ui/Checkbox';
-import { DateRangePicker } from '../ui/DateRangePicker';
+} from "server/src/interfaces/activity.interfaces";
+import { Button } from "server/src/components/ui/Button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "server/src/components/ui/Dialog";
+import { Label } from "server/src/components/ui/Label";
+import { Checkbox } from "server/src/components/ui/Checkbox";
+import { DateRangePicker } from "server/src/components/ui/DateRangePicker";
 
-interface ActivityFiltersProps {
+interface ActivitiesTableFiltersProps {
   filters: ActivityFiltersType;
   onChange: (filters: ActivityFiltersType) => void;
 }
 
-export interface ActivityFiltersRef {
+export interface ActivitiesTableFiltersRef {
   openDialog: () => void;
 }
 
-export const ActivityFilters = forwardRef<ActivityFiltersRef, ActivityFiltersProps>(
+export const ActivitiesTableFilters = forwardRef<ActivitiesTableFiltersRef, ActivitiesTableFiltersProps>(
   ({ filters, onChange }, ref) => {
     const [open, setOpen] = useState(false);
     const [localFilters, setLocalFilters] = useState<ActivityFiltersType>(filters);
@@ -216,4 +216,4 @@ export const ActivityFilters = forwardRef<ActivityFiltersRef, ActivityFiltersPro
   }
 );
 
-ActivityFilters.displayName = 'ActivityFilters';
+ActivitiesTableFilters.displayName = 'ActivitiesTableFilters';

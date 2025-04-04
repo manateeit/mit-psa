@@ -8,21 +8,21 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from '../ui/Dialog';
-import { Button } from '../ui/Button';
-import { Checkbox } from '../ui/Checkbox';
-import { Label } from '../ui/Label';
-import { Input } from '../ui/Input';
-import { DateRangePicker } from '../ui/DateRangePicker';
-import { ActivityFilters, ActivityPriority } from '../../interfaces/activity.interfaces';
-import { IStatus } from '../../interfaces/status.interface';
-import { ICompany } from '../../interfaces/company.interfaces';
-import { IContact } from '../../interfaces/contact.interfaces';
+} from "server/src/components/ui/Dialog";
+import { Button } from "server/src/components/ui/Button";
+import { Checkbox } from "server/src/components/ui/Checkbox";
+import { Label } from "server/src/components/ui/Label";
+import { Input } from "server/src/components/ui/Input";
+import { DateRangePicker } from "server/src/components/ui/DateRangePicker";
+import { ActivityFilters, ActivityPriority } from "server/src/interfaces/activity.interfaces";
+import { IStatus } from "server/src/interfaces/status.interface";
+import { ICompany } from "server/src/interfaces/company.interfaces";
+import { IContact } from "server/src/interfaces/contact.interfaces";
 import { DateRange } from 'react-day-picker';
 import { ISO8601String } from '@shared/types/temporal';
-import { CompanyPicker } from '../companies/CompanyPicker';
-import { ContactPicker } from '../contacts/ContactPicker';
-import CustomSelect from '../ui/CustomSelect';
+import { CompanyPicker } from "server/src/components/companies/CompanyPicker";
+import { ContactPicker } from "server/src/components/contacts/ContactPicker";
+import CustomSelect from "server/src/components/ui/CustomSelect";
 
 interface TicketSectionFiltersDialogProps {
   isOpen: boolean;

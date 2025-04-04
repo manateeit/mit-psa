@@ -8,16 +8,16 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from '../ui/Dialog';
-import { Button } from '../ui/Button';
-import { Checkbox } from '../ui/Checkbox';
-import { Label } from '../ui/Label';
-import { Input } from '../ui/Input';
-import { DateRangePicker } from '../ui/DateRangePicker';
-import { ActivityFilters, ActivityPriority } from '../../interfaces/activity.interfaces';
+} from "server/src/components/ui/Dialog";
+import { Button } from "server/src/components/ui/Button";
+import { Checkbox } from "server/src/components/ui/Checkbox";
+import { Label } from "server/src/components/ui/Label";
+import { Input } from "server/src/components/ui/Input";
+import { DateRangePicker } from "server/src/components/ui/DateRangePicker";
+import { ActivityFilters, ActivityPriority } from "server/src/interfaces/activity.interfaces";
 import { DateRange } from 'react-day-picker';
 import { ISO8601String } from '@shared/types/temporal';
-import CustomSelect from '../ui/CustomSelect';
+import CustomSelect from "server/src/components/ui/CustomSelect";
 
 interface WorkflowExecution {
   execution_id: string;

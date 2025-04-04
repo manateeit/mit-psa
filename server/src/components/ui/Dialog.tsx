@@ -17,9 +17,10 @@ interface DialogProps {
   title?: string;
   /** Unique identifier for UI reflection system */
   id?: string;
+  hideCloseButton?: boolean;
 }
 
-export const Dialog: React.FC<DialogProps & AutomationProps> = ({ isOpen, onClose, children, className, title = '', id = 'dialog' }) => {
+export const Dialog: React.FC<DialogProps & AutomationProps> = ({ isOpen, onClose, children, className, title = '', id = 'dialog', hideCloseButton = false }) => {
   const { automationIdProps: updateDialog, updateMetadata } = useAutomationIdAndRegister<DialogComponent>({
     id: `${id}-dialog`,
     type: 'dialog',
@@ -41,14 +42,16 @@ export const Dialog: React.FC<DialogProps & AutomationProps> = ({ isOpen, onClos
           <RadixDialog.Content className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg p-6 w-full ${className || 'max-w-3xl'} z-50`}>
               {title && <RadixDialog.Title className="text-xl font-semibold mb-4">{title}</RadixDialog.Title>}
               {children}
-            <RadixDialog.Close asChild>
-              <button
-                className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
-                aria-label="Close"
-              >
-                <Cross2Icon />
-              </button>
-            </RadixDialog.Close>
+            {!hideCloseButton && (
+              <RadixDialog.Close asChild>
+                <button
+                  className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+                  aria-label="Close"
+                >
+                  <Cross2Icon />
+                </button>
+              </RadixDialog.Close>
+            )}
           </RadixDialog.Content>
         </RadixDialog.Portal>
       </RadixDialog.Root>

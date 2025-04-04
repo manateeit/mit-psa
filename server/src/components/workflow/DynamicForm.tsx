@@ -22,6 +22,7 @@ interface DynamicFormProps {
   executionId?: string;
   contextData?: Record<string, any>;
   isSubmitting?: boolean;
+  isInDrawer?: boolean;
 }
 
 export function DynamicForm({
@@ -34,7 +35,8 @@ export function DynamicForm({
   taskId,
   executionId,
   contextData,
-  isSubmitting = false
+  isSubmitting = false,
+  isInDrawer = false
 }: DynamicFormProps) {
   const [internalFormData, setInternalFormData] = useState(formData);
   const [error, setError] = useState<string | null>(null);
@@ -42,26 +44,35 @@ export function DynamicForm({
   const [processedUiSchema, setProcessedUiSchema] = useState(uiSchema);
   
   // Create default actions if none provided
-  const formActions = actions.length > 0 ? actions : [
-    {
-      id: 'submit',
-      label: 'Submit',
-      primary: true,
-      variant: 'default' as const,
-      disabled: false,
-      hidden: false,
-      order: 0
-    },
-    ...(onAction ? [{
-      id: 'cancel',
-      label: 'Cancel',
-      primary: false,
-      variant: 'secondary' as const,
-      disabled: false,
-      hidden: false,
-      order: 1
-    }] : [])
-  ];
+  let formActions = actions;
+  
+  // If no actions were provided, create default ones
+  if (formActions.length === 0) {
+    formActions = [
+      {
+        id: 'submit',
+        label: 'Submit',
+        primary: true,
+        variant: 'default' as const,
+        disabled: false,
+        hidden: false,
+        order: 0
+      }
+    ];
+    
+    // Only add a cancel button if not in a drawer and onAction is provided
+    if (onAction && !isInDrawer) {
+      formActions.push({
+        id: 'cancel',
+        label: 'Cancel',
+        primary: false,
+        variant: 'secondary' as const,
+        disabled: false,
+        hidden: false,
+        order: 1
+      });
+    }
+  }
   
   // Create a form context to allow widgets to update other fields
   const formContext = {

@@ -352,15 +352,18 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent(props: TimeE
         />
       )}
 
-      <DialogFooter>
-        <Button
-          id={`${id}-close-dialog-btn`}
-          onClick={handleClose}
-          variant="outline"
-        >
-          Close
-        </Button>
-      </DialogFooter>
+      {/* Only show the Close button if not in a drawer, since the drawer will have its own close button */}
+      {!inDrawer && (
+        <DialogFooter>
+          <Button
+            id={`${id}-close-dialog-btn`}
+            onClick={handleClose}
+            variant="outline"
+          >
+            Close
+          </Button>
+        </DialogFooter>
+      )}
     </ReflectionContainer>
   );
 
@@ -369,7 +372,7 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent(props: TimeE
       {inDrawer ? (
         content
       ) : (
-        <Dialog isOpen={isOpen} onClose={handleClose} title={title}>
+        <Dialog isOpen={isOpen} onClose={handleClose} title={title} hideCloseButton={false}>
           <DialogContent className="w-full max-w-4xl">
             {content}
           </DialogContent>

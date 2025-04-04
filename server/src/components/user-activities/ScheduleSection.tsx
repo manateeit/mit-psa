@@ -4,9 +4,9 @@ import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { ScheduleCard } from './ActivityCard';
 import { fetchScheduleActivities } from '../../lib/actions/activity-actions/activityServerActions';
-import { ActivityDetailsDrawer } from './ActivityDetailsDrawer';
-import { ScheduleSectionFiltersDialog } from './ScheduleSectionFiltersDialog';
+import { ScheduleSectionFiltersDialog } from './filters/ScheduleSectionFiltersDialog';
 import { FilterIcon, XCircleIcon } from 'lucide-react';
+import { useActivityDrawer } from './ActivityDrawerProvider';
 
 interface ScheduleSectionProps {
   limit?: number;
@@ -16,7 +16,7 @@ interface ScheduleSectionProps {
 export function ScheduleSection({ limit = 5, onViewAll }: ScheduleSectionProps) {
   const [activities, setActivities] = useState<ScheduleActivity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedActivity, setSelectedActivity] = useState<ScheduleActivity | null>(null);
+  const { openActivityDrawer } = useActivityDrawer();
   const [error, setError] = useState<string | null>(null);
   const [scheduleFilters, setScheduleFilters] = useState<Partial<ActivityFilters>>({ 
     isClosed: false,
@@ -80,13 +80,6 @@ export function ScheduleSection({ limit = 5, onViewAll }: ScheduleSectionProps) 
     }
   }
   
-  const handleViewDetails = (activity: ScheduleActivity) => {
-    setSelectedActivity(activity);
-  };
-
-  const handleCloseDrawer = () => {
-    setSelectedActivity(null);
-  };
 
   const handleRefresh = async () => {
     try {
@@ -180,22 +173,13 @@ export function ScheduleSection({ limit = 5, onViewAll }: ScheduleSectionProps) 
               <ScheduleCard
                 key={activity.id}
                 activity={activity}
-                onViewDetails={() => handleViewDetails(activity)}
+                onViewDetails={() => openActivityDrawer(activity)}
               />
             ))}
           </div>
         )}
       </CardContent>
 
-      {/* Activity Details Drawer */}
-      {selectedActivity && (
-        <ActivityDetailsDrawer
-          activity={selectedActivity}
-          isOpen={!!selectedActivity}
-          onClose={handleCloseDrawer}
-          onActionComplete={handleRefresh}
-        />
-      )}
 
       {/* Schedule Filters Dialog */}
       <ScheduleSectionFiltersDialog

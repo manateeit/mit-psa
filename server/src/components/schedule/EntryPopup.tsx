@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@radix-ui/react-dialog';
+import { Dialog, DialogContent, DialogTitle } from 'server/src/components/ui/Dialog';
 import { Button } from 'server/src/components/ui/Button';
 import { Input } from 'server/src/components/ui/Input';
 import { TextArea } from 'server/src/components/ui/TextArea';
@@ -342,18 +342,18 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
     }
   };
 
-  return (
-    <Dialog open={true}>
-      <DialogContent className={`bg-white p-4 rounded-lg h-auto flex flex-col transition-all duration-300 overflow-y-auto z-10
-      ${isInDrawer ? 
-        'w-fit max-w-[90vw] shadow-none' : 
-        'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-[95vw] w-[600px] min-w-[300px] max-h-[90vh] shadow-lg'
-        }`}
-      >
-       <div className="shrink-0 pb-4 border-b flex justify-between items-center">
-        <DialogTitle className="text-xl font-bold">
+  // Create the content of the form
+  const content = (
+    <div className={`bg-white p-4 rounded-lg h-auto flex flex-col transition-all duration-300 overflow-y-auto z-10
+    ${isInDrawer ? 
+      'w-fit max-w-[90vw] shadow-none' : 
+      'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-[95vw] w-[600px] min-w-[300px] max-h-[90vh] shadow-lg'
+      }`}
+    >
+      <div className="shrink-0 pb-4 border-b flex justify-between items-center">
+        <h2 className="text-xl font-bold">
           {event ? 'Edit Entry' : 'New Entry'}
-        </DialogTitle>
+        </h2>
         <div className="flex gap-2">
           {event && event.work_item_type && (event.work_item_type === 'ticket' || event.work_item_type === 'project_task') && event.work_item_id && (
             <OpenDrawerButton event={event} />
@@ -575,7 +575,7 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
           </div>
         )}
       <div className="mt-6 flex justify-end space-x-3">
-        {/* Only show Cancel button if not in a drawer, since the drawer will have its own close button */}
+        {/* Only show Cancel/Close button if not in a drawer, since the drawer will have its own close button */}
         {!isInDrawer && (
           <Button id="cancel-entry-btn" onClick={onClose} variant="outline">
             Cancel
@@ -583,33 +583,44 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
         )}
         <Button id="save-entry-btn" onClick={handleSave}>Save</Button>
       </div>
+    </div>
+  );
+
+  // When in a drawer, return the content directly
+  // When not in a drawer, wrap in Dialog
+  return isInDrawer ? (
+    content
+  ) : (
+    <Dialog isOpen={true} onClose={onClose} hideCloseButton={false}>
+      <DialogContent>
+        {content}
       </DialogContent>
       
-        <ConfirmationDialog
-          className="max-w-[450px]"
-          isOpen={showDeleteDialog}
-          onConfirm={(value) => {
-            if (event && onDelete) {
-              onDelete(event.entry_id, event.is_recurring ? value as IEditScope : undefined);
-              onClose();
-            }
-          }}
-          onClose={() => setShowDeleteDialog(false)}
-          title="Delete Schedule Entry"
-          message={event?.is_recurring 
-            ? "Select which events to delete:"
-            : "Are you sure you want to delete this schedule entry? This action cannot be undone."}
-          options={event?.is_recurring ? [
-            { value: IEditScope.SINGLE, label: 'Only this event' },
-            { value: IEditScope.FUTURE, label: 'This and future events' },
-            { value: IEditScope.ALL, label: 'All events' }
-          ] : undefined}
-          confirmLabel="Delete"
-        />
+      <ConfirmationDialog
+        className="max-w-[450px]"
+        isOpen={showDeleteDialog}
+        onConfirm={(value) => {
+          if (event && onDelete) {
+            onDelete(event.entry_id, event.is_recurring ? value as IEditScope : undefined);
+            onClose();
+          }
+        }}
+        onClose={() => setShowDeleteDialog(false)}
+        title="Delete Schedule Entry"
+        message={event?.is_recurring 
+          ? "Select which events to delete:"
+          : "Are you sure you want to delete this schedule entry? This action cannot be undone."}
+        options={event?.is_recurring ? [
+          { value: IEditScope.SINGLE, label: 'Only this event' },
+          { value: IEditScope.FUTURE, label: 'This and future events' },
+          { value: IEditScope.ALL, label: 'All events' }
+        ] : undefined}
+        confirmLabel="Delete"
+      />
 
-        <ConfirmationDialog
-          className="max-w-[450px]"
-          isOpen={showRecurrenceDialog}
+      <ConfirmationDialog
+        className="max-w-[450px]"
+        isOpen={showRecurrenceDialog}
         onClose={() => setShowRecurrenceDialog(false)}
         onConfirm={async (updateType) => {
           if (pendingUpdateData) {
@@ -617,15 +628,15 @@ const EntryPopup: React.FC<EntryPopupProps> = ({
             setShowRecurrenceDialog(false);
           }
         }}
-          title="Apply Changes To"
-          message="Select which events to update:"
-          options={[
-            { value: IEditScope.SINGLE, label: 'Only this event' },
-            { value: IEditScope.FUTURE, label: 'This and future events' },
-            { value: IEditScope.ALL, label: 'All events' }
-          ]}
-          id="recurrence-edit-dialog"
-        />
+        title="Apply Changes To"
+        message="Select which events to update:"
+        options={[
+          { value: IEditScope.SINGLE, label: 'Only this event' },
+          { value: IEditScope.FUTURE, label: 'This and future events' },
+          { value: IEditScope.ALL, label: 'All events' }
+        ]}
+        id="recurrence-edit-dialog"
+      />
     </Dialog>
   );
 };
