@@ -5,6 +5,8 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from 'server/src/components/ui/Button';
 import { X } from 'lucide-react';
 import RichTextViewer from 'server/src/components/editor/RichTextViewer';
+import { Card } from 'server/src/components/ui/Card';
+import TicketDocumentsSection from 'server/src/components/tickets/TicketDocumentsSection';
 import { 
   getClientTicketDetails, 
   addClientTicketComment,
@@ -89,10 +91,14 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
   const handleNewCommentContentChange = (content: PartialBlock[]) => {
     setNewCommentContent(content);
   };
-
-  const handleAddNewComment = async () => {
+  const handleAddNewComment = async (isInternal: boolean, isResolution: boolean) => {
     try {
-      await addClientTicketComment(ticketId, JSON.stringify(newCommentContent));
+      await addClientTicketComment(
+        ticketId,
+        JSON.stringify(newCommentContent),
+        isInternal,
+        isResolution
+      );
       // Reset editor
       setEditorKey(prev => prev + 1);
       setNewCommentContent([{
@@ -253,7 +259,6 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
                   editorKey={editorKey}
                   onNewCommentContentChange={handleNewCommentContentChange}
                   onAddNewComment={handleAddNewComment}
-                  // Override tab change to prevent 'Internal' tab selection
                   onTabChange={(tab) => {
                     if (tab !== 'Internal') {
                       setActiveTab(tab);
@@ -265,6 +270,12 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
                   onDelete={handleDelete}
                   onContentChange={handleContentChange}
                 />
+              )}
+              
+              {ticket.ticket_id && (
+                <Card className="mt-6">
+                  <TicketDocumentsSection ticketId={ticket.ticket_id} />
+                </Card>
               )}
             </div>
           )}

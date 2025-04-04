@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { Switch } from 'server/src/components/ui/Switch';
+import { Label } from 'server/src/components/ui/Label';
 import { ArrowUpDown } from 'lucide-react';
 import { IComment, ITicket } from '../../interfaces';
 import { IDocument } from '../../interfaces/document.interface';
@@ -27,7 +29,7 @@ interface TicketConversationProps {
   currentComment: IComment | null;
   editorKey: number;
   onNewCommentContentChange: (content: PartialBlock[]) => void;
-  onAddNewComment: () => Promise<void>;
+  onAddNewComment: (isInternal: boolean, isResolution: boolean) => Promise<void>;
   onTabChange: (tab: string) => void;
   onEdit: (conversation: IComment) => void;
   onSave: (updates: Partial<IComment>) => void;
@@ -62,15 +64,26 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
 }) => {
   const [showEditor, setShowEditor] = useState(false);
   const [reverseOrder, setReverseOrder] = useState(false);
+  const [isInternalToggle, setIsInternalToggle] = useState(false);
+  const [isResolutionToggle, setIsResolutionToggle] = useState(false);
 
   const handleAddCommentClick = () => {
     setShowEditor(true);
   };
-
   const handleSubmitComment = async () => {
     try {
-      // Call the onAddNewComment function and wait for it to complete
-      await onAddNewComment();
+      if (hideInternalTab) {
+        // Client Portal: Call with false for isInternal and use isResolutionToggle for isResolution
+        await onAddNewComment(false, isResolutionToggle);
+        // Reset the resolution toggle
+        setIsResolutionToggle(false);
+      } else {
+        // Main App: Use toggle states for isInternal and isResolution
+        await onAddNewComment(isInternalToggle, isResolutionToggle);
+        // Reset both toggles
+        setIsInternalToggle(false);
+        setIsResolutionToggle(false);
+      }
       
       // Only hide the editor after the comment has been successfully added
       console.log('Comment added successfully, closing editor');
@@ -88,30 +101,13 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
   const toggleCommentOrder = () => {
     setReverseOrder(!reverseOrder);
   };
-  const renderButtonBar = (): JSX.Element => {
-    // For MSP portal, use "Client Visible", "Internal", "Resolution"
-    // For client portal, use "Comment", "Resolution"
-    const buttons = hideInternalTab 
-      ? ['Comment', 'Resolution'] 
-      : ['Client Visible', 'Internal', 'Resolution'];
-    
-    return (
-      <div className={styles.buttonBar}>
-        {buttons.map((button: string): JSX.Element => (
-          <button
-            key={button}
-            className={`${styles.button} ${activeTab === button ? styles.activeButton : styles.inactiveButton}`}
-            onClick={() => onTabChange(button)}
-          >
-            {button}
-          </button>
-        ))}
-      </div>
-    );
-  };
-
+  // Removed renderButtonBar function as it's no longer needed
   const handleAddNewComment = async () => {
-    await onAddNewComment();
+    if (hideInternalTab) {
+      await onAddNewComment(false, isResolutionToggle);
+    } else {
+      await onAddNewComment(isInternalToggle, isResolutionToggle);
+    }
   };
 
   const getAuthorInfo = (conversation: IComment) => {
@@ -144,36 +140,17 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
     ));
   };
 
-  // Build tab content array
-  const tabContent = [];
-  
-  // For MSP portal, add Client Visible tab
-  if (!hideInternalTab) {
-    tabContent.push({
+  // Build tab content array based on hideInternalTab
+  const baseTabs = [
+    {
       label: "Client Visible",
       content: (
         <ReflectionContainer id={`${id}-client-visible-comments`} label="Client Visible Comments">
           {renderComments(conversations.filter(conversation => !conversation.is_internal))}
         </ReflectionContainer>
       )
-    });
-  }
-  
-  // For client portal, start with Comments tab
-  if (hideInternalTab) {
-    tabContent.push({
-      label: "Comments",
-      content: (
-        <ReflectionContainer id={`${id}-client-comments`} label="Comments">
-          {renderComments(conversations.filter(conversation => !conversation.is_internal))}
-        </ReflectionContainer>
-      )
-    });
-  }
-  
-  // Add Internal tab for MSP portal (not client portal)
-  if (!hideInternalTab) {
-    tabContent.push({
+    },
+    {
       label: "Internal",
       content: (
         <ReflectionContainer id={`${id}-internal-comments`} label="Internal Comments">
@@ -181,49 +158,42 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
           {renderComments(conversations.filter(conversation => conversation.is_internal))}
         </ReflectionContainer>
       )
-    });
-  }
-  
-  // Add Resolution tab
-  tabContent.push({
-    label: "Resolution",
-    content: (
-      <ReflectionContainer id={`${id}-resolution-comments`} label="Resolution Comments">
-        <h3 className="text-lg font-medium mb-4">Resolution Comments</h3>
-        {renderComments(conversations.filter(conversation => conversation.is_resolution))}
-      </ReflectionContainer>
-    )
-  });
-  
-  // Add All Comments tab for MSP portal
-  if (!hideInternalTab) {
-    tabContent.push({
+    },
+    {
+      label: "Resolution",
+      content: (
+        <ReflectionContainer id={`${id}-resolution-comments`} label="Resolution Comments">
+          <h3 className="text-lg font-medium mb-4">Resolution Comments</h3>
+          {renderComments(conversations.filter(conversation => conversation.is_resolution))}
+        </ReflectionContainer>
+      )
+    },
+    {
       label: "All Comments",
       content: (
         <ReflectionContainer id={`${id}-all-comments`} label="All Comments">
-          {renderComments(conversations)}
+          {renderComments(hideInternalTab
+            // For client portal, "All Comments" should exclude internal comments (same as "Client Visible")
+            ? conversations.filter(conversation => !conversation.is_internal)
+            // For MSP portal, "All Comments" includes all comments
+            : conversations)}
         </ReflectionContainer>
       )
-    });
-  }
+    }
+  ];
   
-  // Add Documents tab
-  tabContent.push({
-    label: "Documents",
-    content: (
-      <ReflectionContainer id={`${id}-documents`} label="Documents">
-        <div className="mx-8">
-          <Documents
-            id={`${id}-documents-list`}
-            documents={documents}
-            userId={`${currentUser?.id}`}
-            entityId={ticket.ticket_id}
-            entityType="ticket"
-          />
-        </div>
-      </ReflectionContainer>
-    )
-  });
+  // Filter and order tabs based on hideInternalTab
+  let tabContent;
+  if (hideInternalTab) {
+    // For client portal, only show "All Comments" and "Resolution" tabs
+    tabContent = [
+      baseTabs.find(tab => tab.label === "All Comments")!,
+      baseTabs.find(tab => tab.label === "Resolution")!
+    ];
+  } else {
+    // For MSP portal, show all tabs
+    tabContent = baseTabs;
+  }
 
   const tabStyles = {
     trigger: "px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 border-b-2 border-transparent",
@@ -258,15 +228,38 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
                 />
               </div>
               <div className='flex-grow'>
+                {/* Toggle switches above the editor */}
+                <div className="flex items-center space-x-4 mb-2 ml-2">
+                  {!hideInternalTab && (
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id={`${id}-internal-toggle`}
+                        checked={isInternalToggle}
+                        onCheckedChange={setIsInternalToggle}
+                      />
+                      <Label htmlFor={`${id}-internal-toggle`}>
+                        {isInternalToggle ? "Marked as Internal" : "Mark as Internal"}
+                      </Label>
+                    </div>
+                  )}
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id={`${id}-resolution-toggle`}
+                      checked={isResolutionToggle}
+                      onCheckedChange={setIsResolutionToggle}
+                    />
+                    <Label htmlFor={`${id}-resolution-toggle`}>
+                      {isResolutionToggle ? "Marked as Resolution" : "Mark as Resolution"}
+                    </Label>
+                  </div>
+                </div>
                 <TextEditor
                   {...withDataAutomationId({ id: `${id}-editor` })}
                   key={editorKey}
                   roomName={`ticket-${ticket.ticket_id}`}
                   initialContent={DEFAULT_BLOCK}
                   onContentChange={onNewCommentContentChange}
-                >
-                  {renderButtonBar()}
-                </TextEditor>
+                />
                 <div className="flex justify-end space-x-2 mt-1">
                   <Button
                     id={`${id}-add-comment-btn`}
@@ -290,7 +283,7 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
         </div>
         <CustomTabs
           tabs={tabContent}
-          defaultTab={hideInternalTab ? "Comments" : "Client Visible"}
+          defaultTab={hideInternalTab ? "All Comments" : "Client Visible"}
           tabStyles={tabStyles}
           onTabChange={onTabChange}
           extraContent={

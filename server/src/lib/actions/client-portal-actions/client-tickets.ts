@@ -265,7 +265,7 @@ export async function getClientTicketDetails(ticketId: string): Promise<ITicket>
   }
 }
 
-export async function addClientTicketComment(ticketId: string, content: string, isInternal: boolean = false): Promise<void> {
+export async function addClientTicketComment(ticketId: string, content: string, isInternal: boolean = false, isResolution: boolean = false): Promise<void> {
   try {
     const session = await getServerSession(options);
     if (!session?.user) {
@@ -294,7 +294,7 @@ export async function addClientTicketComment(ticketId: string, content: string, 
       author_type: 'client',
       note: content,
       is_internal: isInternal,
-      is_resolution: false,
+      is_resolution: isResolution,
       created_at: new Date().toISOString(),
       user_id: session.user.id
     });

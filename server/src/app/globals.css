@@ -583,3 +583,10 @@ body,
   color: rgb(var(--color-primary-600)) !important;
   font-weight: 500 !important;
 }
+
+
+/* Wider drawer for ticket documents */
+.ticket-document-drawer {
+  min-width: 40vw !important;
+  max-width: 60vw !important;
+}

@@ -21,6 +21,7 @@ import {
 } from "server/src/interfaces";
 import TicketInfo from "server/src/components/tickets/TicketInfo";
 import TicketProperties from "server/src/components/tickets/TicketProperties";
+import TicketDocumentsSection from "server/src/components/tickets/TicketDocumentsSection";
 import TicketConversation from "server/src/components/tickets/TicketConversation";
 import AssociatedAssets from "server/src/components/assets/AssociatedAssets";
 import { useSession } from 'next-auth/react';
@@ -34,6 +35,7 @@ import { getContactByContactNameId, getContactsByCompany } from "server/src/lib/
 import { getCompanyById, getAllCompanies } from "server/src/lib/actions/companyActions";
 import { updateTicket } from "server/src/lib/actions/ticket-actions/ticketActions";
 import { getTicketStatuses } from "server/src/lib/actions/status-actions/statusActions";
+import { addClientTicketComment } from "server/src/lib/actions/client-portal-actions/client-tickets";
 import { getAllPriorities } from "server/src/lib/actions/priorityActions";
 import { fetchTimeSheets, fetchOrCreateTimeSheet, saveTimeEntry } from "server/src/lib/actions/timeEntryActions";
 import { getCurrentTimePeriod } from "server/src/lib/actions/timePeriodsActions";
@@ -385,7 +387,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
 
     const [editorKey, setEditorKey] = useState(0);
 
-    const handleAddNewComment = async () => {
+    const handleAddNewComment = async (isInternal: boolean, isResolution: boolean) => {
         // Check if content is empty
         const contentStr = JSON.stringify(newCommentContent);
         const hasContent = contentStr !== JSON.stringify([{
@@ -421,8 +423,8 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
             if (onAddComment) {
                 await onAddComment(
                     JSON.stringify(newCommentContent),
-                    activeTab === 'Internal',
-                    activeTab === 'Resolution'
+                    isInternal,
+                    isResolution
                 );
                 
                 // Reset the comment input
@@ -440,27 +442,21 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
                     }]
                 }]);
             } else {
-                // Fallback to the original implementation
-                const newComment: Omit<IComment, 'tenant'> = {
-                    ticket_id: ticket.ticket_id || '',
-                    note: JSON.stringify(newCommentContent),
-                    user_id: userId,
-                    author_type: 'internal',
-                    is_internal: activeTab === 'Internal',
-                    is_resolution: activeTab === 'Resolution',
-                    markdown_content: markdownContent // Explicitly set markdown content
-                };
-        
-                const commentId = await createComment(newComment);
-        
-                if (commentId) {
-                    const newlyCreatedComment = await findCommentById(commentId);
-                    if (!newlyCreatedComment) {
-                        console.error('Error fetching newly created comment:', commentId);
-                        return;
-                    }
-        
-                    setConversations(prevConversations => [...prevConversations, newlyCreatedComment]);
+                // For client portal, use addClientTicketComment with isInternal always false
+                if (ticket.ticket_id) {
+                    // Call the client portal specific action
+                    await addClientTicketComment(
+                        ticket.ticket_id,
+                        JSON.stringify(newCommentContent),
+                        false, // isInternal is always false in client portal
+                        isResolution // Pass the isResolution flag
+                    );
+                    
+                    // Refresh comments after adding
+                    const updatedComments = await findCommentsByTicketId(ticket.ticket_id);
+                    setConversations(updatedComments);
+                    
+                    // Reset the comment input
                     setNewCommentContent([{
                         type: "paragraph",
                         props: {
@@ -475,6 +471,8 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
                         }]
                     }]);
                     console.log("New note added successfully");
+                } else {
+                    console.error('Ticket ID is missing');
                 }
             }
         } catch (error) {
@@ -927,7 +925,19 @@ const handleClose = () => {
                                 onDelete={handleDeleteRequest}
                                 onContentChange={handleContentChange}
                                 isSubmitting={isSubmitting}
+                                hideInternalTab={false}
                             />
+                        </Suspense>
+                        
+                        <Suspense fallback={<div id="ticket-documents-skeleton" className="animate-pulse bg-gray-200 h-64 rounded-lg mb-6"></div>}>
+                            <div className="mt-6">
+                                <div className="bg-white rounded-lg shadow">
+                                    <TicketDocumentsSection
+                                        id={`${id}-documents-section`}
+                                        ticketId={ticket.ticket_id || ''}
+                                    />
+                                </div>
+                            </div>
                         </Suspense>
                     </div>
                     <div className="w-96" id="ticket-properties-container">

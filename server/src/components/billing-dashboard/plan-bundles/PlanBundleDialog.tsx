@@ -182,7 +182,7 @@ export function PlanBundleDialog({ onBundleAdded, editingBundle, onClose, trigge
               <Button
                 id="cancel-bundle-btn"
                 type="button"
-                variant="secondary"
+                variant="outline"
                 onClick={handleClose}
               >
                 Cancel
