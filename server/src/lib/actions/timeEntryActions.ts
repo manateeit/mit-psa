@@ -1,17 +1,19 @@
 'use server'
 
+import { Knex } from 'knex'; // Import Knex type
 import { createTenantKnex } from 'server/src/lib/db';
 import { determineDefaultBillingPlan } from 'server/src/lib/utils/planDisambiguation';
-import { 
-  ITimeEntry, 
-  ITimePeriod, 
-  ITimeEntryWithWorkItem, 
-  ITimeSheet, 
+import { findOrCreateCurrentBucketUsageRecord, updateBucketUsageMinutes } from 'server/src/lib/services/bucketUsageService'; // Import bucket service functions
+import {
+  ITimeEntry,
+  ITimePeriod,
+  ITimeEntryWithWorkItem,
+  ITimeSheet,
   ITimeSheetView,
   ITimePeriodWithStatus,
   ITimePeriodView,
   ITimePeriodWithStatusView,
-  TimeSheetStatus 
+  TimeSheetStatus
 } from 'server/src/interfaces/timeEntry.interfaces';
 import { IWorkItem } from 'server/src/interfaces/workItem.interfaces';
 import { getServerSession } from "next-auth/next";
@@ -23,6 +25,7 @@ import { toPlainDate } from 'server/src/lib/utils/dateTimeUtils';
 import { validateData } from 'server/src/lib/utils/validation';
 import { z } from 'zod';
 import { timeEntrySchema } from 'server/src/lib/schemas/timeSheet.schemas';
+import { TentTree } from 'lucide-react';
 
 // Parameter schemas
 const fetchTimeEntriesParamsSchema = z.object({
@@ -64,6 +67,32 @@ const fetchTimePeriodsParamsSchema = z.object({
 
 type FetchTimePeriodsParams = z.infer<typeof fetchTimePeriodsParamsSchema>;
 
+// Helper function to get company_id from work_item
+async function getCompanyIdForWorkItem(trx: Knex.Transaction, tenant: string, workItemId: string, workItemType: string): Promise<string | null> {
+    if (workItemType === 'ticket') {
+        const ticket = await trx('tickets')
+            .where({ ticket_id: workItemId, tenant })
+            .first('company_id');
+        return ticket?.company_id || null;
+    } else if (workItemType === 'project_task') {
+        const task = await trx('project_tasks')
+            .join('project_phases', function() {
+                this.on('project_tasks.phase_id', '=', 'project_phases.phase_id')
+                    .andOn('project_tasks.tenant', '=', 'project_phases.tenant');
+            })
+            .join('projects', function() {
+                this.on('project_phases.project_id', '=', 'projects.project_id')
+                    .andOn('project_phases.tenant', '=', 'projects.tenant');
+            })
+            .where({ 'project_tasks.task_id': workItemId, 'project_tasks.tenant': tenant })
+            .first('projects.company_id');
+        return task?.company_id || null;
+    }
+    // Add other work item types if they can be associated with companies and buckets (e.g., ad_hoc if linked to a company)
+    // For now, only tickets and project tasks are assumed to link to companies for billing plans.
+    return null;
+}
+
 // Rest of the functions remain the same, but with proper type assertions for validateData results
 export async function fetchTimeSheets(): Promise<ITimeSheet[]> {
   const session = await getServerSession(options);
@@ -73,7 +102,7 @@ export async function fetchTimeSheets(): Promise<ITimeSheet[]> {
   const currentUserId = session.user.id;
 
   console.log('Fetching time sheets for user:', currentUserId);
-  
+
   const {knex: db, tenant} = await createTenantKnex();
   const query = db('time_sheets')
     .join('time_periods', function() {
@@ -113,7 +142,7 @@ export async function fetchTimeEntriesForTimeSheet(timeSheetId: string): Promise
   const {knex: db, tenant} = await createTenantKnex();
 
   const timeEntries = await db('time_entries')
-    .where({ 
+    .where({
       time_sheet_id: validatedParams.timeSheetId,
       tenant
     })
@@ -126,7 +155,7 @@ export async function fetchTimeEntriesForTimeSheet(timeSheetId: string): Promise
     switch (entry.work_item_type) {
       case 'ticket':
         [workItem] = await db('tickets')
-          .where({ 
+          .where({
             ticket_id: entry.work_item_id,
             'tickets.tenant': tenant
           })
@@ -165,12 +194,12 @@ export async function fetchTimeEntriesForTimeSheet(timeSheetId: string): Promise
       case 'ad_hoc':
         // For ad_hoc entries, get the title from schedule entries
         const scheduleEntry = await db('schedule_entries')
-          .where({ 
+          .where({
             entry_id: entry.work_item_id,
             'schedule_entries.tenant': tenant
           })
           .first();
-        
+
         workItem = {
           work_item_id: entry.work_item_id,
           name: scheduleEntry?.title || entry.work_item_id,
@@ -189,12 +218,12 @@ export async function fetchTimeEntriesForTimeSheet(timeSheetId: string): Promise
         this.on('sc.service_type_id', '=', 'tst.id')
             .andOn('sc.tenant', '=', 'tst.tenant_id');
       })
-      .where({ 
+      .where({
         'sc.service_id': entry.service_id,
         'sc.tenant': tenant
       })
       .select(
-        'sc.service_name', 
+        'sc.service_name',
         'sc.billing_method as service_type', // Use billing_method as service_type for backwards compatibility
         db.raw('CAST(sc.default_rate AS FLOAT) as default_rate')
       );
@@ -327,7 +356,11 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
 
   const {knex: db, tenant} = await createTenantKnex();
   const session = await getServerSession(options);
-  
+
+  if (!tenant) {
+    throw new Error("Tenant not found");
+  }
+
   // Check for session and user ID
   if (!session?.user?.id) {
     throw new Error("Unauthorized: Please log in to continue");
@@ -349,7 +382,7 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
       tax_region,
       billing_plan_id,
     } = timeEntry;
-    
+
     const cleanedEntry = {
       work_item_id,
       work_item_type,
@@ -384,7 +417,7 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
               })
               .join('projects', function() {
                 this.on('project_phases.project_id', '=', 'projects.project_id')
-                    .andOn('project_phases.tenant', '=', 'project_phases.tenant');
+                    .andOn('project_phases.tenant', '=', 'projects.tenant');
               })
               .where({ 'project_tasks.task_id': work_item_id, 'project_tasks.tenant': tenant })
               .first('projects.company_id')).company_id
@@ -395,7 +428,7 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
               : null,
           service_id
         );
-        
+
         if (defaultPlanId) {
           cleanedEntry.billing_plan_id = defaultPlanId;
         }
@@ -403,24 +436,37 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
         console.error('Error determining default billing plan:', error);
       }
     }
-    
+
 
     await db.transaction(async (trx) => {
       console.log('Starting transaction for time entry');
+      let oldDuration = 0; // Initialize oldDuration
       if (entry_id) {
+        // Fetch original entry before update to calculate delta
+        const originalEntryForUpdate = await trx('time_entries')
+          .where({ entry_id, tenant })
+          .select('billable_duration')
+          .first();
+        // If original entry not found, maybe throw error or handle gracefully?
+        // Throwing error for now as update shouldn't happen if original is gone.
+        if (!originalEntryForUpdate) {
+             throw new Error(`Original time entry with ID ${entry_id} not found for update.`);
+        }
+        oldDuration = originalEntryForUpdate.billable_duration || 0;
+
         // Update existing entry
         const [updated] = await trx('time_entries')
-          .where({ entry_id })
+          .where({ entry_id, tenant }) // Ensure tenant match
           .update(cleanedEntry)
           .returning('*');
 
         if (!updated) {
           throw new Error('Failed to update time entry');
         }
-        
+
         resultingEntry = updated;
         console.log('Updated entry:', resultingEntry);
-        
+
         // If this is a project task, update the actual_hours in the project_tasks table
         if (work_item_type === 'project_task') {
           // Get all time entries for this task to calculate total actual hours
@@ -431,10 +477,10 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
               tenant
             })
             .select('billable_duration');
-          
+
           // Calculate total minutes from all time entries
           const totalMinutes = timeEntries.reduce((total, entry) => total + entry.billable_duration, 0);
-          
+
           // Store actual_hours as minutes in the database (integer)
           await trx('project_tasks')
             .where({
@@ -462,7 +508,7 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
 
         resultingEntry = inserted;
         console.log('Inserted entry:', resultingEntry);
-        
+
         // Add user to ticket_resources or task_resources when a new time entry is created
         // Also update actual_hours for project tasks
         if (work_item_type === 'project_task') {
@@ -475,10 +521,10 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
               tenant
             })
             .select('billable_duration');
-          
+
           // Calculate total minutes from all time entries
           const totalMinutes = timeEntries.reduce((total, entry) => total + entry.billable_duration, 0);
-          
+
           // Store actual_hours as minutes in the database (integer)
           await trx('project_tasks')
             .where({
@@ -489,7 +535,7 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
               actual_hours: totalMinutes,
               updated_at: new Date()
             });
-          
+
           // Get current task to check if it already has an assignee
           const task = await trx('project_tasks')
             .where({
@@ -497,7 +543,7 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
               tenant,
             })
             .first();
-            
+
           if (task) {
             // Check if user is already in task_resources for this task
             const existingResource = await trx('task_resources')
@@ -510,7 +556,7 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
                   .orWhere('additional_user_id', session.user.id);
               })
               .first();
-              
+
             // If task already has an assignee and it's not the current user
             if (task.assigned_to && task.assigned_to !== session.user.id) {
               // Only add as additional user if not already in resources
@@ -549,7 +595,7 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
                 .orWhere('additional_user_id', session.user.id);
             })
             .first();
-            
+
           if (!existingResource) {
             // Get current ticket to check if it already has an assignee
             const ticket = await trx('tickets')
@@ -558,7 +604,7 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
                 tenant,
               })
               .first();
-              
+
             if (ticket) {
               // If ticket already has an assignee, add user as additional_user_id
               if (ticket.assigned_to && ticket.assigned_to !== session.user.id) {
@@ -581,7 +627,7 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
                     updated_at: new Date().toISOString(),
                     updated_by: session.user.id,
                   });
-                  
+
                 await trx('ticket_resources').insert({
                   ticket_id: work_item_id,
                   assigned_to: session.user.id,
@@ -593,6 +639,70 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
           }
         }
       }
+      // --- Bucket Usage Update Logic ---
+      // Check if billable based on duration > 0
+      if (resultingEntry && resultingEntry.service_id && (resultingEntry.billable_duration || 0) > 0) {
+        // Ensure work_item_id and work_item_type exist and call helper
+        let companyId: string | null = null;
+        if (resultingEntry.work_item_id && resultingEntry.work_item_type) {
+            // Now TypeScript knows both are strings here
+            companyId = await getCompanyIdForWorkItem(trx, tenant, resultingEntry.work_item_id as string, resultingEntry.work_item_type as string);
+        }
+        const currentPlanId = resultingEntry.billing_plan_id; // Use the plan ID associated with the entry
+
+        if (companyId && currentPlanId) {
+          // Check if the plan is a 'Bucket' type plan
+          // Correctly check plan_type by joining company_billing_plans with billing_plans
+          const planInfo = await trx('company_billing_plans as cbp')
+            .join('billing_plans as bp', function() {
+                this.on('cbp.plan_id', '=', 'bp.plan_id')
+                    .andOn('cbp.tenant', '=', 'bp.tenant');
+            })
+            .where('cbp.company_billing_plan_id', currentPlanId) // Use the ID from the time entry
+            .andWhere('cbp.tenant', tenant)
+            .first('bp.plan_type'); // Select plan_type from billing_plans table
+
+          if (planInfo && planInfo.plan_type === 'Bucket') {
+            console.log(`Time entry ${resultingEntry.entry_id} linked to Bucket plan ${currentPlanId}. Updating usage.`);
+
+            const newDuration = resultingEntry.billable_duration || 0;
+            // Calculate delta in MINUTES first
+            const minutesDelta = newDuration - oldDuration; // oldDuration is 0 for inserts
+
+            // Pass delta in MINUTES to bucket usage service
+            if (minutesDelta !== 0) {
+              try {
+                const bucketUsageRecord = await findOrCreateCurrentBucketUsageRecord(
+                  trx,
+                  companyId,
+                  resultingEntry.service_id,
+                  resultingEntry.start_time // Use entry's start time to find the correct period
+                );
+
+                await updateBucketUsageMinutes(
+                  trx,
+                  bucketUsageRecord.usage_id,
+                  minutesDelta // Pass the delta in minutes
+                );
+                console.log(`Successfully updated bucket usage for entry ${resultingEntry.entry_id}`);
+              } catch (bucketError) {
+                console.error(`Error updating bucket usage for time entry ${resultingEntry.entry_id}:`, bucketError);
+                // Re-throwing ensures data consistency.
+                throw new Error(`Failed to update bucket usage: ${bucketError instanceof Error ? bucketError.message : String(bucketError)}`);
+              }
+            } else {
+               console.log(`No duration change for time entry ${resultingEntry.entry_id}, skipping bucket update.`);
+            }
+          } else {
+             console.log(`Time entry ${resultingEntry.entry_id} service/plan is not a Bucket type or plan not found.`);
+          }
+        } else {
+           console.log(`Could not determine company ID or billing plan for time entry ${resultingEntry.entry_id}, skipping bucket update.`);
+        }
+      } else {
+         console.log(`Time entry ${resultingEntry?.entry_id} is not billable or missing service ID, skipping bucket update.`);
+      }
+      // --- End Bucket Usage Update Logic ---
     });
 
     if (!resultingEntry) {
@@ -607,7 +717,7 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
     switch (entry.work_item_type) {
       case 'project_task': {
         const [task] = await db('project_tasks')
-          .where({ 
+          .where({
             task_id: entry.work_item_id,
             'project_tasks.tenant': tenant
           })
@@ -637,7 +747,7 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
       }
       case 'ad_hoc': {
         const schedule = await db('schedule_entries')
-          .where({ 
+          .where({
             entry_id: entry.work_item_id,
             tenant
           })
@@ -653,7 +763,7 @@ export async function saveTimeEntry(timeEntry: Omit<ITimeEntry, 'tenant'>): Prom
       }
       case 'ticket': {
         const [ticket] = await db('tickets')
-          .where({ 
+          .where({
             ticket_id: entry.work_item_id,
             tenant
           })
@@ -733,7 +843,7 @@ export async function submitTimeSheet(timeSheetId: string): Promise<ITimeSheet> 
     return await db.transaction(async (trx) => {
       // Update the time sheet status
       const [updatedTimeSheet] = await trx('time_sheets')
-        .where({ 
+        .where({
           id: validatedParams.timeSheetId,
           tenant
         })
@@ -745,7 +855,7 @@ export async function submitTimeSheet(timeSheetId: string): Promise<ITimeSheet> 
 
       // Update all time entries associated with this time sheet
       await trx('time_entries')
-        .where({ 
+        .where({
           time_sheet_id: validatedParams.timeSheetId,
           tenant
         })
@@ -766,7 +876,7 @@ export async function fetchAllTimeSheets(): Promise<ITimeSheet[]> {
   const {knex: db, tenant} = await createTenantKnex();
 
   console.log('Fetching all time sheets');
-  
+
   const query = db('time_sheets')
     .join('time_periods', function() {
       this.on('time_sheets.period_id', '=', 'time_periods.period_id')
@@ -852,7 +962,7 @@ export async function fetchOrCreateTimeSheet(userId: string, periodId: string): 
   }
 
   const timePeriod = await db('time_periods')
-    .where({ 
+    .where({
       period_id: validatedParams.periodId,
       tenant
     })
@@ -860,7 +970,7 @@ export async function fetchOrCreateTimeSheet(userId: string, periodId: string): 
 
   // Fetch comments for the time sheet
   const comments = await db('time_sheet_comments')
-    .where({ 
+    .where({
       time_sheet_id: timeSheet.id,
       tenant
     })
@@ -880,12 +990,12 @@ export async function fetchOrCreateTimeSheet(userId: string, periodId: string): 
 
 export async function fetchCompanyTaxRateForWorkItem(workItemId: string, workItemType: string): Promise<string | undefined> {
   console.log(`Fetching tax rate for work item ${workItemId} of type ${workItemType}`);
-  
+
   const {knex: db, tenant} = await createTenantKnex();
 
   try {
     let query;
-    
+
     if (workItemType === 'ticket') {
       query = db('tickets')
         .where({
@@ -933,7 +1043,7 @@ export async function fetchCompanyTaxRateForWorkItem(workItemId: string, workIte
     console.log('Executing query:', query.toString());
 
     const result = await query.first();
-    
+
     if (result) {
       console.log(`Found tax region: ${result.region}`);
       return result.region;
@@ -954,28 +1064,80 @@ export async function deleteTimeEntry(entryId: string): Promise<void> {
     throw new Error("User not authenticated");
   }
 
+  if (!tenant) {
+    throw new Error("Tenant context not found");
+  }
+
   try {
     await db.transaction(async (trx) => {
       // Get the time entry to be deleted
       const timeEntry = await trx('time_entries')
-        .where({ 
+        .where({
           entry_id: entryId,
           tenant
         })
         .first();
-      
+
       if (!timeEntry) {
         throw new Error('Time entry not found');
       }
-      
+
+      // --- Bucket Usage Update Logic (Before Delete) ---
+      if (timeEntry.service_id && (timeEntry.billable_duration || 0) > 0) {
+        let companyId: string | null = null;
+        if (timeEntry.work_item_id && timeEntry.work_item_type) {
+            companyId = await getCompanyIdForWorkItem(trx, tenant, timeEntry.work_item_id as string, timeEntry.work_item_type as string);
+        }
+        const currentPlanId = timeEntry.billing_plan_id;
+
+        if (companyId && currentPlanId) {
+          const planInfo = await trx('company_billing_plans as cbp')
+            .join('billing_plans as bp', function() {
+                this.on('cbp.plan_id', '=', 'bp.plan_id')
+                    .andOn('cbp.tenant', '=', 'bp.tenant');
+            })
+            .where('cbp.company_billing_plan_id', currentPlanId)
+            .andWhere('cbp.tenant', tenant)
+            .first('bp.plan_type');
+
+          if (planInfo && planInfo.plan_type === 'Bucket') {
+            console.log(`Time entry ${entryId} linked to Bucket plan ${currentPlanId}. Decrementing usage.`);
+            const minutesDelta = -(timeEntry.billable_duration || 0); // Negative delta
+
+            if (minutesDelta !== 0) {
+              try {
+                const bucketUsageRecord = await findOrCreateCurrentBucketUsageRecord(
+                  trx,
+                  companyId,
+                  timeEntry.service_id,
+                  timeEntry.start_time // Use entry's start time to find the correct period
+                );
+
+                await updateBucketUsageMinutes(
+                  trx,
+                  bucketUsageRecord.usage_id,
+                  minutesDelta // Pass negative delta
+                );
+                console.log(`Successfully decremented bucket usage for deleted entry ${entryId}`);
+              } catch (bucketError) {
+                console.error(`Error updating bucket usage for deleted time entry ${entryId}:`, bucketError);
+                // Re-throwing ensures data consistency.
+                throw new Error(`Failed to update bucket usage for delete: ${bucketError instanceof Error ? bucketError.message : String(bucketError)}`);
+              }
+            }
+          }
+        }
+      }
+      // --- End Bucket Usage Update Logic ---
+
       // Delete the time entry
       await trx('time_entries')
-        .where({ 
+        .where({
           entry_id: entryId,
           tenant
         })
         .delete();
-      
+
       // If this was a project task, update the actual_hours in the project_tasks table
       if (timeEntry.work_item_type === 'project_task') {
         // Get all remaining time entries for this task to calculate total actual hours
@@ -986,10 +1148,10 @@ export async function deleteTimeEntry(entryId: string): Promise<void> {
             tenant
           })
           .select('billable_duration');
-        
+
         // Calculate total minutes from all time entries
         const totalMinutes = timeEntries.reduce((total, entry) => total + entry.billable_duration, 0);
-        
+
         // Store actual_hours as minutes in the database (integer)
         await trx('project_tasks')
           .where({
@@ -1019,7 +1181,7 @@ export async function deleteWorkItem(workItemId: string): Promise<void> {
     await db.transaction(async (trx) => {
       // First delete all time entries associated with this work item
       await trx('time_entries')
-        .where({ 
+        .where({
           work_item_id: workItemId,
           tenant
         })
@@ -1068,17 +1230,17 @@ export async function fetchScheduleEntryForWorkItem(workItemId: string): Promise
   scheduled_end: string
 } | null> {
   try {
-    const { knex: db, tenant } = await createTenantKnex();
-    
+    const { knex, tenant } = await createTenantKnex();
+
     if (!tenant) {
       throw new Error("Tenant context not found");
     }
-    
-    const scheduleEntry = await db('schedule_entries')
+
+    const scheduleEntry = await knex('schedule_entries')
       .where('entry_id', workItemId)
       .select('scheduled_start', 'scheduled_end')
       .first();
-    
+
     return scheduleEntry || null;
   } catch (error) {
     console.error('Error fetching schedule entry for work item:', error);
@@ -1086,37 +1248,27 @@ export async function fetchScheduleEntryForWorkItem(workItemId: string): Promise
   }
 }
 
-  /**
-   * Get a time entry by ID
-   * @param entryId The ID of the time entry to retrieve
-   * @returns The time entry with work item details or null if not found
-   */
+/**
+ * Fetches a single time entry by its ID, including work item details.
+ * @param entryId The ID of the time entry.
+ * @returns The time entry with work item details, or null if not found.
+ */
   export async function getTimeEntryById(entryId: string): Promise<ITimeEntryWithWorkItem | null> {
+    const { knex: db, tenant } = await createTenantKnex();
+    if (!tenant) {
+      throw new Error("Tenant context not found");
+    }
+
     try {
-      // Get current user from session
-      const session = await getServerSession(options);
-      if (!session?.user?.id) {
-        throw new Error('User not authenticated');
-      }
-      
-      const {knex: db, tenant} = await createTenantKnex();
-      if (!tenant) {
-        throw new Error('Tenant not found');
-      }
-  
-      // Get the time entry
       const entry = await db('time_entries')
-        .where({
-          entry_id: entryId,
-          tenant
-        })
+        .where({ entry_id: entryId, tenant })
         .first();
-  
+
       if (!entry) {
         return null;
       }
-  
-      // Fetch work item details based on the entry
+
+      // Fetch work item details based on the saved entry
       let workItemDetails: IWorkItem;
       switch (entry.work_item_type) {
         case 'project_task': {
@@ -1197,49 +1349,16 @@ export async function fetchScheduleEntryForWorkItem(workItemId: string): Promise
         default:
           throw new Error(`Unknown work item type: ${entry.work_item_type}`);
       }
-  
-      // Fetch service information if available
-      let service = null;
-      if (entry.service_id) {
-        const [serviceInfo] = await db('service_catalog as sc')
-          .leftJoin('standard_service_types as sst', 'sc.service_type_id', 'sst.id')
-          .leftJoin('service_types as tst', function() {
-            this.on('sc.service_type_id', '=', 'tst.id')
-                .andOn('sc.tenant', '=', 'tst.tenant_id');
-          })
-          .where({
-            'sc.service_id': entry.service_id,
-            'sc.tenant': tenant
-          })
-          .select(
-            'sc.service_name',
-            'sc.billing_method as service_type',
-            db.raw('CAST(sc.default_rate AS FLOAT) as default_rate')
-          );
-  
-        if (serviceInfo) {
-          service = {
-            id: entry.service_id,
-            name: serviceInfo.service_name,
-            type: serviceInfo.service_type,
-            default_rate: serviceInfo.default_rate
-          };
-        }
-      }
-  
+
       // Return the complete time entry with work item details
-      return {
+      const result: ITimeEntryWithWorkItem = {
         ...entry,
-        date: new Date(entry.start_time),
-        start_time: entry.start_time,
-        end_time: entry.end_time,
-        updated_at: entry.updated_at,
-        created_at: entry.created_at,
-        workItem: workItemDetails,
-        service
+        workItem: workItemDetails
       };
+      return result;
+
     } catch (error) {
-      console.error('Error fetching time entry by ID:', error);
-      throw new Error('Failed to fetch time entry');
+      console.error(`Error fetching time entry by ID ${entryId}:`, error);
+      throw new Error(`Failed to fetch time entry: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
