@@ -10,6 +10,18 @@ import {
   IBucketUsage,
   IService
 } from 'server/src/interfaces/billing.interfaces';
+import {
+  fetchInvoicesByCompany,
+  getInvoiceTemplates,
+  getInvoiceLineItems,
+  finalizeInvoice,
+  unfinalizeInvoice,
+  getInvoiceForRendering
+} from 'server/src/lib/actions/invoiceActions';
+import { InvoiceViewModel, IInvoiceTemplate } from 'server/src/interfaces/invoice.interfaces';
+import Invoice from 'server/src/lib/models/invoice';
+import { scheduleInvoiceZipAction } from 'server/src/lib/actions/job-actions/scheduleInvoiceZipAction';
+import { scheduleInvoiceEmailAction } from 'server/src/lib/actions/job-actions/scheduleInvoiceEmailAction';
 
 export async function getClientBillingPlan(): Promise<ICompanyBillingPlan | null> {
   const session = await getServerSession(options);
@@ -25,11 +37,16 @@ export async function getClientBillingPlan(): Promise<ICompanyBillingPlan | null
       .select(
         'company_billing_plans.*',
         'billing_plans.plan_name',
-        'billing_plans.billing_frequency'
+        'billing_plans.billing_frequency',
+        'service_categories.category_name as service_category_name'
       )
       .join('billing_plans', function() {
         this.on('company_billing_plans.plan_id', '=', 'billing_plans.plan_id')
           .andOn('billing_plans.tenant', '=', 'company_billing_plans.tenant')
+      })
+      .leftJoin('service_categories', function() {
+        this.on('company_billing_plans.service_category', '=', 'service_categories.category_id')
+          .andOn('service_categories.tenant', '=', 'company_billing_plans.tenant')
       })
       .where({
         'company_billing_plans.company_id': session.user.companyId,
@@ -44,7 +61,42 @@ export async function getClientBillingPlan(): Promise<ICompanyBillingPlan | null
     throw new Error('Failed to fetch billing plan');
   }
 }
-export async function getClientInvoices() {
+
+/**
+ * Fetch all invoices for the current client
+ */
+export async function getClientInvoices(): Promise<InvoiceViewModel[]> {
+  const session = await getServerSession(options);
+  
+  if (!session?.user?.tenant || !session.user.companyId) {
+    throw new Error('Unauthorized');
+  }
+
+  // Check for client_billing permission
+  const userRoles = await getUserRolesWithPermissions(session.user.id);
+  const hasInvoiceAccess = userRoles.some(role =>
+    role.permissions.some(p =>
+      p.resource === 'client_billing' && p.action === 'read'
+    )
+  );
+
+  if (!hasInvoiceAccess) {
+    throw new Error('Unauthorized to access invoice data');
+  }
+
+  try {
+    // Directly fetch only invoices for the current client
+    return await fetchInvoicesByCompany(session.user.companyId);
+  } catch (error) {
+    console.error('Error fetching client invoices:', error);
+    throw new Error('Failed to fetch invoices');
+  }
+}
+
+/**
+ * Get invoice details by ID
+ */
+export async function getClientInvoiceById(invoiceId: string): Promise<InvoiceViewModel> {
   const session = await getServerSession(options);
   
   if (!session?.user?.tenant || !session.user.companyId) {
@@ -66,27 +118,183 @@ export async function getClientInvoices() {
   const knex = await getConnection(session.user.tenant);
   
   try {
-    const invoices = await knex('invoices')
-      .select(
-        'invoice_id as id',
-        'invoice_number',
-        'invoice_date as created_at',
-        'total_amount',
-        'status'
-      )
+    // Verify the invoice belongs to the client
+    const invoiceCheck = await knex('invoices')
       .where({
+        invoice_id: invoiceId,
         company_id: session.user.companyId,
         tenant: session.user.tenant
       })
-      .orderBy('invoice_date', 'desc');
+      .first();
+    
+    if (!invoiceCheck) {
+      throw new Error('Invoice not found or access denied');
+    }
 
-    return invoices;
+    // Get full invoice details
+    return await getInvoiceForRendering(invoiceId);
   } catch (error) {
-    console.error('Error fetching client invoices:', error);
-    throw new Error('Failed to fetch invoices');
+    console.error('Error fetching client invoice details:', error);
+    throw new Error('Failed to fetch invoice details');
   }
 }
 
+/**
+ * Get invoice line items
+ */
+export async function getClientInvoiceLineItems(invoiceId: string) {
+  const session = await getServerSession(options);
+  
+  if (!session?.user?.tenant || !session.user.companyId) {
+    throw new Error('Unauthorized');
+  }
+
+  // Check for client_billing permission
+  const userRoles = await getUserRolesWithPermissions(session.user.id);
+  const hasInvoiceAccess = userRoles.some(role =>
+    role.permissions.some(p =>
+      p.resource === 'client_billing' && p.action === 'read'
+    )
+  );
+
+  if (!hasInvoiceAccess) {
+    throw new Error('Unauthorized to access invoice data');
+  }
+
+  const knex = await getConnection(session.user.tenant);
+  
+  try {
+    // Verify the invoice belongs to the client
+    const invoiceCheck = await knex('invoices')
+      .where({
+        invoice_id: invoiceId,
+        company_id: session.user.companyId,
+        tenant: session.user.tenant
+      })
+      .first();
+    
+    if (!invoiceCheck) {
+      throw new Error('Invoice not found or access denied');
+    }
+
+    // Get invoice items
+    return await getInvoiceLineItems(invoiceId);
+  } catch (error) {
+    console.error('Error fetching client invoice line items:', error);
+    throw new Error('Failed to fetch invoice line items');
+  }
+}
+
+/**
+ * Get invoice templates
+ */
+export async function getClientInvoiceTemplates(): Promise<IInvoiceTemplate[]> {
+  const session = await getServerSession(options);
+  
+  if (!session?.user?.tenant) {
+    throw new Error('Unauthorized');
+  }
+
+  try {
+    // Get all templates (both standard and tenant-specific)
+    return await getInvoiceTemplates();
+  } catch (error) {
+    console.error('Error fetching invoice templates:', error);
+    throw new Error('Failed to fetch invoice templates');
+  }
+}
+
+/**
+ * Download invoice PDF
+ */
+export async function downloadClientInvoicePdf(invoiceId: string) {
+  const session = await getServerSession(options);
+  
+  if (!session?.user?.tenant || !session.user.companyId) {
+    throw new Error('Unauthorized');
+  }
+
+  // Check for client_billing permission
+  const userRoles = await getUserRolesWithPermissions(session.user.id);
+  const hasInvoiceAccess = userRoles.some(role =>
+    role.permissions.some(p =>
+      p.resource === 'client_billing' && p.action === 'read'
+    )
+  );
+
+  if (!hasInvoiceAccess) {
+    throw new Error('Unauthorized to access invoice data');
+  }
+
+  const knex = await getConnection(session.user.tenant);
+  
+  try {
+    // Verify the invoice belongs to the client
+    const invoiceCheck = await knex('invoices')
+      .where({
+        invoice_id: invoiceId,
+        company_id: session.user.companyId,
+        tenant: session.user.tenant
+      })
+      .first();
+    
+    if (!invoiceCheck) {
+      throw new Error('Invoice not found or access denied');
+    }
+
+    // Schedule PDF generation
+    return await scheduleInvoiceZipAction([invoiceId]);
+  } catch (error) {
+    console.error('Error downloading invoice PDF:', error);
+    throw new Error('Failed to download invoice PDF');
+  }
+}
+
+/**
+ * Send invoice email
+ */
+export async function sendClientInvoiceEmail(invoiceId: string) {
+  const session = await getServerSession(options);
+  
+  if (!session?.user?.tenant || !session.user.companyId) {
+    throw new Error('Unauthorized');
+  }
+
+  // Check for client_billing permission
+  const userRoles = await getUserRolesWithPermissions(session.user.id);
+  const hasInvoiceAccess = userRoles.some(role =>
+    role.permissions.some(p =>
+      p.resource === 'client_billing' && p.action === 'read'
+    )
+  );
+
+  if (!hasInvoiceAccess) {
+    throw new Error('Unauthorized to access invoice data');
+  }
+
+  const knex = await getConnection(session.user.tenant);
+  
+  try {
+    // Verify the invoice belongs to the client
+    const invoiceCheck = await knex('invoices')
+      .where({
+        invoice_id: invoiceId,
+        company_id: session.user.companyId,
+        tenant: session.user.tenant
+      })
+      .first();
+    
+    if (!invoiceCheck) {
+      throw new Error('Invoice not found or access denied');
+    }
+
+    // Schedule email sending
+    return await scheduleInvoiceEmailAction([invoiceId]);
+  } catch (error) {
+    console.error('Error sending invoice email:', error);
+    throw new Error('Failed to send invoice email');
+  }
+}
 
 export async function getCurrentUsage(): Promise<{
   bucketUsage: IBucketUsage | null;

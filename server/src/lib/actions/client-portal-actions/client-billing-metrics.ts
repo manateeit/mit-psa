@@ -133,10 +133,10 @@ export async function getClientHoursByService(
     // Apply the company filter using the subqueries
     timeEntriesQuery.where(function() {
       this.where(function() {
-        this.where('work_item_type', '=', 'Ticket')
+        this.whereRaw('LOWER(work_item_type) = ?', ['ticket'])
             .whereIn('work_item_id', ticketCompanySubquery);
       }).orWhere(function() {
-        this.where('work_item_type', '=', 'Project Task')
+        this.whereRaw('LOWER(work_item_type) = ?', ['project task'])
             .whereIn('work_item_id', projectTaskCompanySubquery);
       });
     });
@@ -154,17 +154,16 @@ export async function getClientHoursByService(
 
     // --- Aggregation and Grouping ---
     const groupByColumn = groupByServiceType ? 'st.name' : 'sc.service_name';
-    const groupBySelect = groupByServiceType ? 'st.name as service_type_name' : 'sc.service_name';
-
+    
     timeEntriesQuery
       .select(
         'sc.service_id',
         'sc.service_name',
         knex.raw('COALESCE(sc.standard_service_type_id, sc.custom_service_type_id) as service_type_id'),
-        knex.raw(`${groupBySelect}`),
+        knex.raw('st.name as service_type_name'), 
         knex.raw('SUM(time_entries.billable_duration) as total_duration')
       )
-      .groupBy('sc.service_id', 'sc.service_name', knex.raw('COALESCE(sc.standard_service_type_id, sc.custom_service_type_id)'), groupByColumn)
+      .groupBy('sc.service_id', 'sc.service_name', knex.raw('COALESCE(sc.standard_service_type_id, sc.custom_service_type_id)'), 'st.name', groupByColumn)
       .orderBy(groupByColumn);
 
     const rawResults: any[] = await timeEntriesQuery;
@@ -272,8 +271,8 @@ export async function getClientUsageMetrics(
       })
       .where('ut.company_id', companyId)
       .andWhere('ut.tenant', tenant)
-      .andWhere('ut.usage_date', '>=', startDate)
-      .andWhere('ut.usage_date', '<=', endDate)
+      .andWhere(knex.raw('ut.usage_date::date'), '>=', startDate)
+      .andWhere(knex.raw('ut.usage_date::date'), '<=', endDate)
       .select(
         'ut.service_id',
         'sc.service_name',

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button } from 'server/src/components/ui/Button';
 import { Card } from 'server/src/components/ui/Card';
 import { Package, FileText, AlertCircle } from 'lucide-react';
@@ -11,6 +11,7 @@ import type {
 import type { InvoiceViewModel } from 'server/src/interfaces/invoice.interfaces';
 import type { ClientBucketUsageResult } from 'server/src/lib/actions/client-portal-actions/client-billing-metrics';
 import { Skeleton } from 'server/src/components/ui/Skeleton';
+import PlanDetailsDialog from './PlanDetailsDialog';
 
 interface BillingOverviewTabProps {
   billingPlan: ICompanyBillingPlan | null;
@@ -33,6 +34,9 @@ const BillingOverviewTab: React.FC<BillingOverviewTabProps> = React.memo(({
   formatDate,
   onViewAllInvoices
 }) => {
+  // State for plan details dialog
+  const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
+  
   // Memoize the plan card to prevent unnecessary re-renders
   const planCard = useMemo(() => (
     <Card className="p-6">
@@ -57,7 +61,7 @@ const BillingOverviewTab: React.FC<BillingOverviewTabProps> = React.memo(({
         id="view-plan-details-button"
         className="mt-4 w-full"
         variant="outline"
-        onClick={() => window.location.href = '#overview-tab'}
+        onClick={() => setIsPlanDialogOpen(true)}
       >
         View Plan Details
       </Button>
@@ -101,72 +105,82 @@ const BillingOverviewTab: React.FC<BillingOverviewTabProps> = React.memo(({
         View All Invoices
       </Button>
     </Card>
-  ), [invoices, formatCurrency, formatDate]);
+  ), [invoices, formatCurrency, formatDate, onViewAllInvoices]);
 
   return (
-    <div id="billing-overview-content" className="space-y-6 py-4">
-      <div className="grid gap-6 md:grid-cols-2">
-        {planCard}
+    <>
+      <div id="billing-overview-content" className="space-y-6 py-4">
+        <div className="grid gap-6 md:grid-cols-2">
+          {planCard}
+          {invoiceCard}
+        </div>
 
-        {invoiceCard}
+        {/* Enhanced Bucket Usage Visualization - Client-side only rendering */}
+        <Card id="bucket-usage-card" className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Bucket Usage</h3>
+          {!isClient ? (
+            // Server-side placeholder
+            <div className="grid gap-6 md:grid-cols-2">
+              {[...Array(2)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <Skeleton className="h-6 w-1/2 mb-2" />
+                  <Skeleton className="h-4 w-1/3 mb-4" />
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-2 w-full mb-1" />
+                  <div className="flex justify-between">
+                    <Skeleton className="h-3 w-1/4" />
+                    <Skeleton className="h-3 w-1/4" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : isBucketUsageLoading ? (
+            // Client-side loading state with skeleton
+            <div className="grid gap-6 md:grid-cols-2">
+              {[...Array(2)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <Skeleton className="h-6 w-1/2 mb-2" />
+                  <Skeleton className="h-4 w-1/3 mb-4" />
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-2 w-full mb-1" />
+                  <div className="flex justify-between">
+                    <Skeleton className="h-3 w-1/4" />
+                    <Skeleton className="h-3 w-1/4" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : bucketUsage.length === 0 ? (
+            // Empty state
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-lg font-medium text-gray-900">No bucket plans available</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  There are no active bucket plans for your account.
+                </p>
+              </div>
+            </div>
+          ) : (
+            // Bucket usage charts - only rendered client-side
+            <div className="grid gap-6 md:grid-cols-2">
+              {bucketUsage.map((bucket, index) => (
+                <BucketUsageChart key={`${bucket.plan_id}-${bucket.service_id}-${index}`} bucketData={bucket} />
+              ))}
+            </div>
+          )}
+        </Card>
       </div>
 
-      {/* Enhanced Bucket Usage Visualization - Client-side only rendering */}
-      <Card id="bucket-usage-card" className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Bucket Usage</h3>
-        {!isClient ? (
-          // Server-side placeholder
-          <div className="grid gap-6 md:grid-cols-2">
-            {[...Array(2)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <Skeleton className="h-6 w-1/2 mb-2" />
-                <Skeleton className="h-4 w-1/3 mb-4" />
-                <Skeleton className="h-4 w-full mb-2" />
-                <Skeleton className="h-2 w-full mb-1" />
-                <div className="flex justify-between">
-                  <Skeleton className="h-3 w-1/4" />
-                  <Skeleton className="h-3 w-1/4" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : isBucketUsageLoading ? (
-          // Client-side loading state with skeleton
-          <div className="grid gap-6 md:grid-cols-2">
-            {[...Array(2)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <Skeleton className="h-6 w-1/2 mb-2" />
-                <Skeleton className="h-4 w-1/3 mb-4" />
-                <Skeleton className="h-4 w-full mb-2" />
-                <Skeleton className="h-2 w-full mb-1" />
-                <div className="flex justify-between">
-                  <Skeleton className="h-3 w-1/4" />
-                  <Skeleton className="h-3 w-1/4" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : bucketUsage.length === 0 ? (
-          // Empty state
-          <div className="flex items-center justify-center py-8">
-            <div className="text-center">
-              <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-lg font-medium text-gray-900">No bucket plans available</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                There are no active bucket plans for your account.
-              </p>
-            </div>
-          </div>
-        ) : (
-          // Bucket usage charts - only rendered client-side
-          <div className="grid gap-6 md:grid-cols-2">
-            {bucketUsage.map((bucket, index) => (
-              <BucketUsageChart key={`${bucket.plan_id}-${bucket.service_id}-${index}`} bucketData={bucket} />
-            ))}
-          </div>
-        )}
-      </Card>
-    </div>
+      {/* Plan Details Dialog */}
+      <PlanDetailsDialog
+        plan={billingPlan}
+        isOpen={isPlanDialogOpen}
+        onClose={() => setIsPlanDialogOpen(false)}
+        formatCurrency={formatCurrency}
+        formatDate={formatDate}
+      />
+    </>
   );
 });
 

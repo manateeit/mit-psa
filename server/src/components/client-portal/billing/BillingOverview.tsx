@@ -313,10 +313,6 @@ export default function BillingOverview() {
         content: (
           <div id="invoices-tab">
             <InvoicesTab
-              invoices={invoices}
-              currentPage={currentPage}
-              onPageChange={setCurrentPage}
-              onInvoiceClick={handleInvoiceClick}
               formatCurrency={formatCurrency}
               formatDate={formatDate}
             />
@@ -395,7 +391,7 @@ export default function BillingOverview() {
       />
 
       <InvoiceDetailsDialog
-        invoice={selectedInvoice}
+        invoiceId={selectedInvoice?.invoice_id || null}
         isOpen={isInvoiceDialogOpen}
         onClose={handleDialogClose}
         formatCurrency={formatCurrency}

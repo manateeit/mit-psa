@@ -80,6 +80,7 @@ export interface ICompanyBillingPlan extends TenantEntity {
   company_id: string;
   plan_id: string;
   service_category?: string;
+  service_category_name?: string; // Added field from join with service_categories
   start_date: ISO8601String;
   end_date: ISO8601String | null;
   is_active: boolean;
