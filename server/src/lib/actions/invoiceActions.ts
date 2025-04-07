@@ -1047,6 +1047,62 @@ export async function fetchAllInvoices(): Promise<InvoiceViewModel[]> {
   }
 }
 
+/**
+ * Fetch invoices for a specific company
+ * @param companyId The ID of the company to fetch invoices for
+ * @returns Array of invoice view models
+ */
+export async function fetchInvoicesByCompany(companyId: string): Promise<InvoiceViewModel[]> {
+  try {
+    console.log(`Fetching invoices for company: ${companyId}`);
+    const { knex, tenant } = await createTenantKnex();
+    
+    // Get invoices with company info in a single query, filtered by company_id
+    const invoices = await knex('invoices')
+      .join('companies', function() {
+        this.on('invoices.company_id', '=', 'companies.company_id')
+            .andOn('invoices.tenant', '=', 'companies.tenant');
+      })
+      .where({
+        'invoices.company_id': companyId,
+        'invoices.tenant': tenant
+      })
+      .select(
+        'invoices.invoice_id',
+        'invoices.company_id',
+        'invoices.invoice_number',
+        'invoices.invoice_date',
+        'invoices.due_date',
+        'invoices.status',
+        'invoices.is_manual',
+        'invoices.finalized_at',
+        'invoices.billing_cycle_id',
+        knex.raw('CAST(invoices.subtotal AS INTEGER) as subtotal'),
+        knex.raw('CAST(invoices.tax AS INTEGER) as tax'),
+        knex.raw('CAST(invoices.total_amount AS INTEGER) as total_amount'),
+        knex.raw('CAST(invoices.credit_applied AS INTEGER) as credit_applied'),
+        'companies.company_name',
+        'companies.address',
+        'companies.properties'
+      );
+
+    console.log(`Got ${invoices.length} invoices for company ${companyId}`);
+
+    // Map to view models without line items
+    return Promise.all(invoices.map(invoice => {
+      const companyProperties = invoice.properties as { logo?: string } || {};
+      return getBasicInvoiceViewModel(invoice, {
+        company_name: invoice.company_name,
+        logo: companyProperties.logo || '',
+        address: invoice.address || ''
+      });
+    }));
+  } catch (error) {
+    console.error(`Error fetching invoices for company ${companyId}:`, error);
+    throw new Error('Error fetching company invoices');
+  }
+}
+
 export async function getInvoiceForRendering(invoiceId: string): Promise<InvoiceViewModel> {
   try {
     console.log('Fetching full invoice details for rendering:', invoiceId);

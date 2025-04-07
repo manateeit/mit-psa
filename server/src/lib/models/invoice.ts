@@ -363,8 +363,10 @@ export default class Invoice {
         knex.raw('CAST(total_amount AS INTEGER) as total_amount'),
         knex.raw('CAST(credit_applied AS INTEGER) as credit_applied')
       )
-      .where({ invoice_id: invoiceId })
-      .where({ tenant: tenant })
+      .where({
+        invoice_id: invoiceId,
+        tenant: tenant
+      })
       .first();
     console.log('Found invoice:', {
       id: invoice?.invoice_id,
