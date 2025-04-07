@@ -3,12 +3,12 @@
 import { getServerSession } from 'next-auth';
 import { options } from 'server/src/app/api/auth/[...nextauth]/options';
 import { getConnection } from 'server/src/lib/db/db';
-import { 
-  ICompanyBillingPlan, 
-  IBillingResult, 
+import { getUserRolesWithPermissions } from 'server/src/lib/actions/user-actions/userActions';
+import {
+  ICompanyBillingPlan,
+  IBillingResult,
   IBucketUsage,
-  IService,
-  PaymentMethod
+  IService
 } from 'server/src/interfaces/billing.interfaces';
 
 export async function getClientBillingPlan(): Promise<ICompanyBillingPlan | null> {
@@ -44,12 +44,23 @@ export async function getClientBillingPlan(): Promise<ICompanyBillingPlan | null
     throw new Error('Failed to fetch billing plan');
   }
 }
-
 export async function getClientInvoices() {
   const session = await getServerSession(options);
   
   if (!session?.user?.tenant || !session.user.companyId) {
     throw new Error('Unauthorized');
+  }
+
+  // Check for client_billing permission
+  const userRoles = await getUserRolesWithPermissions(session.user.id);
+  const hasInvoiceAccess = userRoles.some(role =>
+    role.permissions.some(p =>
+      p.resource === 'client_billing' && p.action === 'read'
+    )
+  );
+
+  if (!hasInvoiceAccess) {
+    throw new Error('Unauthorized to access invoice data');
   }
 
   const knex = await getConnection(session.user.tenant);
@@ -76,31 +87,6 @@ export async function getClientInvoices() {
   }
 }
 
-export async function getClientPaymentMethods(): Promise<PaymentMethod[]> {
-  const session = await getServerSession(options);
-  
-  if (!session?.user?.tenant || !session.user.companyId) {
-    throw new Error('Unauthorized');
-  }
-
-  const knex = await getConnection(session.user.tenant);
-  
-  try {
-    const paymentMethods = await knex('payment_methods')
-      .select('*')
-      .where({
-        company_id: session.user.companyId,
-        is_deleted: false,
-        tenant: session.user.tenant
-      })
-      .orderBy('created_at', 'desc');
-
-    return paymentMethods;
-  } catch (error) {
-    console.error('Error fetching payment methods:', error);
-    throw new Error('Failed to fetch payment methods');
-  }
-}
 
 export async function getCurrentUsage(): Promise<{
   bucketUsage: IBucketUsage | null;
