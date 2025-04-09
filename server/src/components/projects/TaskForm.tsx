@@ -14,7 +14,8 @@ import {
   addTaskResourceAction,
   removeTaskResourceAction,
   getTaskResourcesAction,
-  addTicketLinkAction
+  addTicketLinkAction,
+  duplicateTaskToPhase
 } from 'server/src/lib/actions/project-actions/projectTaskActions';
 import { getCurrentUser } from 'server/src/lib/actions/user-actions/userActions';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -25,6 +26,7 @@ import { ListChecks, UserPlus, Trash2 } from 'lucide-react';
 import { DatePicker } from 'server/src/components/ui/DatePicker';
 import UserPicker from 'server/src/components/ui/UserPicker';
 import { ConfirmationDialog } from 'server/src/components/ui/ConfirmationDialog';
+import DuplicateTaskDialog, { DuplicateOptions } from './DuplicateTaskDialog';
 import { Input } from 'server/src/components/ui/Input';
 import { toast } from 'react-hot-toast';
 import TaskTicketLinks from './TaskTicketLinks';
@@ -86,6 +88,19 @@ export default function TaskForm({
   const [pendingTicketLinks, setPendingTicketLinks] = useState<IProjectTicketLinkWithDetails[]>(task?.ticket_links || []);
   const [editingChecklistItemId, setEditingChecklistItemId] = useState<string | null>(null);
   const [isCrossProjectMove, setIsCrossProjectMove] = useState<boolean>(false);
+  const [selectedDuplicatePhaseId, setSelectedDuplicatePhaseId] = useState<string | null>(null);
+  const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false); // State for duplicate dialog
+  const [duplicateTaskDetails, setDuplicateTaskDetails] = useState<{
+    originalTaskId: string;
+    originalTaskName: string;
+    targetPhaseId: string;
+    targetPhaseName: string;
+    targetStatusId: string | null;
+    hasChecklist: boolean;
+    hasPrimaryAssignee: boolean;
+    additionalAssigneeCount: number;
+    ticketLinkCount: number;
+  } | null>(null);
 
   const [selectedStatusId, setSelectedStatusId] = useState<string>(
     task?.project_status_mapping_id ||
@@ -575,6 +590,57 @@ export default function TaskForm({
     }
   };
 
+  // Placeholder handler for the duplicate dropdown
+  const handleDuplicateTreeSelectChange = (
+    value: string,
+    type: ProjectTreeTypes,
+    excluded: boolean,
+    path?: TreeSelectPath
+  ) => {
+    if (!path || !task) return; // Need the original task in edit mode
+    const targetPhaseId = path['phase'];
+    const targetStatusId = path['status'] || null;
+ 
+    if (targetPhaseId) {
+      console.log("Duplicate destination selected:", targetPhaseId, "Status:", targetStatusId);
+      setSelectedDuplicatePhaseId(targetPhaseId);
+
+      // Find target phase name from tree data (similar to move logic)
+      const findPhaseName = (options: TreeSelectOption<ProjectTreeTypes>[], id: string): string | undefined => {
+        for (const opt of options) {
+          if (opt.type === 'phase' && opt.value === id) return opt.label;
+          if (opt.children) {
+            const found = findPhaseName(opt.children, id);
+            if (found) return found;
+          }
+        }
+        return undefined;
+      };
+      const targetPhaseName = findPhaseName(projectTreeOptions, targetPhaseId) || 'Unknown Phase';
+
+      // Prepare details for the confirmation dialog
+      const details = {
+        originalTaskId: task.task_id,
+        originalTaskName: task.task_name,
+        targetPhaseId: targetPhaseId,
+        targetPhaseName: targetPhaseName,
+        targetStatusId: targetStatusId, // Store the target status ID
+        hasChecklist: (task.checklist_items?.length || checklistItems.length) > 0,
+        hasPrimaryAssignee: !!(task.assigned_to || assignedUser),
+        additionalAssigneeCount: (task.task_id ? taskResources : tempTaskResources).length,
+        ticketLinkCount: pendingTicketLinks.length,
+      };
+
+      console.log("Duplicate Task Details:", details);
+      setDuplicateTaskDetails(details);
+      setShowDuplicateConfirm(true);
+
+      setTimeout(() => {
+        setSelectedDuplicatePhaseId(null);
+      }, 0);
+    }
+  };
+
   const renderContent = () => (
     <div className="h-full">
       <div className="text-lg font-medium mb-4">
@@ -591,23 +657,46 @@ export default function TaskForm({
                 />
 
                 {mode === 'edit' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Move to</label>
-                    {projectTreeOptions.length > 0 ? (
-              <TreeSelect<ProjectTreeTypes>
-                value={selectedPhaseId}
-                onValueChange={handleTreeSelectChange}
-                options={projectTreeOptions}
-                placeholder="Select destination..."
-                className="w-full"
-                multiSelect={false}
-                showExclude={false}
-                showReset={false}
-                allowEmpty={false}
-              />
-            ) : (
-              <div className="text-sm text-gray-500">Loading...</div>
-            )}
+                  <div className="flex gap-4 w-full"> {/* Container for side-by-side dropdowns */}
+                    {/* Move To Dropdown */}
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Move to</label>
+                      {projectTreeOptions.length > 0 ? (
+                        <TreeSelect<ProjectTreeTypes>
+                          value={selectedPhaseId}
+                          onValueChange={handleTreeSelectChange}
+                          options={projectTreeOptions}
+                          placeholder="Select move destination..."
+                          className="w-full"
+                          multiSelect={false}
+                          showExclude={false}
+                          showReset={false}
+                          allowEmpty={false}
+                        />
+                      ) : (
+                        <div className="text-sm text-gray-500">Loading...</div>
+                      )}
+                    </div>
+
+                    {/* Duplicate To Dropdown */}
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Duplicate to</label>
+                      {projectTreeOptions.length > 0 ? (
+                        <TreeSelect<ProjectTreeTypes>
+                          value={selectedDuplicatePhaseId || ''}
+                          onValueChange={handleDuplicateTreeSelectChange}
+                          options={projectTreeOptions}
+                          placeholder="Select duplicate destination..."
+                          className="w-full"
+                          multiSelect={false}
+                          showExclude={false}
+                          showReset={false}
+                          allowEmpty={true}
+                        />
+                      ) : (
+                        <div className="text-sm text-gray-500">Loading...</div>
+                      )}
+                    </div>
                   </div>
                 )}
                 <TextArea
@@ -868,6 +957,45 @@ export default function TaskForm({
           message={`Are you sure you want to move task "${taskName}" to phase "${selectedPhase.phase_name}"?`}
           confirmLabel="Move"
           cancelLabel="Cancel"
+        />
+      )}
+
+      {/* Render Duplicate Confirmation Dialog */}
+      {duplicateTaskDetails && (
+        <DuplicateTaskDialog
+          isOpen={showDuplicateConfirm}
+          onClose={() => {
+            setShowDuplicateConfirm(false);
+            setDuplicateTaskDetails(null);
+          }}
+          taskDetails={duplicateTaskDetails}
+          projectTreeData={projectTreeOptions}
+          initialTargetPhaseId={duplicateTaskDetails.targetPhaseId}
+          initialTargetStatusId={duplicateTaskDetails.targetStatusId}
+          onConfirm={async (targetPhaseId: string, options: DuplicateOptions) => {
+            if (!duplicateTaskDetails) return;
+            console.log("Duplicate confirmed for phase:", targetPhaseId, "with options:", options);
+            setIsSubmitting(true);
+            try {
+              const duplicatedTask = await duplicateTaskToPhase(
+                duplicateTaskDetails.originalTaskId,
+                targetPhaseId,
+                options
+              );
+              toast.success(`Task "${duplicateTaskDetails.originalTaskName}" duplicated successfully!`);
+              setShowDuplicateConfirm(false);
+              setDuplicateTaskDetails(null);
+              onSubmit(duplicatedTask);
+              onClose();
+            } catch (error) {
+              console.error("Error duplicating task:", error);
+              toast.error("Failed to duplicate task.");
+              setShowDuplicateConfirm(false);
+              setDuplicateTaskDetails(null);
+            } finally {
+               setIsSubmitting(false);
+            }
+          }}
         />
       )}
 

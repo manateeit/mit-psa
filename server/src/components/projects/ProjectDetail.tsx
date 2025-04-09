@@ -8,10 +8,12 @@ import TaskQuickAdd from './TaskQuickAdd';
 import TaskEdit from './TaskEdit';
 import PhaseQuickAdd from './PhaseQuickAdd';
 import { getProjectTaskStatuses, updatePhase, deletePhase, getProjectTreeData } from 'server/src/lib/actions/project-actions/projectActions';
-import { updateTaskStatus, reorderTasksInStatus, moveTaskToPhase, updateTaskWithChecklist, getTaskChecklistItems } from 'server/src/lib/actions/project-actions/projectTaskActions';
+import { updateTaskStatus, reorderTasksInStatus, moveTaskToPhase, updateTaskWithChecklist, getTaskChecklistItems, getTaskResourcesAction, getTaskTicketLinksAction, duplicateTaskToPhase, deleteTask as deleteTaskAction } from 'server/src/lib/actions/project-actions/projectTaskActions';
 import styles from './ProjectDetail.module.css';
 import { Toaster, toast } from 'react-hot-toast';
 import { ConfirmationDialog } from 'server/src/components/ui/ConfirmationDialog';
+import DuplicateTaskDialog, { DuplicateOptions } from './DuplicateTaskDialog';
+import MoveTaskDialog from './MoveTaskDialog';
 import ProjectPhases from './ProjectPhases';
 import KanbanBoard from './KanbanBoard';
 import DonutChart from './DonutChart';
@@ -56,6 +58,7 @@ export default function ProjectDetail({
   const [editingPhaseName, setEditingPhaseName] = useState('');
   const [editingStartDate, setEditingStartDate] = useState<Date | undefined>(undefined);
   const [editingEndDate, setEditingEndDate] = useState<Date | undefined>(undefined);
+  const [editingPhaseDescription, setEditingPhaseDescription] = useState<string | null>(null);
   const [dragOverPhaseId, setDragOverPhaseId] = useState<string | null>(null);
   const [moveConfirmation, setMoveConfirmation] = useState<{
     taskId: string;
@@ -76,6 +79,20 @@ export default function ProjectDetail({
     spentHours: number;
     remainingHours: number;
   } | null>(null);
+ 
+  // State for the Move Task Dialog
+  const [isMoveTaskDialogOpen, setIsMoveTaskDialogOpen] = useState(false);
+  const [taskToMove, setTaskToMove] = useState<IProjectTask | null>(null);
+  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+  const [taskToDuplicate, setTaskToDuplicate] = useState<IProjectTask | null>(null);
+  const [duplicateTaskToggleDetails, setDuplicateTaskToggleDetails] = useState<{
+      hasChecklist: boolean;
+      hasPrimaryAssignee: boolean;
+      additionalAssigneeCount: number;
+      ticketLinkCount: number;
+  } | null>(null);
+
+  const [taskToDelete, setTaskToDelete] = useState<IProjectTask | null>(null);
 
   const filteredTasks = useMemo(() => {
     if (!selectedPhase) return [];
@@ -420,32 +437,10 @@ export default function ProjectDetail({
       return;
     }
     
-    // Create an empty task object with all necessary properties initialized
-    const emptyTask: IProjectTask = {
-      task_id: '', // Will be generated on save
-      task_name: '',
-      description: '',
-      phase_id: selectedPhase.phase_id,
-      wbs_code: selectedPhase.wbs_code + '.1', // Default WBS code
-      project_status_mapping_id: status.project_status_mapping_id,
-      assigned_to: null,
-      due_date: null,
-      estimated_hours: 0,
-      actual_hours: 0,
-      created_at: new Date(),
-      updated_at: new Date(),
-      checklist_items: [], // Empty checklist for new task
-      ticket_links: [], // Empty ticket links for new task
-      resources: [] // Empty resources for new task
-    };
-    
-    // Log that we're using the cached project tree data
-    console.log('Using cached project tree data for new task dialog');
-    
     setIsAddingTask(true);
     setDefaultStatus(status);
     setCurrentPhase(selectedPhase);
-    setSelectedTask(emptyTask); // Pass the empty task with all properties initialized
+    setSelectedTask(null);
     setShowQuickAdd(true);
   }, [selectedPhase]);
 
@@ -455,12 +450,18 @@ export default function ProjectDetail({
         const checklistItems = await getTaskChecklistItems(updatedTask.task_id);
         const taskWithChecklist = { ...updatedTask, checklist_items: checklistItems };
         
-        setProjectTasks((prevTasks) =>
-          prevTasks.map((task): IProjectTask => 
-            task.task_id === updatedTask.task_id ? taskWithChecklist : task
-          )
-        );
-        toast.success('Task updated successfully!');
+        setProjectTasks((prevTasks) => {
+          const taskExists = prevTasks.some(task => task.task_id === updatedTask.task_id);
+          
+          if (taskExists) {
+            return prevTasks.map((task): IProjectTask => 
+              task.task_id === updatedTask.task_id ? taskWithChecklist : task
+            );
+          } else {
+            return [...prevTasks, taskWithChecklist];
+          }
+        });
+        toast.success(taskWithChecklist.task_id ? 'Task updated successfully!' : 'Task added successfully!');
       } catch (error) {
         console.error('Error updating task:', error);
         toast.error('Failed to update task');
@@ -473,6 +474,7 @@ export default function ProjectDetail({
     }
     setShowQuickAdd(false);
     setSelectedTask(null);
+    setIsAddingTask(false);
   }, [selectedTask]);
 
   const handleTaskSelected = useCallback((task: IProjectTask) => {
@@ -520,6 +522,7 @@ export default function ProjectDetail({
   const handleEditPhase = (phase: IProjectPhase) => {
     setEditingPhaseId(phase.phase_id);
     setEditingPhaseName(phase.phase_name);
+    setEditingPhaseDescription(phase.description);
     // Always create new Date objects from the timestamps to ensure consistent format
     setEditingStartDate(phase.start_date ? new Date(phase.start_date) : undefined);
     setEditingEndDate(phase.end_date ? new Date(phase.end_date) : undefined);
@@ -534,6 +537,7 @@ export default function ProjectDetail({
   
       const updatedPhase = await updatePhase(phase.phase_id, {
         phase_name: editingPhaseName,
+        description: editingPhaseDescription,
         start_date: editingStartDate || null,
         end_date: editingEndDate || null
       });
@@ -544,27 +548,34 @@ export default function ProjectDetail({
             ? { 
                 ...p, 
                 phase_name: editingPhaseName,
+                description: updatedPhase.description,
                 start_date: updatedPhase.start_date,
                 end_date: updatedPhase.end_date
               }
             : p
         )
       );
+
+      if (selectedPhase?.phase_id === updatedPhase.phase_id) {
+        setSelectedPhase(updatedPhase);
+      }
       
       setEditingPhaseId(null);
       setEditingPhaseName('');
+      setEditingPhaseDescription(null);
       setEditingStartDate(undefined);
       setEditingEndDate(undefined);
       toast.success('Phase updated successfully!');
     } catch (error) {
-      console.error('Error updating phase name:', error);
-      toast.error('Failed to update phase name. Please try again.');
+      console.error('Error updating phase:', error);
+      toast.error('Failed to update phase. Please try again.');
     }
   };
 
   const handleCancelEdit = () => {
     setEditingPhaseId(null);
     setEditingPhaseName('');
+    setEditingPhaseDescription(null);
     setEditingStartDate(undefined);
     setEditingEndDate(undefined);
   };
@@ -627,6 +638,84 @@ export default function ProjectDetail({
     }
   };
 
+  const handleMoveTaskClick = (task: IProjectTask) => {
+    console.log("Move Task action clicked in ProjectDetail:", task);
+    setTaskToMove(task);
+    setIsMoveTaskDialogOpen(true);
+  };
+
+  const handleDuplicateTaskClick = async (task: IProjectTask) => {
+    console.log("Duplicate clicked in ProjectDetail:", task);
+
+    const placeholderTargetPhase = projectPhases.find(p => p.phase_id !== task.phase_id) || projectPhases[0]; // Just picking another phase for demo
+    if (!placeholderTargetPhase) {
+        toast.error("Could not find a target phase to duplicate to.");
+        return;
+    }
+    const targetPhaseId = placeholderTargetPhase.phase_id;
+    const targetPhaseName = placeholderTargetPhase.phase_name;
+
+    try {
+        // Fetch necessary details for the dialog toggles
+        const [resources, links, checklist] = await Promise.all([
+            getTaskResourcesAction(task.task_id),
+            getTaskTicketLinksAction(task.task_id),
+            getTaskChecklistItems(task.task_id)
+        ]);
+
+        setTaskToDuplicate(task);
+        setDuplicateTaskToggleDetails({
+            hasChecklist: (checklist || []).length > 0,
+            hasPrimaryAssignee: !!task.assigned_to,
+            additionalAssigneeCount: (resources || []).length,
+            ticketLinkCount: (links || []).length,
+        });
+        setIsDuplicateDialogOpen(true);
+    } catch (error) {
+        console.error("Error preparing duplicate dialog:", error);
+        toast.error("Failed to load task details for duplication.");
+    }
+  };
+
+  // Placeholder for delete handler (will add later)
+  const handleDeleteTaskClick = (task: IProjectTask) => {
+    console.log("Delete clicked in ProjectDetail:", task);
+    setTaskToDelete(task);
+  };
+ 
+  // Handler for MoveTaskDialog confirmation
+  const handleDialogMoveConfirm = async (targetPhaseId: string, targetStatusId: string | undefined) => {
+    if (!taskToMove) return;
+ 
+    console.log(`Moving task ${taskToMove.task_id} to phase ${targetPhaseId} with status ${targetStatusId}`);
+    try {
+      const movedTask = await moveTaskToPhase(
+        taskToMove.task_id,
+        targetPhaseId,
+        targetStatusId
+      );
+ 
+      if (movedTask) {
+        const checklistItems = await getTaskChecklistItems(movedTask.task_id);
+        const taskWithDetails = { ...movedTask, checklist_items: checklistItems };
+ 
+        setProjectTasks(prevTasks =>
+          prevTasks.map(t => t.task_id === movedTask.task_id ? taskWithDetails : t)
+        );
+ 
+        toast.success(`Task "${taskToMove.task_name}" moved successfully!`);
+      } else {
+        toast.error("Failed to move task. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error moving task via dialog:", error);
+      toast.error(`Failed to move task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsMoveTaskDialogOpen(false);
+      setTaskToMove(null);
+    }
+  };
+
   const renderContent = () => {
     if (!selectedPhase) {
       return (
@@ -641,14 +730,17 @@ export default function ProjectDetail({
     return (
       <div className="flex flex-col h-full">
         <div className="mb-4">
-          <div className="grid grid-cols-12 gap-4 items-center mb-4">
-            {/* Section 1: Kanban Board Title (6/12) */}
-            <div className="col-span-6">
-              <h2 className="text-xl font-bold">Kanban Board: {selectedPhase.phase_name}</h2>
+          <div className="flex justify-between items-center gap-4">
+            {/* Section 1: Kanban Board Title */}
+            <div>
+              <h2 className="text-xl font-bold mb-1">Kanban Board: {selectedPhase.phase_name}</h2>
+              {selectedPhase.description && (
+                <p className="text-sm text-gray-600">{selectedPhase.description}</p>
+              )}
             </div>
             
-            {/* Section 2: Donut Chart (6/12) */}
-            <div className="col-span-6 flex items-center justify-end space-x-2">
+            {/* Section 2: Donut Chart */}
+            <div className="flex items-center justify-end space-x-2">
               <DonutChart 
                 percentage={completionPercentage} 
                 tooltipContent={`Shows the percentage of completed tasks for the selected phase "${selectedPhase.phase_name}" only`}
@@ -661,8 +753,8 @@ export default function ProjectDetail({
         </div>
         <div className={styles.kanbanWrapper}>
           <KanbanBoard
-            tasks={projectTasks} // Pass all tasks for cross-status moves
-            phaseTasks={filteredTasks} // Tasks for the current phase
+            tasks={projectTasks}
+            phaseTasks={filteredTasks}
             users={users}
             statuses={projectStatuses}
             isAddingTask={isAddingTask}
@@ -688,6 +780,10 @@ export default function ProjectDetail({
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onReorderTasks={handleReorderTasks}
+            onMoveTaskClick={handleMoveTaskClick}
+            onDuplicateTaskClick={handleDuplicateTaskClick}
+            onEditTaskClick={handleTaskSelected}
+            onDeleteTaskClick={handleDeleteTaskClick}
           />
         </div>
       </div>
@@ -709,6 +805,7 @@ export default function ProjectDetail({
               isAddingTask={isAddingTask}
               editingPhaseId={editingPhaseId}
               editingPhaseName={editingPhaseName}
+              editingPhaseDescription={editingPhaseDescription}
               editingStartDate={editingStartDate}
               editingEndDate={editingEndDate}
               dragOverPhaseId={dragOverPhaseId}
@@ -727,6 +824,7 @@ export default function ProjectDetail({
               onCancelEdit={handleCancelEdit}
               onDeletePhase={handleDeletePhaseClick}
               onEditingPhaseNameChange={setEditingPhaseName}
+              onEditingPhaseDescriptionChange={setEditingPhaseDescription}
               onEditingStartDateChange={setEditingStartDate}
               onEditingEndDateChange={setEditingEndDate}
               onDragOver={handlePhaseDragOver}
@@ -771,8 +869,8 @@ export default function ProjectDetail({
                 defaultStatus={defaultStatus || undefined}
                 onCancel={() => setIsAddingTask(false)}
                 users={users}
-                task={selectedTask || undefined} // Pass the empty task object or undefined
-                projectTreeData={projectTreeData} // Pass the project tree data
+                task={selectedTask || undefined}
+                projectTreeData={projectTreeData}
               />
             )}
           </div>
@@ -807,6 +905,86 @@ export default function ProjectDetail({
           onConfirm={handleDeletePhase}
           title="Delete Phase"
           message={`Are you sure you want to delete phase "${deletePhaseConfirmation.phaseName}"? This will also delete all tasks and their checklists in this phase.`}
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+        />
+      )}
+
+      {/* Duplicate Task Dialog */}
+      {isDuplicateDialogOpen && taskToDuplicate && duplicateTaskToggleDetails && (
+        <DuplicateTaskDialog
+          isOpen={isDuplicateDialogOpen}
+          onClose={() => { 
+              setIsDuplicateDialogOpen(false);
+              setTaskToDuplicate(null);
+              setDuplicateTaskToggleDetails(null);
+          }}
+          taskDetails={{
+              originalTaskId: taskToDuplicate.task_id,
+              originalTaskName: taskToDuplicate.task_name,
+              ...duplicateTaskToggleDetails
+          }}
+          projectTreeData={projectTreeData}
+          onConfirm={async (targetPhaseId: string, options: DuplicateOptions) => {
+            if (!taskToDuplicate) return;
+            try {
+              const newTask = await duplicateTaskToPhase(
+                taskToDuplicate.task_id,
+                targetPhaseId,
+                options
+              );
+              
+              const checklistItems = await getTaskChecklistItems(newTask.task_id);
+              const taskWithChecklist = { ...newTask, checklist_items: checklistItems };
+              setProjectTasks(prev => [...prev, taskWithChecklist]);
+
+              toast.success(`Task "${newTask.task_name}" duplicated successfully!`);
+              setIsDuplicateDialogOpen(false);
+              setTaskToDuplicate(null);
+              setDuplicateTaskToggleDetails(null);
+            } catch (error) {
+              console.error("Error duplicating task:", error);
+              toast.error("Failed to duplicate task.");
+            }
+          }}
+        />
+      )}
+ 
+      {/* Move Task Dialog */}
+      {isMoveTaskDialogOpen && taskToMove && (
+        <MoveTaskDialog
+          isOpen={isMoveTaskDialogOpen}
+          onClose={() => {
+            setIsMoveTaskDialogOpen(false);
+            setTaskToMove(null);
+          }}
+          task={taskToMove}
+          currentProjectId={project.project_id}
+          projectTreeData={projectTreeData}
+          onConfirm={handleDialogMoveConfirm}
+        />
+      )}
+
+      {/* Delete Task Confirmation Dialog */}
+      {taskToDelete && (
+        <ConfirmationDialog
+          isOpen={!!taskToDelete}
+          onClose={() => setTaskToDelete(null)}
+          onConfirm={async () => {
+            if (!taskToDelete) return;
+            try {
+              await deleteTaskAction(taskToDelete.task_id);
+              setProjectTasks(prev => prev.filter(t => t.task_id !== taskToDelete.task_id));
+              toast.success(`Task "${taskToDelete.task_name}" deleted successfully!`);
+              setTaskToDelete(null);
+            } catch (error) {
+              console.error("Error deleting task:", error);
+              toast.error("Failed to delete task.");
+              setTaskToDelete(null);
+            }
+          }}
+          title="Delete Task"
+          message={`Are you sure you want to delete task "${taskToDelete.task_name}"? This action cannot be undone.`}
           confirmLabel="Delete"
           cancelLabel="Cancel"
         />

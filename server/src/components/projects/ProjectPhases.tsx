@@ -10,11 +10,13 @@ interface ProjectPhasesProps {
   isAddingTask: boolean;
   editingPhaseId: string | null;
   editingPhaseName: string;
+  editingPhaseDescription: string | null;
   editingStartDate?: Date;
   editingEndDate?: Date;
   dragOverPhaseId: string | null;
   onPhaseSelect: (phase: IProjectPhase) => void;
   onEditingPhaseNameChange: (name: string) => void;
+  onEditingPhaseDescriptionChange: (description: string | null) => void;
   onEditingStartDateChange?: (date: Date | undefined) => void;
   onEditingEndDateChange?: (date: Date | undefined) => void;
   onAddTask: () => void;
@@ -34,6 +36,7 @@ export const ProjectPhases: React.FC<ProjectPhasesProps> = ({
   isAddingTask,
   editingPhaseId,
   editingPhaseName,
+  editingPhaseDescription,
   editingStartDate,
   editingEndDate,
   dragOverPhaseId,
@@ -45,6 +48,7 @@ export const ProjectPhases: React.FC<ProjectPhasesProps> = ({
   onCancelEdit,
   onDeletePhase,
   onEditingPhaseNameChange,
+  onEditingPhaseDescriptionChange,
   onEditingStartDateChange,
   onEditingEndDateChange,
   onDragOver,
@@ -86,6 +90,7 @@ export const ProjectPhases: React.FC<ProjectPhasesProps> = ({
             isEditing={editingPhaseId === phase.phase_id}
             isDragOver={dragOverPhaseId === phase.phase_id}
             editingName={editingPhaseName}
+            editingDescription={editingPhaseDescription}
             editingStartDate={editingStartDate}
             editingEndDate={editingEndDate}
             onSelect={onPhaseSelect}
@@ -94,6 +99,7 @@ export const ProjectPhases: React.FC<ProjectPhasesProps> = ({
             onCancel={onCancelEdit}
             onDelete={onDeletePhase}
             onNameChange={onEditingPhaseNameChange}
+            onDescriptionChange={onEditingPhaseDescriptionChange}
             onStartDateChange={onEditingStartDateChange}
             onEndDateChange={onEditingEndDateChange}
             onDragOver={onDragOver}

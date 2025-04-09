@@ -100,16 +100,12 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
       // Create the project
       const newProject = await createProject(projectData);
       
-      // Explicitly close the dialog first to improve user experience
+      onProjectAdded(newProject);
+      
       onClose();
       
-      // Update the parent component's state through the callback
-      // This happens after dialog is closed
-      setTimeout(() => {
-        onProjectAdded(newProject);
-        // Show success toast
-        toast.success('Project created successfully');
-      }, 100);
+      // Show success toast *after* potential state updates in parent
+      toast.success('Project created successfully');
     } catch (error) {
       console.error('Error creating project:', error);
       // Show an error toast to the user

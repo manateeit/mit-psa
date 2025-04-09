@@ -1,7 +1,8 @@
 'use client';
 
 import { IProjectPhase } from 'server/src/interfaces/project.interfaces';
-import { Pencil, Check, X, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
+import { Button } from '../ui/Button';
 import { TextArea } from '../ui/TextArea';
 import { DatePicker } from 'server/src/components/ui/DatePicker';
 
@@ -11,6 +12,7 @@ interface PhaseListItemProps {
   isEditing: boolean;
   isDragOver: boolean;
   editingName: string;
+  editingDescription: string | null;
   editingStartDate?: Date;
   editingEndDate?: Date;
   onSelect: (phase: IProjectPhase) => void;
@@ -19,6 +21,7 @@ interface PhaseListItemProps {
   onCancel: () => void;
   onDelete: (phase: IProjectPhase) => void;
   onNameChange: (name: string) => void;
+  onDescriptionChange: (description: string | null) => void;
   onStartDateChange?: (date: Date | undefined) => void;
   onEndDateChange?: (date: Date | undefined) => void;
   onDragOver: (e: React.DragEvent, phaseId: string) => void;
@@ -32,6 +35,7 @@ export const PhaseListItem: React.FC<PhaseListItemProps> = ({
   isEditing,
   isDragOver,
   editingName,
+  editingDescription,
   editingStartDate,
   editingEndDate,
   onSelect,
@@ -40,6 +44,7 @@ export const PhaseListItem: React.FC<PhaseListItemProps> = ({
   onCancel,
   onDelete,
   onNameChange,
+  onDescriptionChange,
   onStartDateChange,
   onEndDateChange,
   onDragOver,
@@ -62,10 +67,11 @@ export const PhaseListItem: React.FC<PhaseListItemProps> = ({
       onDrop={(e) => onDrop(e, phase)}
     >
       {isEditing ? (
-        <div className="flex items-start justify-between w-full gap-3">
-          <div className="flex-1 min-w-0 pr-1">
-            <div className="mb-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phase Name</label>
+        <div className="flex flex-col w-full gap-3">
+          <div className="flex-1 min-w-0">
+            {/* Phase Name Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Phase Name</label>
               <TextArea
                 value={editingName}
                 onChange={(e) => onNameChange(e.target.value)}
@@ -74,68 +80,89 @@ export const PhaseListItem: React.FC<PhaseListItemProps> = ({
                 autoFocus
               />
             </div>
-            <div className="mb-2">
-              <label className="block text-sm font-medium text-gray-700 mb-0.5">Start Date</label>
+            {/* Description Input - Added */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Phase Description</label>
+              <TextArea
+                value={editingDescription ?? ''}
+                onChange={(e) => onDescriptionChange(e.target.value || null)}
+                className="w-full px-3 py-1 border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                placeholder="Description"
+                onClick={(e) => e.stopPropagation()}
+                rows={2}
+              />
+            </div>
+            {/* Start Date Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Start Date</label>
               <DatePicker
                 value={editingStartDate}
-                onChange={(date: Date) => onStartDateChange?.(date)}
+                onChange={(date: Date | undefined) => onStartDateChange?.(date)}
                 placeholder="Start date"
                 className="w-full"
               />
             </div>
+            {/* End Date Input */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-0.5">End Date</label>
               <DatePicker
                 value={editingEndDate}
-                onChange={(date: Date) => onEndDateChange?.(date)}
+                onChange={(date: Date | undefined) => onEndDateChange?.(date)}
                 placeholder="End date"
                 className="w-full"
               />
             </div>
           </div>
-          <div className="flex gap-1 ml-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onSave(phase);
-              }}
-              className="text-green-600 hover:text-green-800 p-1 rounded-md hover:bg-green-50 transition-colors"
-              title="Save changes"
-            >
-              <Check className="w-4 h-4" />
-            </button>
-            <button
+          {/* Action Buttons  */}
+          <div className="flex justify-end gap-2 mt-3">
+            <Button
+              id={`cancel-edit-phase-${phase.phase_id}`}
+              variant="outline"
+              size="sm"
               onClick={(e) => {
                 e.stopPropagation();
                 onCancel();
               }}
-              className="text-red-600 hover:text-red-800 p-1 rounded-md hover:bg-red-50 transition-colors"
               title="Cancel editing"
             >
-              <X className="w-4 h-4" />
-            </button>
+              Cancel
+            </Button>
+            <Button
+              id={`save-edit-phase-${phase.phase_id}`}
+              variant="default"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSave(phase);
+              }}
+              title="Save changes"
+            >
+              Save
+            </Button>
           </div>
         </div>
       ) : (
         <>
+          {/* Display View */}
           <div className="flex flex-col">
-            <span className="text-lg font-bold text-gray-900">{phase.wbs_code.split('.').pop()} {phase.phase_name}</span>
+            <span className="text-lg font-bold text-gray-900">{phase.phase_name}</span>
             {phase.description && (
               <span className="text-sm text-gray-600 mt-1">{phase.description}</span>
             )}
             <div className="mt-1 text-xs text-gray-500 space-y-1">
               <div>
-                Start: {phase.start_date ? 
-                  new Date(phase.start_date).toLocaleDateString() : 
-                  'Not set'}
+                Start: {phase.start_date
+                  ? new Date(phase.start_date).toLocaleDateString()
+                  : 'Not set'}
               </div>
               <div>
-                Due: {phase.end_date ? 
-                  new Date(phase.end_date).toLocaleDateString() : 
-                  'Not set'}
+                Due: {phase.end_date
+                  ? new Date(phase.end_date).toLocaleDateString()
+                  : 'Not set'}
               </div>
             </div>
           </div>
+          {/* Hover Action Buttons */}
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={(e) => {

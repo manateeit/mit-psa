@@ -378,11 +378,57 @@ useEffect(() => {
   channels
 ]);
 
-  const handleTicketAdded = useCallback((_ticket: ITicket) => {
-    // We would normally call fetchTickets here, but we're now using props
-    // Instead, we'll just close the quick add dialog
+  const handleTicketAdded = useCallback((newTicket: ITicket) => {
+    // Add the new ticket to the local state
+    setTickets(prevTickets => {
+      const status = statusOptions.find(s => s.value === newTicket.status_id);
+      const priority = priorityOptions.find(p => p.value === newTicket.priority_id);
+      const channel = channels.find(c => c.channel_id === newTicket.channel_id);
+      
+      let categoryName = '';
+      if (newTicket.category_id) {
+        const category = categories.find(c => c.category_id === newTicket.category_id);
+        if (category) {
+          categoryName = category.category_name;
+        }
+      }
+      
+      // Convert the new ticket to match the ITicketListItem format
+      const newTicketListItem: ITicketListItem = {
+        ticket_id: newTicket.ticket_id,
+        ticket_number: newTicket.ticket_number,
+        title: newTicket.title,
+        url: newTicket.url,
+        status_id: newTicket.status_id,
+        status_name: typeof status?.label === 'string' ? status.label : '',
+        priority_id: newTicket.priority_id,
+        priority_name: typeof priority?.label === 'string' ? priority.label : '',
+        channel_id: newTicket.channel_id,
+        channel_name: channel?.channel_name || '',
+        category_id: newTicket.category_id,
+        subcategory_id: newTicket.subcategory_id,
+        category_name: categoryName,
+        company_id: newTicket.company_id,
+        contact_name_id: newTicket.contact_name_id,
+        entered_by: newTicket.entered_by,
+        entered_by_name: currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : '',
+        updated_by: newTicket.updated_by,
+        closed_by: newTicket.closed_by,
+        assigned_to: newTicket.assigned_to,
+        assigned_to_name: null,
+        entered_at: newTicket.entered_at,
+        updated_at: newTicket.updated_at,
+        closed_at: newTicket.closed_at,
+        attributes: newTicket.attributes,
+        tenant: newTicket.tenant
+      };
+      
+      return [newTicketListItem, ...prevTickets];
+    });
+    
+    // Close the quick add dialog
     setIsQuickAddOpen(false);
-  }, []);
+  }, [statusOptions, priorityOptions, channels, categories, currentUser]);
 
   const handleChannelSelect = useCallback((channelId: string) => {
     setSelectedChannel(channelId);
