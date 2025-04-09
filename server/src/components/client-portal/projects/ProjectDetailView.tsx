@@ -80,10 +80,12 @@ export default function ProjectDetailView({ project }: ProjectDetailViewProps) {
         <div className="bg-gray-50 p-4 rounded-lg">
           <h3 className="text-lg font-semibold mb-4">Budget Hours</h3>
           <div className="flex flex-col">
-            <div className="flex justify-between mb-1">
+            {/* Make this a column flex container */}
+            <div className="flex flex-col mb-1">
               <p className="font-medium">{Math.round(metrics?.hoursCompletionPercentage || 0)}% of Budget Used</p>
+              {/* Put hours on a new line */}
               <p className="text-sm text-gray-600">
-                {((metrics?.spentHours || 0) / 60).toFixed(1)} of {((metrics?.budgetedHours || 0) / 60).toFixed(1)} hours
+                {(metrics?.spentHours || 0).toFixed(1)} of {(metrics?.budgetedHours || 0).toFixed(1)} hours
               </p>
             </div>
             <HoursProgressBar 
@@ -94,8 +96,9 @@ export default function ProjectDetailView({ project }: ProjectDetailViewProps) {
               tooltipContent={
                 <div className="p-2">
                   <p className="font-medium">Hours Usage</p>
-                  <p className="text-sm">{((metrics?.spentHours || 0) / 60).toFixed(1)} of {((metrics?.budgetedHours || 0) / 60).toFixed(1)} hours used</p>
-                  <p className="text-sm">{((metrics?.remainingHours || 0) / 60).toFixed(1)} hours remaining</p>
+                  {/* Display hours directly from metrics */}
+                  <p className="text-sm">{(metrics?.spentHours || 0).toFixed(1)} of {(metrics?.budgetedHours || 0).toFixed(1)} hours used</p>
+                  <p className="text-sm">{(metrics?.remainingHours || 0).toFixed(1)} hours remaining</p>
                 </div>
               }
             />

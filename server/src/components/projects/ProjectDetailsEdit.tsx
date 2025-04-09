@@ -279,10 +279,12 @@ const ProjectDetailsEdit: React.FC<ProjectDetailsEditProps> = ({
                 const { name, value } = e.target;
                 // Only allow numbers and decimal point, prevent 'e'
                 if (value === '' || (/^\d*\.?\d*$/.test(value) && !value.includes('e'))) {
+                  const hoursValue = parseFloat(value);
+                  const minutesValue = value ? Math.round(hoursValue * 60) : null; // Store null if empty
                   setProject(prev => ({
                     ...prev,
                     // Convert from hours to minutes for storage
-                    [name]: value ? Math.round(parseFloat(value) * 60) : '',
+                    [name]: minutesValue,
                   }));
                   setHasChanges(true);
                 }
