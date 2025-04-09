@@ -12,7 +12,7 @@ import {
 import ProjectModel from './project'
 
 const ProjectTaskModel = {
-  addTask: async (phaseId: string, taskData: Omit<IProjectTask, 'task_id' | 'phase_id' | 'created_at' | 'updated_at' | 'tenant'>): Promise<IProjectTask> => {
+  addTask: async (phaseId: string, taskData: Omit<IProjectTask, 'task_id' | 'phase_id' | 'created_at' | 'updated_at' | 'tenant' | 'wbs_code'>): Promise<IProjectTask> => {
     try {
       const {knex: db, tenant} = await createTenantKnex();
       const phase = await ProjectModel.getPhaseById(phaseId);

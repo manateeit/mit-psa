@@ -3,9 +3,17 @@
 import { useEffect, useState } from 'react';
 import { IProjectTask, IProjectTicketLinkWithDetails } from 'server/src/interfaces/project.interfaces';
 import { IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
-import { CheckSquare, Square, Ticket, Users } from 'lucide-react';
+import { CheckSquare, Square, Ticket, Users, MoreVertical, Move, Copy, Edit, Trash2 } from 'lucide-react';
 import UserPicker from 'server/src/components/ui/UserPicker';
 import { getTaskTicketLinksAction, getTaskResourcesAction } from 'server/src/lib/actions/project-actions/projectTaskActions';
+import { Button } from 'server/src/components/ui/Button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "server/src/components/ui/DropdownMenu";
 import { ta } from 'date-fns/locale';
 
 interface TaskCardProps {
@@ -18,6 +26,11 @@ interface TaskCardProps {
   onDragStart: (e: React.DragEvent, taskId: string) => void;
   onDragEnd: (e: React.DragEvent) => void;
   projectTreeData?: any[]; // Add projectTreeData prop
+  // Add handlers for the new actions - these will be passed down from ProjectDetail
+  onMoveTaskClick: (task: IProjectTask) => void;
+  onDuplicateTaskClick: (task: IProjectTask) => void;
+  onEditTaskClick: (task: IProjectTask) => void;
+  onDeleteTaskClick: (task: IProjectTask) => void;
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({
@@ -30,6 +43,10 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onDragStart,
   onDragEnd,
   projectTreeData,
+  onMoveTaskClick,
+  onDuplicateTaskClick,
+  onEditTaskClick,
+  onDeleteTaskClick,
 }) => {
   // Initialize states based on whether data is already available (empty array) or not yet loaded (null)
   const [taskTickets, setTaskTickets] = useState<IProjectTicketLinkWithDetails[] | null>(
@@ -132,6 +149,30 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     e.dataTransfer.clearData();
   };
 
+  const handleMoveClick = (event: Event) => {
+    event.stopPropagation();
+    console.log("Move task clicked:", task.task_id);
+    onMoveTaskClick(task);
+  };
+
+  const handleDuplicateClick = (event: Event) => {
+    event.stopPropagation();
+    console.log("Duplicate task clicked:", task.task_id);
+    onDuplicateTaskClick(task);
+  };
+
+  const handleEditClick = (event: Event) => {
+    event.stopPropagation();
+    console.log("Edit task clicked:", task.task_id);
+    onEditTaskClick(task);
+  };
+
+  const handleDeleteClick = (event: Event) => {
+    event.stopPropagation();
+    console.log("Delete task clicked:", task.task_id);
+    onDeleteTaskClick(task);
+  };
+
   return (
     <div
       draggable
@@ -143,12 +184,42 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         console.log('Using cached project tree data when selecting task for editing');
         onTaskSelected(task);
       }}
-      className={`bg-white p-3 mb-2 rounded shadow-sm cursor-pointer hover:shadow-md transition-all duration-200 border border-gray-200 flex flex-col gap-1 ${
+      className={`relative bg-white p-3 mb-2 rounded shadow-sm cursor-pointer hover:shadow-md transition-all duration-200 border border-gray-200 flex flex-col gap-1 ${
         isDragging ? 'opacity-50 ring-2 ring-purple-500 shadow-lg scale-105' : ''
       }`}
       aria-grabbed={isDragging}
-      aria-label={`Task: ${task.task_name}. Drag to reorder`}
+      aria-label={`Task: ${task.task_name}. Drag to reorder or use menu for actions.`}
     >
+      {/* Action Menu Button */}
+      <div className="absolute top-1 right-1 z-10">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+            <Button id={`task-actions-${task.task_id}`} variant="ghost" size="sm" className="h-6 w-6 p-0"> {/* Changed size to sm and adjusted padding */}
+              <MoreVertical className="h-4 w-4" />
+              <span className="sr-only">Task Actions</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onSelect={handleMoveClick}>
+              <Move className="mr-2 h-4 w-4" />
+              <span>Move Task</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={handleDuplicateClick}>
+              <Copy className="mr-2 h-4 w-4" />
+              <span>Duplicate Task</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={handleEditClick}>
+              <Edit className="mr-2 h-4 w-4" />
+              <span>Edit Task</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={handleDeleteClick} className="text-red-600 focus:text-red-700 focus:bg-red-50">
+              <Trash2 className="mr-2 h-4 w-4" />
+              <span>Delete Task</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
       <div className="font-semibold text-2xl mb-1 w-full px-1">
         {task.task_name}
       </div>

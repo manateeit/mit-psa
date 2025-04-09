@@ -30,6 +30,10 @@ interface StatusColumnProps {
   onDragStart: (e: React.DragEvent, taskId: string) => void;
   onDragEnd: (e: React.DragEvent) => void;
   onReorderTasks: (updates: { taskId: string, newWbsCode: string }[]) => void;
+  onMoveTaskClick: (task: IProjectTask) => void;
+  onDuplicateTaskClick: (task: IProjectTask) => void;
+  onEditTaskClick: (task: IProjectTask) => void;
+  onDeleteTaskClick: (task: IProjectTask) => void;
 }
 
 export const StatusColumn: React.FC<StatusColumnProps> = ({
@@ -54,6 +58,10 @@ export const StatusColumn: React.FC<StatusColumnProps> = ({
   onDragStart,
   onDragEnd,
   onReorderTasks,
+  onMoveTaskClick,
+  onDuplicateTaskClick,
+  onEditTaskClick,
+  onDeleteTaskClick,
 }) => {
   const [isDraggedOver, setIsDraggedOver] = useState(false);
   const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
@@ -241,6 +249,10 @@ export const StatusColumn: React.FC<StatusColumnProps> = ({
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
               projectTreeData={projectTreeData}
+              onMoveTaskClick={onMoveTaskClick}
+              onDuplicateTaskClick={onDuplicateTaskClick}
+              onEditTaskClick={onEditTaskClick}
+              onDeleteTaskClick={onDeleteTaskClick}
             />
             {dragOverTaskId === task.task_id && dropPosition === 'after' && (
               <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-purple-500 rounded-full" />

@@ -24,6 +24,10 @@ interface KanbanBoardProps {
   onDragStart: (e: React.DragEvent, taskId: string) => void;
   onDragEnd: (e: React.DragEvent) => void;
   onReorderTasks: (updates: { taskId: string, newWbsCode: string }[]) => void;
+  onMoveTaskClick: (task: IProjectTask) => void;
+  onDuplicateTaskClick: (task: IProjectTask) => void;
+  onEditTaskClick: (task: IProjectTask) => void;
+  onDeleteTaskClick: (task: IProjectTask) => void;
 }
 
 const statusIcons: { [key: string]: React.ReactNode } = {
@@ -56,6 +60,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onDragStart,
   onDragEnd,
   onReorderTasks,
+  onMoveTaskClick,
+  onDuplicateTaskClick,
+  onEditTaskClick,
+  onDeleteTaskClick,
 }) => {
   // Ensure all tasks have ticket_links and resources initialized
   const enrichedTasks = tasks.map(task => {
@@ -124,6 +132,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             onDragEnd={onDragEnd}
             onReorderTasks={onReorderTasks}
             projectTreeData={projectTreeData}
+            onMoveTaskClick={onMoveTaskClick}
+            onDuplicateTaskClick={onDuplicateTaskClick}
+            onEditTaskClick={onEditTaskClick}
+            onDeleteTaskClick={onDeleteTaskClick}
           />
         );
       })}

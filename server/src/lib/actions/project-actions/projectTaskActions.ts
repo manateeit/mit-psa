@@ -4,12 +4,13 @@ import { Knex } from 'knex';
 import ProjectTaskModel from 'server/src/lib/models/projectTask';
 import ProjectModel from 'server/src/lib/models/project';
 import { publishEvent } from 'server/src/lib/eventBus/publishers';
-import { IProjectTask, IProjectTicketLink, IProjectStatusMapping, ITaskChecklistItem, IProjectTicketLinkWithDetails } from 'server/src/interfaces/project.interfaces';
+import { IProjectTask, IProjectTicketLink, IProjectStatusMapping, ITaskChecklistItem, IProjectTicketLinkWithDetails, IProjectPhase } from 'server/src/interfaces/project.interfaces';
 import { IUser, IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
 import { getCurrentUser } from 'server/src/lib/actions/user-actions/userActions';
 import { hasPermission } from 'server/src/lib/auth/rbac';
 import { validateData, validateArray } from 'server/src/lib/utils/validation';
 import { createTenantKnex } from 'server/src/lib/db';
+import { omit } from 'lodash';
 import { 
     createTaskSchema, 
     updateTaskSchema, 
@@ -634,6 +635,199 @@ export async function moveTaskToPhase(taskId: string, newPhaseId: string, newSta
     } catch (error) {
         console.error('Error moving task to new phase:', error);
         throw error;
+    }
+}
+
+// New function starts here
+export async function duplicateTaskToPhase(
+    originalTaskId: string,
+    newPhaseId: string,
+    options?: {
+        newStatusMappingId?: string;
+        duplicatePrimaryAssignee?: boolean;
+        duplicateAdditionalAssignees?: boolean;
+        duplicateChecklist?: boolean;
+        duplicateTicketLinks?: boolean;
+    }
+): Promise<IProjectTask> {
+    try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser || !currentUser.tenant) {
+            throw new Error("User or tenant context not found");
+        }
+
+        // Use 'create' permission as we are creating a new task entity
+        await checkPermission(currentUser, 'project', 'create');
+
+        // 1. Fetch original task, new phase, and current phase
+        const originalTask = await ProjectTaskModel.getTaskById(originalTaskId);
+        if (!originalTask) {
+            throw new Error('Original task not found');
+        }
+
+        const newPhase = await ProjectModel.getPhaseById(newPhaseId);
+        if (!newPhase) {
+            throw new Error('Target phase not found');
+        }
+
+        const currentPhase = await ProjectModel.getPhaseById(originalTask.phase_id);
+        if (!currentPhase) {
+            throw new Error('Current phase of original task not found');
+        }
+
+        // 2. Determine finalStatusMappingId (reuse logic from moveTaskToPhase)
+        let finalStatusMappingId = options?.newStatusMappingId || originalTask.project_status_mapping_id;
+
+        // If moving to a different project and no specific status mapping is provided
+        if (currentPhase.project_id !== newPhase.project_id && !options?.newStatusMappingId) {
+            const currentMapping = await ProjectModel.getProjectStatusMapping(originalTask.project_status_mapping_id);
+            if (!currentMapping) {
+                // Fallback if current mapping is somehow invalid, use the first available in target project
+                console.warn(`Current status mapping ${originalTask.project_status_mapping_id} not found for task ${originalTaskId}. Falling back.`);
+                const newProjectMappings = await ProjectModel.getProjectStatusMappings(newPhase.project_id);
+                 if (!newProjectMappings || newProjectMappings.length === 0) {
+                     // Handle case where target project has no mappings (should ideally not happen if defaults exist)
+                     // Attempt to create default mappings (similar logic as in moveTaskToPhase)
+                     const standardStatuses = await ProjectModel.getStandardStatusesByType('project_task');
+                     for (const status of standardStatuses) {
+                         await ProjectModel.addProjectStatusMapping(newPhase.project_id, {
+                             standard_status_id: status.standard_status_id,
+                             is_standard: true,
+                             custom_name: null,
+                             display_order: status.display_order,
+                             is_visible: true,
+                         });
+                     }
+                     const updatedMappings = await ProjectModel.getProjectStatusMappings(newPhase.project_id);
+                     if (!updatedMappings || updatedMappings.length === 0) {
+                         throw new Error('Failed to find or create status mappings for target project');
+                     }
+                     finalStatusMappingId = updatedMappings[0].project_status_mapping_id; // Use the first created one
+                 } else {
+                    finalStatusMappingId = newProjectMappings[0].project_status_mapping_id; // Use first available
+                 }
+            } else {
+                const newProjectMappings = await ProjectModel.getProjectStatusMappings(newPhase.project_id);
+                if (!newProjectMappings || newProjectMappings.length === 0) {
+                     // Attempt to create default mappings
+                     const standardStatuses = await ProjectModel.getStandardStatusesByType('project_task');
+                     for (const status of standardStatuses) {
+                         await ProjectModel.addProjectStatusMapping(newPhase.project_id, {
+                             standard_status_id: status.standard_status_id,
+                             is_standard: true,
+                             custom_name: null,
+                             display_order: status.display_order,
+                             is_visible: true,
+                         });
+                     }
+                     const updatedMappings = await ProjectModel.getProjectStatusMappings(newPhase.project_id);
+                     if (!updatedMappings || updatedMappings.length === 0) {
+                         throw new Error('Failed to find or create status mappings for target project');
+                     }
+                     finalStatusMappingId = updatedMappings[0].project_status_mapping_id;
+                } else {
+                    let equivalentMapping: IProjectStatusMapping | undefined;
+
+                    if (currentMapping.is_standard && currentMapping.standard_status_id) {
+                        equivalentMapping = newProjectMappings.find(m =>
+                            m.is_standard && m.standard_status_id === currentMapping.standard_status_id
+                        );
+                    } else if (currentMapping.status_id) {
+                        const currentStatus = await ProjectModel.getCustomStatus(currentMapping.status_id);
+                        if (currentStatus) {
+                            equivalentMapping = newProjectMappings.find(m =>
+                                !m.is_standard && m.custom_name === currentMapping.custom_name
+                            );
+                        }
+                    }
+
+                    if (!equivalentMapping) {
+                        equivalentMapping = newProjectMappings[0]; // Fallback to first available
+                    }
+                    finalStatusMappingId = equivalentMapping.project_status_mapping_id;
+                }
+            }
+        } else if (currentPhase.project_id === newPhase.project_id && !options?.newStatusMappingId) {
+             // If staying in the same project and no status provided, keep the original task's status mapping ID
+             finalStatusMappingId = originalTask.project_status_mapping_id;
+        }
+        // If options.newStatusMappingId is provided, it's already set as finalStatusMappingId
+
+        // 3. Prepare new task data
+        const newTaskData: Omit<IProjectTask, 'task_id' | 'phase_id' | 'wbs_code' | 'created_at' | 'updated_at' | 'tenant'> = {
+            task_name: originalTask.task_name, // Keep original title
+            description: originalTask.description,
+            due_date: originalTask.due_date,
+            estimated_hours: originalTask.estimated_hours,
+            actual_hours: 0, // Reset actual hours for the new task
+            assigned_to: options?.duplicatePrimaryAssignee ? originalTask.assigned_to : null,
+            project_status_mapping_id: finalStatusMappingId,
+            // Fields omitted: task_id, phase_id, wbs_code, created_at, updated_at, tenant (handled by model)
+        };
+
+        // 4. Create the new task
+        const newTask = await ProjectTaskModel.addTask(newPhaseId, newTaskData);
+
+        // 5. Optionally duplicate related data
+        // Duplicate Checklist Items
+        if (options?.duplicateChecklist) {
+            const originalChecklistItems = await ProjectTaskModel.getChecklistItems(originalTaskId);
+            for (const item of originalChecklistItems) {
+                // Omit IDs, task_id, timestamps, tenant
+                const newItemData = omit(item, ['checklist_item_id', 'task_id', 'created_at', 'updated_at', 'tenant']);
+                await ProjectTaskModel.addChecklistItem(newTask.task_id, newItemData);
+            }
+        }
+
+        // Duplicate Additional Assignees (Task Resources)
+        if (options?.duplicateAdditionalAssignees) {
+            const originalResources = await ProjectTaskModel.getTaskResources(originalTaskId);
+            for (const resource of originalResources) {
+                // addTaskResource expects taskId, userId, role
+                await ProjectTaskModel.addTaskResource(newTask.task_id, resource.additional_user_id, resource.role || undefined);
+            }
+        }
+
+        // Duplicate Ticket Links
+        if (options?.duplicateTicketLinks) {
+            const originalTicketLinks = await ProjectTaskModel.getTaskTicketLinks(originalTaskId);
+            for (const link of originalTicketLinks) {
+                // addTaskTicketLink expects projectId, taskId, ticketId, phaseId
+                await ProjectTaskModel.addTaskTicketLink(newPhase.project_id, newTask.task_id, link.ticket_id, newPhaseId);
+            }
+        }
+
+        // Publish event if task was assigned
+        if (newTask.assigned_to) {
+             await publishEvent({
+                 eventType: 'PROJECT_TASK_ASSIGNED',
+                 payload: {
+                     tenantId: currentUser.tenant,
+                     projectId: newPhase.project_id,
+                     taskId: newTask.task_id,
+                     userId: currentUser.user_id, // User performing the action
+                     assignedTo: newTask.assigned_to,
+                     additionalUsers: [], // Additional users handled separately if duplicated
+                     timestamp: new Date().toISOString()
+                 }
+             });
+        }
+
+        // 6. Return the newly created task object
+        // Fetch again to potentially include relations if needed, though addTask returns the core task
+        const finalNewTask = await ProjectTaskModel.getTaskById(newTask.task_id);
+        if (!finalNewTask) {
+            throw new Error("Failed to retrieve the newly created task after duplication.");
+        }
+        return finalNewTask;
+
+    } catch (error) {
+        console.error('Error duplicating task to new phase:', error);
+        // Consider more specific error handling or re-throwing
+        if (error instanceof Error) {
+            throw new Error(`Failed to duplicate task: ${error.message}`);
+        }
+        throw new Error('An unknown error occurred while duplicating the task.');
     }
 }
 
