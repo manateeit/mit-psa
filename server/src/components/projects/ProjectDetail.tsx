@@ -421,32 +421,10 @@ export default function ProjectDetail({
       return;
     }
     
-    // Create an empty task object with all necessary properties initialized
-    const emptyTask: IProjectTask = {
-      task_id: '', // Will be generated on save
-      task_name: '',
-      description: '',
-      phase_id: selectedPhase.phase_id,
-      wbs_code: selectedPhase.wbs_code + '.1', // Default WBS code
-      project_status_mapping_id: status.project_status_mapping_id,
-      assigned_to: null,
-      due_date: null,
-      estimated_hours: 0,
-      actual_hours: 0,
-      created_at: new Date(),
-      updated_at: new Date(),
-      checklist_items: [], // Empty checklist for new task
-      ticket_links: [], // Empty ticket links for new task
-      resources: [] // Empty resources for new task
-    };
-    
-    // Log that we're using the cached project tree data
-    console.log('Using cached project tree data for new task dialog');
-    
     setIsAddingTask(true);
     setDefaultStatus(status);
     setCurrentPhase(selectedPhase);
-    setSelectedTask(emptyTask); // Pass the empty task with all properties initialized
+    setSelectedTask(null);
     setShowQuickAdd(true);
   }, [selectedPhase]);
 
@@ -456,12 +434,18 @@ export default function ProjectDetail({
         const checklistItems = await getTaskChecklistItems(updatedTask.task_id);
         const taskWithChecklist = { ...updatedTask, checklist_items: checklistItems };
         
-        setProjectTasks((prevTasks) =>
-          prevTasks.map((task): IProjectTask => 
-            task.task_id === updatedTask.task_id ? taskWithChecklist : task
-          )
-        );
-        toast.success('Task updated successfully!');
+        setProjectTasks((prevTasks) => {
+          const taskExists = prevTasks.some(task => task.task_id === updatedTask.task_id);
+          
+          if (taskExists) {
+            return prevTasks.map((task): IProjectTask => 
+              task.task_id === updatedTask.task_id ? taskWithChecklist : task
+            );
+          } else {
+            return [...prevTasks, taskWithChecklist];
+          }
+        });
+        toast.success(taskWithChecklist.task_id ? 'Task updated successfully!' : 'Task added successfully!');
       } catch (error) {
         console.error('Error updating task:', error);
         toast.error('Failed to update task');
@@ -474,6 +458,7 @@ export default function ProjectDetail({
     }
     setShowQuickAdd(false);
     setSelectedTask(null);
+    setIsAddingTask(false);
   }, [selectedTask]);
 
   const handleTaskSelected = useCallback((task: IProjectTask) => {
