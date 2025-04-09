@@ -56,6 +56,7 @@ export default function ProjectDetail({
   const [editingPhaseName, setEditingPhaseName] = useState('');
   const [editingStartDate, setEditingStartDate] = useState<Date | undefined>(undefined);
   const [editingEndDate, setEditingEndDate] = useState<Date | undefined>(undefined);
+  const [editingPhaseDescription, setEditingPhaseDescription] = useState<string | null>(null);
   const [dragOverPhaseId, setDragOverPhaseId] = useState<string | null>(null);
   const [moveConfirmation, setMoveConfirmation] = useState<{
     taskId: string;
@@ -520,6 +521,7 @@ export default function ProjectDetail({
   const handleEditPhase = (phase: IProjectPhase) => {
     setEditingPhaseId(phase.phase_id);
     setEditingPhaseName(phase.phase_name);
+    setEditingPhaseDescription(phase.description);
     // Always create new Date objects from the timestamps to ensure consistent format
     setEditingStartDate(phase.start_date ? new Date(phase.start_date) : undefined);
     setEditingEndDate(phase.end_date ? new Date(phase.end_date) : undefined);
@@ -534,6 +536,7 @@ export default function ProjectDetail({
   
       const updatedPhase = await updatePhase(phase.phase_id, {
         phase_name: editingPhaseName,
+        description: editingPhaseDescription,
         start_date: editingStartDate || null,
         end_date: editingEndDate || null
       });
@@ -544,27 +547,34 @@ export default function ProjectDetail({
             ? { 
                 ...p, 
                 phase_name: editingPhaseName,
+                description: updatedPhase.description,
                 start_date: updatedPhase.start_date,
                 end_date: updatedPhase.end_date
               }
             : p
         )
       );
+
+      if (selectedPhase?.phase_id === updatedPhase.phase_id) {
+        setSelectedPhase(updatedPhase);
+      }
       
       setEditingPhaseId(null);
       setEditingPhaseName('');
+      setEditingPhaseDescription(null);
       setEditingStartDate(undefined);
       setEditingEndDate(undefined);
       toast.success('Phase updated successfully!');
     } catch (error) {
-      console.error('Error updating phase name:', error);
-      toast.error('Failed to update phase name. Please try again.');
+      console.error('Error updating phase:', error);
+      toast.error('Failed to update phase. Please try again.');
     }
   };
 
   const handleCancelEdit = () => {
     setEditingPhaseId(null);
     setEditingPhaseName('');
+    setEditingPhaseDescription(null);
     setEditingStartDate(undefined);
     setEditingEndDate(undefined);
   };
@@ -641,14 +651,17 @@ export default function ProjectDetail({
     return (
       <div className="flex flex-col h-full">
         <div className="mb-4">
-          <div className="grid grid-cols-12 gap-4 items-center mb-4">
-            {/* Section 1: Kanban Board Title (6/12) */}
-            <div className="col-span-6">
-              <h2 className="text-xl font-bold">Kanban Board: {selectedPhase.phase_name}</h2>
+          <div className="flex justify-between items-center gap-4">
+            {/* Section 1: Kanban Board Title */}
+            <div>
+              <h2 className="text-xl font-bold mb-1">Kanban Board: {selectedPhase.phase_name}</h2>
+              {selectedPhase.description && (
+                <p className="text-sm text-gray-600">{selectedPhase.description}</p>
+              )}
             </div>
             
-            {/* Section 2: Donut Chart (6/12) */}
-            <div className="col-span-6 flex items-center justify-end space-x-2">
+            {/* Section 2: Donut Chart */}
+            <div className="flex items-center justify-end space-x-2">
               <DonutChart 
                 percentage={completionPercentage} 
                 tooltipContent={`Shows the percentage of completed tasks for the selected phase "${selectedPhase.phase_name}" only`}
@@ -661,8 +674,8 @@ export default function ProjectDetail({
         </div>
         <div className={styles.kanbanWrapper}>
           <KanbanBoard
-            tasks={projectTasks} // Pass all tasks for cross-status moves
-            phaseTasks={filteredTasks} // Tasks for the current phase
+            tasks={projectTasks}
+            phaseTasks={filteredTasks}
             users={users}
             statuses={projectStatuses}
             isAddingTask={isAddingTask}
@@ -709,6 +722,7 @@ export default function ProjectDetail({
               isAddingTask={isAddingTask}
               editingPhaseId={editingPhaseId}
               editingPhaseName={editingPhaseName}
+              editingPhaseDescription={editingPhaseDescription}
               editingStartDate={editingStartDate}
               editingEndDate={editingEndDate}
               dragOverPhaseId={dragOverPhaseId}
@@ -727,6 +741,7 @@ export default function ProjectDetail({
               onCancelEdit={handleCancelEdit}
               onDeletePhase={handleDeletePhaseClick}
               onEditingPhaseNameChange={setEditingPhaseName}
+              onEditingPhaseDescriptionChange={setEditingPhaseDescription}
               onEditingStartDateChange={setEditingStartDate}
               onEditingEndDateChange={setEditingEndDate}
               onDragOver={handlePhaseDragOver}
@@ -771,8 +786,8 @@ export default function ProjectDetail({
                 defaultStatus={defaultStatus || undefined}
                 onCancel={() => setIsAddingTask(false)}
                 users={users}
-                task={selectedTask || undefined} // Pass the empty task object or undefined
-                projectTreeData={projectTreeData} // Pass the project tree data
+                task={selectedTask || undefined}
+                projectTreeData={projectTreeData}
               />
             )}
           </div>
