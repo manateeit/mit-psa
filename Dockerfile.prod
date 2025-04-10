@@ -1,5 +1,5 @@
 # Start with a base image and install system dependencies
-FROM node:20.9-alpine AS base
+FROM node:alpine AS base
 RUN apk add \
     graphicsmagick \
     imagemagick \
