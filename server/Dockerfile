@@ -1,4 +1,4 @@
-FROM node:20.9-alpine AS server
+FROM node:alpine AS server
 
 # Install required system dependencies (rarely changes)
 RUN apk add --no-cache \
