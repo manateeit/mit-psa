@@ -94,7 +94,7 @@ const ProjectQuickAdd: React.FC<ProjectQuickAddProps> = ({ onClose, onProjectAdd
         status: selectedStatusId,
         assigned_to: selectedUserId || null,
         contact_name_id: selectedContactId || null,
-        budgeted_hours: budgetedHours ? Number(budgetedHours) : null
+        budgeted_hours: budgetedHours ? Math.round(Number(budgetedHours) * 60) : null
       };
 
       // Create the project

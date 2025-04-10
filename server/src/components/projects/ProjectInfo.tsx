@@ -48,12 +48,13 @@ export default function ProjectInfo({
     const fetchProjectMetrics = async () => {
       try {
         const metrics = await calculateProjectCompletion(project.project_id);
+        // Store metrics returned by calculateProjectCompletion (already in hours)
         setProjectMetrics({
           taskCompletionPercentage: metrics.taskCompletionPercentage,
           hoursCompletionPercentage: metrics.hoursCompletionPercentage,
-          budgetedHours: metrics.budgetedHours,
-          spentHours: metrics.spentHours,
-          remainingHours: metrics.remainingHours
+          budgetedHours: metrics.budgetedHours || 0,
+          spentHours: metrics.spentHours || 0,
+          remainingHours: metrics.remainingHours || 0 
         });
       } catch (error) {
         console.error('Error fetching project metrics:', error);
@@ -115,20 +116,22 @@ export default function ProjectInfo({
             <div className="flex flex-col flex-1 ml-8 px-4 py-2">
               <div className="flex justify-between mb-1">
                 <span className="text-sm font-medium">Project Budget:</span>
-                <span className="text-sm text-gray-600">
-                  {projectMetrics.spentHours.toFixed(1)} of {projectMetrics.budgetedHours.toFixed(1)} hours
+                <span className="text-sm text-gray-800">
+                  {/* Display hours directly from state */}
+                  {projectMetrics ? `${projectMetrics.spentHours.toFixed(1)} of ${projectMetrics.budgetedHours.toFixed(1)} hours` : 'Loading...'}
                 </span>
               </div>
               <HoursProgressBar 
-                percentage={projectMetrics.hoursCompletionPercentage}
+                percentage={projectMetrics ? projectMetrics.hoursCompletionPercentage : 0}
                 width="100%"
                 height={8}
                 showTooltip={true}
                 tooltipContent={
                   <div className="p-2">
                     <p className="font-medium">Hours Usage</p>
-                    <p className="text-sm">{projectMetrics.spentHours.toFixed(1)} of {projectMetrics.budgetedHours.toFixed(1)} hours used</p>
-                    <p className="text-sm">{projectMetrics.remainingHours.toFixed(1)} hours remaining</p>
+                    {/* Display hours directly from state */}
+                    <p className="text-sm">{projectMetrics ? `${projectMetrics.spentHours.toFixed(1)} of ${projectMetrics.budgetedHours.toFixed(1)} hours used` : 'Loading...'}</p>
+                    <p className="text-sm">{projectMetrics ? `${projectMetrics.remainingHours.toFixed(1)} hours remaining` : 'Loading...'}</p>
                     <p className="text-sm text-gray-300 mt-1">Shows budget hours usage for the entire project</p>
                   </div>
                 }
