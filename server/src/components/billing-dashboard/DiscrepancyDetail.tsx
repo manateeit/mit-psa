@@ -18,6 +18,7 @@ import { Badge } from 'server/src/components/ui/Badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from 'server/src/components/ui/Dialog';
 import { TextArea } from 'server/src/components/ui/TextArea';
 import { Alert, AlertDescription } from 'server/src/components/ui/Alert';
+import BackNav from 'server/src/components/ui/BackNav';
 import { AlertCircle, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
 
 interface CompanyInfo {
@@ -253,10 +254,6 @@ const DiscrepancyDetail: React.FC = () => {
     }));
   };
 
-  // Handle going back to the reconciliation dashboard
-  const handleBackToList = () => {
-    router.push('/billing-dashboard/reconciliation');
-  };
 
   // Render loading state
   if (loading) {
@@ -282,9 +279,9 @@ const DiscrepancyDetail: React.FC = () => {
   if (!report) {
     return (
       <div className="space-y-6">
-        <Button id="back-to-list-button" variant="outline" onClick={handleBackToList} className="mb-4">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Reconciliation Dashboard
-        </Button>
+        <BackNav href="/msp/billing?tab=reconciliation">
+          Back to Reconciliation Dashboard
+        </BackNav>
         
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -736,9 +733,9 @@ const DiscrepancyDetail: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <Button id="back-to-dashboard-button" variant="outline" onClick={handleBackToList} className="mb-4">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Reconciliation Dashboard
-        </Button>
+        <BackNav href="/msp/billing?tab=reconciliation">
+          Back to Reconciliation Dashboard
+        </BackNav>
         
         {report.status !== 'resolved' && (
           <Dialog isOpen={isResolutionDialogOpen} onClose={() => setIsResolutionDialogOpen(false)}>

@@ -1,7 +1,7 @@
 import { DataTable } from 'server/src/components/ui/DataTable';
 import { ColumnDefinition } from 'server/src/interfaces/dataTable.interfaces';
 import { ICompany } from 'server/src/interfaces/company.interfaces';
-import Link from "next/link";
+import { useRouter } from 'next/navigation';
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Button } from "@radix-ui/themes";
@@ -16,27 +16,31 @@ interface CompaniesListProps {
 }
 
 const CompaniesList = ({ selectedCompanies, filteredCompanies, setSelectedCompanies, handleCheckboxChange, handleEditCompany, handleDeleteCompany }: CompaniesListProps) => {
+  const router = useRouter(); // Get router instance
+
+  const handleRowClick = (company: ICompany) => {
+    router.push(`/msp/companies/${company.company_id}`);
+  };
+
     const columns: ColumnDefinition<ICompany>[] = [
         {
             title: '',
             dataIndex: 'checkbox',
             render: (value: string, record: ICompany) => (
-                <input
-                    type="checkbox"
-                    className="form-checkbox h-4 w-4"
-                    checked={selectedCompanies.includes(record.company_id)}
-                    onChange={() => handleCheckboxChange(record.company_id)}
-                />
+                <div onClick={(e) => e.stopPropagation()}>
+                  <input
+                      type="checkbox"
+                      className="form-checkbox h-4 w-4 cursor-pointer"
+                      checked={selectedCompanies.includes(record.company_id)}
+                      onChange={() => handleCheckboxChange(record.company_id)}
+                  />
+                </div>
             ),
         },
         {
             title: 'Name',
             dataIndex: 'company_name',
-            render: (text: string, record: ICompany) => (
-                <Link href={`/msp/companies/${record.company_id}`} className="text-blue-600">
-                    {record.company_name}
-                </Link>
-            ),
+            render: (text: string, record: ICompany) => <span className="text-blue-600">{record.company_name}</span>,
         },
         {
             title: 'Client Type',
@@ -54,10 +58,10 @@ const CompaniesList = ({ selectedCompanies, filteredCompanies, setSelectedCompan
             render: (text: string | null, record: ICompany) => record.address || 'N/A',
         },
         {
-            title: 'Account Owner',
-            dataIndex: ['properties', 'account_manager_name'],
-            render: (text: string | undefined, record: ICompany) => 
-                record.properties?.account_manager_name || 'N/A',
+            title: 'Account Manager',
+            dataIndex: 'account_manager_full_name',
+            render: (text: string | undefined, record: ICompany) =>
+                record.account_manager_full_name || 'N/A',
         },
         {
             title: 'Url',
@@ -73,6 +77,7 @@ const CompaniesList = ({ selectedCompanies, filteredCompanies, setSelectedCompan
         {
             title: 'Actions',
             dataIndex: 'actions',
+            width: '5%',
             render: (value: string, record: ICompany) => (
                 <DropdownMenu.Root>
                     <DropdownMenu.Trigger asChild>
@@ -80,6 +85,7 @@ const CompaniesList = ({ selectedCompanies, filteredCompanies, setSelectedCompan
                             role="button"
                             tabIndex={0}
                             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 w-9 p-0"
+                            onClick={(e) => e.stopPropagation()}
                         >
                             <MoreVertical size={16} />
                         </div>
@@ -113,6 +119,7 @@ const CompaniesList = ({ selectedCompanies, filteredCompanies, setSelectedCompan
                     company_id: company.company_id
                 }))}
                 columns={columns}
+                onRowClick={handleRowClick}
             />
         </div>
     );

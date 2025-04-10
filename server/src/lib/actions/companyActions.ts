@@ -161,16 +161,26 @@ export async function getAllCompanies(includeInactive: boolean = true): Promise<
   }
 
   try {
-    let query = db('companies')
-      .select('*')
-      .where({ tenant });
+    let query = db('companies as c')
+      .select(
+        'c.*',
+        db.raw("u.first_name || ' ' || u.last_name as account_manager_full_name")
+      )
+      .leftJoin('users as u', function() {
+        this.on('u.user_id', '=', db.raw("(c.properties ->> 'account_manager_id')::uuid"))
+            .andOn('u.tenant', '=', 'c.tenant');
+      })
+      .where({ 'c.tenant': tenant });
 
     if (!includeInactive) {
-      query = query.andWhere('is_inactive', false);
+      query = query.andWhere('c.is_inactive', false);
     }
-    
+
     const companies = await query;
-    return companies;
+    return companies.map(company => ({
+      ...company,
+      properties: company.properties || {}
+    }));
   } catch (error) {
     console.error('Error fetching all companies:', error);
     throw new Error('Failed to fetch all companies');

@@ -381,7 +381,7 @@ export default function TaskTicketLinks({
         return;
       }
 
-      openDrawer(<TicketDetails initialTicket={ticket} />);
+      openDrawer(<TicketDetails initialTicket={ticket} isInDrawer={true} />);
     } catch (error) {
       console.error('Error loading ticket:', error);
       toast.error('Failed to load ticket');

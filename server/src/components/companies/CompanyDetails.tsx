@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { IDocument } from 'server/src/interfaces/document.interface';
 import { PartialBlock } from '@blocknote/core';
 import { IContact } from 'server/src/interfaces/contact.interfaces';
+import { ICompany } from 'server/src/interfaces/company.interfaces';
+import UserPicker from 'server/src/components/ui/UserPicker';
+import { getAllUsers } from 'server/src/lib/actions/user-actions/userActions';
 import { BillingCycleType } from 'server/src/interfaces/billing.interfaces';
 import Documents from 'server/src/components/documents/Documents';
 import CompanyContactsList from 'server/src/components/contacts/CompanyContactsList';
@@ -14,6 +17,7 @@ import { updateCompany } from 'server/src/lib/actions/companyActions';
 import CustomTabs from 'server/src/components/ui/CustomTabs';
 import { QuickAddTicket } from '../tickets/QuickAddTicket';
 import { Button } from 'server/src/components/ui/Button';
+import BackNav from 'server/src/components/ui/BackNav';
 import TaxSettingsForm from 'server/src/components/TaxSettingsForm';
 import InteractionsFeed from '../interactions/InteractionsFeed';
 import { IInteraction } from 'server/src/interfaces/interaction.interfaces';
@@ -32,38 +36,8 @@ import { withDataAutomationId } from 'server/src/types/ui-reflection/withDataAut
 import { ReflectionContainer } from 'server/src/types/ui-reflection/ReflectionContainer';
 import { createBlockDocument, updateBlockContent, getBlockContent } from 'server/src/lib/actions/document-actions/documentBlockContentActions';
 import { getDocument } from 'server/src/lib/actions/document-actions/documentActions';
-import ClientBillingDashboard from '../billing-dashboard/ClientBillingDashboard'; // Import the new dashboard component
+import ClientBillingDashboard from '../billing-dashboard/ClientBillingDashboard';
 
-interface ICompany {
-  company_id: string;
-  company_name: string;
-  notes_document_id?: string | null;
-  properties?: {
-    account_manager_name?: string;
-    industry?: string;
-    website?: string;
-    company_size?: string;
-    annual_revenue?: string;
-    tax_id?: string;
-    payment_terms?: string;
-    parent_company_name?: string;
-    last_contact_date?: string;
-  };
-  phone_no: string;
-  email: string;
-  address: string;
-  is_inactive: boolean;
-  timezone?: string;
-  tenant?: string;
-  credit_balance: number;
-  url: string;
-  created_at: string;
-  updated_at: string;
-  deleted_at?: string;
-  status?: string;
-  billing_cycle: BillingCycleType;
-  is_tax_exempt: boolean;
-}
 
 const SwitchDetailItem: React.FC<{
   value: boolean;
@@ -77,7 +51,7 @@ const SwitchDetailItem: React.FC<{
       </div>
       <div className="flex items-center gap-2">
         <span className="text-sm text-gray-700">
-          {value ? 'Inactive' : 'Active'}
+          {value ? 'Active' : 'Inactive'}
         </span>
         <Switch
           checked={value}
@@ -136,6 +110,8 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
   const [isQuickAddTicketOpen, setIsQuickAddTicketOpen] = useState(false);
   const [interactions, setInteractions] = useState<IInteraction[]>([]);
   const [currentUser, setCurrentUser] = useState<IUserWithRoles | null>(null);
+  const [internalUsers, setInternalUsers] = useState<IUserWithRoles[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [isDocumentSelectorOpen, setIsDocumentSelectorOpen] = useState(false);
   const [hasUnsavedNoteChanges, setHasUnsavedNoteChanges] = useState(false);
   const [currentContent, setCurrentContent] = useState<PartialBlock[]>(DEFAULT_BLOCK);
@@ -154,8 +130,22 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
         console.error('Error fetching current user:', error);
       }
     };
+    const fetchAllUsers = async () => {
+      if (internalUsers.length > 0) return;
+      setIsLoadingUsers(true);
+      try {
+        const users = await getAllUsers();
+        setInternalUsers(users);
+      } catch (error) {
+        console.error("Error fetching internal users:", error);
+        // Optionally show a toast error
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
 
     fetchUser();
+    fetchAllUsers();
   }, []);
 
   // Load note content and document metadata when component mounts
@@ -186,13 +176,6 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
     loadNoteContent();
   }, [company.notes_document_id]);
 
-  const handleBack = () => {
-    if (isInDrawer) {
-      drawer.goBack();
-    } else {
-      router.push('/msp/companies');
-    }
-  };
 
   const handleFieldChange = (field: string, value: string | boolean) => {
     setEditedCompany(prevCompany => {
@@ -238,7 +221,17 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
 
   const handleSave = async () => {
     try {
-      const updatedCompany = await updateCompany(company.company_id, editedCompany);
+      // Prepare data for update, ensuring account_manager_id is undefined if null/empty
+      const dataToUpdate: Partial<ICompany> = {
+        ...editedCompany,
+        properties: {
+          ...editedCompany.properties,
+          account_manager_id: editedCompany.properties?.account_manager_id || undefined,
+        }
+      };
+      const updatedCompanyResult = await updateCompany(company.company_id, dataToUpdate);
+      // Assuming updateCompany returns the full updated company object matching ICompany
+      const updatedCompany = updatedCompanyResult as ICompany; // Cast if necessary, or adjust based on actual return type
       setEditedCompany(updatedCompany);
       setHasUnsavedChanges(false);
     } catch (error) {
@@ -339,17 +332,16 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
             value={editedCompany.company_name}
             onEdit={(value) => handleFieldChange('company_name', value)}
           />
-          <TextDetailItem
-            label="Account Manager"
-            value={editedCompany.properties?.account_manager_name || ''}
-            onEdit={(value) => handleFieldChange('properties.account_manager_name', value)}
-          />
-          <div className="space-y-2">
-            <Text size="2" className="text-gray-700 font-medium">Your company&apos;s point of contact</Text>
-            <div>
-              <Text size="2" className="text-gray-800">Client Services Manager</Text>
-              <Text size="2" className="text-gray-500">Someone who you should contact if problems occur</Text>
-            </div>
+          <div className="space-y-1">
+            <Text as="label" size="2" className="text-gray-700 font-medium">Account Manager</Text>
+            <UserPicker
+              value={editedCompany.properties?.account_manager_id || ''}
+              onValueChange={(value) => handleFieldChange('properties.account_manager_id', value)}
+              users={internalUsers}
+              disabled={isLoadingUsers}
+              placeholder={isLoadingUsers ? "Loading users..." : "Select Account Manager"}
+              buttonWidth="full"
+            />
           </div>
           <TextDetailItem
             label="Industry"
@@ -387,8 +379,8 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
             onEdit={(value) => handleFieldChange('properties.annual_revenue', value)}
           />
           <SwitchDetailItem
-            value={editedCompany.is_inactive || false}
-            onEdit={(value) => handleFieldChange('is_inactive', value)}
+            value={!editedCompany.is_inactive || false}
+            onEdit={(isActive) => handleFieldChange('is_inactive', !isActive)}
           />
           
           <Flex gap="4" justify="end" align="center" className="pt-6">
@@ -588,19 +580,15 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
 
   return (
     <ReflectionContainer id={id} label="Company Details">
-      <div className="max-w-4xl mx-auto bg-gray-50 p-6 relative">
-        <Button
-          id="back-to-companies-btn"
-          onClick={handleBack}
-          variant="ghost"
-          size="sm"
-          className="absolute top-2 right-2 flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {isInDrawer ? 'Back' : 'Back to Companies'}
-        </Button>
-        <Heading size="6" className="mb-6 mt-12">{editedCompany.company_name}</Heading>
+      <div className="flex items-center space-x-5 mb-4 px-6 pt-2">
+        <BackNav href={!isInDrawer ? "/msp/companies" : undefined}>
+          {isInDrawer ? 'Back' : 'Back to Clients'}
+        </BackNav>
+        <Heading size="6">{editedCompany.company_name}</Heading>
+      </div>
 
+      {/* Content Area */}
+      <div className="max-w-4xl mx-auto bg-gray-50 p-6 pt-0 relative"> {/* Removed top padding */}
         <CustomTabs
           tabs={tabContent}
           defaultTab={findTabLabel(searchParams?.get('tab'))}

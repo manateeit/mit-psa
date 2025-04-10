@@ -24,7 +24,7 @@ const CompanyPage = async ({ params }: { params: { id: string } }) => {
     }
 
     return (
-      <div className="mx-auto px-4 mt-10">
+      <div className="mx-auto px-4">
        <CompanyDetails company={company} documents={documents} contacts={contacts} isInDrawer={false} />
       </div>
     );

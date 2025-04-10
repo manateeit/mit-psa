@@ -3,13 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { ICompany } from 'server/src/interfaces/company.interfaces';
 import GenericDialog from '../ui/GenericDialog';
 import { Button } from '../ui/Button';
-import CompanyForm from './CompanyForm';
+import QuickAddCompany from './QuickAddCompany';
 import { createCompany, getAllCompanies, deleteCompany, importCompaniesFromCSV, exportCompaniesToCSV } from 'server/src/lib/actions/companyActions';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import CompaniesGrid from './CompaniesGrid';
 import CompaniesList from './CompaniesList';
-import { TrashIcon, MoreVertical, CloudDownload, Upload, LayoutGrid, LayoutList, Search } from 'lucide-react';
+import ViewSwitcher, { ViewSwitcherOption } from '../ui/ViewSwitcher';
+import { TrashIcon, MoreVertical, CloudDownload, Upload, LayoutGrid, List, Search } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { CompanyPicker } from '../companies/CompanyPicker';
 import { getCurrentUser, getUserPreference, setUserPreference } from 'server/src/lib/actions/user-actions/userActions';
@@ -74,7 +75,15 @@ const Companies: React.FC = () => {
     initializeComponent();
   }, []);
 
-  const handleViewModeChange = async (newMode: 'grid' | 'list') => {
+  // Define view mode type
+  type CompanyViewMode = 'grid' | 'list';
+
+  const viewOptions: ViewSwitcherOption<CompanyViewMode>[] = [
+    { value: 'grid', label: 'Cards', icon: LayoutGrid },
+    { value: 'list', label: 'Table', icon: List },
+  ];
+
+  const handleViewModeChange = async (newMode: CompanyViewMode) => {
     setViewMode(newMode);
     try {
       const currentUser = await getCurrentUser();
@@ -86,30 +95,10 @@ const Companies: React.FC = () => {
     }
   };
 
-  const handleAddCompany = async (data: Omit<ICompany, "company_id" | "created_at" | "updated_at">) => {
-    try {
-      const newCompanyData: Omit<ICompany, "company_id" | "created_at" | "updated_at"> = {
-        ...data,
-        company_name: data.company_name!,
-        phone_no: data.phone_no || '',
-        url: data.url || '',
-        address: data.address || '',
-        is_inactive: data.is_inactive || false,
-        is_tax_exempt: data.is_tax_exempt || false,
-        notes: data.notes,
-        client_type: data.client_type || 'company',
-        tenant: data.tenant!
-      };      
-      await createCompany(newCompanyData);
-      setIsDialogOpen(false);
 
-      const updatedCompanies = await getAllCompanies(true);
-      setCompanies(updatedCompanies);
-
-      router.refresh();
-    } catch (error) {
-      console.error('Error creating company:', error);
-    }
+  const handleCompanyAdded = (newCompany: ICompany) => {
+    // Refresh the list after a company is added
+    refreshCompanies();
   };
 
   const handleCheckboxChange = (companyId: string) => {
@@ -353,15 +342,12 @@ const Companies: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* Create Client Dialog */}
-      <GenericDialog
-        id='create-company-dialog'
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        title="Create New Client"
-      >
-        <CompanyForm onSubmit={handleAddCompany} />
-      </GenericDialog>
+      {/* Quick Add Company Dialog */}
+      <QuickAddCompany
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        onCompanyAdded={handleCompanyAdded}
+      />
 
       <div className="flex justify-end mb-4 flex-wrap gap-6">
         {/* Search */}
@@ -428,33 +414,13 @@ const Companies: React.FC = () => {
           </DropdownMenu.Root>
         </div>
 
-        <div className="flex items-center gap-2 ms-4">
-          {/* Grid button */}
-          <button
-            id="grid-view-btn"
-            onClick={() => handleViewModeChange('grid')}
-            className={`p-1 rounded hover:bg-gray-100 ${
-              viewMode === 'grid' 
-                ? 'bg-gray-200 text-gray-700' 
-                : 'text-gray-500'
-            }`}
-          >
-            <LayoutGrid size={20} />
-          </button>
-
-          {/* List button */}
-          <button
-            id="list-view-btn"
-            onClick={() => handleViewModeChange('list')}
-            className={`p-1 rounded hover:bg-gray-100 ${
-              viewMode === 'list' 
-                ? 'bg-gray-200 text-gray-700' 
-                : 'text-gray-500'
-            }`}
-          >
-            <LayoutList size={20} />
-          </button>
-        </div>
+        {/* View Switcher */}
+        <ViewSwitcher
+          currentView={viewMode}
+          onChange={handleViewModeChange}
+          options={viewOptions}
+          className="ms-4"
+        />
       </div>
 
       {/* Delete */}
