@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ICompany } from 'server/src/interfaces/company.interfaces';
 import GenericDialog from '../ui/GenericDialog';
 import { Button } from '../ui/Button';
-import CompanyForm from './CompanyForm';
+import QuickAddCompany from './QuickAddCompany';
 import { createCompany, getAllCompanies, deleteCompany, importCompaniesFromCSV, exportCompaniesToCSV } from 'server/src/lib/actions/companyActions';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
@@ -86,30 +86,10 @@ const Companies: React.FC = () => {
     }
   };
 
-  const handleAddCompany = async (data: Omit<ICompany, "company_id" | "created_at" | "updated_at">) => {
-    try {
-      const newCompanyData: Omit<ICompany, "company_id" | "created_at" | "updated_at"> = {
-        ...data,
-        company_name: data.company_name!,
-        phone_no: data.phone_no || '',
-        url: data.url || '',
-        address: data.address || '',
-        is_inactive: data.is_inactive || false,
-        is_tax_exempt: data.is_tax_exempt || false,
-        notes: data.notes,
-        client_type: data.client_type || 'company',
-        tenant: data.tenant!
-      };      
-      await createCompany(newCompanyData);
-      setIsDialogOpen(false);
 
-      const updatedCompanies = await getAllCompanies(true);
-      setCompanies(updatedCompanies);
-
-      router.refresh();
-    } catch (error) {
-      console.error('Error creating company:', error);
-    }
+  const handleCompanyAdded = (newCompany: ICompany) => {
+    // Refresh the list after a company is added
+    refreshCompanies();
   };
 
   const handleCheckboxChange = (companyId: string) => {
@@ -353,15 +333,12 @@ const Companies: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* Create Client Dialog */}
-      <GenericDialog
-        id='create-company-dialog'
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        title="Create New Client"
-      >
-        <CompanyForm onSubmit={handleAddCompany} />
-      </GenericDialog>
+      {/* Quick Add Company Dialog */}
+      <QuickAddCompany
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        onCompanyAdded={handleCompanyAdded}
+      />
 
       <div className="flex justify-end mb-4 flex-wrap gap-6">
         {/* Search */}
