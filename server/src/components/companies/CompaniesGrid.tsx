@@ -1,10 +1,7 @@
 import { ICompany } from 'server/src/interfaces/company.interfaces';
 import CompanyGridCard from "./CompanyGridCard";
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import CompaniesPagination from "./CompaniesPagination";
 import { useState } from 'react';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Button } from "@radix-ui/themes";
 
 interface CompaniesGridProps {
     filteredCompanies: ICompany[];
@@ -41,34 +38,9 @@ const CompaniesGrid = ({ filteredCompanies, selectedCompanies, handleCheckboxCha
                             company={company}
                             selectedCompanies={selectedCompanies}
                             handleCheckboxChange={handleCheckboxChange}
+                            handleEditCompany={handleEditCompany}
+                            handleDeleteCompany={handleDeleteCompany}
                         />
-                        <div className="absolute top-3 right-3">
-                            <DropdownMenu.Root>
-                                <DropdownMenu.Trigger asChild>
-                                    <Button id={`company-menu-${company.company_id}`} variant="ghost" size="1" className="hover:bg-gray-50">
-                                        <MoreVertical size={16} />
-                                    </Button>
-                                </DropdownMenu.Trigger>
-                                <DropdownMenu.Portal>
-                                    <DropdownMenu.Content className="bg-white rounded-md shadow-lg p-1">
-                                        <DropdownMenu.Item 
-                                            className="px-2 py-1 text-sm cursor-pointer hover:bg-gray-100 flex items-center"
-                                            onSelect={() => handleEditCompany(company.company_id)}
-                                        >
-                                            <Pencil size={14} className="mr-2" />
-                                            Edit
-                                        </DropdownMenu.Item>
-                                        <DropdownMenu.Item 
-                                            className="px-2 py-1 text-sm cursor-pointer hover:bg-gray-100 text-color-primary-500 hover:text-color-primary-600 flex items-center"
-                                            onSelect={() => handleDeleteCompany(company)}
-                                        >
-                                            <Trash2 size={14} className="mr-2" />
-                                            Delete
-                                        </DropdownMenu.Item>
-                                    </DropdownMenu.Content>
-                                </DropdownMenu.Portal>
-                            </DropdownMenu.Root>
-                        </div>
                     </div>
                 ))}
             </div>

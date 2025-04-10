@@ -49,6 +49,7 @@ export interface ICompany extends TenantEntity {
   invoice_template_id?: string;
   billing_contact_id?: string;
   billing_email?: string;
+  account_manager_full_name?: string;
 }
 
 export interface ICompanyLocation extends TenantEntity {

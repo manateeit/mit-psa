@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import ViewSwitcher, { ViewSwitcherOption } from 'server/src/components/ui/ViewSwitcher';
 import { ScheduleSection } from './ScheduleSection';
 import { TicketsSection } from './TicketsSection';
 import { ProjectsSection } from './ProjectsSection';
 import { WorkflowTasksSection } from './WorkflowTasksSection';
 import { ActivitiesDataTableSection } from './ActivitiesDataTableSection';
 import { Button } from '../ui/Button';
-import { RefreshCw, LayoutGrid, List } from 'lucide-react';
+import { LayoutGrid, List } from 'lucide-react';
 import { ActivityFilters as ActivityFiltersType, ActivityType } from '../../interfaces/activity.interfaces';
 import { CustomTabs } from '../ui/CustomTabs';
 import { DrawerProvider } from '../../context/DrawerContext';
@@ -105,6 +106,31 @@ export function UserActivitiesDashboard() {
   ), [handleViewAllSchedule, handleViewAllTickets, handleViewAllProjects, handleViewAllWorkflowTasks]
   );
 
+  // Define view mode type
+  type UserActivitiesViewMode = 'cards' | 'table';
+
+  // Define options for the ViewSwitcher with explicit type
+  const viewOptions: ViewSwitcherOption<UserActivitiesViewMode>[] = [
+    { value: 'cards', label: 'Cards', icon: LayoutGrid },
+    { value: 'table', label: 'Table', icon: List },
+  ];
+
+  // Handler for view change
+  const handleViewChange = async (newView: UserActivitiesViewMode) => {
+    setViewMode(newView);
+    if (newView === 'table') {
+      setTableInitialFilters(null); // Reset specific filters when switching to table view
+    }
+    // Save preference
+    if (currentUser?.user_id) {
+      try {
+        await setUserPreference(currentUser.user_id, 'activitiesDashboardViewMode', newView);
+      } catch (error) {
+        console.error('Error saving view mode preference:', error);
+      }
+    }
+  };
+
   return (
     <DrawerProvider>
       <ActivityDrawerProvider>
@@ -112,49 +138,11 @@ export function UserActivitiesDashboard() {
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold">User Activities</h1>
             <div className="flex items-center gap-4">
-              <div className="flex items-center border rounded-md overflow-hidden">
-                <Button
-                  id="card-view-button"
-                  variant={viewMode === 'cards' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={async () => {
-                    setViewMode('cards');
-                    // Save preference
-                    if (currentUser?.user_id) {
-                      try {
-                        await setUserPreference(currentUser.user_id, 'activitiesDashboardViewMode', 'cards');
-                      } catch (error) {
-                        console.error('Error saving view mode preference:', error);
-                      }
-                    }
-                  }}
-                  className="rounded-none border-0"
-                >
-                  <LayoutGrid className="h-4 w-4 mr-2" />
-                  Cards
-                </Button>
-                <Button
-                  id="table-view-button"
-                  variant={viewMode === 'table' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={async () => {
-                    setTableInitialFilters(null); // Reset specific filters when clicking the main Table button
-                    setViewMode('table');
-                    // Save preference
-                    if (currentUser?.user_id) {
-                      try {
-                        await setUserPreference(currentUser.user_id, 'activitiesDashboardViewMode', 'table');
-                      } catch (error) {
-                        console.error('Error saving view mode preference:', error);
-                      }
-                    }
-                  }}
-                  className="rounded-none border-0"
-                >
-                  <List className="h-4 w-4 mr-2" />
-                  Table
-                </Button>
-              </div>
+              <ViewSwitcher
+                options={viewOptions}
+                currentView={viewMode}
+                onChange={handleViewChange}
+              />
             </div>
           </div>
 

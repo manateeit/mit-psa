@@ -50,7 +50,7 @@ const SwitchDetailItem: React.FC<{
       </div>
       <div className="flex items-center gap-2">
         <span className="text-sm text-gray-700">
-          {value ? 'Inactive' : 'Active'}
+          {value ? 'Active' : 'Inactive'}
         </span>
         <Switch
           checked={value}
@@ -385,8 +385,8 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
             onEdit={(value) => handleFieldChange('properties.annual_revenue', value)}
           />
           <SwitchDetailItem
-            value={editedCompany.is_inactive || false}
-            onEdit={(value) => handleFieldChange('is_inactive', value)}
+            value={!editedCompany.is_inactive || false}
+            onEdit={(isActive) => handleFieldChange('is_inactive', !isActive)}
           />
           
           <Flex gap="4" justify="end" align="center" className="pt-6">
@@ -595,7 +595,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
           className="absolute top-2 right-2 flex items-center gap-2"
         >
           <ArrowLeft className="h-4 w-4" />
-          {isInDrawer ? 'Back' : 'Back to Companies'}
+          {isInDrawer ? 'Back' : 'Back to Clients'}
         </Button>
         <Heading size="6" className="mb-6 mt-12">{editedCompany.company_name}</Heading>
 

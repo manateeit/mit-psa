@@ -110,7 +110,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps & AutomationProps
       <>
         {children}
         {tooltipText && (
-          <span 
+          <span
             className="fixed invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity
             bg-white px-2 py-1 rounded-md text-gray-900 text-xs whitespace-nowrap
             shadow-[0_1px_3px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.14)]
@@ -126,7 +126,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps & AutomationProps
           </span>
         )}
       </>
-    )
+    );
 
     return (
       <Comp
