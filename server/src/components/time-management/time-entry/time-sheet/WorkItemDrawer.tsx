@@ -92,7 +92,8 @@ export function WorkItemDrawer({
                     const ticketData = await getTicketById(workItem.work_item_id, currentUser);
                     return (
                         <div className="min-w-auto h-full bg-white">
-                            <TicketDetails 
+                            <TicketDetails
+                                isInDrawer={true}
                                 initialTicket={ticketData}
                                 onClose={onClose} // Pass onClose prop
                             />

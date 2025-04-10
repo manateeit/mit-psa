@@ -17,6 +17,7 @@ import { updateCompany } from 'server/src/lib/actions/companyActions';
 import CustomTabs from 'server/src/components/ui/CustomTabs';
 import { QuickAddTicket } from '../tickets/QuickAddTicket';
 import { Button } from 'server/src/components/ui/Button';
+import BackNav from 'server/src/components/ui/BackNav';
 import TaxSettingsForm from 'server/src/components/TaxSettingsForm';
 import InteractionsFeed from '../interactions/InteractionsFeed';
 import { IInteraction } from 'server/src/interfaces/interaction.interfaces';
@@ -175,13 +176,6 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
     loadNoteContent();
   }, [company.notes_document_id]);
 
-  const handleBack = () => {
-    if (isInDrawer) {
-      drawer.goBack();
-    } else {
-      router.push('/msp/companies');
-    }
-  };
 
   const handleFieldChange = (field: string, value: string | boolean) => {
     setEditedCompany(prevCompany => {
@@ -586,19 +580,15 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
 
   return (
     <ReflectionContainer id={id} label="Company Details">
-      <div className="max-w-4xl mx-auto bg-gray-50 p-6 relative">
-        <Button
-          id="back-to-companies-btn"
-          onClick={handleBack}
-          variant="ghost"
-          size="sm"
-          className="absolute top-2 right-2 flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
+      <div className="flex items-center space-x-5 mb-4 px-6 pt-2">
+        <BackNav href={!isInDrawer ? "/msp/companies" : undefined}>
           {isInDrawer ? 'Back' : 'Back to Clients'}
-        </Button>
-        <Heading size="6" className="mb-6 mt-12">{editedCompany.company_name}</Heading>
+        </BackNav>
+        <Heading size="6">{editedCompany.company_name}</Heading>
+      </div>
 
+      {/* Content Area */}
+      <div className="max-w-4xl mx-auto bg-gray-50 p-6 pt-0 relative"> {/* Removed top padding */}
         <CustomTabs
           tabs={tabContent}
           defaultTab={findTabLabel(searchParams?.get('tab'))}

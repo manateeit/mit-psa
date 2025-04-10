@@ -64,6 +64,7 @@ export function ActivityDetailViewerDrawer({
           setContent(
             <div className="h-full">
               <TicketDetails
+                isInDrawer={true}
                 initialTicket={ticketData.ticket}
                 initialComments={ticketData.comments}
                 initialChannel={ticketData.channel}

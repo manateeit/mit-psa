@@ -85,7 +85,8 @@ export function WorkItemDetailsDrawer({
                     const ticketData = await getTicketById(workItem.work_item_id, currentUser);
                     return (
                         <div className="h-full">
-                            <TicketDetails 
+                            <TicketDetails
+                                isInDrawer={true}
                                 initialTicket={ticketData}
                             />
                         </div>

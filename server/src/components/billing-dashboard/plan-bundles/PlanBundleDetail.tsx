@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from 'server/src/components/ui/Tabs';
 import { Alert, AlertDescription } from 'server/src/components/ui/Alert';
 import { Button } from 'server/src/components/ui/Button';
+import BackNav from 'server/src/components/ui/BackNav';
 import { AlertCircle, ArrowLeft, Save } from 'lucide-react';
 import { IPlanBundle } from 'server/src/interfaces/planBundle.interfaces';
 import { getPlanBundleById, updatePlanBundle } from 'server/src/lib/actions/planBundleActions';
@@ -58,9 +59,6 @@ const PlanBundleDetail: React.FC = () => {
     setTimeout(() => setSaveSuccess(false), 3000);
   };
 
-  const handleBackClick = () => {
-    router.push('/msp/billing?tab=plan-bundles');
-  };
 
   if (isLoading) {
     return <div className="p-4">Loading bundle details...</div>;
@@ -75,14 +73,9 @@ const PlanBundleDetail: React.FC = () => {
             {error || 'Plan bundle not found'}
           </AlertDescription>
         </Alert>
-        <Button
-          id="back-to-bundles-btn"
-          onClick={handleBackClick}
-          className="mt-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
+        <BackNav href="/msp/billing?tab=plan-bundles">
           Back to Bundles
-        </Button>
+        </BackNav>
       </div>
     );
   }
@@ -90,15 +83,9 @@ const PlanBundleDetail: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center">
-        <Button
-          id="back-btn"
-          variant="ghost"
-          onClick={handleBackClick}
-          className="mr-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
+        <BackNav href="/msp/billing?tab=plan-bundles">
+          Back to Bundles
+        </BackNav>
         <PlanBundleHeader bundle={bundle} />
       </div>
       
