@@ -1,16 +1,17 @@
 'use server'
 
-import { StorageService } from '../../storage/StorageService';
-import { createTenantKnex } from '../../db';
+import { StorageService } from 'server/src/lib/storage/StorageService';
+import { StorageProviderFactory } from 'server/src/lib/storage/StorageProviderFactory';
+import { createTenantKnex } from 'server/src/lib/db';
 import { marked } from 'marked';
 import { PDFDocument } from 'pdf-lib';
 import { fromPath } from 'pdf2pic';
 import sharp from 'sharp';
 import { writeFile, unlink, mkdir } from 'fs/promises';
 import { join } from 'path';
-import { CacheFactory } from '../../cache/CacheFactory';
-import Document from '../../models/document';
-import DocumentAssociation from '../../models/document-association';
+import { CacheFactory } from 'server/src/lib/cache/CacheFactory';
+import Document from 'server/src/lib/models/document';
+import DocumentAssociation from 'server/src/lib/models/document-association';
 import {
     IDocument,
     IDocumentType,
@@ -18,10 +19,10 @@ import {
     DocumentFilters,
     PreviewResponse,
     DocumentInput
-} from '../../../interfaces/document.interface';
-import { IDocumentAssociation, IDocumentAssociationInput } from '../../../interfaces/document-association.interface';
+} from 'server/src/interfaces/document.interface';
+import { IDocumentAssociation, IDocumentAssociationInput } from 'server/src/interfaces/document-association.interface';
 import { v4 as uuidv4 } from 'uuid';
-import { getStorageConfig } from '../../../config/storage';
+import { getStorageConfig } from 'server/src/config/storage';
 import { deleteFile } from '../file-actions/fileActions';
 import { NextResponse } from 'next/server';
 import { deleteDocumentContent } from './documentContentActions';
@@ -918,7 +919,7 @@ async function validateDocumentUpload(file: File): Promise<void> {
 }
 
 // Get document type ID
-async function getDocumentTypeId(mimeType: string): Promise<{ typeId: string, isShared: boolean }> {
+export async function getDocumentTypeId(mimeType: string): Promise<{ typeId: string, isShared: boolean }> { // Export this function
   const { knex, tenant } = await createTenantKnex();
 
   // First try to find a tenant-specific type
@@ -970,4 +971,64 @@ async function getDocumentTypeId(mimeType: string): Promise<{ typeId: string, is
   }
 
   return { typeId: unknownType.type_id, isShared: true };
+}
+
+/**
+ * Generates a publicly accessible URL for an image file.
+ * Handles different storage providers (local vs. S3).
+ *
+ * @param file_id The ID of the file in external_files.
+ * @returns A promise resolving to the image URL string, or null if an error occurs or the file is not found/an image.
+ */
+export async function getImageUrl(file_id: string): Promise<string | null> {
+  try {
+    const { knex, tenant } = await createTenantKnex();
+    if (!tenant) {
+      console.error('getImageUrl: No tenant found');
+      return null;
+    }
+
+    // Fetch minimal file details to check MIME type and existence
+    const fileDetails = await knex('external_files')
+      .select('mime_type', 'storage_path')
+      .where({ file_id, tenant })
+      .first();
+
+    if (!fileDetails) {
+      console.warn(`getImageUrl: File not found for file_id: ${file_id}`);
+      return null;
+    }
+
+    // Check if the file is an image
+    if (!fileDetails.mime_type?.startsWith('image/')) {
+      console.warn(`getImageUrl: File ${file_id} is not an image (mime_type: ${fileDetails.mime_type})`);
+      return null;
+    }
+
+    // Determine storage provider type (example logic, adjust as needed)
+    const config = getStorageConfig();
+    const providerType = config.defaultProvider;
+
+    if (providerType === 'local') {
+      // For local storage, return the API route
+      return `/api/documents/view/${file_id}`;
+    } else if (providerType === 's3') {
+      // For S3, generate a pre-signed URL or return a direct URL
+      // This requires the StorageService or S3 provider instance
+      const provider = await StorageProviderFactory.createProvider();
+      if ('getPublicUrl' in provider && typeof provider.getPublicUrl === 'function') {
+        // Assuming getPublicUrl exists and handles pre-signing if needed
+        return await provider.getPublicUrl(fileDetails.storage_path);
+      } else {
+        console.error('getImageUrl: S3 provider instance does not implement getPublicUrl method.');
+        return null;
+      }
+    } else {
+      console.error(`getImageUrl: Unsupported storage provider type: ${providerType}`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`getImageUrl: Error generating URL for file_id ${file_id}:`, error);
+    return null;
+  }
 }

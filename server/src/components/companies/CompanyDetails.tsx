@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { IDocument } from 'server/src/interfaces/document.interface';
 import { PartialBlock } from '@blocknote/core';
 import { IContact } from 'server/src/interfaces/contact.interfaces';
@@ -13,7 +13,7 @@ import CompanyContactsList from 'server/src/components/contacts/CompanyContactsL
 import { Flex, Text, Heading } from '@radix-ui/themes';
 import { Switch } from 'server/src/components/ui/Switch';
 import BillingConfiguration from './BillingConfiguration';
-import { updateCompany } from 'server/src/lib/actions/companyActions';
+import { updateCompany, uploadCompanyLogo, removeCompanyLogo, getCompanyById } from 'server/src/lib/actions/companyActions';
 import CustomTabs from 'server/src/components/ui/CustomTabs';
 import { QuickAddTicket } from '../tickets/QuickAddTicket';
 import { Button } from 'server/src/components/ui/Button';
@@ -22,7 +22,7 @@ import TaxSettingsForm from 'server/src/components/TaxSettingsForm';
 import InteractionsFeed from '../interactions/InteractionsFeed';
 import { IInteraction } from 'server/src/interfaces/interaction.interfaces';
 import { useDrawer } from "server/src/context/DrawerContext";
-import { ArrowLeft, Globe } from 'lucide-react';
+import { ArrowLeft, Globe, Upload, Trash2, Loader2 } from 'lucide-react';
 import TimezonePicker from 'server/src/components/ui/TimezonePicker';
 import { getCurrentUser } from 'server/src/lib/actions/user-actions/userActions';
 import { IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
@@ -35,8 +35,10 @@ import { Input } from 'server/src/components/ui/Input';
 import { withDataAutomationId } from 'server/src/types/ui-reflection/withDataAutomationId';
 import { ReflectionContainer } from 'server/src/types/ui-reflection/ReflectionContainer';
 import { createBlockDocument, updateBlockContent, getBlockContent } from 'server/src/lib/actions/document-actions/documentBlockContentActions';
-import { getDocument } from 'server/src/lib/actions/document-actions/documentActions';
+import { getDocument, getImageUrl } from 'server/src/lib/actions/document-actions/documentActions';
 import ClientBillingDashboard from '../billing-dashboard/ClientBillingDashboard';
+import CompanyAvatar from 'server/src/components/ui/CompanyAvatar';
+import { useToast } from 'server/src/hooks/use-toast';
 
 
 const SwitchDetailItem: React.FC<{
@@ -114,11 +116,15 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [isDocumentSelectorOpen, setIsDocumentSelectorOpen] = useState(false);
   const [hasUnsavedNoteChanges, setHasUnsavedNoteChanges] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isRemovingLogo, setIsRemovingLogo] = useState(false);
   const [currentContent, setCurrentContent] = useState<PartialBlock[]>(DEFAULT_BLOCK);
   const [noteDocument, setNoteDocument] = useState<IDocument | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const drawer = useDrawer();
 
   useEffect(() => {
@@ -312,6 +318,75 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
       setHasUnsavedNoteChanges(false);
     } catch (error) {
       console.error('Error saving note:', error);
+    }
+  };
+  
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      toast({
+        title: "No file selected",
+        description: "Please select an image file to upload.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    try {
+      const result = await uploadCompanyLogo(editedCompany.company_id, formData);
+      if (result.success && result.logoUrl !== undefined) {
+        setEditedCompany(prev => ({ ...prev, logoUrl: result.logoUrl }));
+        toast({
+          title: "Logo Uploaded",
+          description: "Company logo updated successfully.",
+        });
+      } else {
+        throw new Error(result.message || 'Failed to upload logo');
+      }
+    } catch (error: any) {
+      console.error('Error uploading logo:', error);
+      toast({
+        title: "Upload Failed",
+        description: error.message || "An error occurred while uploading the logo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingLogo(false);
+      // Reset file input value so the same file can be selected again if needed
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!editedCompany.logoUrl) return;
+
+    setIsRemovingLogo(true);
+    try {
+      const result = await removeCompanyLogo(editedCompany.company_id);
+      if (result.success) {
+        setEditedCompany(prev => ({ ...prev, logoUrl: null }));
+        toast({
+          title: "Logo Removed",
+          description: "Company logo removed successfully.",
+        });
+      } else {
+        throw new Error(result.message || 'Failed to remove logo');
+      }
+    } catch (error: any) {
+      console.error('Error removing logo:', error);
+      toast({
+        title: "Removal Failed",
+        description: error.message || "An error occurred while removing the logo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRemovingLogo(false);
     }
   };
 
@@ -593,6 +668,57 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
         <BackNav href={!isInDrawer ? "/msp/companies" : undefined}>
           {isInDrawer ? 'Back' : 'Back to Clients'}
         </BackNav>
+        
+        {/* Logo Upload/Remove Container */}
+        <div className="relative group">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleLogoUpload}
+            accept="image/*"
+            className="hidden"
+            disabled={isUploadingLogo || isRemovingLogo}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploadingLogo || isRemovingLogo}
+            className="relative rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            aria-label="Upload company logo"
+          >
+            <CompanyAvatar
+              companyId={editedCompany.company_id}
+              companyName={editedCompany.company_name}
+              logoUrl={editedCompany.logoUrl ?? null}
+              size="md"
+            />
+            {/* Upload Icon Overlay */}
+            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 flex items-center justify-center rounded-full transition-opacity duration-200 cursor-pointer">
+              {!isUploadingLogo && !isRemovingLogo && (
+                <Upload className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+              )}
+            </div>
+            {/* Loading Spinner */}
+            {(isUploadingLogo || isRemovingLogo) && (
+              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-full">
+                <Loader2 className="h-5 w-5 text-white animate-spin" />
+              </div>
+            )}
+          </button>
+          {/* Remove Logo Button */}
+          {editedCompany.logoUrl && !isUploadingLogo && !isRemovingLogo && (
+            <button
+              type="button"
+              onClick={handleRemoveLogo}
+              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500 transition-colors"
+              aria-label="Remove company logo"
+              disabled={isRemovingLogo}
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+
         <Heading size="6">{editedCompany.company_name}</Heading>
       </div>
 

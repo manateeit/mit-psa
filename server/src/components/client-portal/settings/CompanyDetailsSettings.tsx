@@ -1,21 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 import { Card } from 'server/src/components/ui/Card';
 import { Input } from 'server/src/components/ui/Input';
 import { Button } from 'server/src/components/ui/Button';
 import { getCurrentUser, getUserRolesWithPermissions, getUserCompanyId } from 'server/src/lib/actions/user-actions/userActions';
-import { getCompanyById, updateCompany } from 'server/src/lib/actions/companyActions';
+import { getCompanyById, updateCompany, uploadCompanyLogo, removeCompanyLogo } from 'server/src/lib/actions/companyActions';
 import { ICompany } from 'server/src/interfaces/company.interfaces';
 import { IPermission } from 'server/src/interfaces/auth.interfaces';
+import CompanyAvatar from 'server/src/components/ui/CompanyAvatar';
 
 export function CompanyDetailsSettings() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // General form saving
+  const [isPendingUpload, startUploadTransition] = useTransition();
+  const [isPendingRemove, startRemoveTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [companyDetails, setCompanyDetails] = useState<ICompany | null>(null);
-
   useEffect(() => {
     async function loadData() {
       try {
@@ -92,28 +95,58 @@ export function CompanyDetailsSettings() {
     }
   };
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !companyDetails?.company_id) return;
 
-    try {
-      // TODO: Implement logo upload server action
-      // For now, just update the local state to show the preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCompanyDetails(prev => prev ? {
-          ...prev,
-          properties: {
-            ...prev.properties,
-            logo: reader.result as string
+    const companyId = companyDetails.company_id;
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    startUploadTransition(async () => {
+      try {
+        const result = await uploadCompanyLogo(companyId, formData);
+        if (result.success) {
+          // Refetch company details to get updated logoUrl
+          const updatedCompany = await getCompanyById(companyId);
+          if (updatedCompany) {
+            setCompanyDetails(updatedCompany);
           }
-        } : null);
-      };
-      reader.readAsDataURL(file);
-    } catch (error) {
-      console.error('Failed to upload logo:', error);
-      setError('Failed to upload logo');
-    }
+          toast.success(result.message || 'Company logo uploaded successfully.');
+        } else {
+          throw new Error(result.message || 'Failed to upload logo.');
+        }
+      } catch (err: any) {
+        console.error('Failed to upload logo:', err);
+        toast.error(err.message || 'Failed to upload logo.');
+        // Optionally reset the file input if needed
+        e.target.value = '';
+      }
+    });
+  };
+
+  const handleRemoveLogo = () => {
+    if (!companyDetails?.company_id) return;
+    const companyId = companyDetails.company_id;
+
+    startRemoveTransition(async () => {
+      try {
+        const result = await removeCompanyLogo(companyId);
+        if (result.success) {
+           // Refetch company details to get updated logoUrl (should be null)
+           const updatedCompany = await getCompanyById(companyId);
+           if (updatedCompany) {
+             setCompanyDetails(updatedCompany);
+           }
+          toast.success(result.message || 'Company logo removed successfully.');
+        } else {
+          throw new Error(result.message || 'Failed to remove logo.');
+        }
+      } catch (err: any) {
+        console.error('Failed to remove logo:', err);
+        toast.error(err.message || 'Failed to remove logo.');
+      }
+    });
   };
 
   if (error) {
@@ -141,26 +174,40 @@ export function CompanyDetailsSettings() {
           <h3 className="text-lg font-medium mb-4">Company Logo</h3>
           <div className="flex items-center space-x-4">
             <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden">
-              {companyDetails.properties?.logo ? (
-                <img 
-                  src={companyDetails.properties.logo} 
-                  alt="Company logo" 
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <span className="text-gray-400">Logo</span>
-              )}
+              <CompanyAvatar
+                companyId={companyDetails.company_id}
+                companyName={companyDetails.company_name}
+                logoUrl={companyDetails.logoUrl ?? null}
+                size="lg" // Adjust size as needed
+                className="w-full h-full" // Ensure it fills the container
+              />
             </div>
-            <div>
+            <div className="flex flex-col space-y-2">
               <Input
+                id="logo-upload"
                 type="file"
                 accept="image/*"
                 onChange={handleLogoUpload}
-                className="mb-2"
+                disabled={isPendingUpload || isPendingRemove}
+                className="mb-1"
               />
               <p className="text-sm text-gray-500">
-                Recommended size: 200x200px. Max file size: 2MB
+                Max file size: 2MB. PNG, JPG, GIF.
               </p>
+              {companyDetails.logoUrl && (
+                 <Button
+                   id="remove-company-logo"
+                   type="button"
+                   variant="destructive"
+                   size="sm"
+                   onClick={handleRemoveLogo}
+                   disabled={isPendingRemove || isPendingUpload}
+                   className="w-fit"
+                 >
+                   {isPendingRemove ? 'Removing...' : 'Remove Logo'}
+                 </Button>
+               )}
+               {isPendingUpload && <p className="text-sm text-blue-600">Uploading...</p>}
             </div>
           </div>
         </div>
