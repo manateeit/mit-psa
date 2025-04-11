@@ -182,7 +182,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
       // Create a deep copy of the previous company
       const updatedCompany = JSON.parse(JSON.stringify(prevCompany)) as ICompany;
       
-      if (field.startsWith('properties.')) {
+      if (field.startsWith('properties.') && field !== 'properties.account_manager_id') {
         const propertyField = field.split('.')[1];
         
         // Ensure properties object exists
@@ -221,13 +221,12 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
 
   const handleSave = async () => {
     try {
-      // Prepare data for update, ensuring account_manager_id is undefined if null/empty
-      const dataToUpdate: Partial<ICompany> = {
-        ...editedCompany,
-        properties: {
-          ...editedCompany.properties,
-          account_manager_id: editedCompany.properties?.account_manager_id || undefined,
-        }
+      // Prepare data for update, handling top-level account_manager_id
+      const { account_manager_full_name, ...restOfEditedCompany } = editedCompany;
+      const dataToUpdate: Partial<Omit<ICompany, 'account_manager_full_name'>> = {
+        ...restOfEditedCompany,
+        properties: restOfEditedCompany.properties ? { ...restOfEditedCompany.properties } : {},
+        account_manager_id: editedCompany.account_manager_id === '' ? null : editedCompany.account_manager_id,
       };
       const updatedCompanyResult = await updateCompany(company.company_id, dataToUpdate);
       // Assuming updateCompany returns the full updated company object matching ICompany
@@ -335,8 +334,8 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
           <div className="space-y-1">
             <Text as="label" size="2" className="text-gray-700 font-medium">Account Manager</Text>
             <UserPicker
-              value={editedCompany.properties?.account_manager_id || ''}
-              onValueChange={(value) => handleFieldChange('properties.account_manager_id', value)}
+              value={editedCompany.account_manager_id || ''}
+              onValueChange={(value) => handleFieldChange('account_manager_id', value)}
               users={internalUsers}
               disabled={isLoadingUsers}
               placeholder={isLoadingUsers ? "Loading users..." : "Select Account Manager"}
@@ -509,28 +508,38 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
     {
       label: "Notes",
       content: (
-        <div className="space-y-4">
+        <div className="space-y-6"> {/* Increased spacing */}
+          {editedCompany.notes && editedCompany.notes.trim() !== '' && (
+            <div className="bg-gray-100 border border-gray-200 rounded-md p-4">
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">Initial Note</h4>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{editedCompany.notes}</p>
+            </div>
+          )}
+
+          {/* Rich Text Editor Section Label */}
+          <h4 className="text-md font-semibold text-gray-800 pt-2">Formatted Notes</h4>
+
           {/* Note metadata */}
           {noteDocument && (
-            <div className="bg-gray-50 p-4 rounded-md border border-gray-200 text-sm text-gray-600">
-              <div className="flex justify-between items-center">
+            <div className="bg-gray-50 p-3 rounded-md border border-gray-200 text-xs text-gray-600">
+              <div className="flex justify-between items-center flex-wrap gap-2"> 
                 <div>
                   <span className="font-medium">Created by:</span> {noteDocument.created_by_full_name || "Unknown"}
                   {noteDocument.entered_at && (
                     <span className="ml-2">
-                      on {new Date(noteDocument.entered_at).toLocaleDateString()} at {new Date(noteDocument.entered_at).toLocaleTimeString()}
+                      on {new Date(noteDocument.entered_at).toLocaleDateString()} at {new Date(noteDocument.entered_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} {/* Formatted time */}
                     </span>
                   )}
                 </div>
                 {noteDocument.updated_at && noteDocument.updated_at !== noteDocument.entered_at && (
                   <div>
-                    <span className="font-medium">Last updated:</span> {new Date(noteDocument.updated_at).toLocaleDateString()} at {new Date(noteDocument.updated_at).toLocaleTimeString()}
+                    <span className="font-medium">Last updated:</span> {new Date(noteDocument.updated_at).toLocaleDateString()} at {new Date(noteDocument.updated_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} {/* Formatted time */}
                   </div>
                 )}
               </div>
             </div>
           )}
-          
+
           <TextEditor
             id={`${id}-editor`}
             initialContent={currentContent}

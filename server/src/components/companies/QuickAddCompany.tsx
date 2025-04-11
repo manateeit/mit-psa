@@ -51,8 +51,8 @@ const QuickAddCompany: React.FC<QuickAddCompanyProps> = ({
       company_size: '',
       annual_revenue: '',
       website: '',
-      account_manager_id: '',
     },
+    account_manager_id: null,
     credit_balance: 0,
   };
 
@@ -93,11 +93,8 @@ const QuickAddCompany: React.FC<QuickAddCompanyProps> = ({
     try {
       const dataToSend = {
         ...formData,
-        properties: {
-          ...formData.properties,
-          // Ensure undefined is sent if empty, matching expected type
-          account_manager_id: formData.properties?.account_manager_id || undefined,
-        }
+        properties: formData.properties,
+        account_manager_id: formData.account_manager_id === '' ? null : formData.account_manager_id,
       };
 
       const newCompany = await createCompany(dataToSend);
@@ -115,7 +112,7 @@ const QuickAddCompany: React.FC<QuickAddCompanyProps> = ({
     setFormData(prev => {
       const updatedState = { ...prev };
 
-      if (field.startsWith('properties.')) {
+      if (field.startsWith('properties.') && field !== 'properties.account_manager_id') {
         const propertyField = field.split('.')[1];
         if (!updatedState.properties) {
           updatedState.properties = {};
@@ -178,8 +175,8 @@ const QuickAddCompany: React.FC<QuickAddCompanyProps> = ({
             <div>
               <Label htmlFor="account_manager_picker">Account Manager</Label>
               <UserPicker
-                value={formData.properties?.account_manager_id || ''}
-                onValueChange={(value) => handleChange('properties.account_manager_id', value)}
+                value={formData.account_manager_id || ''}
+                onValueChange={(value) => handleChange('account_manager_id', value)}
                 users={internalUsers}
                 disabled={isLoadingUsers || isSubmitting}
                 placeholder={isLoadingUsers ? "Loading users..." : "Select Account Manager"}

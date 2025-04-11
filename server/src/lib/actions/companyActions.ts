@@ -16,7 +16,7 @@ export async function getCompanyById(companyId: string): Promise<ICompany | null
   return company || null;
 }
 
-export async function updateCompany(companyId: string, updateData: Partial<ICompany>): Promise<ICompany> {
+export async function updateCompany(companyId: string, updateData: Partial<Omit<ICompany, 'account_manager_full_name'>>): Promise<ICompany> { // Omit joined field from update type
   const {knex: db, tenant} = await createTenantKnex();
   if (!tenant) {
     throw new Error('Tenant not found');
@@ -40,7 +40,7 @@ export async function updateCompany(companyId: string, updateData: Partial<IComp
         throw new Error('Company not found');
       }
 
-      // Handle properties separately to ensure proper merging
+      // Handle properties separately
       if (updateData.properties) {
         const currentProperties = currentCompany.properties || {};
         const newProperties = updateData.properties;
@@ -73,8 +73,8 @@ export async function updateCompany(companyId: string, updateData: Partial<IComp
       
       // Handle all other fields
       Object.entries(updateData).forEach(([key, value]) => {
-        // Exclude properties, url, and the old tax_region if present
-        if (key !== 'properties' && key !== 'url' && key !== 'tax_region') {
+        // Exclude properties, url, tax_region, and the new account_manager_id
+        if (key !== 'properties' && key !== 'url' && key !== 'tax_region' && key !== 'account_manager_id') {
           // Always include the field in the update, setting null for undefined/empty values
           updateObject[key] = (value === undefined || value === '') ? null : value;
         }
@@ -86,6 +86,10 @@ export async function updateCompany(companyId: string, updateData: Partial<IComp
       }
       if (!updateData.hasOwnProperty('billing_email')) {
         updateObject.billing_email = null;
+      }
+      
+      if (updateData.hasOwnProperty('account_manager_id')) {
+          updateObject.account_manager_id = updateData.account_manager_id === '' ? null : updateData.account_manager_id;
       }
 
       await trx('companies')
@@ -113,7 +117,7 @@ export async function updateCompany(companyId: string, updateData: Partial<IComp
   }
 }
 
-export async function createCompany(company: Omit<ICompany, 'company_id' | 'created_at' | 'updated_at'>): Promise<ICompany> {
+export async function createCompany(company: Omit<ICompany, 'company_id' | 'created_at' | 'updated_at' | 'account_manager_full_name'>): Promise<ICompany> {
   const { knex, tenant } = await createTenantKnex();
   if (!tenant) {
     throw new Error('Tenant not found');
@@ -167,7 +171,7 @@ export async function getAllCompanies(includeInactive: boolean = true): Promise<
         db.raw("u.first_name || ' ' || u.last_name as account_manager_full_name")
       )
       .leftJoin('users as u', function() {
-        this.on('u.user_id', '=', db.raw("(c.properties ->> 'account_manager_id')::uuid"))
+        this.on('u.user_id', '=', 'c.account_manager_id')
             .andOn('u.tenant', '=', 'c.tenant');
       })
       .where({ 'c.tenant': tenant });
@@ -468,7 +472,7 @@ export interface ImportCompanyResult {
 }
 
 export async function importCompaniesFromCSV(
-  companiesData: Array<Partial<ICompany>>,
+  companiesData: Array<Partial<Omit<ICompany, 'account_manager_full_name'>>>,
   updateExisting: boolean = false
 ): Promise<ImportCompanyResult[]> {
   const results: ImportCompanyResult[] = [];
@@ -504,8 +508,10 @@ export async function importCompaniesFromCSV(
         if (existingCompany && updateExisting) {
           // Keep the existing tenant when updating
           const { tenant: _, ...safeCompanyData } = companyData; // Remove tenant from spread to prevent override
+          const { account_manager_id, ...restOfSafeData } = safeCompanyData;
           const updateData = {
-            ...safeCompanyData,
+            ...restOfSafeData,
+            account_manager_id: account_manager_id === '' ? null : account_manager_id,
             tenant: existingCompany.tenant, // Explicitly set correct tenant
             updated_at: new Date().toISOString()
           };
@@ -546,6 +552,7 @@ export async function importCompaniesFromCSV(
             client_type: companyData.client_type || 'company',
             tenant: tenant,
             properties: properties,
+            account_manager_id: companyData.account_manager_id === '' ? null : companyData.account_manager_id,
             payment_terms: companyData.payment_terms || '',
             billing_cycle: companyData.billing_cycle || '',
             credit_limit: companyData.credit_limit || 0,
