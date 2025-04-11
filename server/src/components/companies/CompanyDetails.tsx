@@ -401,12 +401,12 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
         </div>
       )
     },
-    {
-      label: "Assets",
-      content: (
-        <CompanyAssets companyId={company.company_id} />
-      )
-    },
+    // {
+    //   label: "Assets",
+    //   content: (
+    //     <CompanyAssets companyId={company.company_id} />
+    //   )
+    // },
     {
       label: "Billing",
       content: (
@@ -597,7 +597,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
       </div>
 
       {/* Content Area */}
-      <div className="max-w-4xl mx-auto bg-gray-50 p-6 pt-0 relative"> {/* Removed top padding */}
+      <div className="bg-gray-50 p-6 pt-0 relative">
         <CustomTabs
           tabs={tabContent}
           defaultTab={findTabLabel(searchParams?.get('tab'))}
