@@ -3,20 +3,22 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
+import { Pen } from 'lucide-react';
 import { Card } from 'server/src/components/ui/Card';
 import { Input } from 'server/src/components/ui/Input';
 import { Button } from 'server/src/components/ui/Button';
 import { getCurrentUser, getUserRolesWithPermissions, getUserCompanyId } from 'server/src/lib/actions/user-actions/userActions';
-import { getCompanyById, updateCompany, uploadCompanyLogo, removeCompanyLogo } from 'server/src/lib/actions/companyActions';
+import { getCompanyById, updateCompany, uploadCompanyLogo, deleteCompanyLogo } from 'server/src/lib/actions/companyActions';
 import { ICompany } from 'server/src/interfaces/company.interfaces';
 import { IPermission } from 'server/src/interfaces/auth.interfaces';
 import CompanyAvatar from 'server/src/components/ui/CompanyAvatar';
 
 export function CompanyDetailsSettings() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false); // General form saving
+  const [isLoading, setIsLoading] = useState(false);
+  const [isEditingLogo, setIsEditingLogo] = useState(false);
   const [isPendingUpload, startUploadTransition] = useTransition();
-  const [isPendingRemove, startRemoveTransition] = useTransition();
+  const [isPendingDelete, startDeleteTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [companyDetails, setCompanyDetails] = useState<ICompany | null>(null);
   useEffect(() => {
@@ -107,11 +109,8 @@ export function CompanyDetailsSettings() {
       try {
         const result = await uploadCompanyLogo(companyId, formData);
         if (result.success) {
-          // Refetch company details to get updated logoUrl
-          const updatedCompany = await getCompanyById(companyId);
-          if (updatedCompany) {
-            setCompanyDetails(updatedCompany);
-          }
+          setCompanyDetails(prev => prev ? { ...prev, logoUrl: result.logoUrl ?? null } : null);
+          setIsEditingLogo(false);
           toast.success(result.message || 'Company logo uploaded successfully.');
         } else {
           throw new Error(result.message || 'Failed to upload logo.');
@@ -125,26 +124,23 @@ export function CompanyDetailsSettings() {
     });
   };
 
-  const handleRemoveLogo = () => {
+  const handleDeleteLogo = () => {
     if (!companyDetails?.company_id) return;
     const companyId = companyDetails.company_id;
 
-    startRemoveTransition(async () => {
+    startDeleteTransition(async () => {
       try {
-        const result = await removeCompanyLogo(companyId);
+        const result = await deleteCompanyLogo(companyId);
         if (result.success) {
-           // Refetch company details to get updated logoUrl (should be null)
-           const updatedCompany = await getCompanyById(companyId);
-           if (updatedCompany) {
-             setCompanyDetails(updatedCompany);
-           }
-          toast.success(result.message || 'Company logo removed successfully.');
+           setCompanyDetails(prev => prev ? { ...prev, logoUrl: null } : null);
+           setIsEditingLogo(false);
+          toast.success(result.message || 'Company logo deleted successfully.');
         } else {
-          throw new Error(result.message || 'Failed to remove logo.');
+          throw new Error(result.message || 'Failed to delete logo.');
         }
       } catch (err: any) {
-        console.error('Failed to remove logo:', err);
-        toast.error(err.message || 'Failed to remove logo.');
+        console.error('Failed to delete logo:', err);
+        toast.error(err.message || 'Failed to delete logo.');
       }
     });
   };
@@ -173,41 +169,74 @@ export function CompanyDetailsSettings() {
         <div className="mb-6">
           <h3 className="text-lg font-medium mb-4">Company Logo</h3>
           <div className="flex items-center space-x-4">
-            <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden">
-              <CompanyAvatar
-                companyId={companyDetails.company_id}
-                companyName={companyDetails.company_name}
-                logoUrl={companyDetails.logoUrl ?? null}
-                size="lg" // Adjust size as needed
-                className="w-full h-full" // Ensure it fills the container
-              />
+            {/* Container for Avatar and Edit Icon */}
+            <div className="relative w-24 h-24">
+              <div className="w-full h-full flex items-center justify-center overflow-hidden">
+                <CompanyAvatar
+                  companyId={companyDetails.company_id}
+                  companyName={companyDetails.company_name}
+                  logoUrl={companyDetails.logoUrl ?? null}
+                  size="lg"
+                  className="w-full h-full"
+                />
+              </div>
+              {!isEditingLogo && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingLogo(true)}
+                  disabled={isPendingUpload || isPendingDelete}
+                  className="absolute bottom-0 right-0 mb-[-4px] mr-[-4px] text-gray-700 p-1 rounded-full hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-100 transition-colors"
+                  aria-label="Edit company logo"
+                >
+                  <Pen className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <div className="flex flex-col space-y-2">
-              <Input
-                id="logo-upload"
-                type="file"
-                accept="image/*"
-                onChange={handleLogoUpload}
-                disabled={isPendingUpload || isPendingRemove}
-                className="mb-1"
-              />
-              <p className="text-sm text-gray-500">
-                Max file size: 2MB. PNG, JPG, GIF.
-              </p>
-              {companyDetails.logoUrl && (
-                 <Button
-                   id="remove-company-logo"
-                   type="button"
-                   variant="destructive"
-                   size="sm"
-                   onClick={handleRemoveLogo}
-                   disabled={isPendingRemove || isPendingUpload}
-                   className="w-fit"
-                 >
-                   {isPendingRemove ? 'Removing...' : 'Remove Logo'}
-                 </Button>
-               )}
-               {isPendingUpload && <p className="text-sm text-blue-600">Uploading...</p>}
+              {/* Edit Controls - shown only when editing */}
+              {isEditingLogo && (
+                <>
+                  <Input
+                    id="logo-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    disabled={isPendingUpload || isPendingDelete}
+                    className="mb-1"
+                  />
+                  <p className="text-sm text-gray-500">
+                    Max file size: 2MB. PNG, JPG, GIF.
+                  </p>
+                  <div className="flex space-x-2 items-center">
+                    {companyDetails.logoUrl && (
+                      <Button
+                        id="delete-company-logo"
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleDeleteLogo}
+                        disabled={isPendingDelete || isPendingUpload}
+                        className="w-fit"
+                      >
+                        {isPendingDelete ? 'Deleting...' : 'Delete Logo'}
+                      </Button>
+                    )}
+                    <Button
+                      id="cancel-edit-logo"
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsEditingLogo(false)}
+                      disabled={isPendingUpload || isPendingDelete}
+                      className="w-fit"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                  {isPendingUpload && <p className="text-sm text-blue-600">Uploading...</p>}
+                  {isPendingDelete && <p className="text-sm text-red-600">Deleting...</p>}
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -751,6 +751,8 @@ export async function uploadCompanyLogo(
     const finalDocumentId = createdDocument.document_id; // Use the ID from the created document record
 
     // 3. Update document association in the database using the new document_id
+    let oldDocumentIdToDelete: string | null = null;
+    console.log(`[uploadCompanyLogo] Starting association update for new document: ${finalDocumentId}`);
     await knex.transaction(async (trx) => {
       // Find existing logo association
       const existingAssociation = await trx('document_associations')
@@ -762,32 +764,24 @@ export async function uploadCompanyLogo(
         })
         .first();
 
-      // If an old association exists, delete the old document and its file
       if (existingAssociation?.document_id) {
-          const oldDocumentId = existingAssociation.document_id;
-          console.log(`Removing previous logo association and document: ${oldDocumentId}`);
-          
+          oldDocumentIdToDelete = existingAssociation.document_id;
+          console.log(`Removing previous logo association within transaction: ${oldDocumentIdToDelete}`);
+
+          // Delete only the association within the transaction
           await trx('document_associations')
             .where({
                 entity_id: companyId,
                 entity_type: 'company',
                 tenant: tenant,
-                document_id: oldDocumentId // Use composite key to delete
+                document_id: oldDocumentIdToDelete
             })
             .delete();
-
-          // Call deleteDocument *after* the transaction to handle file deletion etc.
-          // This avoids nested transaction issues.
-          // We need to wrap this in a try/catch to prevent it from failing the whole upload if deletion fails
-          try {
-              await deleteDocument(oldDocumentId, currentUser.user_id);
-          } catch (deleteError) {
-              console.error(`Failed to delete old document ${oldDocumentId} after replacing logo:`, deleteError);
-              // Log the error but continue, as the main goal (uploading new logo) succeeded
-          }
       }
 
       // Create new logo association using the document_id from the 'documents' table
+      // Use trx object for DocumentAssociation.create if it supports transactions
+      // Assuming DocumentAssociation.create uses the default knex instance if trx is not passed
       await DocumentAssociation.create({
         document_id: finalDocumentId,
         entity_id: companyId,
@@ -795,6 +789,21 @@ export async function uploadCompanyLogo(
         tenant: tenant,
       });
     });
+    console.log(`[uploadCompanyLogo] Transaction committed for new association: ${finalDocumentId}`);
+
+    // 4. Delete the old document *after* the transaction has successfully committed
+    if (oldDocumentIdToDelete) {
+      console.log(`[uploadCompanyLogo] Attempting to delete old document AFTER transaction: ${oldDocumentIdToDelete}`);
+        console.log(`Attempting to delete old document after transaction: ${oldDocumentIdToDelete}`);
+        try {
+            // Call deleteDocument outside the transaction
+            await deleteDocument(oldDocumentIdToDelete, currentUser.user_id);
+            console.log(`[uploadCompanyLogo] Successfully deleted old document: ${oldDocumentIdToDelete}`);
+        } catch (deleteError) {
+            console.error(`[uploadCompanyLogo] Exception during deleteDocument for old document ${oldDocumentIdToDelete}:`, deleteError);
+            // Log the error but continue, as the main goal (uploading new logo) succeeded
+        }
+    }
 
     // Invalidate cache for relevant paths if necessary
     revalidatePath(`/client-portal/settings`); // Example path
@@ -802,16 +811,18 @@ export async function uploadCompanyLogo(
 
     // Generate the URL for the newly uploaded logo
     const newLogoUrl = await getImageUrl(externalFileRecord.file_id);
+    console.log(`[uploadCompanyLogo] Generated new logo URL: ${newLogoUrl}`);
 
-    return { success: true, logoUrl: newLogoUrl }; // Return new logo URL
+    console.log(`[uploadCompanyLogo] Upload process finished successfully for company ${companyId}. Returning URL: ${newLogoUrl}`);
+    return { success: true, logoUrl: newLogoUrl };
   } catch (error) {
-    console.error('Error uploading company logo:', error);
+    console.error('[uploadCompanyLogo] Error during upload process:', error);
     const message = error instanceof Error ? error.message : 'Failed to upload company logo';
     return { success: false, message };
   }
 }
 
-export async function removeCompanyLogo(
+export async function deleteCompanyLogo(
   companyId: string
 ): Promise<{ success: boolean; message?: string }> {
   const { knex, tenant } = await createTenantKnex();
@@ -851,7 +862,7 @@ export async function removeCompanyLogo(
       }
 
     } else {
-      console.log(`No company logo association found for company ${companyId} to remove.`);
+      console.log(`No company logo association found for company ${companyId} to delete.`);
       // If no association, consider it a success as there's nothing to remove
       return { success: true };
     }
@@ -862,8 +873,8 @@ export async function removeCompanyLogo(
 
     return { success: true };
   } catch (error) {
-    console.error('Error removing company logo:', error);
-    const message = error instanceof Error ? error.message : 'Failed to remove company logo';
+    console.error('Error deleting company logo:', error);
+    const message = error instanceof Error ? error.message : 'Failed to delete company logo';
     return { success: false, message };
   }
 }

@@ -13,7 +13,7 @@ import CompanyContactsList from 'server/src/components/contacts/CompanyContactsL
 import { Flex, Text, Heading } from '@radix-ui/themes';
 import { Switch } from 'server/src/components/ui/Switch';
 import BillingConfiguration from './BillingConfiguration';
-import { updateCompany, uploadCompanyLogo, removeCompanyLogo, getCompanyById } from 'server/src/lib/actions/companyActions';
+import { updateCompany, uploadCompanyLogo, deleteCompanyLogo, getCompanyById } from 'server/src/lib/actions/companyActions';
 import CustomTabs from 'server/src/components/ui/CustomTabs';
 import { QuickAddTicket } from '../tickets/QuickAddTicket';
 import { Button } from 'server/src/components/ui/Button';
@@ -22,7 +22,7 @@ import TaxSettingsForm from 'server/src/components/TaxSettingsForm';
 import InteractionsFeed from '../interactions/InteractionsFeed';
 import { IInteraction } from 'server/src/interfaces/interaction.interfaces';
 import { useDrawer } from "server/src/context/DrawerContext";
-import { ArrowLeft, Globe, Upload, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Globe, Upload, Trash2, Loader2, Pen } from 'lucide-react';
 import TimezonePicker from 'server/src/components/ui/TimezonePicker';
 import { getCurrentUser } from 'server/src/lib/actions/user-actions/userActions';
 import { IUserWithRoles } from 'server/src/interfaces/auth.interfaces';
@@ -117,7 +117,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
   const [isDocumentSelectorOpen, setIsDocumentSelectorOpen] = useState(false);
   const [hasUnsavedNoteChanges, setHasUnsavedNoteChanges] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
-  const [isRemovingLogo, setIsRemovingLogo] = useState(false);
+  const [isDeletingLogo, setIsDeletingLogo] = useState(false);
   const [currentContent, setCurrentContent] = useState<PartialBlock[]>(DEFAULT_BLOCK);
   const [noteDocument, setNoteDocument] = useState<IDocument | null>(null);
   const router = useRouter();
@@ -363,30 +363,30 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
     }
   };
 
-  const handleRemoveLogo = async () => {
+  const handleDeleteLogo = async () => {
     if (!editedCompany.logoUrl) return;
 
-    setIsRemovingLogo(true);
+    setIsDeletingLogo(true);
     try {
-      const result = await removeCompanyLogo(editedCompany.company_id);
+      const result = await deleteCompanyLogo(editedCompany.company_id);
       if (result.success) {
         setEditedCompany(prev => ({ ...prev, logoUrl: null }));
         toast({
-          title: "Logo Removed",
-          description: "Company logo removed successfully.",
+          title: "Logo Deleted",
+          description: "Company logo deleted successfully.",
         });
       } else {
-        throw new Error(result.message || 'Failed to remove logo');
+        throw new Error(result.message || 'Failed to delete logo');
       }
     } catch (error: any) {
-      console.error('Error removing logo:', error);
+      console.error('Error deleting logo:', error);
       toast({
-        title: "Removal Failed",
-        description: error.message || "An error occurred while removing the logo.",
+        title: "Deleting Failed",
+        description: error.message || "An error occurred while deleting the logo.",
         variant: "destructive",
       });
     } finally {
-      setIsRemovingLogo(false);
+      setIsDeletingLogo(false);
     }
   };
 
@@ -677,12 +677,12 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
             onChange={handleLogoUpload}
             accept="image/*"
             className="hidden"
-            disabled={isUploadingLogo || isRemovingLogo}
+            disabled={isUploadingLogo || isDeletingLogo}
           />
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploadingLogo || isRemovingLogo}
+            disabled={isUploadingLogo || isDeletingLogo}
             className="relative rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             aria-label="Upload company logo"
           >
@@ -694,25 +694,25 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
             />
             {/* Upload Icon Overlay */}
             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 flex items-center justify-center rounded-full transition-opacity duration-200 cursor-pointer">
-              {!isUploadingLogo && !isRemovingLogo && (
+              {!isUploadingLogo && !isDeletingLogo && (
                 <Upload className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
               )}
             </div>
             {/* Loading Spinner */}
-            {(isUploadingLogo || isRemovingLogo) && (
+            {(isUploadingLogo || isDeletingLogo) && (
               <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-full">
                 <Loader2 className="h-5 w-5 text-white animate-spin" />
               </div>
             )}
           </button>
           {/* Remove Logo Button */}
-          {editedCompany.logoUrl && !isUploadingLogo && !isRemovingLogo && (
+          {editedCompany.logoUrl && !isUploadingLogo && !isDeletingLogo && (
             <button
               type="button"
-              onClick={handleRemoveLogo}
+              onClick={handleDeleteLogo}
               className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500 transition-colors"
-              aria-label="Remove company logo"
-              disabled={isRemovingLogo}
+              aria-label="Delete company logo"
+              disabled={isDeletingLogo}
             >
               <Trash2 className="h-3 w-3" />
             </button>
