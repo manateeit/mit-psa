@@ -7,7 +7,7 @@ import { IContact } from '../../interfaces/contact.interfaces';
 import { AlertDialog } from '@radix-ui/themes';
 import { Button } from 'server/src/components/ui/Button';
 import { ConfirmationDialog } from 'server/src/components/ui/ConfirmationDialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from 'server/src/components/ui/Tabs';
+import CustomTabs, { TabContent } from 'server/src/components/ui/CustomTabs';
 import ContactModel from 'server/src/lib/models/contact';
 import { getCompanyBillingPlan, updateCompanyBillingPlan, addCompanyBillingPlan, removeCompanyBillingPlan, editCompanyBillingPlan } from '../../lib/actions/companyBillingPlanActions';
 import { getBillingPlans } from '../../lib/actions/billingPlanAction';
@@ -44,7 +44,7 @@ interface CompanyBillingPlanWithStringDates extends Omit<ICompanyBillingPlan, 's
 }
 
 const BillingConfiguration: React.FC<BillingConfigurationProps> = ({ company, onSave, contacts = [] }) => {
-    const [activeTab, setActiveTab] = useState('general');
+    // Removed activeTab state, CustomTabs handles its own state
     const [billingConfig, setBillingConfig] = useState({
         payment_terms: company.payment_terms || 'net_30',
         billing_cycle: '',
@@ -468,8 +468,83 @@ const BillingConfiguration: React.FC<BillingConfigurationProps> = ({ company, on
         }
     };
 
+    const billingTabs: TabContent[] = [
+        {
+            label: 'General',
+            content: (
+                <div className="bg-white p-6 rounded-b-lg shadow-sm">
+                    <BillingConfigForm
+                        billingConfig={billingConfig}
+                        handleSelectChange={handleSelectChange}
+                        contacts={contacts}
+                        companyId={company.company_id}
+                    />
+                    <CompanyZeroDollarInvoiceSettings companyId={company.company_id} />
+                    <CompanyCreditExpirationSettings companyId={company.company_id} />
+                </div>
+            )
+        },
+        {
+            label: 'Billing Plans',
+            content: (
+                <div className="bg-white p-6 rounded-b-lg shadow-sm space-y-6">
+                    <CompanyBundleAssignment companyId={company.company_id} />
+                    <BillingPlans
+                        companyBillingPlans={companyBillingPlans}
+                        billingPlans={billingPlans}
+                        serviceCategories={serviceCategories}
+                        companyId={company.company_id}
+                        onEdit={handleEditBillingPlan}
+                        onDelete={handleRemoveBillingPlan}
+                        onAdd={handleAddBillingPlan}
+                        onCompanyPlanChange={handleCompanyPlanChange}
+                        onServiceCategoryChange={handleServiceCategoryChange}
+                        formatDateForDisplay={formatDateForDisplay}
+                    />
+                </div>
+            )
+        },
+        {
+            label: 'Tax Rates',
+            content: (
+                <div className="bg-white p-6 rounded-b-lg shadow-sm">
+                    <CompanyTaxRates
+                        companyId={company.company_id}
+                        companyTaxRate={companyTaxRates.find(ctr => ctr.is_default) || null}
+                        taxRates={taxRates}
+                        onAssignDefault={handleAssignDefaultTaxRate}
+                        onChangeDefault={handleChangeDefaultTaxRate}
+                    />
+                </div>
+            )
+        },
+        {
+            label: 'Plan Overlaps',
+            content: (
+                <div className="bg-white p-6 rounded-b-lg shadow-sm space-y-6">
+                    <CompanyServiceOverlapMatrix
+                        companyId={company.company_id}
+                        companyBillingPlans={companyBillingPlans}
+                        services={services}
+                        onEdit={handleEditBillingPlan}
+                        className="mb-6"
+                    />
+                    <CompanyPlanDisambiguationGuide className="mb-6" />
+                </div>
+            )
+        }
+    ];
+
+    const billingTabStyles = {
+        root: 'overflow-hidden',
+        list: 'bg-gray-100 p-2 rounded-t-lg border-b-0 !mb-0',
+        trigger: 'px-4 py-2 text-gray-600 hover:text-gray-800',
+        activeTrigger: 'data-[state=active]:text-blue-600 data-[state=active]:font-medium data-[state=active]:border-b-2 data-[state=active]:border-blue-600',
+        content: ''
+    };
+
     return (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit}>
             {errorMessage && (
                 <AlertDialog.Root open={!!errorMessage}>
                     <AlertDialog.Content>
@@ -486,74 +561,13 @@ const BillingConfiguration: React.FC<BillingConfigurationProps> = ({ company, on
                 </AlertDialog.Root>
             )}
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="mb-4">
-                    <TabsTrigger value="general">General</TabsTrigger>
-                    <TabsTrigger value="plans">Billing Plans</TabsTrigger>
-                    <TabsTrigger value="taxRates">Tax Rates</TabsTrigger>
-                    <TabsTrigger value="overlaps">Plan Overlaps</TabsTrigger>
-                </TabsList>
-    <TabsContent value="general">
-        <BillingConfigForm
-            billingConfig={billingConfig} // Pass the whole config including region_code
-            handleSelectChange={handleSelectChange}
-            contacts={contacts}
-            companyId={company.company_id}
-        />
-        
-        <CompanyZeroDollarInvoiceSettings
-            companyId={company.company_id}
-        />
-        
-        <CompanyCreditExpirationSettings
-            companyId={company.company_id}
-        />
-    </TabsContent>
-    
-    <TabsContent value="plans" className="space-y-6"> {/* Added space-y for layout */}
-        {/* Added CompanyBundleAssignment component */}
-        <CompanyBundleAssignment companyId={company.company_id} />
-        
-        {/* Existing BillingPlans component */}
-        <BillingPlans
-            companyBillingPlans={companyBillingPlans}
-            billingPlans={billingPlans}
-            serviceCategories={serviceCategories}
-            companyId={company.company_id}
-            onEdit={handleEditBillingPlan}
-            onDelete={handleRemoveBillingPlan}
-            onAdd={handleAddBillingPlan}
-            onCompanyPlanChange={handleCompanyPlanChange}
-            onServiceCategoryChange={handleServiceCategoryChange}
-            formatDateForDisplay={formatDateForDisplay}
-        />
-    </TabsContent>
-    
-    <TabsContent value="taxRates">
-       {/* Updated props for CompanyTaxRates to pass only the single default rate */}
-      <CompanyTaxRates
-          companyId={company.company_id}
-          companyTaxRate={companyTaxRates.find(ctr => ctr.is_default) || null} // Pass only the default rate or null
-          taxRates={taxRates} // Pass all available rates for the dropdown
-         onAssignDefault={handleAssignDefaultTaxRate} // Pass the assign handler
-         onChangeDefault={handleChangeDefaultTaxRate} // Pass the change handler
-      />
-    </TabsContent>
-    
-    <TabsContent value="overlaps">
-        <div className="space-y-6">
-            <CompanyServiceOverlapMatrix
-                companyId={company.company_id}
-                companyBillingPlans={companyBillingPlans}
-                services={services}
-                onEdit={handleEditBillingPlan}
-                className="mb-6"
-            />
-            
-            <CompanyPlanDisambiguationGuide className="mb-6" />
-        </div>
-    </TabsContent>
-</Tabs>
+            <div>
+                <CustomTabs
+                    tabs={billingTabs}
+                    tabStyles={billingTabStyles}
+                    defaultTab="General"
+                />
+            </div>
 
             {editingBillingPlan && (
                 <PlanPickerDialog

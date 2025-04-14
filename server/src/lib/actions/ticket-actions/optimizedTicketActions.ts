@@ -536,10 +536,20 @@ export async function getTicketFormOptions(user: IUser) {
         .where({ tenant })
         .orderBy('category_name', 'asc'),
       
-      db('companies')
-        .where({ tenant })
-        .orderBy('company_name', 'asc'),
-      
+      // Fetch companies using a separate query to include logo logic
+      db('companies as c')
+        .select(
+          'c.*',
+          'da.document_id'
+        )
+        .leftJoin('document_associations as da', function() {
+          this.on('da.entity_id', '=', 'c.company_id')
+              .andOn('da.tenant', '=', 'c.tenant')
+              .andOnVal('da.entity_type', '=', 'company');
+        })
+        .where({ 'c.tenant': tenant })
+        .orderBy('c.company_name', 'asc'),
+
       db('users')
         .where({ tenant })
         .orderBy('first_name', 'asc')
@@ -576,13 +586,60 @@ export async function getTicketFormOptions(user: IUser) {
       label: `${user.first_name} ${user.last_name}`
     }));
 
+    // --- Add Logo URL Processing ---
+    const companiesData = companies; // Rename for clarity
+    const documentIds = companiesData
+      .map(c => c.document_id)
+      .filter((id): id is string => !!id);
+
+    let fileIdMap: Record<string, string> = {};
+    if (documentIds.length > 0) {
+      const fileRecords = await db('documents')
+        .select('document_id', 'file_id')
+        .whereIn('document_id', documentIds)
+        .andWhere({ tenant });
+
+      fileIdMap = fileRecords.reduce((acc, record) => {
+        if (record.file_id) {
+          acc[record.document_id] = record.file_id;
+        }
+        return acc;
+      }, {} as Record<string, string>);
+    }
+
+    // Import getImageUrl if not already imported at the top
+    const { getImageUrl } = await import('server/src/lib/actions/document-actions/documentActions');
+
+    // Process companies to add logoUrl
+    const companiesWithLogos = await Promise.all(companiesData.map(async (companyData) => {
+      let logoUrl: string | null = null;
+      const fileId = companyData.document_id ? fileIdMap[companyData.document_id] : null;
+
+      if (fileId) {
+        try {
+          logoUrl = await getImageUrl(fileId);
+        } catch (imgError) {
+          console.error(`Error fetching image URL for fileId ${fileId}:`, imgError);
+          logoUrl = null; // Ensure fallback if URL generation fails
+        }
+      }
+      // Remove the temporary document_id before returning
+      const { document_id, ...company } = companyData;
+      return {
+        ...company,
+        properties: company.properties || {}, // Ensure properties object exists
+        logoUrl,
+      };
+    }));
+    // --- End Logo URL Processing ---
+
     return {
       statusOptions,
       priorityOptions,
       channelOptions,
       agentOptions,
       categories,
-      companies,
+      companies: companiesWithLogos, // Return companies with logos
       users
     };
   } catch (error) {

@@ -5,11 +5,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuPortal
 } from "server/src/components/ui/DropdownMenu";
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { MouseEvent } from 'react';
 import { ICompany } from "server/src/interfaces/company.interfaces";
+import CompanyAvatar from 'server/src/components/ui/CompanyAvatar';
 
 interface CompanyGridCardProps {
     company: ICompany;
@@ -38,17 +38,16 @@ const CompanyGridCard = ({
 
     return (
         <div
-            className="bg-white rounded-md border border-gray-200 shadow-md p-4 cursor-pointer hover:shadow-lg transition-shadow duration-200 flex flex-col relative"
+            className="bg-white rounded-md border border-gray-200 shadow-md p-3 cursor-pointer hover:shadow-lg transition-shadow duration-200 flex flex-col relative"
             onClick={handleCardClick}
             data-testid={`company-card-${company.company_id}`}
         >
-            {/* Top section: Checkbox and Actions Menu */}
-            <div className="flex justify-between items-start mb-3">
+            <div className="flex items-center space-x-3 w-full">
                 {/* Checkbox */}
-                <div onClick={stopPropagation} className="flex items-center">
+                <div onClick={stopPropagation} className="flex-shrink-0">
                     <input
                         type="checkbox"
-                        className="form-checkbox h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mr-2"
+                        className="form-checkbox h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                         checked={selectedCompanies.includes(company.company_id)}
                         onChange={() => handleCheckboxChange(company.company_id)}
                         aria-label={`Select company ${company.company_name}`}
@@ -56,14 +55,62 @@ const CompanyGridCard = ({
                     />
                 </div>
 
+                {/* Company Avatar */}
+                <div className="flex-shrink-0">
+                    <CompanyAvatar
+                        companyId={company.company_id}
+                        companyName={company.company_name}
+                        logoUrl={company.logoUrl ?? null}
+                        size="lg"
+                    />
+                </div>
+
+                {/* Company Info */}
+                <div className="flex-1 min-w-0">
+                    <h2 className="text-md font-semibold text-gray-800 truncate" title={company.company_name}>
+                        {company.company_name}
+                    </h2>
+                    <div className="text-sm text-gray-600 mt-1 space-y-0.5">
+                        <p className="truncate">
+                            <span className="font-medium text-gray-700">Type:</span>
+                            <span className="ml-1">{company.client_type || 'N/A'}</span>
+                        </p>
+                        <p className="truncate">
+                            <span className="font-medium text-gray-700">Phone:</span>
+                            <span className="ml-1">{company.phone_no || 'N/A'}</span>
+                        </p>
+                        <p className="truncate">
+                            <span className="font-medium text-gray-700">Address:</span>
+                            <span className="ml-1">{company.address || 'N/A'}</span>
+                        </p>
+                        <div className="truncate">
+                            <span className="font-medium text-gray-700">URL:</span>
+                            {company.url && company.url.trim() !== '' ? (
+                                <a
+                                    href={company.url.startsWith('http') ? company.url : `https://${company.url}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="ml-1 text-blue-600 hover:underline"
+                                    onClick={stopPropagation}
+                                    data-testid={`company-url-link-${company.company_id}`}
+                                >
+                                    {company.url}
+                                </a>
+                            ) : (
+                                <span className="ml-1">N/A</span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 {/* Actions Menu */}
-                <div onClick={stopPropagation}>
+                <div onClick={stopPropagation} className="flex-shrink-0">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                             <Button
                                 id={`task-actions-${company.company_id}`}
                                 variant="ghost"
-                                size="sm" // Match TaskCard size
+                                size="sm"
                                 className="h-6 w-6 p-0 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                                 data-testid={`company-actions-trigger-${company.company_id}`}
                             >
@@ -96,42 +143,6 @@ const CompanyGridCard = ({
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                </div>
-            </div>
-
-            {/* Company Info - No Link wrapper here */}
-            <div>
-                <h2 className="text-md font-semibold text-gray-800 truncate mb-1" title={company.company_name}>
-                    {company.company_name}
-                </h2>
-                <p className="text-sm text-gray-600 mb-0.5">
-                    <span className="font-medium text-gray-700">Type:</span>
-                    <span className="ml-1">{company.client_type || 'N/A'}</span>
-                </p>
-                <p className="text-sm text-gray-600 mb-0.5">
-                    <span className="font-medium text-gray-700">Phone:</span>
-                    <span className="ml-1">{company.phone_no || 'N/A'}</span>
-                </p>
-                <p className="text-sm text-gray-600 mb-0.5">
-                    <span className="font-medium text-gray-700">Address:</span>
-                    <span className="ml-1">{company.address || 'N/A'}</span>
-                </p>
-                <div className="text-sm text-gray-600">
-                    <span className="font-medium text-gray-700">URL:</span>
-                    {company.url && company.url.trim() !== '' ? (
-                        <a
-                            href={company.url.startsWith('http') ? company.url : `https://${company.url}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="ml-1 text-blue-600 hover:underline"
-                            onClick={stopPropagation}
-                            data-testid={`company-url-link-${company.company_id}`}
-                        >
-                            {company.url}
-                        </a>
-                    ) : (
-                        <span className="ml-1">N/A</span>
-                    )}
                 </div>
             </div>
         </div>

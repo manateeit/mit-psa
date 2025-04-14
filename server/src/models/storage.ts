@@ -2,6 +2,7 @@ import { createTenantKnex } from '../lib/db';
 import { BaseModel } from './BaseModel';
 import { FileStore } from '../types/storage';
 import type { Knex } from 'knex';
+import { v4 as uuidv4 } from 'uuid';
 
 export class FileStoreModel extends BaseModel {
   static async getKnex(): Promise<Knex> {
@@ -11,8 +12,10 @@ export class FileStoreModel extends BaseModel {
     static async create(data: Omit<FileStore, 'tenant' | 'file_id' | 'created_at' | 'updated_at' | 'is_deleted' | 'deleted_at' | 'deleted_by_id'>): Promise<FileStore> {
       const knex = await this.getKnex();
       const { tenant } = await createTenantKnex();
+      const newFileId = uuidv4();
       const [file] = await knex('external_files')
         .insert({
+          file_id: newFileId,
           file_name: data.file_name,
           original_name: data.original_name,
           mime_type: data.mime_type,

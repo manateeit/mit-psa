@@ -31,11 +31,11 @@ export const menuItems: MenuItem[] = [
     icon: RadixIcons.LayersIcon,
     href: '/msp/projects'
   },
-  {
-    name: 'Assets',
-    icon: RadixIcons.DesktopIcon,
-    href: '/msp/assets'
-  },
+  // {
+  //   name: 'Assets',
+  //   icon: RadixIcons.DesktopIcon,
+  //   href: '/msp/assets'
+  // },
   {
     name: 'Clients',
     icon: RadixIcons.CubeIcon,

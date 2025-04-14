@@ -22,8 +22,6 @@ export interface ICompany extends TenantEntity {
     annual_revenue?: string;
     primary_contact_id?: string;
     primary_contact_name?: string;
-    account_manager_id?: string;
-    account_manager_name?: string;
     status?: string;
     type?: string;
     billing_address?: string;
@@ -50,6 +48,8 @@ export interface ICompany extends TenantEntity {
   billing_contact_id?: string;
   billing_email?: string;
   account_manager_full_name?: string;
+  account_manager_id?: string | null;
+  logoUrl?: string | null;
 }
 
 export interface ICompanyLocation extends TenantEntity {

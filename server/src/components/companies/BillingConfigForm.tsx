@@ -130,7 +130,7 @@ const BillingConfigForm: React.FC<BillingConfigFormProps> = ({
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2 col-span-2">
-                <Text as="div" size="2" mb="1" weight="bold">
+                <Text as="div" size="2" mb="1" weight="medium">
                     Billing Contact Information
                 </Text>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -147,7 +147,7 @@ const BillingConfigForm: React.FC<BillingConfigFormProps> = ({
                             }}
                             value={billingConfig.billing_contact_id || ''}
                             companyId={companyId}
-                            // Removed filterState, onFilterStateChange, and fitContent props
+                            // Removed filterState, onFilterStateChange, and fitContent pp ps
                         />
                     </div>
                     <div className="space-y-2">

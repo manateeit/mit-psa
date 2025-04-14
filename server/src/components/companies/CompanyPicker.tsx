@@ -10,6 +10,7 @@ import { ReflectionContainer } from '../../types/ui-reflection/ReflectionContain
 import { useAutomationIdAndRegister } from 'server/src/types/ui-reflection/useAutomationIdAndRegister';
 import { AutomationProps, ContainerComponent, FormFieldComponent } from 'server/src/types/ui-reflection/types';
 import { withDataAutomationId } from 'server/src/types/ui-reflection/withDataAutomationId';
+import CompanyAvatar from 'server/src/components/ui/CompanyAvatar';
 
 interface CompanyPickerProps {
   id?: string;
@@ -207,7 +208,19 @@ export const CompanyPicker: React.FC<CompanyPickerProps & AutomationProps> = ({
           className="w-full justify-between"
           label={selectedCompany ? selectedCompany.company_name : 'Select Client'}
         >
-          <span>{selectedCompany ? selectedCompany.company_name : 'Select Client'}</span>
+          {selectedCompany ? (
+            <div className="flex items-center space-x-2">
+              <CompanyAvatar
+                companyId={selectedCompany.company_id}
+                companyName={selectedCompany.company_name}
+                logoUrl={selectedCompany.logoUrl ?? null}
+                size="sm"
+              />
+              <span>{selectedCompany.company_name}</span>
+            </div>
+          ) : (
+            <span>Select Client</span>
+          )}
           <ChevronDownIcon className="ml-2 h-4 w-4" />
         </Button>
 
@@ -277,9 +290,17 @@ export const CompanyPicker: React.FC<CompanyPickerProps & AutomationProps> = ({
                     role="option"
                     aria-selected={company.company_id === selectedCompanyId}
                   >
-                    {company.company_name}
-                    {company.is_inactive && <span className="ml-2 text-gray-500">(Inactive)</span>}
-                    <span className="ml-2 text-gray-500">
+                    <div className="flex items-center space-x-2 flex-grow">
+                      <CompanyAvatar
+                        companyId={company.company_id}
+                        companyName={company.company_name}
+                        logoUrl={company.logoUrl ?? null}
+                        size="sm"
+                      />
+                      <span>{company.company_name}</span>
+                    </div>
+                    {company.is_inactive && <span className="ml-auto pl-2 text-xs text-gray-500">(Inactive)</span>}
+                    <span className="ml-2 text-xs text-gray-500">
                       ({company.client_type === 'company' ? 'Company' : 'Individual'})
                     </span>
                   </Button>

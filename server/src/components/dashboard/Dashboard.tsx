@@ -2,19 +2,22 @@
 import React from 'react';
 import { Card } from '@radix-ui/themes';
 import Link from 'next/link';
-import { 
-  Ticket, 
-  BarChart3, 
-  Clock, 
-  Users, 
-  Server, 
-  Shield, 
-  Laptop, 
+import toast from 'react-hot-toast';
+import {
+  Ticket,
+  BarChart3,
+  Clock,
+  Users,
+  Server,
+  Shield,
+  Laptop,
   HeartPulse,
   FileSpreadsheet,
   Calendar,
   Settings,
-  Building2
+  Building2,
+  CreditCard,
+  ClipboardList,
 } from 'lucide-react';
 
 const FeatureCard = ({ icon: Icon, title, description }: { icon: any, title: string, description: string }) => {
@@ -73,11 +76,11 @@ const WelcomeDashboard = () => {
             href="/msp/companies?create=true"
           />
           <QuickStartCard
-            icon={Server}
+            icon={CreditCard}
             step="2"
-            title="Configure Assets"
-            description="Add and organize your managed devices, servers, and network equipment."
-            href="/msp/assets"
+            title="Set Up Billing Plans" 
+            description="Define your service offerings, rates, and billing cycles."
+            href="/msp/billing?tab=overview"
           />
           <QuickStartCard
             icon={Users}
@@ -107,24 +110,26 @@ const WelcomeDashboard = () => {
           />
         </Link>
         <Link href="/msp/security-settings">
-          <FeatureCard 
+          <FeatureCard
             icon={Shield}
             title="Security Management"
             description="Manage security policies, updates, and compliance requirements across your client base."
           />
         </Link>
-        <Link href="/msp/assets">
-          <FeatureCard 
-            icon={FileSpreadsheet}
-            title="Asset Management"
-            description="Track hardware, software, and license information in one centralized location."
+        <Link href="/msp/projects"> 
+          <FeatureCard
+            icon={ClipboardList}
+            title="Project Management"
+            description="Organize projects, add tasks, track progress, and manage project timelines."
           />
         </Link>
-        <FeatureCard 
-          icon={BarChart3}
-          title="Reporting & Analytics"
-          description="Generate comprehensive reports on performance, SLAs, and business metrics."
-        />
+        <div onClick={() => toast.success('Coming Soon!')} className="cursor-pointer">
+          <FeatureCard
+            icon={BarChart3}
+            title="Reporting & Analytics"
+            description="Generate comprehensive reports on performance, SLAs, and business metrics."
+          />
+        </div>
         <Link href="/msp/schedule">
           <FeatureCard 
             icon={Calendar}
@@ -143,10 +148,15 @@ const WelcomeDashboard = () => {
               Check out our documentation to learn more about setting up your workspace.
             </p>
           </div>
-          <div className="flex space-x-4 mt-4 md:mt-0">
-            <Settings className="h-5 w-5" style={{ color: 'rgb(var(--color-text-400))' }} />
-            <Laptop className="h-5 w-5" style={{ color: 'rgb(var(--color-text-400))' }} />
-            <Clock className="h-5 w-5" style={{ color: 'rgb(var(--color-text-400))' }} />
+          <div className="mt-4 md:mt-0">
+            <Link
+              href="https://www.nineminds.com/resources"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block px-4 py-2 rounded-md text-sm font-medium text-white bg-[rgb(var(--color-primary-500))] hover:bg-[rgb(var(--color-primary-600))] transition-colors"
+            >
+              Visit Resources
+            </Link>
           </div>
         </div>
       </div>
