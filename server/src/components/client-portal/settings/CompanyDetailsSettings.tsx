@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { Pen } from 'lucide-react';
@@ -21,6 +21,7 @@ export function CompanyDetailsSettings() {
   const [isPendingDelete, startDeleteTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [companyDetails, setCompanyDetails] = useState<ICompany | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     async function loadData() {
       try {
@@ -196,16 +197,27 @@ export function CompanyDetailsSettings() {
               {/* Edit Controls - shown only when editing */}
               {isEditingLogo && (
                 <>
-                  <Input
-                    id="logo-upload"
+                  <Button
+                    id="upload-logo-button-settings"
+                    type="button"
+                    variant="soft"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isPendingUpload || isPendingDelete}
+                    className="w-fit"
+                  >
+                    {isPendingUpload ? 'Uploading...' : 'Upload New Logo'}
+                  </Button>
+                  <input
                     type="file"
                     accept="image/*"
                     onChange={handleLogoUpload}
                     disabled={isPendingUpload || isPendingDelete}
-                    className="mb-1"
+                    className="hidden"
+                    ref={fileInputRef}
                   />
-                  <p className="text-sm text-gray-500">
-                    Max file size: 2MB. PNG, JPG, GIF.
+                  <p className="text-xs text-gray-500">
+                    Max 2MB (PNG, JPG, GIF)
                   </p>
                   <div className="flex space-x-2 items-center">
                     {companyDetails.logoUrl && (

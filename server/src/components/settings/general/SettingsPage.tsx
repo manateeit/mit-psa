@@ -148,10 +148,6 @@ const SettingsPage = (): JSX.Element =>  {
     }
   ];
 
-  const tabStyles = {
-    trigger: 'flex items-center px-4 py-2 text-sm font-medium',
-    activeTrigger: 'text-primary border-b-2 border-primary',
-  };
 
   return (
     <div className="container mx-auto p-4">
@@ -177,7 +173,6 @@ const SettingsPage = (): JSX.Element =>  {
 
           window.history.pushState({}, '', newUrl);
         }}
-        tabStyles={tabStyles}
       />
     </div>
   );

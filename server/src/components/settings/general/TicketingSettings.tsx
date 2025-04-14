@@ -38,6 +38,7 @@ interface SettingSectionProps<T extends object> {
   deleteItem: (key: string) => void;
   renderExtraActions?: (item: T) => React.ReactNode;
   columns: ColumnDefinition<T>[];
+  headerControls?: React.ReactNode;
 }
 
 function SettingSection<T extends object>({
@@ -51,7 +52,8 @@ function SettingSection<T extends object>({
   getItemName,
   getItemKey,
   renderExtraActions,
-  columns
+  columns,
+  headerControls
 }: SettingSectionProps<T>): JSX.Element {
   const [editingItem, setEditingItem] = useState<T | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -218,7 +220,10 @@ function SettingSection<T extends object>({
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm">
-      <h3 className="text-lg font-semibold mb-4 text-gray-800">{title}</h3>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+        {headerControls && <div>{headerControls}</div>}
+      </div>
       <DataTable
         data={items}
         columns={allColumns}
@@ -897,33 +902,15 @@ const TicketingSettings = (): JSX.Element => {
       label: "Channels",
       content: (
         <div>
-          <div className="space-y-4">
-            <div className="flex justify-end gap-6">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search channels"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="border-2 border-gray-200 focus:border-purple-500 rounded-md pl-10 pr-4 py-2 w-64 outline-none bg-white"
-                />
-                <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              </div>
-              <CustomSelect
-                value={filterStatus}
-                onValueChange={(value: string) => setFilterStatus(value as 'all' | 'active' | 'inactive')}
-                options={filterStatusOptions}
-                className="w-64"
-              />
-            </div>
-            <div className="bg-blue-50 p-4 rounded-md">
-              <p className="text-sm text-blue-700">
-                <strong>Default Channel:</strong> When clients create tickets through the client portal, 
-                they will automatically be assigned to the channel marked as default. Only one channel can 
-                be set as default at a time.
-              </p>
-            </div>
+          {/* Info Box - Moved before SettingSection */}
+          <div className="bg-blue-50 p-4 rounded-md mb-4">
+            <p className="text-sm text-blue-700">
+              <strong>Default Channel:</strong> When clients create tickets through the client portal,
+              they will automatically be assigned to the channel marked as default. Only one channel can
+              be set as default at a time.
+            </p>
           </div>
+          {/* Setting Section */}
           <SettingSection<IChannel>
             title="Channels"
             items={filteredChannels}
@@ -935,6 +922,26 @@ const TicketingSettings = (): JSX.Element => {
             getItemName={(channel) => channel.channel_name || ''}
             getItemKey={(channel) => channel.channel_id || ''}
             columns={channelColumns}
+            headerControls={
+              <div className="flex items-center gap-6">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search channels"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="border-2 border-gray-200 focus:border-purple-500 rounded-md pl-10 pr-4 py-2 w-64 outline-none bg-white"
+                  />
+                  <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                </div>
+                <CustomSelect
+                  value={filterStatus}
+                  onValueChange={(value: string) => setFilterStatus(value as 'all' | 'active' | 'inactive')}
+                  options={filterStatusOptions}
+                  className="w-64"
+                />
+              </div>
+            }
           />
         </div>
       )
@@ -943,28 +950,16 @@ const TicketingSettings = (): JSX.Element => {
       label: "Statuses",
       content: (
         <div>
-          <div className="space-y-4">
-            <div className="flex justify-end gap-6">
-              <CustomSelect
-                value={selectedStatusType}
-                onValueChange={(value: string) => setSelectedStatusType(value as ItemType)}
-                options={[
-                  { value: 'ticket', label: 'Ticket Statuses' },
-                  { value: 'project', label: 'Project Statuses' }
-                ]}
-                className="w-64"
-              />
+          {selectedStatusType === 'ticket' && (
+            <div className="bg-blue-50 p-4 rounded-md mb-4">
+              <p className="text-sm text-blue-700">
+                <strong>Default Status:</strong> When clients create tickets through the client portal,
+                they will automatically be assigned the status marked as default. Only one status can
+                be set as default at a time.
+              </p>
             </div>
-            {selectedStatusType === 'ticket' && (
-              <div className="bg-blue-50 p-4 rounded-md">
-                <p className="text-sm text-blue-700">
-                  <strong>Default Status:</strong> When clients create tickets through the client portal, 
-                  they will automatically be assigned the status marked as default. Only one status can 
-                  be set as default at a time.
-                </p>
-              </div>
-            )}
-          </div>
+          )}
+          {/* Setting Section */}
           <SettingSection<IStatus>
             title={`${selectedStatusType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} Statuses`}
             items={statuses}
@@ -976,6 +971,17 @@ const TicketingSettings = (): JSX.Element => {
             getItemName={(status) => status.name}
             getItemKey={(status) => status.status_id || ''}
             columns={getStatusColumns(selectedStatusType)}
+            headerControls={
+              <CustomSelect
+                value={selectedStatusType}
+                onValueChange={(value: string) => setSelectedStatusType(value as ItemType)}
+                options={[
+                  { value: 'ticket', label: 'Ticket Statuses' },
+                  { value: 'project', label: 'Project Statuses' }
+                ]}
+                className="w-64"
+              />
+            }
           />
         </div>
       )
@@ -1001,16 +1007,16 @@ const TicketingSettings = (): JSX.Element => {
       label: "Categories",
       content: (
         <div>
-          <div className="flex justify-end mb-4 gap-6">
-            <CustomSelect
-              value={categoryChannelFilter}
-              onValueChange={(value: string) => setCategoryChannelFilter(value)}
-              options={channelFilterOptions}
-              className="w-64"
-            />
-          </div>
           <div className="bg-white p-6 rounded-lg shadow-sm">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800">Categories</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">Categories</h3>
+              <CustomSelect
+                value={categoryChannelFilter}
+                onValueChange={(value: string) => setCategoryChannelFilter(value)}
+                options={channelFilterOptions}
+                className="w-64"
+              />
+            </div>
             <DataTable
               data={visibleCategories}
               columns={[...categoryColumns, {
@@ -1129,7 +1135,7 @@ const TicketingSettings = (): JSX.Element => {
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Ticket Settings</h2>
+      <h2 className="text-xl font-bold mb-4 text-gray-800">Ticket Settings</h2>
       <CustomTabs tabs={tabs} defaultTab="Categories" />
     </div>
   );

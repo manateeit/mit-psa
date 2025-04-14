@@ -583,58 +583,68 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
     {
       label: "Billing",
       content: (
-        <BillingConfiguration
-          company={editedCompany}
-          onSave={handleBillingConfigSave}
-          contacts={contacts}
-        />
+        <div className="bg-white rounded-lg shadow-sm">
+          <BillingConfiguration
+            company={editedCompany}
+            onSave={handleBillingConfigSave}
+            contacts={contacts}
+          />
+        </div>
       )
     },
     {
-      label: "Billing Dashboard", // New Tab
+      label: "Billing Dashboard",
       content: (
-        <ClientBillingDashboard companyId={company.company_id} />
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <ClientBillingDashboard companyId={company.company_id} />
+        </div>
       )
     },
     {
       label: "Contacts",
       content: (
-        <CompanyContactsList
-          companyId={company.company_id}
-          companies={[]} // Pass the list of all companies if available, otherwise an empty array
-                         // TODO: Consider fetching all companies here or passing them down if needed by ContactDetailsView via CompanyContactsList
-        />
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <CompanyContactsList
+            companyId={company.company_id}
+            companies={[]}
+          />
+        </div>
       )
     },
     {
       label: "Documents",
-      content: currentUser ? (
-        <Documents
-          id={`${id}-documents`}
-          documents={documents}
-          gridColumns={3}
-          userId={currentUser.user_id}
-          entityId={company.company_id}
-          entityType="company"
-          onDocumentCreated={async () => {
-            // Handle document creation if needed
-            return Promise.resolve();
-          }}
-        />
-      ) : (
-        <div>Loading...</div>
+      content: (
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          {currentUser ? (
+            <Documents
+              id={`${id}-documents`}
+              documents={documents}
+              gridColumns={3}
+              userId={currentUser.user_id}
+              entityId={company.company_id}
+              entityType="company"
+              onDocumentCreated={async () => {
+                return Promise.resolve();
+              }}
+            />
+          ) : (
+            <div>Loading...</div>
+          )}
+        </div>
       )
     },
     {
       label: "Tax Settings",
       content: (
-        <TaxSettingsForm companyId={company.company_id} />
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <TaxSettingsForm companyId={company.company_id} />
+        </div>
       )
     },
     {
       label: "Additional Info",
       content: (
-        <div className="space-y-6">
+        <div className="space-y-6 bg-white p-6 rounded-lg shadow-sm">
           <div className="grid grid-cols-2 gap-4">
             <TextDetailItem
               label="Tax ID"
@@ -681,7 +691,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
     {
       label: "Notes",
       content: (
-        <div className="space-y-6"> {/* Increased spacing */}
+        <div className="space-y-6 bg-white p-6 rounded-lg shadow-sm">
           {editedCompany.notes && editedCompany.notes.trim() !== '' && (
             <div className="bg-gray-100 border border-gray-200 rounded-md p-4">
               <h4 className="text-sm font-semibold text-gray-700 mb-2">Initial Note</h4>
@@ -738,7 +748,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
     {
       label: "Interactions",
       content: (
-        <div>
+        <div className="bg-white p-6 rounded-lg shadow-sm">
           <InteractionsFeed
             entityId={company.company_id}
             entityType="company"
@@ -762,7 +772,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
 
   return (
     <ReflectionContainer id={id} label="Company Details">
-      <div className="flex items-center space-x-5 mb-4 px-6 pt-2">
+      <div className="flex items-center space-x-5 mb-4 pt-2">
         <BackNav href={!isInDrawer ? "/msp/companies" : undefined}>
           {isInDrawer ? 'Back' : 'Back to Clients'}
         </BackNav>
@@ -788,7 +798,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
               <button
                 type="button"
                 onClick={() => setIsEditingLogo(true)}
-                className="absolute bottom-0 right-0 mb-[-4px] mr-[-4px] bg-white text-gray-600 p-1 rounded-full shadow-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary-500 transition-colors"
+                className="absolute bottom-0 right-0 mb-[-2px] mr-[-6px] bg-white text-gray-600 p-1 rounded-full shadow-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary-500 transition-colors"
                 aria-label="Edit company logo"
               >
                 <Pen className="w-3 h-3" />
@@ -799,16 +809,23 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
           {/* Edit Controls (only when editing) */}
           {isEditingLogo && (
             <div className="flex flex-col space-y-2">
-              <label htmlFor="logo-upload-details" className="cursor-pointer text-sm font-medium text-primary-600 hover:text-primary-700 bg-primary-100 hover:bg-primary-200 px-3 py-1.5 rounded-md transition-colors text-center">
+              <Button
+                id="upload-logo-button-details"
+                type="button"
+                variant="soft"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingLogo || isDeletingLogo}
+                className="w-fit"
+              >
                 {isUploadingLogo ? 'Uploading...' : 'Upload New Logo'}
-              </label>
+              </Button>
               <input
-                id="logo-upload-details"
                 type="file"
                 ref={fileInputRef}
                 onChange={handleLogoUpload}
                 accept="image/*"
-                className="hidden" // Hide the default input, use label for styling
+                className="hidden"
                 disabled={isUploadingLogo || isDeletingLogo}
               />
               <p className="text-xs text-gray-500">Max 2MB (PNG, JPG, GIF)</p>
@@ -846,7 +863,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
       </div>
 
       {/* Content Area */}
-      <div className="bg-gray-50 p-6 pt-0 relative">
+      <div>
         <CustomTabs
           tabs={tabContent}
           defaultTab={findTabLabel(searchParams?.get('tab'))}
