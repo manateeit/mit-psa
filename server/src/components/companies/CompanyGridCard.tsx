@@ -10,6 +10,7 @@ import {
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { MouseEvent } from 'react';
 import { ICompany } from "server/src/interfaces/company.interfaces";
+import CompanyAvatar from 'server/src/components/ui/CompanyAvatar';
 
 interface CompanyGridCardProps {
     company: ICompany;
@@ -100,38 +101,46 @@ const CompanyGridCard = ({
             </div>
 
             {/* Company Info - No Link wrapper here */}
-            <div>
-                <h2 className="text-md font-semibold text-gray-800 truncate mb-1" title={company.company_name}>
-                    {company.company_name}
-                </h2>
-                <p className="text-sm text-gray-600 mb-0.5">
-                    <span className="font-medium text-gray-700">Type:</span>
-                    <span className="ml-1">{company.client_type || 'N/A'}</span>
-                </p>
-                <p className="text-sm text-gray-600 mb-0.5">
-                    <span className="font-medium text-gray-700">Phone:</span>
-                    <span className="ml-1">{company.phone_no || 'N/A'}</span>
-                </p>
-                <p className="text-sm text-gray-600 mb-0.5">
-                    <span className="font-medium text-gray-700">Address:</span>
-                    <span className="ml-1">{company.address || 'N/A'}</span>
-                </p>
-                <div className="text-sm text-gray-600">
-                    <span className="font-medium text-gray-700">URL:</span>
-                    {company.url && company.url.trim() !== '' ? (
-                        <a
-                            href={company.url.startsWith('http') ? company.url : `https://${company.url}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="ml-1 text-blue-600 hover:underline"
-                            onClick={stopPropagation}
-                            data-testid={`company-url-link-${company.company_id}`}
-                        >
-                            {company.url}
-                        </a>
-                    ) : (
-                        <span className="ml-1">N/A</span>
-                    )}
+            <div className="flex items-start space-x-3">
+                <CompanyAvatar
+                    companyId={company.company_id}
+                    companyName={company.company_name}
+                    logoUrl={company.logoUrl ?? null}
+                    size="md"
+                />
+                <div className="flex-1 min-w-0">
+                    <h2 className="text-md font-semibold text-gray-800 truncate mb-1" title={company.company_name}>
+                        {company.company_name}
+                    </h2>
+                    <p className="text-sm text-gray-600 mb-0.5">
+                        <span className="font-medium text-gray-700">Type:</span>
+                        <span className="ml-1">{company.client_type || 'N/A'}</span>
+                    </p>
+                    <p className="text-sm text-gray-600 mb-0.5">
+                        <span className="font-medium text-gray-700">Phone:</span>
+                        <span className="ml-1">{company.phone_no || 'N/A'}</span>
+                    </p>
+                    <p className="text-sm text-gray-600 mb-0.5">
+                        <span className="font-medium text-gray-700">Address:</span>
+                        <span className="ml-1">{company.address || 'N/A'}</span>
+                    </p>
+                    <div className="text-sm text-gray-600">
+                        <span className="font-medium text-gray-700">URL:</span>
+                        {company.url && company.url.trim() !== '' ? (
+                            <a
+                                href={company.url.startsWith('http') ? company.url : `https://${company.url}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-1 text-blue-600 hover:underline"
+                                onClick={stopPropagation}
+                                data-testid={`company-url-link-${company.company_id}`}
+                            >
+                                {company.url}
+                            </a>
+                        ) : (
+                            <span className="ml-1">N/A</span>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

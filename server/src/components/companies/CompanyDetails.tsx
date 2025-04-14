@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { IDocument } from 'server/src/interfaces/document.interface';
 import { PartialBlock } from '@blocknote/core';
 import { IContact } from 'server/src/interfaces/contact.interfaces';
@@ -107,7 +107,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
   contacts = [],
   isInDrawer = false
 }) => {
-  const [editedCompany, setEditedCompany] = useState(company);
+  const [editedCompany, setEditedCompany] = useState<ICompany>(company);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isQuickAddTicketOpen, setIsQuickAddTicketOpen] = useState(false);
   const [interactions, setInteractions] = useState<IInteraction[]>([]);
@@ -118,6 +118,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
   const [hasUnsavedNoteChanges, setHasUnsavedNoteChanges] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isDeletingLogo, setIsDeletingLogo] = useState(false);
+  const [isEditingLogo, setIsEditingLogo] = useState(false);
   const [currentContent, setCurrentContent] = useState<PartialBlock[]>(DEFAULT_BLOCK);
   const [noteDocument, setNoteDocument] = useState<IDocument | null>(null);
   const router = useRouter();
@@ -127,6 +128,68 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const drawer = useDrawer();
 
+  // 1. Implement refreshCompanyData function
+  const refreshCompanyData = useCallback(async () => {
+    if (!company?.company_id) return; // Ensure company_id is available
+
+    console.log(`Refreshing company data for ID: ${company.company_id}`);
+    try {
+      const latestCompanyData = await getCompanyById(company.company_id);
+      if (latestCompanyData) {
+        const currentLogoUrl = editedCompany.logoUrl ?? null;
+        const latestLogoUrl = latestCompanyData.logoUrl ?? null;
+
+        if (currentLogoUrl !== latestLogoUrl) {
+          console.log(`Logo URL changed. Old: ${currentLogoUrl}, New: ${latestLogoUrl}`);
+          setEditedCompany(prev => ({ ...prev, logoUrl: latestLogoUrl }));
+          // Optionally update other fields if needed, but focus is on logoUrl for now
+          // setEditedCompany(latestCompanyData); // Uncomment to refresh all data
+        } else {
+           console.log('Logo URL unchanged.');
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing company data:', error);
+      // Optionally show a toast notification for the error
+      // toast({ title: "Refresh Failed", description: "Could not fetch latest company data.", variant: "destructive" });
+    }
+  }, [company?.company_id, editedCompany.logoUrl]); // Dependencies for useCallback
+
+  // 2. Implement Initial Load Logic
+  useEffect(() => {
+    // Set initial state when the company prop changes
+    setEditedCompany(company);
+    // Reset unsaved changes flag when company prop changes
+    setHasUnsavedChanges(false);
+  }, [company]); // Dependency on the company prop
+
+  // 3. Implement Refresh on Focus/Visibility Change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('Document became visible, refreshing data...');
+        refreshCompanyData();
+      }
+    };
+
+    const handleFocus = () => {
+      console.log('Window gained focus, refreshing data...');
+      refreshCompanyData();
+    };
+
+    console.log('Adding visibility and focus listeners');
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    // Cleanup function
+    return () => {
+      console.log('Removing visibility and focus listeners');
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [refreshCompanyData]); // Dependency on refreshCompanyData
+
+  // Existing useEffect for fetching user and users
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -144,7 +207,6 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
         setInternalUsers(users);
       } catch (error) {
         console.error("Error fetching internal users:", error);
-        // Optionally show a toast error
       } finally {
         setIsLoadingUsers(false);
       }
@@ -157,30 +219,31 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
   // Load note content and document metadata when component mounts
   useEffect(() => {
     const loadNoteContent = async () => {
-      if (company.notes_document_id) {
+      if (editedCompany.notes_document_id) {
         try {
-          // Get the document metadata
-          const document = await getDocument(company.notes_document_id);
+          const document = await getDocument(editedCompany.notes_document_id);
           setNoteDocument(document);
-          
-          // Get the note content
-          const content = await getBlockContent(company.notes_document_id);
+          const content = await getBlockContent(editedCompany.notes_document_id);
           if (content && content.block_data) {
-            // Parse the block data from JSON string
             const blockData = typeof content.block_data === 'string'
               ? JSON.parse(content.block_data)
               : content.block_data;
-            
             setCurrentContent(blockData);
+          } else {
+             setCurrentContent(DEFAULT_BLOCK);
           }
         } catch (error) {
           console.error('Error loading note content:', error);
+           setCurrentContent(DEFAULT_BLOCK);
         }
+      } else {
+         setCurrentContent(DEFAULT_BLOCK);
+         setNoteDocument(null);
       }
     };
 
     loadNoteContent();
-  }, [company.notes_document_id]);
+  }, [editedCompany.notes_document_id]);
 
 
   const handleFieldChange = (field: string, value: string | boolean) => {
@@ -323,12 +386,38 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
   
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    const fileInput = event.target; // Store the input element
+
     if (!file) {
       toast({
         title: "No file selected",
         description: "Please select an image file to upload.",
         variant: "destructive",
       });
+      // Reset file input if no file is selected or selection is cancelled
+      if (fileInput) fileInput.value = '';
+      return;
+    }
+
+    // Client-side validation
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please select an image file (e.g., JPG, PNG, GIF).",
+        variant: "destructive",
+      });
+      if (fileInput) fileInput.value = ''; // Reset input
+      return;
+    }
+
+    const maxSizeInBytes = 2 * 1024 * 1024; // 2MB
+    if (file.size > maxSizeInBytes) {
+      toast({
+        title: "File Too Large",
+        description: "Please select an image file smaller than 2MB.",
+        variant: "destructive",
+      });
+      if (fileInput) fileInput.value = ''; // Reset input
       return;
     }
 
@@ -339,7 +428,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
     try {
       const result = await uploadCompanyLogo(editedCompany.company_id, formData);
       if (result.success && result.logoUrl !== undefined) {
-        setEditedCompany(prev => ({ ...prev, logoUrl: result.logoUrl }));
+        setEditedCompany(prev => ({ ...prev, logoUrl: result.logoUrl ?? null }));
         toast({
           title: "Logo Uploaded",
           description: "Company logo updated successfully.",
@@ -357,14 +446,23 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
     } finally {
       setIsUploadingLogo(false);
       // Reset file input value so the same file can be selected again if needed
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      // Reset file input value using the stored reference
+      if (fileInput) {
+         fileInput.value = '';
       }
     }
   };
 
   const handleDeleteLogo = async () => {
-    if (!editedCompany.logoUrl) return;
+    if (!editedCompany.logoUrl) {
+        toast({ title: "No Logo Found", description: "There is no logo associated with this company to delete.", variant: "destructive" });
+        return;
+    }
+
+    // Confirmation dialog
+    if (!window.confirm("Are you sure you want to delete the company logo? This action cannot be undone.")) {
+      return;
+    }
 
     setIsDeletingLogo(true);
     try {
@@ -669,53 +767,78 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
           {isInDrawer ? 'Back' : 'Back to Clients'}
         </BackNav>
         
-        {/* Logo Upload/Remove Container */}
-        <div className="relative group">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleLogoUpload}
-            accept="image/*"
-            className="hidden"
-            disabled={isUploadingLogo || isDeletingLogo}
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploadingLogo || isDeletingLogo}
-            className="relative rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            aria-label="Upload company logo"
-          >
+        {/* Logo Display and Edit Container */}
+        <div className="flex items-center space-x-3">
+          <div className="relative">
+            {/* Avatar Display */}
             <CompanyAvatar
               companyId={editedCompany.company_id}
               companyName={editedCompany.company_name}
               logoUrl={editedCompany.logoUrl ?? null}
               size="md"
             />
-            {/* Upload Icon Overlay */}
-            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 flex items-center justify-center rounded-full transition-opacity duration-200 cursor-pointer">
-              {!isUploadingLogo && !isDeletingLogo && (
-                <Upload className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-              )}
-            </div>
-            {/* Loading Spinner */}
+            {/* Loading Spinner Overlay */}
             {(isUploadingLogo || isDeletingLogo) && (
               <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-full">
                 <Loader2 className="h-5 w-5 text-white animate-spin" />
               </div>
             )}
-          </button>
-          {/* Remove Logo Button */}
-          {editedCompany.logoUrl && !isUploadingLogo && !isDeletingLogo && (
-            <button
-              type="button"
-              onClick={handleDeleteLogo}
-              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500 transition-colors"
-              aria-label="Delete company logo"
-              disabled={isDeletingLogo}
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
+            {/* Edit Icon Button (only when not editing) */}
+            {!isEditingLogo && !isUploadingLogo && !isDeletingLogo && (
+              <button
+                type="button"
+                onClick={() => setIsEditingLogo(true)}
+                className="absolute bottom-0 right-0 mb-[-4px] mr-[-4px] bg-white text-gray-600 p-1 rounded-full shadow-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary-500 transition-colors"
+                aria-label="Edit company logo"
+              >
+                <Pen className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Edit Controls (only when editing) */}
+          {isEditingLogo && (
+            <div className="flex flex-col space-y-2">
+              <label htmlFor="logo-upload-details" className="cursor-pointer text-sm font-medium text-primary-600 hover:text-primary-700 bg-primary-100 hover:bg-primary-200 px-3 py-1.5 rounded-md transition-colors text-center">
+                {isUploadingLogo ? 'Uploading...' : 'Upload New Logo'}
+              </label>
+              <input
+                id="logo-upload-details"
+                type="file"
+                ref={fileInputRef}
+                onChange={handleLogoUpload}
+                accept="image/*"
+                className="hidden" // Hide the default input, use label for styling
+                disabled={isUploadingLogo || isDeletingLogo}
+              />
+              <p className="text-xs text-gray-500">Max 2MB (PNG, JPG, GIF)</p>
+              <div className="flex space-x-2 items-center">
+                {editedCompany.logoUrl && (
+                  <Button
+                    id="delete-company-logo-details"
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteLogo}
+                    disabled={isDeletingLogo || isUploadingLogo}
+                    className="w-fit"
+                  >
+                    {isDeletingLogo ? 'Deleting...' : 'Delete Logo'}
+                  </Button>
+                )}
+                <Button
+                  id="cancel-edit-logo-details"
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditingLogo(false)}
+                  disabled={isUploadingLogo || isDeletingLogo}
+                  className="w-fit"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
           )}
         </div>
 
@@ -736,8 +859,8 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
           onOpenChange={setIsQuickAddTicketOpen}
           onTicketAdded={handleTicketAdded}
           prefilledCompany={{
-            id: company.company_id,
-            name: company.company_name
+            id: editedCompany.company_id,
+            name: editedCompany.company_name
           }}
         />
       </div>
