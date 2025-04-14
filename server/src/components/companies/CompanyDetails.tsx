@@ -863,7 +863,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
       </div>
 
       {/* Content Area */}
-      <div>
+      <div className="bg-white p-6 relative rounded-lg shadow-md">
         <CustomTabs
           tabs={tabContent}
           defaultTab={findTabLabel(searchParams?.get('tab'))}

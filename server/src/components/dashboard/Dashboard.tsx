@@ -102,13 +102,13 @@ const WelcomeDashboard = () => {
             description="Streamline support with our advanced ticketing system. Track, assign, and resolve issues efficiently."
           />
         </Link>
-        <div onClick={() => toast.success('Coming Soon!')} className="cursor-pointer">
+        <Link href="/msp/jobs">
           <FeatureCard
             icon={HeartPulse}
             title="System Monitoring"
             description="Keep track of system health, performance metrics, and critical alerts in real-time."
           />
-        </div>
+        </Link>
         <Link href="/msp/security-settings">
           <FeatureCard
             icon={Shield}
