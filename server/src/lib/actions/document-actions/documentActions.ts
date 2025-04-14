@@ -356,8 +356,37 @@ export async function getDocumentPreview(
           error: 'Failed to parse PDF document'
         };
       }
-    }
+    } else if (mime.startsWith('image/')) {
+      try {
+        // Resize image using sharp
+        const imageBuffer = await sharp(buffer)
+          .resize(400, 400, {
+            fit: 'inside',
+            withoutEnlargement: true
+          })
+          .png({ quality: 80 })
+          .toBuffer();
 
+        // Store in cache
+        await cache.set(file_id, imageBuffer);
+
+        // Convert to base64
+        const base64Image = `data:image/png;base64,${imageBuffer.toString('base64')}`;
+
+        return {
+          success: true,
+          previewImage: base64Image,
+          content: `Image File (${metadata.original_name})`
+        };
+      } catch (imageError) {
+        console.error('Image processing error:', imageError);
+        return {
+          success: false,
+          error: 'Failed to process image file'
+        };
+      }
+    }
+ 
     // Handle markdown files
     if (mime === 'text/markdown' || metadata.original_name.endsWith('.md')) {
       try {
