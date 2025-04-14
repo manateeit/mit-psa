@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Button } from "@radix-ui/themes";
-
+import CompanyAvatar from 'server/src/components/ui/CompanyAvatar';
 interface CompaniesListProps {
     selectedCompanies: string[];
     filteredCompanies: ICompany[];
@@ -26,8 +26,9 @@ const CompaniesList = ({ selectedCompanies, filteredCompanies, setSelectedCompan
         {
             title: '',
             dataIndex: 'checkbox',
+            width: '3%',
             render: (value: string, record: ICompany) => (
-                <div onClick={(e) => e.stopPropagation()}>
+                <div onClick={(e) => e.stopPropagation()} className="flex justify-center">
                   <input
                       type="checkbox"
                       className="form-checkbox h-4 w-4 cursor-pointer"
@@ -40,35 +41,54 @@ const CompaniesList = ({ selectedCompanies, filteredCompanies, setSelectedCompan
         {
             title: 'Name',
             dataIndex: 'company_name',
-            render: (text: string, record: ICompany) => <span className="text-blue-600">{record.company_name}</span>,
+            width: '30%',
+            render: (text: string, record: ICompany) => (
+                <div className="flex items-center">
+                    <CompanyAvatar
+                        companyId={record.company_id}
+                        companyName={record.company_name}
+                        logoUrl={record.logoUrl ?? null}
+                        size="sm"
+                        className="mr-2 flex-shrink-0"
+                    />
+                    <span className="text-blue-600 font-medium truncate" title={record.company_name}>
+                        {record.company_name}
+                    </span>
+                </div>
+            ),
         },
         {
-            title: 'Client Type',
+            title: 'Type',
             dataIndex: 'client_type',
+            width: '10%',
             render: (text: string | null, record: ICompany) => record.client_type || 'N/A',
         },
         {
             title: 'Phone',
             dataIndex: 'phone_no',
+            width: '15%',
             render: (text: string | null, record: ICompany) => record.phone_no || 'N/A',
         },
         {
             title: 'Address',
             dataIndex: 'address',
-            render: (text: string | null, record: ICompany) => record.address || 'N/A',
+            width: '20%',
+            render: (text: string | null, record: ICompany) => <span className="truncate" title={record.address ?? ''}>{record.address || 'N/A'}</span>,
         },
         {
             title: 'Account Manager',
             dataIndex: 'account_manager_full_name',
+            width: '10%',
             render: (text: string | undefined, record: ICompany) =>
-                record.account_manager_full_name || 'N/A',
+                <span className="truncate" title={record.account_manager_full_name ?? ''}>{record.account_manager_full_name || 'N/A'}</span>,
         },
         {
-            title: 'Url',
+            title: 'URL',
             dataIndex: 'url',
+            width: '12%',
             render: (text: string | null, record: ICompany) => (
                 record.url && record.url.trim() !== '' ? (
-                    <a href={record.url} target="_blank" rel="noopener noreferrer" className="text-blue-600">
+                    <a href={record.url.startsWith('http') ? record.url : `https://${record.url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate block" title={record.url}>
                         {record.url}
                     </a>
                 ) : 'N/A'
