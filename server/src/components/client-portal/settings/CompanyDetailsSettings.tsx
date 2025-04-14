@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import { Pen } from 'lucide-react';
+import { Pen, Loader2, Trash2, Upload } from 'lucide-react';
 import { Card } from 'server/src/components/ui/Card';
 import { Input } from 'server/src/components/ui/Input';
 import { Button } from 'server/src/components/ui/Button';
@@ -193,33 +193,32 @@ export function CompanyDetailsSettings() {
                 </button>
               )}
             </div>
-            <div className="flex flex-col space-y-2">
+            <div className="flex flex-col space-y-1">
               {/* Edit Controls - shown only when editing */}
               {isEditingLogo && (
                 <>
-                  <Button
-                    id="upload-logo-button-settings"
-                    type="button"
-                    variant="soft"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isPendingUpload || isPendingDelete}
-                    className="w-fit"
-                  >
-                    {isPendingUpload ? 'Uploading...' : 'Upload New Logo'}
-                  </Button>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    disabled={isPendingUpload || isPendingDelete}
-                    className="hidden"
-                    ref={fileInputRef}
-                  />
-                  <p className="text-xs text-gray-500">
-                    Max 2MB (PNG, JPG, GIF)
-                  </p>
-                  <div className="flex space-x-2 items-center">
+                  <div className="flex flex-row space-x-2 items-center">
+                    {/* Upload Button */}
+                    <Button
+                      id="upload-logo-button-settings"
+                      type="button"
+                      variant="soft"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isPendingUpload || isPendingDelete}
+                      className="w-fit"
+                    >
+                      {isPendingUpload ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                      Upload New Logo
+                    </Button>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      disabled={isPendingUpload || isPendingDelete}
+                      className="hidden"
+                      ref={fileInputRef}
+                    />
                     {companyDetails.logoUrl && (
                       <Button
                         id="delete-company-logo"
@@ -230,7 +229,8 @@ export function CompanyDetailsSettings() {
                         disabled={isPendingDelete || isPendingUpload}
                         className="w-fit"
                       >
-                        {isPendingDelete ? 'Deleting...' : 'Delete Logo'}
+                        {isPendingDelete ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                        Delete Logo
                       </Button>
                     )}
                     <Button
@@ -245,6 +245,9 @@ export function CompanyDetailsSettings() {
                       Cancel
                     </Button>
                   </div>
+                  <p className="text-xs text-gray-500 pl-1">
+                    Max 2MB (PNG, JPG, GIF)
+                  </p>
                   {isPendingUpload && <p className="text-sm text-blue-600">Uploading...</p>}
                   {isPendingDelete && <p className="text-sm text-red-600">Deleting...</p>}
                 </>

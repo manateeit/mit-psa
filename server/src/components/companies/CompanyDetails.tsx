@@ -163,7 +163,28 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
     setHasUnsavedChanges(false);
   }, [company]); // Dependency on the company prop
 
-  // 3. Implement Refresh on Focus/Visibility Change
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      if (company?.company_id) {
+        console.log(`Fetching initial data for company ID: ${company.company_id}`);
+        try {
+          const latestCompanyData = await getCompanyById(company.company_id);
+          if (latestCompanyData) {
+            console.log('Setting initial fetched data:', latestCompanyData);
+            setEditedCompany(latestCompanyData);
+            setHasUnsavedChanges(false);
+          }
+        } catch (error) {
+          console.error('Error fetching initial company data:', error);
+        }
+      }
+    };
+
+    fetchInitialData();
+  }, [company?.company_id]);
+
+
+  // 3. Implement Refresh on Focus/Visibility Change (Kept for updates while page is open)
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -808,28 +829,28 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
 
           {/* Edit Controls (only when editing) */}
           {isEditingLogo && (
-            <div className="flex flex-col space-y-2">
-              <Button
-                id="upload-logo-button-details"
-                type="button"
-                variant="soft"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploadingLogo || isDeletingLogo}
-                className="w-fit"
-              >
-                {isUploadingLogo ? 'Uploading...' : 'Upload New Logo'}
-              </Button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleLogoUpload}
-                accept="image/*"
-                className="hidden"
-                disabled={isUploadingLogo || isDeletingLogo}
-              />
-              <p className="text-xs text-gray-500">Max 2MB (PNG, JPG, GIF)</p>
-              <div className="flex space-x-2 items-center">
+            <div className="flex flex-col space-y-1">
+              <div className="flex flex-row space-x-2 items-center">
+                <Button
+                  id="upload-logo-button-details"
+                  type="button"
+                  variant="soft"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingLogo || isDeletingLogo}
+                  className="w-fit"
+                >
+                  {isUploadingLogo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                  Upload New Logo
+                </Button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleLogoUpload}
+                  accept="image/*"
+                  className="hidden"
+                  disabled={isUploadingLogo || isDeletingLogo}
+                />
                 {editedCompany.logoUrl && (
                   <Button
                     id="delete-company-logo-details"
@@ -840,7 +861,8 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
                     disabled={isDeletingLogo || isUploadingLogo}
                     className="w-fit"
                   >
-                    {isDeletingLogo ? 'Deleting...' : 'Delete Logo'}
+                    {isDeletingLogo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                    Delete Logo
                   </Button>
                 )}
                 <Button
@@ -855,6 +877,8 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
                   Cancel
                 </Button>
               </div>
+              {/* Text moved below buttons */}
+              <p className="text-xs text-gray-500 pl-1">Max 2MB (PNG, JPG, GIF)</p>
             </div>
           )}
         </div>
@@ -863,7 +887,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
       </div>
 
       {/* Content Area */}
-      <div className="bg-white p-6 relative rounded-lg shadow-md">
+      <div>
         <CustomTabs
           tabs={tabContent}
           defaultTab={findTabLabel(searchParams?.get('tab'))}

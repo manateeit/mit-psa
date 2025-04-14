@@ -68,7 +68,13 @@ const CompanyGridCard = ({
                 {/* Company Info */}
                 <div className="flex-1 min-w-0">
                     <h2 className="text-md font-semibold text-gray-800 truncate" title={company.company_name}>
-                        {company.company_name}
+                        <a
+                          href={`/msp/companies/${company.company_id}`}
+                          onClick={stopPropagation}
+                          className="text-blue-600 hover:underline"
+                        >
+                            {company.company_name}
+                        </a>
                     </h2>
                     <div className="text-sm text-gray-600 mt-1 space-y-0.5">
                         <p className="truncate">

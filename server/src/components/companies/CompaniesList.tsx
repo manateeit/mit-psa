@@ -51,9 +51,14 @@ const CompaniesList = ({ selectedCompanies, filteredCompanies, setSelectedCompan
                         size="sm"
                         className="mr-2 flex-shrink-0"
                     />
-                    <span className="text-blue-600 font-medium truncate" title={record.company_name}>
+                    <a
+                      href={`/msp/companies/${record.company_id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-blue-600 hover:underline font-medium truncate"
+                      title={record.company_name}
+                    >
                         {record.company_name}
-                    </span>
+                    </a>
                 </div>
             ),
         },
