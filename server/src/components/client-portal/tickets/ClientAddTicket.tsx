@@ -10,15 +10,14 @@ import { IPriority } from 'server/src/interfaces';
 import CustomSelect from 'server/src/components/ui/CustomSelect';
 import { Input } from 'server/src/components/ui/Input';
 import { TextArea } from 'server/src/components/ui/TextArea';
-import { useRouter } from 'next/navigation';
 
 interface ClientAddTicketProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onTicketAdded?: () => void;
 }
 
-export function ClientAddTicket({ open, onOpenChange }: ClientAddTicketProps) {
-  const router = useRouter();
+export function ClientAddTicket({ open, onOpenChange, onTicketAdded }: ClientAddTicketProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -97,7 +96,7 @@ export function ClientAddTicket({ open, onOpenChange }: ClientAddTicketProps) {
       await createClientTicket(formData);
       resetForm();
       onOpenChange(false);
-      router.refresh();
+      onTicketAdded?.();
     } catch (error) {
       console.error('Error creating ticket:', error);
       setError(error instanceof Error ? error.message : 'Failed to create ticket. Please try again.');
