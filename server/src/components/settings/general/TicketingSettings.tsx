@@ -516,11 +516,17 @@ const TicketingSettings = (): JSX.Element => {
     };
 
     const handleDeleteChannel = async (channelId: string): Promise<void> => {
+      const channelToDelete = channels.find(c => c.channel_id === channelId);
+      if (!channelToDelete) return;
+      
+
       try {
         await deleteChannel(channelId);
         setChannels(channels.filter(channel => channel.channel_id !== channelId));
+        toast.success(`Channel "${channelToDelete.channel_name}" deleted successfully.`);
       } catch (error) {
         console.error('Error deleting channel:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to delete channel.');
       }
     };
   
@@ -664,14 +670,14 @@ const TicketingSettings = (): JSX.Element => {
                       is_default: channel.channel_id === record.channel_id
                     }))
                   );
-                } catch (error) {
-                  console.error('Error updating default channel:', error);
-                  toast.error('Failed to update default channel');
-                }
-              } else {
-                try {
-                  // Check if this is the last default channel
-                  const defaultChannels = channels.filter(c => 
+                 } catch (error) {
+                   console.error('Error updating default channel:', error);
+                   toast.error(error instanceof Error ? error.message : 'Failed to update default channel');
+                 }
+               } else {
+                 try {
+                   // Check if this is the last default channel
+                   const defaultChannels = channels.filter(c => 
                     c.channel_id !== record.channel_id && c.is_default
                   );
                   
@@ -690,11 +696,12 @@ const TicketingSettings = (): JSX.Element => {
                         channel
                     )
                   );
-                } catch (error) {
-                  console.error('Error updating default channel:', error);
-                  toast.error('Failed to update default channel');
-                }
-              }
+                 } catch (error) {
+                   console.error('Error updating default channel:', error);
+                   // Display the specific error message from the backend
+                   toast.error(error instanceof Error ? error.message : 'Failed to update default channel');
+                 }
+               }
             }}
             className="data-[state=checked]:bg-primary-500"
           />
