@@ -4,11 +4,11 @@ import { Button } from 'server/src/components/ui/Button';
 import { Input } from 'server/src/components/ui/Input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from 'server/src/components/ui/Dialog';
 import { Label } from 'server/src/components/ui/Label';
-import CustomSelect from 'server/src/components/ui/CustomSelect'; // Added import
-import { getTaxRates, addTaxRate, updateTaxRate, deleteTaxRate } from 'server/src/lib/actions/taxRateActions';
-import { getActiveTaxRegions } from 'server/src/lib/actions/taxSettingsActions'; // Added
-import { ITaxRate } from 'server/src/interfaces/billing.interfaces';
-import { ITaxRegion } from 'server/src/interfaces/tax.interfaces'; // Added
+import CustomSelect from 'server/src/components/ui/CustomSelect';
+import { getTaxRates, addTaxRate, updateTaxRate, deleteTaxRate, confirmDeleteTaxRate, DeleteTaxRateResult } from 'server/src/lib/actions/taxRateActions';
+import { getActiveTaxRegions } from 'server/src/lib/actions/taxSettingsActions';
+import { ITaxRate, IService } from 'server/src/interfaces/billing.interfaces';
+import { ITaxRegion } from 'server/src/interfaces/tax.interfaces';
 import { v4 as uuidv4 } from 'uuid';
 import { DataTable } from 'server/src/components/ui/DataTable';
 import { ColumnDefinition } from 'server/src/interfaces/dataTable.interfaces';
@@ -25,13 +25,16 @@ import {
 const TaxRates: React.FC = () => {
   const [taxRates, setTaxRates] = useState<ITaxRate[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [currentTaxRate, setCurrentTaxRate] = useState<Partial<ITaxRate>>({}); // Reverted state type
+  const [currentTaxRate, setCurrentTaxRate] = useState<Partial<ITaxRate>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [taxRegions, setTaxRegions] = useState<Pick<ITaxRegion, 'region_code' | 'region_name'>[]>([]); // Added
-  const [isLoadingTaxRegions, setIsLoadingTaxRegions] = useState(true); // Added
-  const [errorTaxRegions, setErrorTaxRegions] = useState<string | null>(null); // Added
- 
+  const [taxRegions, setTaxRegions] = useState<Pick<ITaxRegion, 'region_code' | 'region_name'>[]>([]);
+  const [isLoadingTaxRegions, setIsLoadingTaxRegions] = useState(true);
+  const [errorTaxRegions, setErrorTaxRegions] = useState<string | null>(null);
+  const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
+  const [taxRateIdToDelete, setTaxRateIdToDelete] = useState<string | null>(null);
+  const [affectedServicesForConfirmation, setAffectedServicesForConfirmation] = useState<Pick<IService, 'service_id' | 'service_name'>[]>([]);
+
   useEffect(() => {
     fetchTaxRates();
     fetchTaxRegions(); // Added
@@ -120,17 +123,41 @@ const TaxRates: React.FC = () => {
   };
 
   const handleDeleteTaxRate = async (taxRateId: string) => {
-    if (window.confirm('Are you sure you want to delete this tax rate?')) {
-      try {
-        await deleteTaxRate(taxRateId);
+    setError(null); // Clear previous errors
+    try {
+      const result: DeleteTaxRateResult = await deleteTaxRate(taxRateId);
+
+      if (result.deleted) {
         fetchTaxRates();
-        setError(null);
-      } catch (error) {
-        console.error('Error deleting tax rate:', error);
-        setError('Failed to delete tax rate');
+      } else if (result.affectedServices && result.affectedServices.length > 0) {
+        setAffectedServicesForConfirmation(result.affectedServices);
+        setTaxRateIdToDelete(taxRateId);
+        setIsConfirmDeleteDialogOpen(true);
+      } else {
+        setError('An unexpected issue occurred while checking for dependencies.');
       }
+    } catch (error: any) {
+      console.error('Error initiating tax rate deletion:', error);
+      setError(error.message || 'Failed to initiate tax rate deletion.');
     }
   };
+
+  const handleConfirmDelete = async () => {
+    if (!taxRateIdToDelete) return;
+
+    setError(null);
+    try {
+      await confirmDeleteTaxRate(taxRateIdToDelete);
+      setIsConfirmDeleteDialogOpen(false);
+      setTaxRateIdToDelete(null);
+      setAffectedServicesForConfirmation([]);
+      fetchTaxRates();
+    } catch (error: any) {
+      console.error('Error confirming tax rate deletion:', error);
+      setError(error.message || 'Failed to confirm tax rate deletion.');
+    }
+  };
+
 
   const columns: ColumnDefinition<ITaxRate>[] = [
     {
@@ -302,6 +329,49 @@ const TaxRates: React.FC = () => {
               onClick={handleAddOrUpdateTaxRate}
             >
               {isEditing ? 'Update' : 'Add'} Tax Rate
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog for Deletion */}
+      <Dialog isOpen={isConfirmDeleteDialogOpen} onClose={() => setIsConfirmDeleteDialogOpen(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Tax Rate Deletion</DialogTitle>
+            <DialogDescription>
+              This tax rate is currently assigned to the following services. Deleting it will remove the tax rate assignment (set to non-taxable) for these services. Are you sure you want to proceed?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="my-4 max-h-48 overflow-y-auto">
+            <ul className="list-disc pl-5 space-y-1">
+              {affectedServicesForConfirmation.map(service => (
+                <li key={service.service_id}>{service.service_name}</li>
+              ))}
+            </ul>
+          </div>
+          {error && isConfirmDeleteDialogOpen && (
+             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+               <span className="block sm:inline">{error}</span>
+             </div>
+           )}
+          <div className="flex justify-end space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsConfirmDeleteDialogOpen(false);
+                setError(null);
+              }}
+              id="cancel-delete-tax-rate-button"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              id="confirm-delete-tax-rate-button"
+            >
+              Confirm Delete
             </Button>
           </div>
         </DialogContent>

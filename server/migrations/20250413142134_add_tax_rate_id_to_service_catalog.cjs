@@ -9,10 +9,10 @@ exports.up = async function(knex) {
 
     // Add the foreign key constraint referencing tax_rates(tax_rate_id)
     // Using ON DELETE SET NULL: If a tax rate is deleted, associated services will have tax_rate_id set to NULL.
-    table.foreign('tax_rate_id', 'service_catalog_tax_rate_id_fkey')
-         .references('tax_rate_id')
-         .inTable('tax_rates')
-         .onDelete('SET NULL');
+    table.foreign(['tenant', 'tax_rate_id'], 'service_catalog_tenant_tax_rate_id_fkey')
+         .references(['tenant', 'tax_rate_id'])
+         .inTable('tax_rates');
+         // .onDelete('SET NULL'); - need to handle this in-application
   });
 
   // Optional: Add an index for potential performance improvements.

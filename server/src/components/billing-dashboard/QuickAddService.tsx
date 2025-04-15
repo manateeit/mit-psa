@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Button } from 'server/src/components/ui/Button'
 import { Input } from 'server/src/components/ui/Input'
+import { Label } from 'server/src/components/ui/Label'
 import CustomSelect from 'server/src/components/ui/CustomSelect'
 import { SearchableSelect } from 'server/src/components/ui/SearchableSelect'
 import { Switch } from 'server/src/components/ui/Switch'
@@ -233,13 +234,13 @@ console.log('[QuickAddService] Service created successfully');
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-96">
+        <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-[550px]">
           <Dialog.Title className="text-lg font-bold mb-4">Add New Service</Dialog.Title>
           {error && <div className="text-red-500 mb-4">{error}</div>}
           {errorTaxRates && <div className="text-red-500 mb-4">{errorTaxRates}</div>} {/* Show tax rate error */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="serviceName" className="block text-sm font-medium text-gray-700">Service Name</label>
+              <Label htmlFor="serviceName" className="block text-sm font-medium text-gray-700 mb-1">Service Name</Label>
               <Input
                 id="serviceName"
                 value={serviceData.service_name}
@@ -251,7 +252,7 @@ console.log('[QuickAddService] Service created successfully');
 
             {/* Updated to Service Type dropdown using allServiceTypes */}
             <div>
-              <label htmlFor="serviceType" className="block text-sm font-medium text-gray-700">Service Type</label>
+              <Label htmlFor="serviceType" className="block text-sm font-medium text-gray-700 mb-1">Service Type</Label>
               <SearchableSelect
                 id="serviceType"
                 options={allServiceTypes.map(type => ({ value: type.id, label: type.name }))}
@@ -281,7 +282,7 @@ console.log('[QuickAddService] Service created successfully');
             </div>
 
             <div>
-              <label htmlFor="billingMethod" className="block text-sm font-medium text-gray-700">Billing Method</label>
+              <Label htmlFor="billingMethod" className="block text-sm font-medium text-gray-700 mb-1">Billing Method</Label>
               <CustomSelect
                 options={BILLING_METHOD_OPTIONS}
                 value={serviceData.billing_method}
@@ -292,7 +293,7 @@ console.log('[QuickAddService] Service created successfully');
             </div>
 
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
+              <Label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description</Label>
               <Input
                 id="description"
                 value={serviceData.description || ''}
@@ -302,7 +303,7 @@ console.log('[QuickAddService] Service created successfully');
             </div>
 
             <div>
-              <label htmlFor="defaultRate" className="block text-sm font-medium text-gray-700">Default Rate</label>
+              <Label htmlFor="defaultRate" className="block text-sm font-medium text-gray-700 mb-1">Default Rate</Label>
               <Input
                 id="defaultRate"
                 type="number"
@@ -316,7 +317,7 @@ console.log('[QuickAddService] Service created successfully');
             {/* Conditional Unit of Measure */}
             {serviceData.billing_method === 'per_unit' && (
               <div>
-                <label htmlFor="unitOfMeasure" className="block text-sm font-medium text-gray-700">Unit of Measure</label>
+                <Label htmlFor="unitOfMeasure" className="block text-sm font-medium text-gray-700 mb-1">Unit of Measure</Label>
                 <UnitOfMeasureInput
                   value={serviceData.unit_of_measure}
                   onChange={(value) => {
@@ -334,7 +335,7 @@ console.log('[QuickAddService] Service created successfully');
 
             {/* Replaced Is Taxable Switch and Tax Region Select with Tax Rate Select */}
             <div>
-              <label htmlFor="taxRate" className="block text-sm font-medium text-gray-700">Tax Rate (Optional)</label>
+              <Label htmlFor="taxRate" className="block text-sm font-medium text-gray-700 mb-1">Tax Rate (Optional)</Label>
               <CustomSelect
                   id="quick-add-service-tax-rate-select"
                   value={serviceData.tax_rate_id || ''} // Bind to tax_rate_id
@@ -367,7 +368,7 @@ console.log('[QuickAddService] Service created successfully');
             {allServiceTypes.find(t => t.id === serviceData.service_type_id)?.name === 'Hardware' && (
               <>
                 <div>
-                  <label htmlFor="sku" className="block text-sm font-medium text-gray-700">SKU</label>
+                  <Label htmlFor="sku" className="block text-sm font-medium text-gray-700 mb-1">SKU</Label>
                   <Input
                     id="sku"
                     value={serviceData.sku || ''}
@@ -376,7 +377,7 @@ console.log('[QuickAddService] Service created successfully');
                   />
                 </div>
                 <div>
-                  <label htmlFor="inventoryCount" className="block text-sm font-medium text-gray-700">Inventory Count</label>
+                  <Label htmlFor="inventoryCount" className="block text-sm font-medium text-gray-700 mb-1">Inventory Count</Label>
                   <Input
                     id="inventoryCount"
                     type="number"
@@ -392,7 +393,7 @@ console.log('[QuickAddService] Service created successfully');
             {allServiceTypes.find(t => t.id === serviceData.service_type_id)?.name === 'Software License' && (
               <>
                 <div>
-                  <label htmlFor="seatLimit" className="block text-sm font-medium text-gray-700">Seat Limit</label>
+                  <Label htmlFor="seatLimit" className="block text-sm font-medium text-gray-700 mb-1">Seat Limit</Label>
                   <Input
                     id="seatLimit"
                     type="number"
@@ -402,7 +403,7 @@ console.log('[QuickAddService] Service created successfully');
                   />
                 </div>
                 <div>
-                  <label htmlFor="licenseTerm" className="block text-sm font-medium text-gray-700">License Term</label>
+                  <Label htmlFor="licenseTerm" className="block text-sm font-medium text-gray-700 mb-1">License Term</Label>
                   <CustomSelect
                     options={LICENSE_TERM_OPTIONS}
                     value={serviceData.license_term || 'monthly'}
