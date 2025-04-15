@@ -102,6 +102,27 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
     setNewCommentContent(content);
   };
   const handleAddNewComment = async (isInternal: boolean, isResolution: boolean): Promise<boolean> => {
+    const contentStr = JSON.stringify(newCommentContent);
+    const hasContent = contentStr !== JSON.stringify([{
+      type: "paragraph",
+      props: {
+        textAlignment: "left",
+        backgroundColor: "default",
+        textColor: "default"
+      },
+      content: [{
+        type: "text",
+        text: "",
+        styles: {}
+      }]
+    }]);
+
+    if (!hasContent) {
+      console.log("Cannot add empty comment");
+      toast.error("Cannot add empty comment");
+      return false;
+    }
+
     try {
       await addClientTicketComment(
         ticketId,
@@ -131,6 +152,7 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
     } catch (error) {
       console.error('Failed to add comment:', error);
       setError('Failed to add comment');
+      toast.error('Failed to add comment');
       return false;
     }
   };
@@ -148,6 +170,27 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
     try {
       if (!currentComment?.comment_id) return;
       
+      if (updates.note) {
+        try {
+          const parsedContent = JSON.parse(updates.note);
+          const isEmpty = 
+            (Array.isArray(parsedContent) && parsedContent.length === 0) ||
+            (Array.isArray(parsedContent) && parsedContent.length === 1 && 
+             parsedContent[0].type === 'paragraph' && 
+             (!parsedContent[0].content || 
+              (Array.isArray(parsedContent[0].content) && parsedContent[0].content.length === 0) ||
+              (Array.isArray(parsedContent[0].content) && parsedContent[0].content.length === 1 && 
+               parsedContent[0].content[0].text === '')));
+          
+          if (isEmpty) {
+            toast.error("Cannot save empty note");
+            return;
+          }
+        } catch (e) {
+          console.error("Error parsing note JSON:", e);
+        }
+      }
+      
       await updateClientTicketComment(currentComment.comment_id, updates);
       setIsEditing(false);
       setCurrentComment(null);
@@ -158,6 +201,7 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
     } catch (error) {
       console.error('Failed to update comment:', error);
       setError('Failed to update comment');
+      toast.error('Failed to update comment');
     }
   };
 
@@ -173,6 +217,7 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
       // Check if the comment belongs to the current user
       if (comment.user_id !== currentUser?.id) {
         setError('You can only delete your own comments');
+        toast.error('You can only delete your own comments');
         return;
       }
       
@@ -180,9 +225,11 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
       // Refresh ticket details to remove deleted comment
       const details = await getClientTicketDetails(ticketId);
       setTicket(details);
+      toast.success('Comment deleted successfully');
     } catch (error) {
       console.error('Failed to delete comment:', error);
       setError('Failed to delete comment');
+      toast.error('Failed to delete comment');
     }
   };
 
