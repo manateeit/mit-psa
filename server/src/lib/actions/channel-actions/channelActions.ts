@@ -41,7 +41,13 @@ export async function deleteChannel(channelId: string): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('Error deleting channel:', error);
-    throw new Error('Failed to delete channel');
+    if (error instanceof Error) {
+      if (error.message.includes('violates foreign key constraint') && error.message.includes('on table "tickets"')) {
+        throw new Error('Cannot delete channel: It currently has one or more tickets.');
+      }
+      throw error;
+    }
+    throw new Error('Failed to delete channel due to an unexpected error.');
   }
 }
 
@@ -55,6 +61,11 @@ export async function updateChannel(channelId: string, channelData: Partial<Omit
     return updatedChannel;
   } catch (error) {
     console.error('Error updating channel:', error);
-    throw new Error('Failed to update channel');
+    // Re-throw the original error to provide specific feedback to the frontend
+    if (error instanceof Error) {
+      throw error;
+    }
+    // Fallback for non-Error types (though less likely here)
+    throw new Error('Failed to update channel due to an unexpected error.');
   }
 }
