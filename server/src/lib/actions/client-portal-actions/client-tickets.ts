@@ -8,6 +8,7 @@ import { getServerSession } from 'next-auth';
 import { options } from 'server/src/app/api/auth/[...nextauth]/options';
 import { z } from 'zod';
 import { NumberingService } from 'server/src/lib/services/numberingService';
+import { convertBlockNoteToMarkdown } from 'server/src/lib/utils/blocknoteUtils';
 
 const clientTicketSchema = z.object({
   title: z.string().min(1),
@@ -265,7 +266,7 @@ export async function getClientTicketDetails(ticketId: string): Promise<ITicket>
   }
 }
 
-export async function addClientTicketComment(ticketId: string, content: string, isInternal: boolean = false, isResolution: boolean = false): Promise<void> {
+export async function addClientTicketComment(ticketId: string, content: string, isInternal: boolean = false, isResolution: boolean = false): Promise<boolean> {
   try {
     const session = await getServerSession(options);
     if (!session?.user) {
@@ -288,6 +289,15 @@ export async function addClientTicketComment(ticketId: string, content: string, 
       throw new Error('User not associated with a contact');
     }
 
+    let markdownContent = "";
+    try {
+      markdownContent = await convertBlockNoteToMarkdown(content);
+      console.log("Converted markdown content for client comment:", markdownContent);
+    } catch (e) {
+      console.error("Error converting client comment to markdown:", e);
+      markdownContent = "[Error converting content to markdown]";
+    }
+
     await db('comments').insert({
       tenant,
       ticket_id: ticketId,
@@ -296,8 +306,11 @@ export async function addClientTicketComment(ticketId: string, content: string, 
       is_internal: isInternal,
       is_resolution: isResolution,
       created_at: new Date().toISOString(),
-      user_id: session.user.id
+      user_id: session.user.id,
+      markdown_content: markdownContent
     });
+    
+    return true; // Return true to indicate success
   } catch (error) {
     console.error('Failed to add comment:', error);
     throw new Error('Failed to add comment');
@@ -340,13 +353,25 @@ export async function updateClientTicketComment(commentId: string, updates: Part
       throw new Error('Comment not found or not authorized to edit');
     }
 
+    let updatesWithMarkdown = { ...updates };
+    if (updates.note) {
+      try {
+        const markdownContent = await convertBlockNoteToMarkdown(updates.note);
+        console.log("Converted markdown content for updated client comment:", markdownContent);
+        updatesWithMarkdown.markdown_content = markdownContent;
+      } catch (e) {
+        console.error("Error converting updated client comment to markdown:", e);
+        updatesWithMarkdown.markdown_content = "[Error converting content to markdown]";
+      }
+    }
+
     await db('comments')
       .where({
         comment_id: commentId,
         tenant
       })
       .update({
-        ...updates,
+        ...updatesWithMarkdown,
         updated_at: new Date().toISOString()
         // Removed updated_by as it doesn't exist in the comments table
       });

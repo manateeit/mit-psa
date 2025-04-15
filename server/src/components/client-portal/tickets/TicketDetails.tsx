@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from 'server/src/components/ui/Button';
-import { X } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import RichTextViewer from 'server/src/components/editor/RichTextViewer';
 import { Card } from 'server/src/components/ui/Card';
 import TicketDocumentsSection from 'server/src/components/tickets/TicketDocumentsSection';
@@ -11,7 +11,8 @@ import {
   getClientTicketDetails, 
   addClientTicketComment,
   updateClientTicketComment,
-  deleteClientTicketComment
+  deleteClientTicketComment,
+  updateTicketStatus
 } from 'server/src/lib/actions/client-portal-actions/client-tickets';
 import { formatDistanceToNow } from 'date-fns';
 import { ITicket } from 'server/src/interfaces/ticket.interfaces';
@@ -21,6 +22,11 @@ import TicketConversation from 'server/src/components/tickets/TicketConversation
 import { DEFAULT_BLOCK } from 'server/src/components/editor/TextEditor';
 import { PartialBlock } from '@blocknote/core';
 import { getCurrentUser } from 'server/src/lib/actions/user-actions/userActions';
+import { getTicketStatuses } from 'server/src/lib/actions/status-actions/statusActions';
+import { IStatus } from 'server/src/interfaces/status.interface';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { ConfirmationDialog } from 'server/src/components/ui/ConfirmationDialog';
+import toast from 'react-hot-toast';
 
 interface TicketDetailsProps {
   ticketId: string;
@@ -45,6 +51,8 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [currentComment, setCurrentComment] = useState<IComment | null>(null);
   const [editorKey, setEditorKey] = useState(0);
+  const [statusOptions, setStatusOptions] = useState<IStatus[]>([]);
+  const [ticketToUpdateStatus, setTicketToUpdateStatus] = useState<{ ticketId: string; newStatusId: string; currentStatusName: string; newStatusName: string; } | null>(null);
   const [newCommentContent, setNewCommentContent] = useState<PartialBlock[]>([{
     type: "paragraph",
     props: {
@@ -66,11 +74,13 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
       setLoading(true);
       setError(null);
       try {
-        const [details, user] = await Promise.all([
+        const [details, user, statuses] = await Promise.all([
           getClientTicketDetails(ticketId),
-          getCurrentUser()
+          getCurrentUser(),
+          getTicketStatuses()
         ]);
         setTicket(details);
+        setStatusOptions(statuses || []);
         if (user) {
           setCurrentUser({
             id: user.user_id,
@@ -91,7 +101,28 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
   const handleNewCommentContentChange = (content: PartialBlock[]) => {
     setNewCommentContent(content);
   };
-  const handleAddNewComment = async (isInternal: boolean, isResolution: boolean) => {
+  const handleAddNewComment = async (isInternal: boolean, isResolution: boolean): Promise<boolean> => {
+    const contentStr = JSON.stringify(newCommentContent);
+    const hasContent = contentStr !== JSON.stringify([{
+      type: "paragraph",
+      props: {
+        textAlignment: "left",
+        backgroundColor: "default",
+        textColor: "default"
+      },
+      content: [{
+        type: "text",
+        text: "",
+        styles: {}
+      }]
+    }]);
+
+    if (!hasContent) {
+      console.log("Cannot add empty comment");
+      toast.error("Cannot add empty comment");
+      return false;
+    }
+
     try {
       await addClientTicketComment(
         ticketId,
@@ -117,9 +148,12 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
       // Refresh ticket details to get new comment
       const details = await getClientTicketDetails(ticketId);
       setTicket(details);
+      return true;
     } catch (error) {
       console.error('Failed to add comment:', error);
       setError('Failed to add comment');
+      toast.error('Failed to add comment');
+      return false;
     }
   };
 
@@ -136,6 +170,27 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
     try {
       if (!currentComment?.comment_id) return;
       
+      if (updates.note) {
+        try {
+          const parsedContent = JSON.parse(updates.note);
+          const isEmpty = 
+            (Array.isArray(parsedContent) && parsedContent.length === 0) ||
+            (Array.isArray(parsedContent) && parsedContent.length === 1 && 
+             parsedContent[0].type === 'paragraph' && 
+             (!parsedContent[0].content || 
+              (Array.isArray(parsedContent[0].content) && parsedContent[0].content.length === 0) ||
+              (Array.isArray(parsedContent[0].content) && parsedContent[0].content.length === 1 && 
+               parsedContent[0].content[0].text === '')));
+          
+          if (isEmpty) {
+            toast.error("Cannot save empty note");
+            return;
+          }
+        } catch (e) {
+          console.error("Error parsing note JSON:", e);
+        }
+      }
+      
       await updateClientTicketComment(currentComment.comment_id, updates);
       setIsEditing(false);
       setCurrentComment(null);
@@ -146,6 +201,7 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
     } catch (error) {
       console.error('Failed to update comment:', error);
       setError('Failed to update comment');
+      toast.error('Failed to update comment');
     }
   };
 
@@ -161,6 +217,7 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
       // Check if the comment belongs to the current user
       if (comment.user_id !== currentUser?.id) {
         setError('You can only delete your own comments');
+        toast.error('You can only delete your own comments');
         return;
       }
       
@@ -168,9 +225,11 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
       // Refresh ticket details to remove deleted comment
       const details = await getClientTicketDetails(ticketId);
       setTicket(details);
+      toast.success('Comment deleted successfully');
     } catch (error) {
       console.error('Failed to delete comment:', error);
       setError('Failed to delete comment');
+      toast.error('Failed to delete comment');
     }
   };
 
@@ -180,6 +239,25 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
         ...currentComment,
         note: JSON.stringify(content)
       });
+    }
+  };
+
+  const handleStatusChangeConfirm = async () => {
+    if (!ticketToUpdateStatus || !ticket) return;
+
+    const { ticketId, newStatusId, newStatusName } = ticketToUpdateStatus;
+
+    try {
+      await updateTicketStatus(ticketId, newStatusId);
+      toast.success(`Ticket status successfully updated to "${newStatusName}".`);
+
+      setTicket(prevTicket => prevTicket ? { ...prevTicket, status_id: newStatusId, status_name: newStatusName } : null);
+
+    } catch (error) {
+      console.error('Failed to update ticket status:', error);
+      toast.error('Failed to update ticket status.');
+    } finally {
+      setTicketToUpdateStatus(null);
     }
   };
 
@@ -203,9 +281,35 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center space-x-2">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {ticket.status_name || 'Unknown Status'}
-                    </span>
+                    <DropdownMenu.Root>
+                      <DropdownMenu.Trigger asChild>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 cursor-pointer hover:bg-blue-200">
+                          {ticket.status_name || 'Unknown Status'}
+                          <ChevronDown className="ml-1 h-3 w-3" />
+                        </span>
+                      </DropdownMenu.Trigger>
+                      <DropdownMenu.Content className="w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                        {statusOptions
+                          .map((status) => (
+                            <DropdownMenu.Item
+                              key={status.status_id}
+                              className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer outline-none"
+                              onSelect={() => {
+                                if (ticket.status_id !== status.status_id) {
+                                  setTicketToUpdateStatus({
+                                    ticketId: ticket.ticket_id!,
+                                    newStatusId: status.status_id!,
+                                    currentStatusName: ticket.status_name || '',
+                                    newStatusName: status.name || ''
+                                  });
+                                }
+                              }}
+                            >
+                              {status.name}
+                            </DropdownMenu.Item>
+                          ))}
+                      </DropdownMenu.Content>
+                    </DropdownMenu.Root>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                       {ticket.priority_name || 'Unknown Priority'}
                     </span>
@@ -292,6 +396,16 @@ export function TicketDetails({ ticketId, open, onClose }: TicketDetailsProps) {
           </Dialog.Close>
         </Dialog.Content>
       </Dialog.Portal>
+      {/* Confirmation Dialog for Status Change */}
+      <ConfirmationDialog
+        isOpen={!!ticketToUpdateStatus}
+        onClose={() => setTicketToUpdateStatus(null)}
+        onConfirm={handleStatusChangeConfirm}
+        title="Update Ticket Status"
+        message={`Are you sure you want to change the status from "${ticketToUpdateStatus?.currentStatusName}" to "${ticketToUpdateStatus?.newStatusName}"?`}
+        confirmLabel="Update"
+        cancelLabel="Cancel"
+      />
     </Dialog.Root>
   );
 }

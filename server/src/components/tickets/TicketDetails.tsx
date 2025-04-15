@@ -390,7 +390,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
 
     const [editorKey, setEditorKey] = useState(0);
 
-    const handleAddNewComment = async (isInternal: boolean, isResolution: boolean) => {
+    const handleAddNewComment = async (isInternal: boolean, isResolution: boolean): Promise<boolean> => {
         // Check if content is empty
         const contentStr = JSON.stringify(newCommentContent);
         const hasContent = contentStr !== JSON.stringify([{
@@ -408,14 +408,14 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
         }]);
 
         if (!hasContent) {
-            console.log("Cannot add empty note");
-            return;
+            console.log("Cannot add empty comment");
+            return false;
         }
     
         try {
             if (!userId) {
                 console.error("No valid user ID found");
-                return;
+                return false;
             }
             
             // Use the centralized utility to convert BlockNote content to markdown
@@ -444,42 +444,52 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({
                         styles: {}
                     }]
                 }]);
+                
+                return true;
             } else {
                 // For client portal, use addClientTicketComment with isInternal always false
                 if (ticket.ticket_id) {
                     // Call the client portal specific action
-                    await addClientTicketComment(
+                    const success = await addClientTicketComment(
                         ticket.ticket_id,
                         JSON.stringify(newCommentContent),
                         false, // isInternal is always false in client portal
                         isResolution // Pass the isResolution flag
                     );
                     
-                    // Refresh comments after adding
-                    const updatedComments = await findCommentsByTicketId(ticket.ticket_id);
-                    setConversations(updatedComments);
-                    
-                    // Reset the comment input
-                    setNewCommentContent([{
-                        type: "paragraph",
-                        props: {
-                            textAlignment: "left",
-                            backgroundColor: "default",
-                            textColor: "default"
-                        },
-                        content: [{
-                            type: "text",
-                            text: "",
-                            styles: {}
-                        }]
-                    }]);
-                    console.log("New note added successfully");
+                    if (success) {
+                        // Refresh comments after adding
+                        const updatedComments = await findCommentsByTicketId(ticket.ticket_id);
+                        setConversations(updatedComments);
+                        
+                        // Reset the comment input
+                        setNewCommentContent([{
+                            type: "paragraph",
+                            props: {
+                                textAlignment: "left",
+                                backgroundColor: "default",
+                                textColor: "default"
+                            },
+                            content: [{
+                                type: "text",
+                                text: "",
+                                styles: {}
+                            }]
+                        }]);
+                        console.log("New note added successfully");
+                        return true;
+                    } else {
+                        console.error('Failed to add comment');
+                        return false;
+                    }
                 } else {
                     console.error('Ticket ID is missing');
+                    return false;
                 }
             }
         } catch (error) {
             console.error("Error adding new note:", error);
+            return false;
         }
     };
     

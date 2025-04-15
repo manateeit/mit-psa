@@ -3,22 +3,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from 'server/src/components/ui/Dialog';
 import { Button } from 'server/src/components/ui/Button';
-import { AlertCircle, X } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { createClientTicket } from 'server/src/lib/actions/client-portal-actions/client-tickets';
 import { getTicketFormData } from 'server/src/lib/actions/ticket-actions/ticketFormActions';
 import { IPriority } from 'server/src/interfaces';
 import CustomSelect from 'server/src/components/ui/CustomSelect';
 import { Input } from 'server/src/components/ui/Input';
 import { TextArea } from 'server/src/components/ui/TextArea';
-import { useRouter } from 'next/navigation';
 
 interface ClientAddTicketProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onTicketAdded?: () => void;
 }
 
-export function ClientAddTicket({ open, onOpenChange }: ClientAddTicketProps) {
-  const router = useRouter();
+export function ClientAddTicket({ open, onOpenChange, onTicketAdded }: ClientAddTicketProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -97,7 +96,7 @@ export function ClientAddTicket({ open, onOpenChange }: ClientAddTicketProps) {
       await createClientTicket(formData);
       resetForm();
       onOpenChange(false);
-      router.refresh();
+      onTicketAdded?.();
     } catch (error) {
       console.error('Error creating ticket:', error);
       setError(error instanceof Error ? error.message : 'Failed to create ticket. Please try again.');
@@ -189,17 +188,6 @@ export function ClientAddTicket({ open, onOpenChange }: ClientAddTicketProps) {
             </form>
           </>
         )}
-            <Button
-              id="close-dialog-button"
-              variant="ghost"
-              size="sm"
-              className="absolute top-4 right-4 p-0 w-6 h-6 flex items-center justify-center"
-              aria-label="Close"
-              onClick={handleClose}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-
       </DialogContent>
     </Dialog>
   );

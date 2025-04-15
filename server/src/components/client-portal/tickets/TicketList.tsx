@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import { DataTable } from 'server/src/components/ui/DataTable';
 import { format } from 'date-fns';
 import { getClientTickets, updateTicketStatus } from 'server/src/lib/actions/client-portal-actions/client-tickets';
@@ -80,92 +81,85 @@ export function TicketList() {
     loadOptions();
   }, []);
 
-  // Load and filter tickets
-  useEffect(() => {
-    const loadTickets = async () => {
-      setLoading(true);
-      try {
-        const result = await getClientTickets(selectedStatus);
-        
-        // Apply client-side filtering
-        let filteredTickets = [...result];
+  const loadTickets = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await getClientTickets(selectedStatus);
+      
+      let filteredTickets = [...result];
 
-        // Filter by categories
-        if (selectedCategories.length > 0) {
-          filteredTickets = filteredTickets.filter(ticket => {
-            if (selectedCategories.includes('no-category')) {
-              return !ticket.category_id && !ticket.subcategory_id;
-            }
-            return selectedCategories.includes(ticket.category_id || '') || 
-                   selectedCategories.includes(ticket.subcategory_id || '');
-          });
-        }
-
-        // Filter by excluded categories
-        if (excludedCategories.length > 0) {
-          filteredTickets = filteredTickets.filter(ticket => {
-            if (excludedCategories.includes('no-category')) {
-              return ticket.category_id || ticket.subcategory_id;
-            }
-            return !excludedCategories.includes(ticket.category_id || '') && 
-                   !excludedCategories.includes(ticket.subcategory_id || '');
-          });
-        }
-
-        // Filter by priority
-        if (selectedPriority !== 'all') {
-          filteredTickets = filteredTickets.filter(ticket => 
-            ticket.priority_id === selectedPriority
-          );
-        }
-
-        // Filter by search query
-        if (searchQuery) {
-          const query = searchQuery.toLowerCase();
-          filteredTickets = filteredTickets.filter(ticket => 
-            ticket.title?.toLowerCase().includes(query) ||
-            ticket.ticket_number?.toLowerCase().includes(query) ||
-            ticket.status_name?.toLowerCase().includes(query) ||
-            ticket.priority_name?.toLowerCase().includes(query)
-          );
-        }
-
-        // Apply sorting
-        const sortedTickets = [...filteredTickets].sort((a, b) => {
-          const aValue = a[sortField as keyof ITicketListItem];
-          const bValue = b[sortField as keyof ITicketListItem];
-
-          if (!aValue && !bValue) return 0;
-          if (!aValue) return 1;
-          if (!bValue) return -1;
-
-          if (typeof aValue === 'string' && typeof bValue === 'string') {
-            return sortDirection === 'asc' 
-              ? aValue.localeCompare(bValue)
-              : bValue.localeCompare(aValue);
+      if (selectedCategories.length > 0) {
+        filteredTickets = filteredTickets.filter(ticket => {
+          if (selectedCategories.includes('no-category')) {
+            return !ticket.category_id && !ticket.subcategory_id;
           }
-
-          // Handle date fields
-          if (sortField === 'entered_at' || sortField === 'updated_at') {
-            const aDate = new Date(aValue as string);
-            const bDate = new Date(bValue as string);
-            return sortDirection === 'asc' 
-              ? aDate.getTime() - bDate.getTime()
-              : bDate.getTime() - aDate.getTime();
-          }
-
-          return 0;
+          return selectedCategories.includes(ticket.category_id || '') || 
+                 selectedCategories.includes(ticket.subcategory_id || '');
         });
-
-        setTickets(sortedTickets);
-      } catch (error) {
-        console.error('Failed to load tickets:', error);
       }
-      setLoading(false);
-    };
 
-    loadTickets();
+      if (excludedCategories.length > 0) {
+        filteredTickets = filteredTickets.filter(ticket => {
+          if (excludedCategories.includes('no-category')) {
+            return ticket.category_id || ticket.subcategory_id;
+          }
+          return !excludedCategories.includes(ticket.category_id || '') && 
+                 !excludedCategories.includes(ticket.subcategory_id || '');
+        });
+      }
+
+      if (selectedPriority !== 'all') {
+        filteredTickets = filteredTickets.filter(ticket => 
+          ticket.priority_id === selectedPriority
+        );
+      }
+
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        filteredTickets = filteredTickets.filter(ticket => 
+          ticket.title?.toLowerCase().includes(query) ||
+          ticket.ticket_number?.toLowerCase().includes(query) ||
+          ticket.status_name?.toLowerCase().includes(query) ||
+          ticket.priority_name?.toLowerCase().includes(query)
+        );
+      }
+
+      const sortedTickets = [...filteredTickets].sort((a, b) => {
+        const aValue = a[sortField as keyof ITicketListItem];
+        const bValue = b[sortField as keyof ITicketListItem];
+
+        if (!aValue && !bValue) return 0;
+        if (!aValue) return 1;
+        if (!bValue) return -1;
+
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          return sortDirection === 'asc' 
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        }
+
+        if (sortField === 'entered_at' || sortField === 'updated_at') {
+          const aDate = new Date(aValue as string);
+          const bDate = new Date(bValue as string);
+          return sortDirection === 'asc' 
+            ? aDate.getTime() - bDate.getTime()
+            : bDate.getTime() - aDate.getTime();
+        }
+
+        return 0;
+      });
+
+      setTickets(sortedTickets);
+    } catch (error) {
+      console.error('Failed to load tickets:', error);
+    }
+    setLoading(false);
   }, [selectedStatus, selectedPriority, selectedCategories, excludedCategories, searchQuery, sortField, sortDirection]);
+
+  // Load tickets on initial mount and when filters/sorting change
+  useEffect(() => {
+    loadTickets();
+  }, [loadTickets]);
 
   const handleSort = useCallback((field: string) => {
     setSortDirection(current => 
@@ -179,21 +173,23 @@ export function TicketList() {
   const handleStatusChange = useCallback(async () => {
     if (!ticketToUpdateStatus) return;
 
-    try {
-      await updateTicketStatus(
-        ticketToUpdateStatus.ticketId,
-        ticketToUpdateStatus.newStatus
-      );
+    const { ticketId, newStatus } = ticketToUpdateStatus;
+    const newStatusLabel = statusOptions.find(s => s.value === newStatus)?.label || 'Unknown Status';
 
-      // Refresh tickets
-      const result = await getClientTickets(selectedStatus);
-      setTickets(result);
+    try {
+      await updateTicketStatus(ticketId, newStatus);
+
+      toast.success(`Ticket status successfully updated to "${newStatusLabel}".`);
+
+      // Refresh tickets by calling loadTickets
+      loadTickets(); 
     } catch (error) {
       console.error('Failed to update ticket status:', error);
+      toast.error('Failed to update ticket status.');
     } finally {
       setTicketToUpdateStatus(null);
     }
-  }, [ticketToUpdateStatus, selectedStatus]);
+  }, [ticketToUpdateStatus, selectedStatus, loadTickets, statusOptions]); 
 
   const handleCategorySelect = useCallback((categoryIds: string[], excludedIds: string[]) => {
     setSelectedCategories(categoryIds);
@@ -404,7 +400,8 @@ export function TicketList() {
 
       <ClientAddTicket 
         open={isAddTicketOpen} 
-        onOpenChange={setIsAddTicketOpen} 
+        onOpenChange={setIsAddTicketOpen}
+        onTicketAdded={loadTickets}
       />
 
       <ConfirmationDialog

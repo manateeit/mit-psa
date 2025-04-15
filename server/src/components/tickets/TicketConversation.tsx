@@ -29,7 +29,7 @@ interface TicketConversationProps {
   currentComment: IComment | null;
   editorKey: number;
   onNewCommentContentChange: (content: PartialBlock[]) => void;
-  onAddNewComment: (isInternal: boolean, isResolution: boolean) => Promise<void>;
+  onAddNewComment: (isInternal: boolean, isResolution: boolean) => Promise<boolean>;
   onTabChange: (tab: string) => void;
   onEdit: (conversation: IComment) => void;
   onSave: (updates: Partial<IComment>) => void;
@@ -71,26 +71,31 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
     setShowEditor(true);
   };
   const handleSubmitComment = async () => {
+    let success = false;
     try {
       if (hideInternalTab) {
         // Client Portal: Call with false for isInternal and use isResolutionToggle for isResolution
-        await onAddNewComment(false, isResolutionToggle);
-        // Reset the resolution toggle
-        setIsResolutionToggle(false);
+        success = await onAddNewComment(false, isResolutionToggle);
+        if (success) {
+          setIsResolutionToggle(false);
+        }
       } else {
         // Main App: Use toggle states for isInternal and isResolution
-        await onAddNewComment(isInternalToggle, isResolutionToggle);
-        // Reset both toggles
-        setIsInternalToggle(false);
-        setIsResolutionToggle(false);
+        success = await onAddNewComment(isInternalToggle, isResolutionToggle);
+        if (success) {
+          setIsInternalToggle(false);
+          setIsResolutionToggle(false);
+        }
       }
       
-      // Only hide the editor after the comment has been successfully added
-      console.log('Comment added successfully, closing editor');
-      setShowEditor(false);
+      if (success) {
+        console.log('Comment added successfully, closing editor');
+        setShowEditor(false);
+      } else {
+        console.log('Comment addition failed, keeping editor open');
+      }
     } catch (error) {
-      console.error('Error adding comment:', error);
-      // Don't close the editor if there was an error
+      console.error('Error during comment submission process:', error);
     }
   };
 
@@ -164,7 +169,9 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
       content: (
         <ReflectionContainer id={`${id}-resolution-comments`} label="Resolution Comments">
           <h3 className="text-lg font-medium mb-4">Resolution Comments</h3>
-          {renderComments(conversations.filter(conversation => conversation.is_resolution))}
+          {renderComments(conversations.filter(conversation => 
+            conversation.is_resolution && (!hideInternalTab || !conversation.is_internal)
+          ))}
         </ReflectionContainer>
       )
     },

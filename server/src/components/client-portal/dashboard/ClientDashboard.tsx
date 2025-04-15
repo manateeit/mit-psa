@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from 'server/src/components/ui/Card';
 import { Button } from 'server/src/components/ui/Button';
 import { getDashboardMetrics, getRecentActivity, type RecentActivity } from 'server/src/lib/actions/client-portal-actions/dashboard';
@@ -12,23 +12,24 @@ export function ClientDashboard() {
   const [activities, setActivities] = useState<RecentActivity[]>([]);
   const [error, setError] = useState<boolean>(false);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [metricsData, activitiesData] = await Promise.all([
-          getDashboardMetrics(),
+  const fetchDashboardData = useCallback(async () => {
+    setError(false);
+    try {
+      const [metricsData, activitiesData] = await Promise.all([
+        getDashboardMetrics(),
           getRecentActivity()
         ]);
         setMetrics(metricsData);
-        setActivities(activitiesData);
-      } catch (error) {
-        console.error('Error loading dashboard:', error);
-        setError(true);
-      }
-    };
-
-    fetchDashboardData();
+      setActivities(activitiesData);
+    } catch (error) {
+      console.error('Error loading dashboard:', error);
+      setError(true);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   if (error) {
     return (
@@ -200,7 +201,8 @@ export function ClientDashboard() {
             </Button>
             <ClientAddTicket 
               open={isTicketDialogOpen} 
-              onOpenChange={setIsTicketDialogOpen} 
+              onOpenChange={setIsTicketDialogOpen}
+              onTicketAdded={fetchDashboardData}
             />
             <Button
               id="view-invoice-button"
