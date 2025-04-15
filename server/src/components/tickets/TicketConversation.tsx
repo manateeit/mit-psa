@@ -164,7 +164,9 @@ const TicketConversation: React.FC<TicketConversationProps> = ({
       content: (
         <ReflectionContainer id={`${id}-resolution-comments`} label="Resolution Comments">
           <h3 className="text-lg font-medium mb-4">Resolution Comments</h3>
-          {renderComments(conversations.filter(conversation => conversation.is_resolution))}
+          {renderComments(conversations.filter(conversation => 
+            conversation.is_resolution && (!hideInternalTab || !conversation.is_internal)
+          ))}
         </ReflectionContainer>
       )
     },

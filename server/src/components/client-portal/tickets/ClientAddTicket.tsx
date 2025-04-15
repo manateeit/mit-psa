@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from 'server/src/components/ui/Dialog';
 import { Button } from 'server/src/components/ui/Button';
-import { AlertCircle, X } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { createClientTicket } from 'server/src/lib/actions/client-portal-actions/client-tickets';
 import { getTicketFormData } from 'server/src/lib/actions/ticket-actions/ticketFormActions';
 import { IPriority } from 'server/src/interfaces';
@@ -189,17 +189,6 @@ export function ClientAddTicket({ open, onOpenChange }: ClientAddTicketProps) {
             </form>
           </>
         )}
-            <Button
-              id="close-dialog-button"
-              variant="ghost"
-              size="sm"
-              className="absolute top-4 right-4 p-0 w-6 h-6 flex items-center justify-center"
-              aria-label="Close"
-              onClick={handleClose}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-
       </DialogContent>
     </Dialog>
   );
