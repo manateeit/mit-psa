@@ -186,7 +186,8 @@ const TimeEntryDialogContent = memo(function TimeEntryDialogContent(props: TimeE
       return;
     }
   
-    if (selectedService.is_taxable && !entry.tax_region) {
+    // Check if the service has a tax_rate_id to determine if it's taxable
+    if (selectedService.tax_rate_id && !entry.tax_region) { 
       toast.error('Please select a tax region for taxable services');
       return;
     }
