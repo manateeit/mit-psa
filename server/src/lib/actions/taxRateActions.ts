@@ -1,8 +1,13 @@
 'use server'
 
 import { createTenantKnex } from 'server/src/lib/db';
-import { ITaxRate } from 'server/src/interfaces/billing.interfaces';
+import { ITaxRate, IService } from 'server/src/interfaces/billing.interfaces';
 import { TaxService } from 'server/src/lib/services/taxService';
+
+export type DeleteTaxRateResult = {
+  deleted: boolean;
+  affectedServices?: Pick<IService, 'service_id' | 'service_name'>[];
+};
 
 export async function getTaxRates(): Promise<ITaxRate[]> {
   try {
@@ -99,20 +104,61 @@ export async function updateTaxRate(taxRateData: ITaxRate): Promise<ITaxRate> {
   }
 }
 
-export async function deleteTaxRate(taxRateId: string): Promise<void> {
+export async function deleteTaxRate(taxRateId: string): Promise<DeleteTaxRateResult> {
   try {
     const { knex, tenant } = await createTenantKnex();
-    const deletedCount = await knex('tax_rates')
-      .where({ 
-        tax_rate_id: taxRateId,
-        tenant 
-      })
-      .del();
-    if (deletedCount === 0) {
-      throw new Error('Tax rate not found');
+
+    const affectedServices = await knex('service_catalog')
+      .where({ tenant, tax_rate_id: taxRateId })
+      .select('service_id', 'service_name');
+
+    if (affectedServices.length > 0) {
+      return { deleted: false, affectedServices };
+    } else {
+      const deletedCount = await knex('tax_rates')
+        .where({
+          tax_rate_id: taxRateId,
+          tenant
+        })
+        .del();
+
+      if (deletedCount === 0) {
+        throw new Error('Tax rate not found or already deleted.');
+      }
+      return { deleted: true };
     }
-  } catch (error) {
-    console.error('Error deleting tax rate:', error);
-    throw new Error('Failed to delete tax rate');
+  } catch (error: any) {
+    console.error('Error processing tax rate deletion:', error);
+    if (error.message.includes('Tax rate not found')) {
+        throw error;
+    }
+    throw new Error('Failed to process tax rate deletion request.');
+  }
+}
+
+export async function confirmDeleteTaxRate(taxRateId: string): Promise<void> {
+  try {
+    const { knex, tenant } = await createTenantKnex();
+
+    await knex.transaction(async (trx) => {
+      await trx('service_catalog')
+        .where({ tenant, tax_rate_id: taxRateId })
+        .update({ tax_rate_id: null });
+
+      const deletedCount = await trx('tax_rates')
+        .where({
+          tax_rate_id: taxRateId,
+          tenant
+        })
+        .del();
+
+      if (deletedCount === 0) {
+        throw new Error('Tax rate not found during confirmed deletion.');
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Error confirming tax rate deletion:', error);
+    throw new Error(error.message || 'Failed to confirm tax rate deletion.');
   }
 }

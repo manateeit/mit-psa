@@ -53,6 +53,14 @@ export async function deleteUser(userId: string): Promise<void> {
   try {
     const {knex: db, tenant} = await createTenantKnex();
 
+    const assignedCompany = await db('companies')
+      .where({ account_manager_id: userId, tenant: tenant || undefined })
+      .first();
+
+    if (assignedCompany) {
+      throw new Error('Cannot delete user: Assigned as Account Manager to one or more companies. Please reassign first.');
+    }
+
     await db.transaction(async (trx) => {
       // Delete user roles
       await trx('user_roles').where({ user_id: userId, tenant: tenant || undefined }).del();

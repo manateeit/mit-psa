@@ -11,15 +11,12 @@ exports.up = async function(knex) {
   console.log("Column added.");
 
   // 2. Add Foreign Key Constraint and Index (Including tenant for CitusDB compatibility)
-  console.log("Adding foreign key constraint (fk_companies_account_manager) with ON DELETE RESTRICT and index (idx_companies_tenant_account_manager)...");
+  console.log("Adding foreign key constraint (fk_companies_account_manager)");
   await knex.schema.alterTable('companies', (table) => {
     // Explicitly name the foreign key constraint for easier dropping in 'down'
-    // Use ON DELETE RESTRICT for CitusDB compatibility
     table.foreign(['tenant', 'account_manager_id'], 'fk_companies_account_manager')
          .references(['tenant', 'user_id'])
-         .inTable('users')
-         .onDelete('RESTRICT') // Prevent deleting users assigned as account managers
-         .onUpdate('CASCADE');
+         .inTable('users');
     table.index(['tenant', 'account_manager_id'], 'idx_companies_tenant_account_manager');
   });
   console.log("Foreign key and index added successfully.");
