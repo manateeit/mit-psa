@@ -1065,7 +1065,6 @@ export async function createCompanyContact({
         full_name: fullName,
         email,
         phone_number: phone,
-        job_title: jobTitle,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })

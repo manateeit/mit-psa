@@ -115,7 +115,9 @@ export function UserManagementSettings() {
         email: newUser.email,
         password: newUser.password,
         contactId,
-        companyId
+        companyId,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName
       });
 
       if (!result.success) {

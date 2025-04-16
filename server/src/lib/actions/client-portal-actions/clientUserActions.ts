@@ -100,12 +100,16 @@ export async function createClientUser({
   email,
   password,
   contactId,
-  companyId
+  companyId,
+  firstName,
+  lastName
 }: {
   email: string;
   password: string;
   contactId: string;
   companyId: string;
+  firstName?: string;
+  lastName?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const { knex, tenant } = await createTenantKnex();
@@ -113,30 +117,45 @@ export async function createClientUser({
       throw new Error('Tenant not found');
     }
 
-    // Get or create the appropriate client role
-    const clientRole = await knex('roles')
-      .where({ name: 'Client', tenant })
-      .first();
+    // Get all roles for tenant and find client role (case-insensitive)
+    const roles = await knex('roles').where({ tenant });
+    const clientRole = roles.find(role => 
+      role.role_name && role.role_name.toLowerCase().includes('client')
+    );
 
     if (!clientRole) {
-      throw new Error('Client role not found');
+      throw new Error(`Client role not found among ${roles.length} tenant roles`);
     }
 
     // Hash the password
     const hashedPassword = await hashPassword(password);
 
-    // Create the user
+    // Check if the password field exists in the users table
+    const hasPasswordField = await knex.schema.hasColumn('users', 'password');
+    const passwordField = hasPasswordField ? 'password' : 'hashed_password';
+    
+    console.log(`Using password field: ${passwordField}`);
+    
+    // Create the user with dynamic password field
+    const userData: any = {
+      tenant,
+      email,
+      username: email,
+      contact_id: contactId,
+      user_type: 'client',
+      is_inactive: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    // Add first and last name if provided
+    if (firstName) userData.first_name = firstName;
+    if (lastName) userData.last_name = lastName;
+    
+    userData[passwordField] = hashedPassword;
+    
     const [user] = await knex('users')
-      .insert({
-        tenant,
-        email,
-        password: hashedPassword,
-        contact_id: contactId,
-        user_type: 'client',
-        is_inactive: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .insert(userData)
       .returning('*');
 
     // Assign the client role
