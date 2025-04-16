@@ -30,7 +30,7 @@ export const TagManager: React.FC<TagManagerProps> = ({
 
   useEffect(() => {
     setTags(initialTags);
-  }, []);
+  }, [initialTags]);
 
   const handleAddTag = async (tagText: string) => {
     try {

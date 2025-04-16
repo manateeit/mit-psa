@@ -604,7 +604,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
     {
       label: "Billing",
       content: (
-        <div className="bg-white rounded-lg shadow-sm">
+        <div className="bg-white p-6 rounded-lg shadow-sm">
           <BillingConfiguration
             company={editedCompany}
             onSave={handleBillingConfigSave}
@@ -627,7 +627,7 @@ const CompanyDetails: React.FC<CompanyDetailsProps> = ({
         <div className="bg-white p-6 rounded-lg shadow-sm">
           <CompanyContactsList
             companyId={company.company_id}
-            companies={[]}
+            companies={[company]}
           />
         </div>
       )

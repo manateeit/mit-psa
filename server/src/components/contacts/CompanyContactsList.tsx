@@ -3,15 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { IContact } from 'server/src/interfaces/contact.interfaces';
 import { getContactsByCompany } from 'server/src/lib/actions/contact-actions/contactActions';
+import { Button } from 'server/src/components/ui/Button';
 import { DataTable } from 'server/src/components/ui/DataTable';
 import { ColumnDefinition } from 'server/src/interfaces/dataTable.interfaces';
 import { getAvatarUrl } from 'server/src/utils/colorUtils';
 import { useDrawer } from "server/src/context/DrawerContext";
-import ContactDetailsView from './ContactDetailsView'; // Keep this for viewing details
-import { ICompany } from 'server/src/interfaces/company.interfaces'; // Needed for ContactDetailsView
-import { IDocument } from 'server/src/interfaces/document.interface'; // Needed for ContactDetailsView
-import { getDocumentsByEntity } from 'server/src/lib/actions/document-actions/documentActions'; // Needed for ContactDetailsView
-import { getCurrentUser } from 'server/src/lib/actions/user-actions/userActions'; // Needed for ContactDetailsView
+import ContactDetailsView from './ContactDetailsView';
+import { ICompany } from 'server/src/interfaces/company.interfaces';
+import { IDocument } from 'server/src/interfaces/document.interface';
+import { getDocumentsByEntity } from 'server/src/lib/actions/document-actions/documentActions';
+import { getCurrentUser } from 'server/src/lib/actions/user-actions/userActions';
+import QuickAddContact from 'server/src/components/contacts/QuickAddContact';
 
 interface CompanyContactsListProps {
   companyId: string;
@@ -24,6 +26,7 @@ const CompanyContactsList: React.FC<CompanyContactsListProps> = ({ companyId, co
   const [error, setError] = useState<string | null>(null);
   const [documents, setDocuments] = useState<Record<string, IDocument[]>>({});
   const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [isQuickAddContactOpen, setIsQuickAddContactOpen] = useState(false);
   const { openDrawer } = useDrawer();
 
   useEffect(() => {
@@ -136,12 +139,29 @@ const CompanyContactsList: React.FC<CompanyContactsListProps> = ({ companyId, co
   }
 
   return (
-    <div>
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button 
+          id="add-new-contact-btn"
+          onClick={() => setIsQuickAddContactOpen(true)}
+        >
+          Add New Contact
+        </Button>
+      </div>
       <DataTable
         data={contacts}
         columns={columns}
-        pagination={true} // Enable pagination if needed
+        pagination={true}
         onRowClick={(row: IContact) => handleViewDetails(row)}
+      />
+      <QuickAddContact
+        isOpen={isQuickAddContactOpen}
+        onClose={() => setIsQuickAddContactOpen(false)}
+        onContactAdded={() => {
+          getContactsByCompany(companyId, 'active').then(setContacts);
+        }}
+        companies={companies}
+        selectedCompanyId={companyId}
       />
     </div>
   );
