@@ -61,19 +61,25 @@ const QuickAddContactContent: React.FC<QuickAddContactProps> = ({
 
   // Set initial company ID when the component mounts or when selectedCompanyId changes
   useEffect(() => {
-    setCompanyId(selectedCompanyId);
+    if (selectedCompanyId) {
+      setCompanyId(selectedCompanyId);
+    }
   }, [selectedCompanyId]);
 
   // Reset form and error when dialog opens/closes
   useEffect(() => {
     if (isOpen) {
-      setCompanyId(selectedCompanyId);
+      if (selectedCompanyId) {
+        setCompanyId(selectedCompanyId);
+      }
       setError(null);
     } else {
       setFullName('');
       setEmail('');
       setPhoneNumber('');
-      setCompanyId(null);
+      if (!selectedCompanyId) {
+        setCompanyId(null);
+      }
       setIsInactive(false);
       setRole('');
       setNotes('');
@@ -242,17 +248,15 @@ const QuickAddContactContent: React.FC<QuickAddContactProps> = ({
                 onClientTypeFilterChange={setClientTypeFilter}
               />
             </div>
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center space-x-2">
-                <Label htmlFor="inactive-switch">Status</Label>
-                <span className="text-sm text-gray-500">
-                  {isInactive ? 'Inactive' : 'Active'}
-                </span>
-              </div>
+            <div className="flex items-center py-2">
+              <Label htmlFor="quick-add-contact-status" className="mr-2">Status</Label>
+              <span className="text-sm text-gray-500 mr-2">
+                {isInactive ? 'Inactive' : 'Active'}
+              </span>
               <Switch
                 id="quick-add-contact-status"
-                checked={isInactive}
-                onCheckedChange={setIsInactive}
+                checked={!isInactive}
+                onCheckedChange={(checked) => setIsInactive(!checked)}
                 className="data-[state=checked]:bg-primary-500"
               />
             </div>

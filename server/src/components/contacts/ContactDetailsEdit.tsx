@@ -158,16 +158,13 @@ const ContactDetailsEdit: React.FC<ContactDetailsEditProps> = ({
               <td className="py-2 font-semibold">Status:</td>
               <td className="py-2">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-gray-500">Set contact status as active or inactive</div>
-                  </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-700">
                       {contact.is_inactive ? 'Inactive' : 'Active'}
                     </span>
                     <Switch
-                      checked={contact.is_inactive}
-                      onCheckedChange={(value) => handleInputChange('is_inactive', value)}
+                      checked={!contact.is_inactive}
+                      onCheckedChange={(checked) => handleInputChange('is_inactive', !checked)}
                       className="data-[state=checked]:bg-primary-500"
                     />
                   </div>

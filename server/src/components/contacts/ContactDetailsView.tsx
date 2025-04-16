@@ -14,7 +14,7 @@ import { ICompany } from '../../interfaces/company.interfaces';
 import CompanyDetails from '../companies/CompanyDetails';
 import InteractionsFeed from '../interactions/InteractionsFeed';
 import { IInteraction } from '../../interfaces/interaction.interfaces';
-import { TagManager } from '../tags';
+import { TagList } from '../tags';
 import { getCompanyById } from '../../lib/actions/companyActions';
 import Documents from '../documents/Documents';
 import { IDocument } from '../../interfaces/document.interface';
@@ -257,13 +257,10 @@ const ContactDetailsView: React.FC<ContactDetailsViewProps> = ({
             <tr>
               <td className="py-2 font-semibold">Tags:</td>
               <td className="py-2">
-                <TagManager
+                <TagList
                   id={`${id}-tags`}
-                  entityId={contact.contact_name_id}
-                  entityType="contact"
-                  initialTags={tags}
-                  existingTags={allTagTexts}
-                  onTagsChange={handleTagsChange}
+                  tags={tags}
+                  className="mt-1"
                 />
               </td>
             </tr>
