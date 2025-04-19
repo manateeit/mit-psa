@@ -145,7 +145,7 @@ export default function Register() {
                 height={50}
                 className="rounded-full mr-4 "
               />
-          <span className="text-lg font-semibold text-gray-800">AI-Enhanced PSA Platform for MSPs</span>
+          <span className="text-lg font-semibold text-gray-800">Manatee IT PSA Platform</span>
         </div>
 
       {/* Left side with testimonial */}

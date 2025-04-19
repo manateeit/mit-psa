@@ -167,7 +167,7 @@ export default function SignIn() {
           className="rounded-full mr-4"
         />
         <span className="text-lg font-semibold text-gray-800">
-          {isClientPortal ? 'Client Portal' : 'AI-Enhanced PSA Platform for MSPs'}
+          {isClientPortal ? 'Client Portal' : 'Manatee IT PSA Platform'}
         </span>
       </div>
 
